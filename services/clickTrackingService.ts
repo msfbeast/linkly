@@ -19,6 +19,12 @@ export interface ClickRequest {
   userAgent: string;
   referrer: string;
   ipAddress: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  trigger_source?: string;
 }
 
 /**
@@ -118,7 +124,7 @@ export function deduplicateEvents(
   for (const event of events) {
     // Create a unique key from linkId and timestamp
     const key = `${event.linkId}:${event.timestamp}`;
-    
+
     if (!seen.has(key)) {
       seen.add(key);
       result.push(event);
@@ -144,10 +150,10 @@ export async function processClickRequest(
 ): Promise<ClickEvent> {
   // Parse user agent for device and OS
   const { device, os } = parseUserAgent(request.userAgent || '');
-  
+
   // Get country from IP (returns "Unknown" on failure per Requirements 2.5)
   const country = await getCountryFromIP(request.ipAddress || '');
-  
+
   // Normalize referrer - empty becomes 'direct'
   const referrer = request.referrer || 'direct';
 
@@ -176,6 +182,12 @@ export function createClickEventInput(
     referrer: request.referrer || '',
     userAgent: request.userAgent || '',
     ipAddress: request.ipAddress || '',
+    utm_source: request.utm_source,
+    utm_medium: request.utm_medium,
+    utm_campaign: request.utm_campaign,
+    utm_term: request.utm_term,
+    utm_content: request.utm_content,
+    trigger_source: request.trigger_source,
   };
 }
 
@@ -201,7 +213,7 @@ export async function trackClick(
   try {
     // Look up the link by short code
     const link = await storageAdapter.getLinkByCode(shortCode);
-    
+
     if (!link) {
       return {
         success: false,

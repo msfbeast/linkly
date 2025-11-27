@@ -15,7 +15,7 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
   const [destination, setDestination] = useState<string | null>(null);
   const [redirectMsg, setRedirectMsg] = useState('Analyzing request...');
   const [detectedLocale, setDetectedLocale] = useState<string>('');
-  
+
   // Password State
   const [isLocked, setIsLocked] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -26,14 +26,14 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
     const fetchLink = async () => {
       try {
         let link: LinkData | null | undefined = null;
-        
+
         // Try Supabase first if configured, fall back to localStorage
         if (isSupabaseConfigured()) {
           link = await supabaseAdapter.getLinkByCode(code);
         } else {
           link = getLocalLinkByCode(code);
         }
-        
+
         if (link) {
           setTargetLink(link);
 
@@ -96,18 +96,18 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
    */
   const recordClick = async (link: LinkData): Promise<void> => {
     const fingerprint = captureDeviceFingerprint();
-    
+
     console.log('[Click Tracking] Starting click recording for link:', link.id);
     console.log('[Click Tracking] Device fingerprint:', fingerprint);
     console.log('[Click Tracking] Supabase configured:', isSupabaseConfigured());
-    
+
     try {
       // Try Edge Function first for detailed analytics with IP geolocation
       const edgeFunctionUrl = import.meta.env.VITE_SUPABASE_URL?.replace('.supabase.co', '.supabase.co/functions/v1/track-click');
-      
+
       if (edgeFunctionUrl && isSupabaseConfigured()) {
         console.log('[Click Tracking] Calling Edge Function...');
-        
+
         const response = await fetch(edgeFunctionUrl, {
           method: 'POST',
           headers: {
@@ -120,7 +120,7 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
             ...fingerprint,
           }),
         });
-        
+
         if (response.ok) {
           const result = await response.json();
           console.log('[Click Tracking] Edge Function success:', result);
@@ -129,15 +129,26 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
           console.warn('[Click Tracking] Edge Function failed, falling back to direct insert');
         }
       }
-      
+
       // Fallback to direct Supabase insert
       if (isSupabaseConfigured()) {
         console.log('[Click Tracking] Recording click via Supabase directly...');
+
+        // Extract UTM and QR params
+        const searchParams = new URLSearchParams(window.location.search);
+
         const clickEventInput = createClickEventInput({
           userAgent: fingerprint.userAgent,
           referrer: fingerprint.referrer,
           ipAddress: '',
+          utm_source: searchParams.get('utm_source') || undefined,
+          utm_medium: searchParams.get('utm_medium') || undefined,
+          utm_campaign: searchParams.get('utm_campaign') || undefined,
+          utm_term: searchParams.get('utm_term') || undefined,
+          utm_content: searchParams.get('utm_content') || undefined,
+          trigger_source: searchParams.get('qr') === '1' ? 'qr' : 'link',
         }, Date.now());
+
         await supabaseAdapter.recordClick(link.id, clickEventInput);
         console.log('[Click Tracking] Click recorded successfully!');
       } else {
@@ -147,7 +158,7 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
     } catch (recordError) {
       // Log error but don't fail the redirect - graceful degradation
       console.error('[Click Tracking] Failed to record click:', recordError);
-      
+
       // Last resort fallback
       try {
         if (isSupabaseConfigured()) {
@@ -172,38 +183,46 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
     setDetectedLocale(userCountry);
 
     let finalUrl = link.originalUrl;
-    
+
     // Device Check
     if (link.smartRedirects) {
       if (/iPad|iPhone|iPod/.test(ua) && link.smartRedirects.ios) {
-         finalUrl = link.smartRedirects.ios;
-         setRedirectMsg("Opening in iOS App...");
+        finalUrl = link.smartRedirects.ios;
+        setRedirectMsg("Opening in iOS App...");
       } else if (/android/i.test(ua) && link.smartRedirects.android) {
-         finalUrl = link.smartRedirects.android;
-         setRedirectMsg("Opening in Android App...");
+        finalUrl = link.smartRedirects.android;
+        setRedirectMsg("Opening in Android App...");
       } else if (!/Mobile/.test(ua) && link.smartRedirects.desktop) {
-         finalUrl = link.smartRedirects.desktop;
+        finalUrl = link.smartRedirects.desktop;
       }
     }
 
     // Geo Check (Overrides Device if specific geo rule exists)
     if (link.geoRedirects) {
-        const geoUrl = link.geoRedirects[userCountry.toUpperCase()];
-        if (geoUrl) {
-            finalUrl = geoUrl;
-            setRedirectMsg(`Redirecting for ${userCountry}...`);
-        }
+      const geoUrl = link.geoRedirects[userCountry.toUpperCase()];
+      if (geoUrl) {
+        finalUrl = geoUrl;
+        setRedirectMsg(`Redirecting for ${userCountry}...`);
+      }
     }
 
+    // Append lcid for conversion tracking
+    // We generate a click ID (lcid) that can be used to track conversions downstream
+    // Ideally this ID matches the one in the database, but since we insert async, 
+    // we generate a client-side ID for the URL parameter.
+    const lcid = crypto.randomUUID();
+    const separator = finalUrl.includes('?') ? '&' : '?';
+    finalUrl = `${finalUrl}${separator}lcid=${lcid}`;
+
     setDestination(finalUrl);
-    
+
     // Record click with full metadata capture before redirect
     // This is done asynchronously but we don't wait for it to complete
     // to avoid delaying the redirect. Failures are handled gracefully.
     recordClick(link).catch(err => {
       console.error('Click recording failed:', err);
     });
-    
+
     // Redirect
     setTimeout(() => {
       window.location.href = finalUrl;
@@ -247,11 +266,11 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
           </div>
           <h2 className="text-xl font-bold text-white mb-2">Protected Link</h2>
           <p className="text-slate-400 mb-6 text-sm">Enter the password to access this content.</p>
-          
+
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <input 
-              type="password" 
-              placeholder="Password" 
+            <input
+              type="password"
+              placeholder="Password"
               className={`w-full bg-slate-950 border ${passwordError ? 'border-red-500' : 'border-slate-700'} text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500`}
               value={passwordInput}
               onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
@@ -276,7 +295,7 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
           </div>
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">{redirectMsg}</h2>
-        
+
         <div className="flex items-center justify-center gap-2 mb-8">
           <p className="text-slate-400 text-sm">
             Optimizing route for your device
@@ -287,7 +306,7 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
             </span>
           )}
         </div>
-        
+
         {destination && (
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm text-slate-500 max-w-md mx-auto truncate animate-pulse">
             {destination}

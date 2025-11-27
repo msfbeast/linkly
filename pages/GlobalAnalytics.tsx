@@ -14,6 +14,11 @@ interface AnalyticsSummary {
   topBrowsers: { browser: string; clicks: number }[];
   clicksByDay: { date: string; clicks: number }[];
   recentClicks: ClickEvent[];
+  // Advanced Analytics
+  topSources: { source: string; clicks: number }[];
+  topCampaigns: { campaign: string; clicks: number }[];
+  triggerSource: { source: string; clicks: number }[];
+  heatmapData: { day: number; hour: number; clicks: number }[];
 }
 
 const GlobalAnalytics: React.FC = () => {
@@ -103,6 +108,54 @@ const GlobalAnalytics: React.FC = () => {
       .map(([date, clicks]) => ({ date, clicks }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    // Process UTM Sources
+    const sourceMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      if (c.utm_source) {
+        sourceMap.set(c.utm_source, (sourceMap.get(c.utm_source) || 0) + 1);
+      }
+    });
+    const topSources = Array.from(sourceMap.entries())
+      .map(([source, clicks]) => ({ source, clicks }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5);
+
+    // Process UTM Campaigns
+    const campaignMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      if (c.utm_campaign) {
+        campaignMap.set(c.utm_campaign, (campaignMap.get(c.utm_campaign) || 0) + 1);
+      }
+    });
+    const topCampaigns = Array.from(campaignMap.entries())
+      .map(([campaign, clicks]) => ({ campaign, clicks }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5);
+
+    // Process Trigger Source (QR vs Link)
+    const triggerMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      const source = c.trigger_source === 'qr' ? 'QR Code' : 'Direct Link';
+      triggerMap.set(source, (triggerMap.get(source) || 0) + 1);
+    });
+    const triggerSource = Array.from(triggerMap.entries())
+      .map(([source, clicks]) => ({ source, clicks }))
+      .sort((a, b) => b.clicks - a.clicks);
+
+    // Process Heatmap Data (Day of Week + Hour)
+    const heatmapMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      const date = new Date(c.timestamp);
+      const day = date.getDay(); // 0-6
+      const hour = date.getHours(); // 0-23
+      const key = `${day}-${hour}`;
+      heatmapMap.set(key, (heatmapMap.get(key) || 0) + 1);
+    });
+    const heatmapData = Array.from(heatmapMap.entries()).map(([key, clicks]) => {
+      const [day, hour] = key.split('-').map(Number);
+      return { day, hour, clicks };
+    });
+
     return {
       totalClicks: filteredClicks.length,
       totalLinks: links.length,
@@ -113,6 +166,10 @@ const GlobalAnalytics: React.FC = () => {
       topBrowsers,
       clicksByDay,
       recentClicks: filteredClicks.slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 10),
+      topSources,
+      topCampaigns,
+      triggerSource,
+      heatmapData,
     };
   };
 
@@ -275,6 +332,124 @@ const GlobalAnalytics: React.FC = () => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Advanced Analytics: Campaigns & Sources */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* UTM Campaigns */}
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <TrendingUp className="w-5 h-5 text-pink-400" />
+              <h3 className="text-white font-semibold">Top Campaigns</h3>
+            </div>
+            <div className="space-y-4">
+              {analytics?.topCampaigns.length === 0 ? (
+                <p className="text-slate-500 text-sm">No campaign data yet</p>
+              ) : (
+                analytics?.topCampaigns.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <span className="text-white text-sm truncate max-w-[150px]" title={item.campaign}>{item.campaign}</span>
+                    <span className="text-slate-400 text-sm">{item.clicks}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* UTM Sources */}
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Globe className="w-5 h-5 text-orange-400" />
+              <h3 className="text-white font-semibold">Top Sources</h3>
+            </div>
+            <div className="space-y-4">
+              {analytics?.topSources.length === 0 ? (
+                <p className="text-slate-500 text-sm">No source data yet</p>
+              ) : (
+                analytics?.topSources.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <span className="text-white text-sm truncate max-w-[150px]" title={item.source}>{item.source}</span>
+                    <span className="text-slate-400 text-sm">{item.clicks}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* QR vs Link */}
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Smartphone className="w-5 h-5 text-purple-400" />
+              <h3 className="text-white font-semibold">Traffic Type</h3>
+            </div>
+            <div className="space-y-4">
+              {analytics?.triggerSource.length === 0 ? (
+                <p className="text-slate-500 text-sm">No data yet</p>
+              ) : (
+                analytics?.triggerSource.map((item, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-white text-sm">{item.source}</span>
+                      <span className="text-slate-400 text-sm">{item.clicks} ({Math.round((item.clicks / (analytics?.totalClicks || 1)) * 100)}%)</span>
+                    </div>
+                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${item.source === 'QR Code' ? 'bg-purple-500' : 'bg-blue-500'}`}
+                        style={{ width: `${(item.clicks / (analytics?.totalClicks || 1)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Engagement Heatmap */}
+        <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-5 h-5 rounded bg-gradient-to-br from-emerald-400 to-cyan-400" />
+            <h3 className="text-white font-semibold">Engagement Heatmap (UTC)</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[800px]">
+              <div className="grid grid-cols-[auto_repeat(24,1fr)] gap-1">
+                {/* Hours Header */}
+                <div className="h-8" /> {/* Spacer for row labels */}
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div key={i} className="text-xs text-slate-500 text-center">{i}</div>
+                ))}
+
+                {/* Days Rows */}
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, dayIndex) => (
+                  <React.Fragment key={day}>
+                    <div className="text-xs text-slate-400 flex items-center h-8">{day}</div>
+                    {Array.from({ length: 24 }).map((_, hourIndex) => {
+                      const dataPoint = analytics?.heatmapData.find(d => d.day === dayIndex && d.hour === hourIndex);
+                      const count = dataPoint?.clicks || 0;
+                      const maxClicks = Math.max(...(analytics?.heatmapData.map(d => d.clicks) || [1]));
+                      const intensity = count > 0 ? Math.max(0.2, count / maxClicks) : 0;
+
+                      return (
+                        <div
+                          key={`${dayIndex}-${hourIndex}`}
+                          className={`h-8 rounded-sm transition-all duration-200 hover:ring-1 hover:ring-white/50 relative group ${count > 0 ? 'bg-emerald-500' : 'bg-slate-800/50'}`}
+                          style={{ opacity: count > 0 ? intensity : 1 }}
+                          title={`${day} ${hourIndex}:00 - ${count} clicks`}
+                        >
+                          {count > 0 && (
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none border border-white/10">
+                              {count} clicks
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -52,6 +52,13 @@ interface ClickEventRow {
   timezone?: string;
   raw_user_agent: string | null;
   ip_hash: string | null;
+  // Marketing analytics
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  trigger_source?: string;
 }
 
 
@@ -125,6 +132,13 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
     longitude: row.longitude,
     isp: row.isp,
     timezone: row.timezone,
+    // Marketing analytics
+    utm_source: row.utm_source,
+    utm_medium: row.utm_medium,
+    utm_campaign: row.utm_campaign,
+    utm_term: row.utm_term,
+    utm_content: row.utm_content,
+    trigger_source: row.trigger_source,
     // These might not be in the row yet, but keeping for compatibility if added later
     browser: undefined,
     screenWidth: undefined,
@@ -353,6 +367,13 @@ export class SupabaseAdapter implements StorageAdapter {
       longitude: geoData.lon,
       isp: geoData.isp,
       timezone: geoData.timezone,
+      // Marketing analytics
+      utm_source: event.utm_source,
+      utm_medium: event.utm_medium,
+      utm_campaign: event.utm_campaign,
+      utm_term: event.utm_term,
+      utm_content: event.utm_content,
+      trigger_source: event.trigger_source || 'link',
       raw_user_agent: event.userAgent,
       ip_hash: event.ipAddress ? hashIP(event.ipAddress) : null,
     };
