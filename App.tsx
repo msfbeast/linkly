@@ -17,7 +17,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ViewState, LinkData } from './types';
-import { getLinks } from './services/storageService';
+import { supabaseAdapter } from './services/storage/supabaseAdapter';
 import { Copy, Terminal } from 'lucide-react';
 
 /**
@@ -30,25 +30,51 @@ const DashboardLayout: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [links, setLinks] = useState<LinkData[]>([]);
 
-  // Load links for total clicks display (use demo data if no real links)
+  const [clickChange, setClickChange] = useState(0);
+
+  // Load real links from Supabase
   useEffect(() => {
-    const storedLinks = getLinks();
-    if (storedLinks.length === 0) {
-      // Demo data for header display
-      setLinks([
-        { id: 'demo-1', clicks: 2847 } as LinkData,
-        { id: 'demo-2', clicks: 1523 } as LinkData,
-        { id: 'demo-3', clicks: 3156 } as LinkData,
-        { id: 'demo-4', clicks: 892 } as LinkData,
-      ]);
-    } else {
-      setLinks(storedLinks);
-    }
+    const loadLinks = async () => {
+      try {
+        const realLinks = await supabaseAdapter.getLinks();
+        setLinks(realLinks);
+        
+        // Calculate real click change (compare last 7 days vs previous 7 days)
+        const now = Date.now();
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const twoWeeks = 14 * 24 * 60 * 60 * 1000;
+        
+        let recentClicks = 0;
+        let previousClicks = 0;
+        
+        realLinks.forEach(link => {
+          (link.clickHistory || []).forEach(click => {
+            const age = now - click.timestamp;
+            if (age < oneWeek) {
+              recentClicks++;
+            } else if (age < twoWeeks) {
+              previousClicks++;
+            }
+          });
+        });
+        
+        if (previousClicks > 0) {
+          const change = Math.round(((recentClicks - previousClicks) / previousClicks) * 100);
+          setClickChange(change);
+        } else if (recentClicks > 0) {
+          setClickChange(100);
+        } else {
+          setClickChange(0);
+        }
+      } catch (error) {
+        console.error('Failed to load links:', error);
+      }
+    };
+    loadLinks();
   }, []);
 
-  // Calculate total clicks and change percentage
+  // Calculate total clicks from real data
   const totalClicks = links.reduce((acc, curr) => acc + curr.clicks, 0);
-  const clickChange = links.length > 0 ? 12 : 0;
 
   // Handle sidebar item click
   const handleSidebarItemClick = (item: string) => {
@@ -70,8 +96,13 @@ const DashboardLayout: React.FC = () => {
   };
 
   // Refresh links when modal closes (for new link creation)
-  const handleLinksUpdate = () => {
-    setLinks(getLinks());
+  const handleLinksUpdate = async () => {
+    try {
+      const realLinks = await supabaseAdapter.getLinks();
+      setLinks(realLinks);
+    } catch (error) {
+      console.error('Failed to refresh links:', error);
+    }
   };
 
   // API Page Component (Internal)
