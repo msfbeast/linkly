@@ -70,51 +70,97 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
   }, [code]);
 
   /**
-   * Captures request metadata for click tracking.
-   * Note: IP address cannot be obtained client-side, so we pass empty string.
-   * The geolocation service will return "Unknown" per Requirements 2.5.
+   * Captures detailed device fingerprint data for analytics.
+   * This data is sent to the Edge Function for server-side processing.
    */
-  const captureRequestMetadata = () => {
+  const captureDeviceFingerprint = () => {
     return {
       userAgent: navigator.userAgent || '',
       referrer: document.referrer || '',
-      // IP address is not available client-side - would need server-side tracking
-      // The geolocation service handles this gracefully by returning "Unknown"
-      ipAddress: '',
+      screenWidth: window.screen?.width,
+      screenHeight: window.screen?.height,
+      colorDepth: window.screen?.colorDepth,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      language: navigator.language,
+      platform: navigator.platform,
+      cookiesEnabled: navigator.cookieEnabled,
+      doNotTrack: navigator.doNotTrack === '1',
     };
   };
 
   /**
-   * Records a click event using the storage adapter.
-   * Handles failures gracefully - the redirect will still proceed.
+   * Records a click event using the Edge Function for detailed analytics.
+   * Falls back to direct Supabase insert if Edge Function is unavailable.
    * 
    * Requirements: 2.1, 2.2
    */
   const recordClick = async (link: LinkData): Promise<void> => {
-    const metadata = captureRequestMetadata();
-    const timestamp = Date.now();
+    const fingerprint = captureDeviceFingerprint();
     
-    // Create click event input
-    const clickEventInput = createClickEventInput(metadata, timestamp);
-    
-    // Validate the click event (log warnings but don't block)
-    const validation = validateClickEvent(link.id, clickEventInput);
-    if (!validation.valid) {
-      console.warn('Click event validation warnings:', validation.errors);
-    }
+    console.log('[Click Tracking] Starting click recording for link:', link.id);
+    console.log('[Click Tracking] Device fingerprint:', fingerprint);
+    console.log('[Click Tracking] Supabase configured:', isSupabaseConfigured());
     
     try {
+      // Try Edge Function first for detailed analytics with IP geolocation
+      const edgeFunctionUrl = import.meta.env.VITE_SUPABASE_URL?.replace('.supabase.co', '.supabase.co/functions/v1/track-click');
+      
+      if (edgeFunctionUrl && isSupabaseConfigured()) {
+        console.log('[Click Tracking] Calling Edge Function...');
+        
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            linkId: link.id,
+            shortCode: link.shortCode,
+            ...fingerprint,
+          }),
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('[Click Tracking] Edge Function success:', result);
+          return;
+        } else {
+          console.warn('[Click Tracking] Edge Function failed, falling back to direct insert');
+        }
+      }
+      
+      // Fallback to direct Supabase insert
       if (isSupabaseConfigured()) {
-        // Use Supabase adapter for production tracking
+        console.log('[Click Tracking] Recording click via Supabase directly...');
+        const clickEventInput = createClickEventInput({
+          userAgent: fingerprint.userAgent,
+          referrer: fingerprint.referrer,
+          ipAddress: '',
+        }, Date.now());
         await supabaseAdapter.recordClick(link.id, clickEventInput);
+        console.log('[Click Tracking] Click recorded successfully!');
       } else {
-        // Fall back to localStorage for local development
+        console.log('[Click Tracking] Supabase not configured, using localStorage');
         incrementClicks(link.id);
       }
     } catch (recordError) {
       // Log error but don't fail the redirect - graceful degradation
-      // Requirements: Handle tracking failures gracefully (still redirect)
-      console.error('Failed to record click:', recordError);
+      console.error('[Click Tracking] Failed to record click:', recordError);
+      
+      // Last resort fallback
+      try {
+        if (isSupabaseConfigured()) {
+          const clickEventInput = createClickEventInput({
+            userAgent: fingerprint.userAgent,
+            referrer: fingerprint.referrer,
+            ipAddress: '',
+          }, Date.now());
+          await supabaseAdapter.recordClick(link.id, clickEventInput);
+        }
+      } catch {
+        console.error('[Click Tracking] All tracking methods failed');
+      }
     }
   };
 

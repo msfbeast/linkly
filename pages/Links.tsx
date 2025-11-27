@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Wifi } from 'lucide-react';
 import LinkCard from '../components/LinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
 import { LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { execute as retryExecute } from '../services/retryService';
+import { subscribeToClickEvents, subscribeToLinkUpdates, RealtimeClickEvent, RealtimeLinkUpdate } from '../services/realtimeService';
 
 interface LinksProps {
   externalModalOpen?: boolean;
@@ -55,9 +56,70 @@ const Links: React.FC<LinksProps> = ({
     }
   }, []);
 
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+
   useEffect(() => {
     loadLinks();
   }, [loadLinks]);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    console.log('[Links] Setting up real-time subscriptions...');
+    
+    // Subscribe to new click events
+    const unsubscribeClicks = subscribeToClickEvents((event: RealtimeClickEvent) => {
+      console.log('[Links] Real-time click received:', event);
+      setIsRealtimeConnected(true);
+      
+      // Update the link's click history in state
+      setLinks(prevLinks => 
+        prevLinks.map(link => {
+          if (link.id === event.linkId) {
+            return {
+              ...link,
+              clicks: link.clicks + 1,
+              clickHistory: [event.click, ...link.clickHistory],
+              lastClickedAt: event.click.timestamp,
+            };
+          }
+          return link;
+        })
+      );
+    });
+
+    // Subscribe to link updates (click count changes)
+    const unsubscribeLinks = subscribeToLinkUpdates((update: RealtimeLinkUpdate) => {
+      console.log('[Links] Real-time link update received:', update);
+      setIsRealtimeConnected(true);
+      
+      // Update the link's click count in state
+      setLinks(prevLinks =>
+        prevLinks.map(link => {
+          if (link.id === update.linkId) {
+            return {
+              ...link,
+              clicks: update.clicks,
+              lastClickedAt: update.lastClickedAt,
+            };
+          }
+          return link;
+        })
+      );
+    });
+
+    // Mark as connected after a short delay
+    const connectionTimer = setTimeout(() => {
+      setIsRealtimeConnected(true);
+    }, 2000);
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      console.log('[Links] Cleaning up real-time subscriptions...');
+      unsubscribeClicks();
+      unsubscribeLinks();
+      clearTimeout(connectionTimer);
+    };
+  }, []);
 
 
   const handleCreateLink = async (link: LinkData) => {
@@ -174,7 +236,18 @@ const Links: React.FC<LinksProps> = ({
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Your Links</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-white tracking-tight">Your Links</h1>
+              {isRealtimeConnected && (
+                <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-emerald-400 text-[10px] font-medium uppercase tracking-wider">Live</span>
+                </span>
+              )}
+            </div>
             <p className="text-slate-400 text-sm mt-1">
               {links.length} {links.length === 1 ? 'link' : 'links'} total
             </p>

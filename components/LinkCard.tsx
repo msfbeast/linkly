@@ -237,28 +237,57 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
                   <table className="w-full text-left text-sm text-slate-400">
                     <thead className="text-xs uppercase bg-white/5 text-slate-300">
                       <tr>
-                        <th className="px-4 py-3 rounded-l-lg font-semibold tracking-wider">Time</th>
-                        <th className="px-4 py-3 font-semibold tracking-wider">Device</th>
-                        <th className="px-4 py-3 font-semibold tracking-wider">OS</th>
-                        <th className="px-4 py-3 font-semibold tracking-wider">Country</th>
-                        <th className="px-4 py-3 rounded-r-lg font-semibold tracking-wider">Referrer</th>
+                        <th className="px-3 py-3 rounded-l-lg font-semibold tracking-wider">Time</th>
+                        <th className="px-3 py-3 font-semibold tracking-wider">Location</th>
+                        <th className="px-3 py-3 font-semibold tracking-wider">Device</th>
+                        <th className="px-3 py-3 font-semibold tracking-wider">Browser</th>
+                        <th className="px-3 py-3 font-semibold tracking-wider">Screen</th>
+                        <th className="px-3 py-3 rounded-r-lg font-semibold tracking-wider">Referrer</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {link.clickHistory?.slice().reverse().slice(0, 10).map((click, i) => (
                         <tr key={i} className="hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3 text-slate-300">{new Date(click.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}</td>
-                          <td className="px-4 py-3">{click.device}</td>
-                          <td className="px-4 py-3">{click.os}</td>
-                          <td className="px-4 py-3">
-                            {click.country ? <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-xs border border-indigo-500/20">{click.country}</span> : '-'}
+                          <td className="px-3 py-3 text-slate-300 whitespace-nowrap">
+                            {new Date(click.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                           </td>
-                          <td className="px-4 py-3 truncate max-w-[200px] text-xs font-mono opacity-70">{click.referrer}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-col">
+                              {click.city && click.city !== 'Unknown' ? (
+                                <>
+                                  <span className="text-slate-200 text-xs">{click.city}</span>
+                                  <span className="text-slate-500 text-[10px]">
+                                    {click.region && click.region !== 'Unknown' ? `${click.region}, ` : ''}
+                                    {click.country || 'Unknown'}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-xs border border-indigo-500/20 inline-block w-fit">
+                                  {click.country || 'Unknown'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-slate-200 text-xs">{click.device}</span>
+                              <span className="text-slate-500 text-[10px]">{click.os}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className="text-slate-300 text-xs">{click.browser || '-'}</span>
+                          </td>
+                          <td className="px-3 py-3">
+                            {click.screenWidth && click.screenHeight ? (
+                              <span className="text-slate-400 text-xs font-mono">{click.screenWidth}×{click.screenHeight}</span>
+                            ) : '-'}
+                          </td>
+                          <td className="px-3 py-3 truncate max-w-[150px] text-xs font-mono opacity-70">{click.referrer}</td>
                         </tr>
                       ))}
                       {(!link.clickHistory || link.clickHistory.length === 0) && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center text-slate-600 italic">No clicks recorded yet. Share your link to start tracking!</td>
+                          <td colSpan={6} className="px-4 py-8 text-center text-slate-600 italic">No clicks recorded yet. Share your link to start tracking!</td>
                         </tr>
                       )}
                     </tbody>

@@ -110,6 +110,19 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
     device: row.device as ClickEvent['device'],
     os: row.os as ClickEvent['os'],
     country: row.country,
+    // Enhanced analytics fields
+    browser: (row as Record<string, unknown>).browser as string | undefined,
+    countryCode: (row as Record<string, unknown>).country_code as string | undefined,
+    region: (row as Record<string, unknown>).region as string | undefined,
+    city: (row as Record<string, unknown>).city as string | undefined,
+    latitude: (row as Record<string, unknown>).latitude as number | undefined,
+    longitude: (row as Record<string, unknown>).longitude as number | undefined,
+    isp: (row as Record<string, unknown>).isp as string | undefined,
+    screenWidth: (row as Record<string, unknown>).screen_width as number | undefined,
+    screenHeight: (row as Record<string, unknown>).screen_height as number | undefined,
+    timezone: (row as Record<string, unknown>).timezone as string | undefined,
+    language: (row as Record<string, unknown>).language as string | undefined,
+    fingerprint: (row as Record<string, unknown>).fingerprint as string | undefined,
   };
 }
 
@@ -301,15 +314,20 @@ export class SupabaseAdapter implements StorageAdapter {
    * Record a click event for a link
    */
   async recordClick(linkId: string, event: ClickEventInput): Promise<void> {
+    console.log('[SupabaseAdapter] recordClick called for linkId:', linkId);
+    
     if (!isSupabaseConfigured()) {
+      console.error('[SupabaseAdapter] Supabase is not configured!');
       throw new Error('Supabase is not configured');
     }
 
     // Parse user agent for device and OS
     const { device, os } = parseUserAgent(event.userAgent);
+    console.log('[SupabaseAdapter] Parsed UA - device:', device, 'os:', os);
     
     // Get country from IP
     const country = await getCountryFromIP(event.ipAddress);
+    console.log('[SupabaseAdapter] Country:', country);
 
     // Create click event row
     const clickEventRow = {
@@ -323,16 +341,20 @@ export class SupabaseAdapter implements StorageAdapter {
       raw_user_agent: event.userAgent,
       ip_hash: event.ipAddress ? hashIP(event.ipAddress) : null,
     };
+    console.log('[SupabaseAdapter] Click event row:', clickEventRow);
 
     const { error: clickError } = await supabase!
       .from(TABLES.CLICK_EVENTS)
       .insert(clickEventRow);
 
     if (clickError) {
+      console.error('[SupabaseAdapter] Failed to insert click event:', clickError);
       throw new Error(`Failed to record click: ${clickError.message}`);
     }
+    console.log('[SupabaseAdapter] Click event inserted successfully');
 
     // Update link click count and last clicked timestamp
+    console.log('[SupabaseAdapter] Calling increment_link_clicks RPC...');
     const { error: updateError } = await supabase!.rpc('increment_link_clicks', {
       link_id: linkId,
       clicked_at: clickEventRow.timestamp,
@@ -340,6 +362,7 @@ export class SupabaseAdapter implements StorageAdapter {
 
     // If RPC doesn't exist, fall back to manual update
     if (updateError) {
+      console.warn('[SupabaseAdapter] RPC failed, falling back to manual update:', updateError);
       const { data: link } = await supabase!
         .from(TABLES.LINKS)
         .select('clicks')
@@ -347,14 +370,22 @@ export class SupabaseAdapter implements StorageAdapter {
         .single();
 
       if (link) {
-        await supabase!
+        const { error: manualUpdateError } = await supabase!
           .from(TABLES.LINKS)
           .update({
             clicks: (link.clicks || 0) + 1,
             last_clicked_at: clickEventRow.timestamp,
           })
           .eq('id', linkId);
+        
+        if (manualUpdateError) {
+          console.error('[SupabaseAdapter] Manual update failed:', manualUpdateError);
+        } else {
+          console.log('[SupabaseAdapter] Manual update successful');
+        }
       }
+    } else {
+      console.log('[SupabaseAdapter] RPC increment successful');
     }
   }
 

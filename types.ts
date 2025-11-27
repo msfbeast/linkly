@@ -1,9 +1,22 @@
 export interface ClickEvent {
   timestamp: number;
   referrer: string;
-  device: 'Mobile' | 'Desktop' | 'Tablet' | 'Other';
-  os: 'iOS' | 'Android' | 'Windows' | 'MacOS' | 'Linux' | 'Other';
+  device: 'Mobile' | 'Desktop' | 'Tablet' | 'Other' | string;
+  os: 'iOS' | 'Android' | 'Windows' | 'MacOS' | 'Linux' | 'Other' | string;
   country?: string;
+  // Enhanced analytics fields
+  browser?: string;
+  countryCode?: string;
+  region?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  isp?: string;
+  screenWidth?: number;
+  screenHeight?: number;
+  timezone?: string;
+  language?: string;
+  fingerprint?: string;
 }
 
 export interface SmartRedirects {
