@@ -11,6 +11,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import UpdatePassword from './pages/UpdatePassword';
+import Settings from './pages/Settings';
+import GlobalAnalytics from './pages/GlobalAnalytics';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -163,22 +165,8 @@ const DashboardLayout: React.FC = () => {
           )}
           {view === ViewState.BIO_PAGES && <BioDashboard />}
           {view === ViewState.API && <ApiPage />}
-          {view === ViewState.ANALYTICS && (
-            <div className="flex items-center justify-center h-full text-slate-500">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Global Analytics</h2>
-                <p>Aggregated reports coming in version 2.0</p>
-              </div>
-            </div>
-          )}
-          {view === ViewState.SETTINGS && (
-            <div className="flex items-center justify-center h-full text-slate-500">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Settings</h2>
-                <p>Configure your workspace preferences.</p>
-              </div>
-            </div>
-          )}
+          {view === ViewState.ANALYTICS && <GlobalAnalytics />}
+          {view === ViewState.SETTINGS && <Settings />}
         </div>
       </div>
     </div>
