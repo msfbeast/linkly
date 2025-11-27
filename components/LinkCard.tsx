@@ -79,6 +79,19 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
               </div>
 
               <div className="flex items-center gap-4">
+                {/* Website Favicon */}
+                <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <img 
+                    src={`https://www.google.com/s2/favicons?domain=${new URL(link.originalUrl).hostname}&sz=64`}
+                    alt=""
+                    className="w-6 h-6"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                  <Globe className="w-5 h-5 text-slate-500 hidden" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-bold text-white truncate group-hover:text-indigo-400 transition-colors">
                     {link.title}
