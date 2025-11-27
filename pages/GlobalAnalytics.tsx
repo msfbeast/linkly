@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart3, Globe, MousePointer2, TrendingUp, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { LinkData, ClickEvent } from '../types';
+import LiveWorldMap from '../components/LiveWorldMap';
 
 interface AnalyticsSummary {
   totalClicks: number;
@@ -43,10 +44,11 @@ const GlobalAnalytics: React.FC = () => {
     });
 
     const now = Date.now();
-    const rangeMs = dateRange === '7d' ? 7 * 24 * 60 * 60 * 1000 
-                  : dateRange === '30d' ? 30 * 24 * 60 * 60 * 1000 
-                  : 90 * 24 * 60 * 60 * 1000;
+    const rangeMs = dateRange === '7d' ? 7 * 24 * 60 * 60 * 1000
+      : dateRange === '30d' ? 30 * 24 * 60 * 60 * 1000
+        : 90 * 24 * 60 * 60 * 1000;
     const filteredClicks = allClicks.filter(c => now - c.timestamp < rangeMs);
+
 
     const countryMap = new Map<string, number>();
     filteredClicks.forEach(c => {
@@ -124,15 +126,20 @@ const GlobalAnalytics: React.FC = () => {
               <button
                 key={range}
                 onClick={() => setDateRange(range)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  dateRange === range ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === range ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
               </button>
             ))}
           </div>
         </div>
+
+        {/* Live Global Map */}
+        <div className="w-full">
+          <LiveWorldMap clickHistory={analytics?.recentClicks || []} />
+        </div>
+
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-[#12121a] border border-white/5 rounded-2xl p-5">
@@ -202,6 +209,7 @@ const GlobalAnalytics: React.FC = () => {
               )}
             </div>
           </div>
+
 
           <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-6">
