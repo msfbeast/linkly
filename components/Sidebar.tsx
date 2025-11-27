@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, BarChart2, Settings, Link as LinkIcon, Code2, Layers, UserCircle2, Zap } from 'lucide-react';
+import { LayoutDashboard, BarChart2, Settings, Link as LinkIcon, Code2, Layers, UserCircle2, Zap, ShoppingBag } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface SidebarProps {
@@ -11,6 +11,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
   const menuItems = [
     { id: ViewState.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
+    { id: ViewState.PRODUCTS, icon: ShoppingBag, label: 'Products' },
     { id: ViewState.BIO_PAGES, icon: UserCircle2, label: 'Link-in-Bio' },
     { id: ViewState.ANALYTICS, icon: BarChart2, label: 'Analytics' },
     { id: ViewState.API, icon: Code2, label: 'Developer API' },

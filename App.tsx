@@ -13,6 +13,8 @@ import ResetPassword from './pages/ResetPassword';
 import UpdatePassword from './pages/UpdatePassword';
 import Settings from './pages/Settings';
 import GlobalAnalytics from './pages/GlobalAnalytics';
+import ProductManager from './pages/ProductManager';
+import Storefront from './pages/Storefront';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -38,15 +40,15 @@ const DashboardLayout: React.FC = () => {
       try {
         const realLinks = await supabaseAdapter.getLinks();
         setLinks(realLinks);
-        
+
         // Calculate real click change (compare last 7 days vs previous 7 days)
         const now = Date.now();
         const oneWeek = 7 * 24 * 60 * 60 * 1000;
         const twoWeeks = 14 * 24 * 60 * 60 * 1000;
-        
+
         let recentClicks = 0;
         let previousClicks = 0;
-        
+
         realLinks.forEach(link => {
           (link.clickHistory || []).forEach(click => {
             const age = now - click.timestamp;
@@ -57,7 +59,7 @@ const DashboardLayout: React.FC = () => {
             }
           });
         });
-        
+
         if (previousClicks > 0) {
           const change = Math.round(((recentClicks - previousClicks) / previousClicks) * 100);
           setClickChange(change);
@@ -89,36 +91,36 @@ const DashboardLayout: React.FC = () => {
         e.preventDefault();
         setIsModalOpen(true);
       }
-      
+
       // D - Go to Dashboard
       if (e.key === 'd' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         handleSidebarItemClick('dashboard');
       }
-      
+
       // L - Go to Links
       if (e.key === 'l' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         handleSidebarItemClick('links');
       }
-      
+
       // A - Go to Analytics
       if (e.key === 'a' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         handleSidebarItemClick('analytics');
       }
-      
+
       // S - Go to Settings
       if (e.key === 's' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         handleSidebarItemClick('settings');
       }
-      
+
       // Escape - Close modal
       if (e.key === 'Escape') {
         setIsModalOpen(false);
       }
-      
+
       // ? - Show keyboard shortcuts help
       if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
         e.preventDefault();
@@ -147,6 +149,9 @@ const DashboardLayout: React.FC = () => {
         break;
       case 'settings':
         setView(ViewState.SETTINGS);
+        break;
+      case 'products':
+        setView(ViewState.PRODUCTS);
         break;
     }
   };
@@ -189,7 +194,7 @@ const DashboardLayout: React.FC = () => {
             <h3 className="text-white font-bold">Create a Link</h3>
           </div>
           <pre className="bg-slate-950 p-4 rounded-xl text-xs text-slate-300 font-mono overflow-x-auto">
-{`curl -X POST https://api.linkly.ai/v1/links \\
+            {`curl -X POST https://api.linkly.ai/v1/links \\
   -H "Authorization: Bearer lk_live_..." \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -208,7 +213,7 @@ const DashboardLayout: React.FC = () => {
             <h3 className="text-white font-bold">Get Analytics</h3>
           </div>
           <pre className="bg-slate-950 p-4 rounded-xl text-xs text-slate-300 font-mono overflow-x-auto">
-{`curl -X GET https://api.linkly.ai/v1/stats/my-link \\
+            {`curl -X GET https://api.linkly.ai/v1/stats/my-link \\
   -H "Authorization: Bearer lk_live_..."`}
           </pre>
         </div>
@@ -219,11 +224,11 @@ const DashboardLayout: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-[#0a0a0f] text-slate-200">
       {/* Icon Sidebar */}
-      <IconSidebar 
-        activeItem={activeSidebarItem} 
-        onItemClick={handleSidebarItemClick} 
+      <IconSidebar
+        activeItem={activeSidebarItem}
+        onItemClick={handleSidebarItemClick}
       />
-      
+
       {/* Main Content Area */}
       <div className="flex-1 ml-16 flex flex-col">
         {/* Top Navigation */}
@@ -233,18 +238,18 @@ const DashboardLayout: React.FC = () => {
           onNewLinkClick={() => setIsModalOpen(true)}
           onSettingsClick={() => handleSidebarItemClick('settings')}
         />
-        
+
         {/* Page Content */}
         <div className="flex-1 overflow-auto">
           {view === ViewState.DASHBOARD && (
-            <Dashboard 
+            <Dashboard
               externalModalOpen={isModalOpen}
               setExternalModalOpen={setIsModalOpen}
               onLinksUpdate={handleLinksUpdate}
             />
           )}
           {view === ViewState.LINKS && (
-            <Links 
+            <Links
               externalModalOpen={isModalOpen}
               setExternalModalOpen={setIsModalOpen}
               onLinksUpdate={handleLinksUpdate}
@@ -253,6 +258,7 @@ const DashboardLayout: React.FC = () => {
           {view === ViewState.BIO_PAGES && <BioDashboard />}
           {view === ViewState.API && <ApiPage />}
           {view === ViewState.ANALYTICS && <GlobalAnalytics />}
+          {view === ViewState.PRODUCTS && <ProductManager />}
           {view === ViewState.SETTINGS && <Settings />}
         </div>
       </div>
@@ -307,7 +313,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
-      
+
       if (hash.startsWith('#/r/')) {
         const code = hash.replace('#/r/', '');
         setRedirectCode(code);
@@ -347,7 +353,8 @@ const App: React.FC = () => {
             <Route path="/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
-            
+            <Route path="/store/:userId" element={<Storefront />} />
+
             {/* Protected routes - Requirements 4.1, 4.2, 4.3 */}
             <Route
               path="/"
@@ -365,7 +372,7 @@ const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
-            
+
             {/* Catch-all redirect to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

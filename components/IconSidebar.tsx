@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Link as LinkIcon, BarChart2, Settings } from 'lucide-react';
+import { LayoutDashboard, Link as LinkIcon, BarChart2, Settings, ShoppingBag } from 'lucide-react';
 
 interface IconSidebarProps {
   activeItem: string;
@@ -10,6 +10,7 @@ interface IconSidebarProps {
 const IconSidebar: React.FC<IconSidebarProps> = ({ activeItem, onItemClick }) => {
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'products', icon: ShoppingBag, label: 'Products' },
     { id: 'links', icon: LinkIcon, label: 'Links' },
     { id: 'analytics', icon: BarChart2, label: 'Analytics' },
     { id: 'settings', icon: Settings, label: 'Settings' },
@@ -29,16 +30,15 @@ const IconSidebar: React.FC<IconSidebarProps> = ({ activeItem, onItemClick }) =>
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeItem === item.id;
-          
+
           return (
             <button
               key={item.id}
               onClick={() => onItemClick(item.id)}
-              className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 group ${
-                isActive
-                  ? 'bg-white/10 text-cyan-400'
-                  : 'text-slate-500 hover:text-white hover:bg-white/5'
-              }`}
+              className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 group ${isActive
+                ? 'bg-white/10 text-cyan-400'
+                : 'text-slate-500 hover:text-white hover:bg-white/5'
+                }`}
               title={item.label}
             >
               {isActive && (
@@ -50,7 +50,7 @@ const IconSidebar: React.FC<IconSidebarProps> = ({ activeItem, onItemClick }) =>
                 />
               )}
               <Icon className="w-5 h-5 relative z-10" />
-              
+
               {/* Tooltip on hover */}
               <span className="absolute left-full ml-3 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                 {item.label}

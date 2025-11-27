@@ -139,7 +139,21 @@ export enum ViewState {
   ANALYTICS = 'ANALYTICS',
   SETTINGS = 'SETTINGS',
   API = 'API',
-  BIO_PAGES = 'BIO_PAGES'
+  BIO_PAGES = 'BIO_PAGES',
+  PRODUCTS = 'PRODUCTS',
+  STOREFRONT = 'STOREFRONT'
+}
+
+export interface Product {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  imageUrl?: string;
+  linkId: string; // Links to LinkData for tracking
+  createdAt: number;
 }
 
 

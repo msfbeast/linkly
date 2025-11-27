@@ -6,7 +6,7 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent } from '../../types';
+import { LinkData, ClickEvent, Product } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
@@ -59,6 +59,18 @@ interface ClickEventRow {
   utm_term?: string;
   utm_content?: string;
   trigger_source?: string;
+}
+
+interface ProductRow {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  image_url: string | null;
+  link_id: string;
+  created_at: string;
 }
 
 
@@ -573,6 +585,131 @@ export class SupabaseAdapter implements StorageAdapter {
       exportedAt: Date.now(),
     };
   }
+
+  /**
+   * Product Storefront Methods
+   */
+
+  /**
+   * Create a new product
+   */
+  async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const id = uuidv4();
+    const now = new Date().toISOString();
+
+    const row: ProductRow = {
+      id,
+      user_id: product.userId,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      currency: product.currency,
+      image_url: product.imageUrl ?? null,
+      link_id: product.linkId,
+      created_at: now,
+    };
+
+    const { data, error } = await supabase!
+      .from(TABLES.PRODUCTS)
+      .insert(row)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create product: ${error.message}`);
+    }
+
+    return rowToProduct(data as ProductRow);
+  }
+
+  /**
+   * Get all products for a user
+   */
+  async getProducts(userId: string): Promise<Product[]> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data, error } = await supabase!
+      .from(TABLES.PRODUCTS)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch products: ${error.message}`);
+    }
+
+    return (data || []).map((row: ProductRow) => rowToProduct(row));
+  }
+
+  /**
+   * Update a product
+   */
+  async updateProduct(id: string, updates: Partial<Product>): Promise<Product> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const rowUpdates: Partial<ProductRow> = {};
+    if (updates.name !== undefined) rowUpdates.name = updates.name;
+    if (updates.description !== undefined) rowUpdates.description = updates.description;
+    if (updates.price !== undefined) rowUpdates.price = updates.price;
+    if (updates.currency !== undefined) rowUpdates.currency = updates.currency;
+    if (updates.imageUrl !== undefined) rowUpdates.image_url = updates.imageUrl;
+
+    const { data, error } = await supabase!
+      .from(TABLES.PRODUCTS)
+      .update(rowUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update product: ${error.message}`);
+    }
+
+    return rowToProduct(data as ProductRow);
+  }
+
+  /**
+   * Delete a product
+   */
+  async deleteProduct(id: string): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { error } = await supabase!
+      .from(TABLES.PRODUCTS)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete product: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Convert a product database row to Product object
+ */
+function rowToProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    description: row.description,
+    price: row.price,
+    currency: row.currency,
+    imageUrl: row.image_url ?? undefined,
+    linkId: row.link_id,
+    createdAt: new Date(row.created_at).getTime(),
+  };
 }
 
 /**
