@@ -8,12 +8,26 @@
 export interface GeolocationResult {
   country: string;
   countryCode: string;
+  city?: string;
+  region?: string;
+  regionName?: string;
+  lat?: number;
+  lon?: number;
+  isp?: string;
+  timezone?: string;
 }
 
 interface IpApiResponse {
   status: 'success' | 'fail';
   country?: string;
   countryCode?: string;
+  city?: string;
+  region?: string;
+  regionName?: string;
+  lat?: number;
+  lon?: number;
+  isp?: string;
+  timezone?: string;
   message?: string;
 }
 
@@ -73,7 +87,7 @@ async function fetchGeolocation(ipAddress: string): Promise<GeolocationResult> {
 
   try {
     const response = await fetch(
-      `${IP_API_BASE_URL}/${encodeURIComponent(ipAddress)}?fields=status,country,countryCode,message`,
+      `${IP_API_BASE_URL}/${encodeURIComponent(ipAddress)}?fields=status,country,countryCode,city,region,regionName,lat,lon,isp,timezone,message`,
       { signal: controller.signal }
     );
 
@@ -90,6 +104,13 @@ async function fetchGeolocation(ipAddress: string): Promise<GeolocationResult> {
     return {
       country: data.country || 'Unknown',
       countryCode: data.countryCode || 'XX',
+      city: data.city,
+      region: data.region,
+      regionName: data.regionName,
+      lat: data.lat,
+      lon: data.lon,
+      isp: data.isp,
+      timezone: data.timezone,
     };
   } finally {
     clearTimeout(timeoutId);

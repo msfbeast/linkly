@@ -54,11 +54,11 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
 
             let coordinates: [number, number] = [0, 0];
 
+            // Use precise coordinates if available (from granular analytics)
             if (event.click.longitude && event.click.latitude) {
                 coordinates = [event.click.longitude, event.click.latitude];
             } else {
-                // Fallback or random placement for visual effect if no precise location
-                // This is a placeholder. In a real app, you'd want real coordinates.
+                // Fallback: Random placement for visual effect if no precise location
                 coordinates = [
                     (Math.random() * 360) - 180,
                     (Math.random() * 160) - 80

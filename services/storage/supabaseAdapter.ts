@@ -8,7 +8,7 @@ import {
 } from './types';
 import { LinkData, ClickEvent } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
-import { getCountryFromIP } from '../geolocationService';
+import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -43,6 +43,13 @@ interface ClickEventRow {
   device: string;
   os: string;
   country: string;
+  country_code?: string;
+  city?: string;
+  region?: string;
+  latitude?: number;
+  longitude?: number;
+  isp?: string;
+  timezone?: string;
   raw_user_agent: string | null;
   ip_hash: string | null;
 }
@@ -111,18 +118,19 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
     os: row.os as ClickEvent['os'],
     country: row.country,
     // Enhanced analytics fields
-    browser: (row as Record<string, unknown>).browser as string | undefined,
-    countryCode: (row as Record<string, unknown>).country_code as string | undefined,
-    region: (row as Record<string, unknown>).region as string | undefined,
-    city: (row as Record<string, unknown>).city as string | undefined,
-    latitude: (row as Record<string, unknown>).latitude as number | undefined,
-    longitude: (row as Record<string, unknown>).longitude as number | undefined,
-    isp: (row as Record<string, unknown>).isp as string | undefined,
-    screenWidth: (row as Record<string, unknown>).screen_width as number | undefined,
-    screenHeight: (row as Record<string, unknown>).screen_height as number | undefined,
-    timezone: (row as Record<string, unknown>).timezone as string | undefined,
-    language: (row as Record<string, unknown>).language as string | undefined,
-    fingerprint: (row as Record<string, unknown>).fingerprint as string | undefined,
+    countryCode: row.country_code,
+    region: row.region,
+    city: row.city,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    isp: row.isp,
+    timezone: row.timezone,
+    // These might not be in the row yet, but keeping for compatibility if added later
+    browser: undefined,
+    screenWidth: undefined,
+    screenHeight: undefined,
+    language: undefined,
+    fingerprint: undefined,
   };
 }
 
@@ -260,15 +268,15 @@ export class SupabaseAdapter implements StorageAdapter {
     if (updateFields.category !== undefined) rowUpdates.category = updateFields.category ?? null;
     if (updateFields.clicks !== undefined) rowUpdates.clicks = updateFields.clicks;
     if (updateFields.lastClickedAt !== undefined) {
-      rowUpdates.last_clicked_at = updateFields.lastClickedAt 
-        ? new Date(updateFields.lastClickedAt).toISOString() 
+      rowUpdates.last_clicked_at = updateFields.lastClickedAt
+        ? new Date(updateFields.lastClickedAt).toISOString()
         : null;
     }
     if (updateFields.smartRedirects !== undefined) rowUpdates.smart_redirects = updateFields.smartRedirects ?? null;
     if (updateFields.geoRedirects !== undefined) rowUpdates.geo_redirects = updateFields.geoRedirects ?? null;
     if (updateFields.expirationDate !== undefined) {
-      rowUpdates.expiration_date = updateFields.expirationDate 
-        ? new Date(updateFields.expirationDate).toISOString() 
+      rowUpdates.expiration_date = updateFields.expirationDate
+        ? new Date(updateFields.expirationDate).toISOString()
         : null;
     }
     if (updateFields.maxClicks !== undefined) rowUpdates.max_clicks = updateFields.maxClicks ?? null;
@@ -315,7 +323,7 @@ export class SupabaseAdapter implements StorageAdapter {
    */
   async recordClick(linkId: string, event: ClickEventInput): Promise<void> {
     console.log('[SupabaseAdapter] recordClick called for linkId:', linkId);
-    
+
     if (!isSupabaseConfigured()) {
       console.error('[SupabaseAdapter] Supabase is not configured!');
       throw new Error('Supabase is not configured');
@@ -324,10 +332,10 @@ export class SupabaseAdapter implements StorageAdapter {
     // Parse user agent for device and OS
     const { device, os } = parseUserAgent(event.userAgent);
     console.log('[SupabaseAdapter] Parsed UA - device:', device, 'os:', os);
-    
-    // Get country from IP
-    const country = await getCountryFromIP(event.ipAddress);
-    console.log('[SupabaseAdapter] Country:', country);
+
+    // Get geolocation data
+    const geoData = await getGeolocation(event.ipAddress);
+    console.log('[SupabaseAdapter] Geolocation:', geoData);
 
     // Create click event row
     const clickEventRow = {
@@ -337,7 +345,14 @@ export class SupabaseAdapter implements StorageAdapter {
       referrer: event.referrer || 'direct',
       device,
       os,
-      country,
+      country: geoData.country,
+      country_code: geoData.countryCode,
+      city: geoData.city,
+      region: geoData.regionName || geoData.region,
+      latitude: geoData.lat,
+      longitude: geoData.lon,
+      isp: geoData.isp,
+      timezone: geoData.timezone,
       raw_user_agent: event.userAgent,
       ip_hash: event.ipAddress ? hashIP(event.ipAddress) : null,
     };
@@ -377,7 +392,7 @@ export class SupabaseAdapter implements StorageAdapter {
             last_clicked_at: clickEventRow.timestamp,
           })
           .eq('id', linkId);
-        
+
         if (manualUpdateError) {
           console.error('[SupabaseAdapter] Manual update failed:', manualUpdateError);
         } else {
@@ -442,7 +457,7 @@ export class SupabaseAdapter implements StorageAdapter {
 
     // Group events by period
     const groupedData = new Map<string, ClickEventRow[]>();
-    
+
     events.forEach((event) => {
       const date = new Date(event.timestamp);
       let periodKey: string;
@@ -524,7 +539,7 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     const links = await this.getLinks();
-    
+
     // Collect all click events
     const allClickEvents: ClickEvent[] = [];
     for (const link of links) {

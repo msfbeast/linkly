@@ -9,6 +9,7 @@ interface AnalyticsSummary {
   totalLinks: number;
   uniqueCountries: number;
   topCountries: { country: string; clicks: number }[];
+  topCities: { city: string; country: string; clicks: number }[];
   topDevices: { device: string; clicks: number }[];
   topBrowsers: { browser: string; clicks: number }[];
   clicksByDay: { date: string; clicks: number }[];
@@ -60,6 +61,20 @@ const GlobalAnalytics: React.FC = () => {
       .sort((a, b) => b.clicks - a.clicks)
       .slice(0, 5);
 
+    // Process Top Cities
+    const cityMap = new Map<string, { count: number; country: string }>();
+    filteredClicks.forEach(c => {
+      if (c.city) {
+        const key = `${c.city}, ${c.country || ''}`;
+        const current = cityMap.get(key) || { count: 0, country: c.country || '' };
+        cityMap.set(key, { count: current.count + 1, country: current.country });
+      }
+    });
+    const topCities = Array.from(cityMap.entries())
+      .map(([key, data]) => ({ city: key.split(',')[0], country: data.country, clicks: data.count }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5);
+
     const deviceMap = new Map<string, number>();
     filteredClicks.forEach(c => {
       const device = c.device || 'Unknown';
@@ -93,6 +108,7 @@ const GlobalAnalytics: React.FC = () => {
       totalLinks: links.length,
       uniqueCountries: countryMap.size,
       topCountries,
+      topCities,
       topDevices,
       topBrowsers,
       clicksByDay,
@@ -182,7 +198,7 @@ const GlobalAnalytics: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-6">
               <MapPin className="w-5 h-5 text-emerald-400" />
@@ -204,6 +220,31 @@ const GlobalAnalytics: React.FC = () => {
                         <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(item.clicks / maxClicks) * 100}%` }} />
                       </div>
                     </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <MapPin className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-white font-semibold">Top Cities</h3>
+            </div>
+            <div className="space-y-4">
+              {analytics?.topCities.length === 0 ? (
+                <p className="text-slate-500 text-sm">No data yet</p>
+              ) : (
+                analytics?.topCities.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <span className="text-slate-500 text-sm w-4">{i + 1}</span>
+                      <div>
+                        <p className="text-white text-sm font-medium">{item.city}</p>
+                        <p className="text-slate-500 text-xs">{item.country}</p>
+                      </div>
+                    </div>
+                    <span className="text-slate-400 text-sm">{item.clicks}</span>
                   </div>
                 ))
               )}
