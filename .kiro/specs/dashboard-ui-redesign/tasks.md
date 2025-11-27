@@ -1,0 +1,106 @@
+# Implementation Plan
+
+- [x] 1. Set up new navigation components
+  - [x] 1.1 Create IconSidebar component with icon-only navigation
+    - Create `components/IconSidebar.tsx` with slim vertical layout
+    - Add icons for Dashboard, Links, Analytics, Settings using lucide-react
+    - Implement hover states and active indicator
+    - _Requirements: 1.3, 1.4_
+  - [x] 1.2 Create TopNavigation component with tabs and actions
+    - Create `components/TopNavigation.tsx` with horizontal layout
+    - Add Linkly logo, navigation tabs (Overview, Links, Analytics, Settings)
+    - Add total clicks display with percentage change indicator
+    - Add "New Link" button with styling
+    - _Requirements: 1.1, 1.2_
+  - [x] 1.3 Write property test for tab state management
+    - **Property 1: Tab State Management**
+    - **Validates: Requirements 1.2**
+
+- [x] 2. Create link performance card component
+  - [x] 2.1 Create LinkPerformanceCard component
+    - Create `components/LinkPerformanceCard.tsx`
+    - Implement color-coded backgrounds based on category (cyan/yellow/coral/dark)
+    - Display category label, title, date, click count
+    - Add three-dot menu icon for actions
+    - _Requirements: 2.2, 2.3, 2.4_
+  - [x] 2.2 Write property test for link card rendering completeness
+    - **Property 3: Link Card Rendering Completeness**
+    - **Validates: Requirements 2.2**
+  - [x] 2.3 Write property test for category color mapping
+    - **Property 4: Category Color Mapping Consistency**
+    - **Validates: Requirements 2.3, 4.4, 6.3**
+
+- [x] 3. Create chart components
+  - [x] 3.1 Create ClickForecastChart component
+    - Create `components/ClickForecastChart.tsx`
+    - Implement bar chart with forecast (cyan) and actual (gray) series
+    - Add legend and title/subtitle
+    - Use Recharts BarChart with dual data keys
+    - _Requirements: 3.1, 3.2, 3.3, 3.4_
+  - [x] 3.2 Create TrafficSourceChart component (donut chart)
+    - Create `components/TrafficSourceChart.tsx`
+    - Implement donut/pie chart with center total display
+    - Add color-coded legend (Direct, Social, Referral)
+    - Use Recharts PieChart with inner radius
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [x] 3.3 Create LinkHealthChart component (radar chart)
+    - Create `components/LinkHealthChart.tsx`
+    - Implement radar chart with 5 dimensions (CTR, Engagement, Reach, Retention, Growth)
+    - Use semi-transparent cyan fill
+    - Add title and subtitle
+    - _Requirements: 5.1, 5.2, 5.3, 5.4_
+  - [x] 3.4 Write property test for click chart dual series
+    - **Property 5: Click Chart Dual Series**
+    - **Validates: Requirements 3.2**
+  - [x] 3.5 Write property test for traffic source total calculation
+    - **Property 6: Traffic Source Total Calculation**
+    - **Validates: Requirements 4.2**
+
+- [x] 4. Create priority links list component
+  - [x] 4.1 Create PriorityLinksList component
+    - Create `components/PriorityLinksList.tsx`
+    - Display checkbox, title, short code, last click time, status tag
+    - Implement color-coded status tags (Active/Expiring/Low CTR)
+    - Add "View All" link in header
+    - _Requirements: 6.1, 6.2, 6.3, 6.4_
+  - [x] 4.2 Write property test for priority link rendering completeness
+    - **Property 7: Priority Link Rendering Completeness**
+    - **Validates: Requirements 6.2**
+
+- [x] 5. Update data models and types
+  - [x] 5.1 Extend LinkData type with category field
+    - Add `category?: 'social' | 'marketing' | 'product' | 'other'` to LinkData in `types.ts`
+    - Add helper functions for categorizing links
+    - _Requirements: 2.1, 2.3_
+  - [x] 5.2 Add chart data type definitions
+    - Add ClickForecastDataPoint, TrafficSourceDataPoint, LinkHealthDataPoint types
+    - Add data processing functions for chart data
+    - _Requirements: 3.1, 4.1, 5.1_
+
+- [x] 6. Checkpoint - Ensure all component tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 7. Redesign Dashboard page
+  - [x] 7.1 Update App.tsx to use new navigation layout
+    - Replace Sidebar with IconSidebar
+    - Add TopNavigation component
+    - Update layout structure for new design
+    - _Requirements: 1.1, 1.3_
+  - [x] 7.2 Redesign Dashboard.tsx with new components
+    - Add link performance cards row (top 4 links)
+    - Add ClickForecastChart and TrafficSourceChart in grid
+    - Add LinkHealthChart and PriorityLinksList in grid
+    - Apply dark theme styling throughout
+    - _Requirements: 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 7.2, 7.3, 7.4_
+  - [x] 7.3 Write property test for link card count limiting
+    - **Property 2: Link Card Count Limiting**
+    - **Validates: Requirements 2.1**
+
+- [x] 8. Update Tailwind configuration for dark theme
+  - [x] 8.1 Add custom colors to tailwind.config.js
+    - Add sparks color palette (cyan, yellow, coral, dark backgrounds)
+    - Ensure consistent dark theme colors
+    - _Requirements: 7.1, 7.2, 7.3, 7.4_
+
+- [x] 9. Final Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.

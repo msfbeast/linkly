@@ -1,0 +1,170 @@
+# Implementation Plan
+
+- [x] 1. Set up core service infrastructure
+  - [x] 1.1 Create storage adapter interface and types
+    - Create `services/storage/types.ts` with StorageAdapter interface, QueryOptions, ClickEventInput, AggregatedClickData, ExportData types
+    - Define all method signatures as specified in design
+    - _Requirements: 1.1, 1.2_
+  - [x] 1.2 Implement retry service with exponential backoff
+    - Create `services/retryService.ts` with execute method
+    - Implement exponential backoff logic with configurable options
+    - _Requirements: 1.4, 6.1_
+  - [x] 1.3 Write property test for retry service
+    - **Property 3: Retry behavior on failure**
+    - **Validates: Requirements 1.4, 6.1**
+
+- [x] 2. Implement user agent parsing and geolocation
+  - [x] 2.1 Create user agent parser service
+    - Create `services/userAgentParser.ts` with parseUserAgent function
+    - Implement device detection (Mobile, Desktop, Tablet, Other)
+    - Implement OS detection (iOS, Android, Windows, MacOS, Linux, Other)
+    - _Requirements: 2.3, 2.6_
+  - [x] 2.2 Write property test for user agent parser
+    - **Property 5: User agent parsing validity**
+    - **Validates: Requirements 2.3, 2.6**
+  - [x] 2.3 Create geolocation service
+    - Create `services/geolocationService.ts` with getCountryFromIP function
+    - Integrate with free IP geolocation API (ip-api.com or similar)
+    - Implement fallback to "Unknown" on failure
+    - _Requirements: 2.4, 2.5_
+  - [x] 2.4 Write property test for geolocation fallback
+    - **Property 6: Geolocation fallback**
+    - **Validates: Requirements 2.5**
+
+- [x] 3. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 4. Implement Supabase storage adapter
+  - [x] 4.1 Set up Supabase client configuration
+    - Create `services/storage/supabaseClient.ts` with client initialization
+    - Configure environment variables for Supabase URL and anon key
+    - _Requirements: 1.1, 1.2_
+  - [x] 4.2 Implement link CRUD operations
+    - Create `services/storage/supabaseAdapter.ts` implementing StorageAdapter
+    - Implement getLinks, getLink, getLinkByCode, createLink, updateLink, deleteLink
+    - Add JSON serialization/deserialization for complex fields
+    - _Requirements: 1.1, 1.2, 1.5, 1.6_
+  - [x] 4.3 Write property test for link data round-trip
+    - **Property 1: Link data round-trip consistency**
+    - **Validates: Requirements 1.5, 1.6**
+  - [x] 4.4 Write property test for storage persistence
+    - **Property 2: Storage persistence**
+    - **Validates: Requirements 1.1**
+  - [x] 4.5 Implement click event recording and retrieval
+    - Add recordClick method with full metadata capture
+    - Add getClickEvents with pagination support
+    - Add getAggregatedClicks for pre-computed stats
+    - _Requirements: 2.1, 2.2_
+  - [x] 4.6 Write property test for click event completeness
+    - **Property 4: Click event completeness**
+    - **Validates: Requirements 2.1, 2.2**
+
+- [x] 5. Implement click tracking service
+  - [x] 5.1 Create click tracking service
+    - Create `services/clickTrackingService.ts` with trackClick method
+    - Integrate user agent parser and geolocation service
+    - Implement full click recording flow
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - [x] 5.2 Implement click event validation
+    - Add validateClickEvent function to reject invalid data
+    - Validate required fields: linkId, timestamp, referrer
+    - _Requirements: 6.3_
+  - [x] 5.3 Write property test for click event validation
+    - **Property 12: Click event validation rejects invalid data**
+    - **Validates: Requirements 6.3**
+  - [x] 5.4 Implement click deduplication
+    - Add deduplicateEvents function based on linkId and timestamp
+    - _Requirements: 6.4_
+  - [x] 5.5 Write property test for deduplication
+    - **Property 13: Deduplication by timestamp and linkId**
+    - **Validates: Requirements 6.4**
+
+- [x] 6. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 7. Implement analytics aggregation service
+  - [x] 7.1 Create analytics service with date filtering
+    - Create `services/analyticsService.ts`
+    - Implement filterByDateRange function for 7d, 30d, 90d, all time
+    - _Requirements: 4.4_
+  - [x] 7.2 Write property test for date range filtering
+    - **Property 8: Date range filtering correctness**
+    - **Validates: Requirements 4.4**
+  - [x] 7.3 Implement click forecast aggregation
+    - Update generateClickForecastData to use real data only
+    - Remove random forecast generation, use actual historical averages
+    - _Requirements: 4.1_
+  - [x] 7.4 Write property test for click aggregation
+    - **Property 10: Click aggregation by day preserves total**
+    - **Validates: Requirements 4.1**
+  - [x] 7.5 Implement traffic source categorization
+    - Update generateTrafficSourceData to categorize all referrers
+    - Ensure every referrer maps to exactly one category
+    - _Requirements: 4.2_
+  - [x] 7.6 Write property test for traffic source categorization
+    - **Property 9: Traffic source categorization completeness**
+    - **Validates: Requirements 4.2**
+  - [x] 7.7 Implement empty data handling
+    - Update all aggregation functions to return zero values for empty input
+    - Ensure charts display zeros instead of hiding data points
+    - _Requirements: 3.2, 4.5_
+  - [x] 7.8 Write property test for empty data handling
+    - **Property 7: Empty data produces zero values**
+    - **Validates: Requirements 3.2, 4.5**
+
+- [x] 8. Implement CSV export functionality
+  - [x] 8.1 Create CSV export service
+    - Create `services/csvExportService.ts`
+    - Implement generateCSVExport function for links and click events
+    - Implement downloadCSV function to trigger browser download
+    - _Requirements: 5.1, 5.2, 5.3, 5.4_
+  - [x] 8.2 Write property test for CSV export
+    - **Property 11: CSV export contains all required fields**
+    - **Validates: Requirements 5.1, 5.2, 5.3**
+
+- [x] 9. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 10. Remove demo data and update Dashboard
+  - [x] 10.1 Remove demo data generation
+    - Remove generateDemoLinks function from Dashboard.tsx
+    - Remove all synthetic click history generation
+    - Update useEffect to only load from storage adapter
+    - _Requirements: 3.1, 3.3, 3.4_
+  - [x] 10.2 Update Dashboard to use storage adapter
+    - Replace localStorage calls with storage adapter methods
+    - Add loading and error states for async operations
+    - Integrate retry service for all storage operations
+    - _Requirements: 1.2, 6.2_
+  - [x] 10.3 Add empty state UI for no data
+    - Update charts to show meaningful empty states
+    - Add call-to-action to create first link when empty
+    - _Requirements: 3.1, 3.2_
+
+- [x] 11. Update redirect page for server-side tracking
+  - [x] 11.1 Update Redirect component
+    - Modify pages/Redirect.tsx to use click tracking service
+    - Capture request metadata before redirect
+    - Handle tracking failures gracefully (still redirect)
+    - _Requirements: 2.1, 2.2_
+
+- [x] 12. Add date range filter UI
+  - [x] 12.1 Create date range selector component
+    - Create `components/DateRangeSelector.tsx`
+    - Support 7d, 30d, 90d, all time options
+    - _Requirements: 4.4_
+  - [x] 12.2 Integrate date range filter with Dashboard
+    - Add state for selected date range
+    - Pass date range to analytics aggregation functions
+    - Update all charts when date range changes
+    - _Requirements: 4.4_
+
+- [x] 13. Add export UI
+  - [x] 13.1 Add export button to Dashboard
+    - Add export button in Dashboard header or settings
+    - Wire up to CSV export service
+    - Show loading state during export generation
+    - _Requirements: 5.1, 5.4_
+
+- [x] 14. Final Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
