@@ -1,0 +1,288 @@
+import React, { useState, useEffect } from 'react';
+import { BarChart3, Globe, MousePointer2, TrendingUp, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { LinkData, ClickEvent } from '../types';
+
+interface AnalyticsSummary {
+  totalClicks: number;
+  totalLinks: number;
+  uniqueCountries: number;
+  topCountries: { country: string; clicks: number }[];
+  topDevices: { device: string; clicks: number }[];
+  topBrowsers: { browser: string; clicks: number }[];
+  clicksByDay: { date: string; clicks: number }[];
+  recentClicks: ClickEvent[];
+}
+
+const GlobalAnalytics: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [dateRange, setDateRange] = useState('7d');
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [dateRange]);
+
+  const loadAnalytics = async () => {
+    setIsLoading(true);
+    try {
+      const links = await supabaseAdapter.getLinks();
+      const summary = processAnalytics(links);
+      setAnalytics(summary);
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const processAnalytics = (links: LinkData[]): AnalyticsSummary => {
+    const allClicks: ClickEvent[] = [];
+    links.forEach(link => {
+      allClicks.push(...(link.clickHistory || []));
+    });
+
+    const now = Date.now();
+    const rangeMs = dateRange === '7d' ? 7 * 24 * 60 * 60 * 1000 
+                  : dateRange === '30d' ? 30 * 24 * 60 * 60 * 1000 
+                  : 90 * 24 * 60 * 60 * 1000;
+    const filteredClicks = allClicks.filter(c => now - c.timestamp < rangeMs);
+
+    const countryMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      const country = c.country || 'Unknown';
+      countryMap.set(country, (countryMap.get(country) || 0) + 1);
+    });
+    const topCountries = Array.from(countryMap.entries())
+      .map(([country, clicks]) => ({ country, clicks }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5);
+
+    const deviceMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      const device = c.device || 'Unknown';
+      deviceMap.set(device, (deviceMap.get(device) || 0) + 1);
+    });
+    const topDevices = Array.from(deviceMap.entries())
+      .map(([device, clicks]) => ({ device, clicks }))
+      .sort((a, b) => b.clicks - a.clicks);
+
+    const browserMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      const browser = c.browser || 'Unknown';
+      browserMap.set(browser, (browserMap.get(browser) || 0) + 1);
+    });
+    const topBrowsers = Array.from(browserMap.entries())
+      .map(([browser, clicks]) => ({ browser, clicks }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5);
+
+    const dayMap = new Map<string, number>();
+    filteredClicks.forEach(c => {
+      const date = new Date(c.timestamp).toISOString().split('T')[0];
+      dayMap.set(date, (dayMap.get(date) || 0) + 1);
+    });
+    const clicksByDay = Array.from(dayMap.entries())
+      .map(([date, clicks]) => ({ date, clicks }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      totalClicks: filteredClicks.length,
+      totalLinks: links.length,
+      uniqueCountries: countryMap.size,
+      topCountries,
+      topDevices,
+      topBrowsers,
+      clicksByDay,
+      recentClicks: filteredClicks.slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 10),
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-cyan-400 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const maxClicks = Math.max(...(analytics?.topCountries.map(c => c.clicks) || [1]));
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Global Analytics</h1>
+            <p className="text-slate-400 text-sm mt-1">Aggregated insights across all your links</p>
+          </div>
+          <div className="flex items-center gap-2 bg-[#12121a] border border-white/5 rounded-xl p-1">
+            {['7d', '30d', '90d'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setDateRange(range)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  dateRange === range ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-cyan-500/10 rounded-lg">
+                <MousePointer2 className="w-5 h-5 text-cyan-400" />
+              </div>
+              <span className="text-slate-400 text-sm">Total Clicks</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{analytics?.totalClicks.toLocaleString()}</p>
+          </div>
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-indigo-500/10 rounded-lg">
+                <BarChart3 className="w-5 h-5 text-indigo-400" />
+              </div>
+              <span className="text-slate-400 text-sm">Active Links</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{analytics?.totalLinks}</p>
+          </div>
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <Globe className="w-5 h-5 text-emerald-400" />
+              </div>
+              <span className="text-slate-400 text-sm">Countries</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{analytics?.uniqueCountries}</p>
+          </div>
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-amber-500/10 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-amber-400" />
+              </div>
+              <span className="text-slate-400 text-sm">Avg/Day</span>
+            </div>
+            <p className="text-3xl font-bold text-white">
+              {analytics?.clicksByDay.length ? Math.round(analytics.totalClicks / analytics.clicksByDay.length) : 0}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <MapPin className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-white font-semibold">Top Countries</h3>
+            </div>
+            <div className="space-y-4">
+              {analytics?.topCountries.length === 0 ? (
+                <p className="text-slate-500 text-sm">No data yet</p>
+              ) : (
+                analytics?.topCountries.map((item, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <span className="text-slate-500 text-sm w-6">{i + 1}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-white text-sm">{item.country}</span>
+                        <span className="text-slate-400 text-sm">{item.clicks}</span>
+                      </div>
+                      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(item.clicks / maxClicks) * 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Monitor className="w-5 h-5 text-indigo-400" />
+              <h3 className="text-white font-semibold">Devices</h3>
+            </div>
+            <div className="space-y-4">
+              {analytics?.topDevices.length === 0 ? (
+                <p className="text-slate-500 text-sm">No data yet</p>
+              ) : (
+                analytics?.topDevices.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <div className="flex items-center gap-3">
+                      {item.device.toLowerCase().includes('mobile') ? (
+                        <Smartphone className="w-4 h-4 text-indigo-400" />
+                      ) : (
+                        <Monitor className="w-4 h-4 text-indigo-400" />
+                      )}
+                      <span className="text-white text-sm">{item.device}</span>
+                    </div>
+                    <span className="text-slate-400 text-sm">{item.clicks} clicks</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Globe className="w-5 h-5 text-cyan-400" />
+            <h3 className="text-white font-semibold">Top Browsers</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {analytics?.topBrowsers.length === 0 ? (
+              <p className="text-slate-500 text-sm col-span-5">No data yet</p>
+            ) : (
+              analytics?.topBrowsers.map((item, i) => (
+                <div key={i} className="bg-slate-900/50 border border-white/5 rounded-xl p-4 text-center">
+                  <p className="text-white font-semibold text-lg">{item.clicks}</p>
+                  <p className="text-slate-400 text-sm">{item.browser}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[#12121a] border border-white/5 rounded-2xl p-6">
+          <h3 className="text-white font-semibold mb-4">Recent Clicks</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-slate-500 text-sm border-b border-white/5">
+                  <th className="pb-3 font-medium">Time</th>
+                  <th className="pb-3 font-medium">Country</th>
+                  <th className="pb-3 font-medium">Device</th>
+                  <th className="pb-3 font-medium">Browser</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytics?.recentClicks.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-slate-500 text-sm">No clicks recorded yet</td>
+                  </tr>
+                ) : (
+                  analytics?.recentClicks.map((click, i) => (
+                    <tr key={i} className="border-b border-white/5 last:border-0">
+                      <td className="py-3 text-slate-300 text-sm">{new Date(click.timestamp).toLocaleString()}</td>
+                      <td className="py-3 text-slate-300 text-sm">{click.country || 'Unknown'}</td>
+                      <td className="py-3 text-slate-300 text-sm">{click.device || 'Unknown'}</td>
+                      <td className="py-3 text-slate-300 text-sm">{click.browser || 'Unknown'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GlobalAnalytics;
