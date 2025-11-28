@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import IconSidebar from './components/IconSidebar';
 import TopNavigation from './components/TopNavigation';
 import Dashboard from './pages/Dashboard';
@@ -15,6 +15,8 @@ import Settings from './pages/Settings';
 import GlobalAnalytics from './pages/GlobalAnalytics';
 import ProductManager from './pages/ProductManager';
 import Storefront from './pages/Storefront';
+import ProductPage from './pages/ProductPage';
+import LinkAnalytics from './pages/LinkAnalytics';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -171,7 +173,7 @@ const DashboardLayout: React.FC = () => {
     <div className="p-8 max-w-5xl mx-auto pl-72">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Developer API</h1>
-        <p className="text-slate-400">Integrate Linkly into your applications.</p>
+        <p className="text-slate-400">Integrate Gather into your applications.</p>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
@@ -194,7 +196,7 @@ const DashboardLayout: React.FC = () => {
             <h3 className="text-white font-bold">Create a Link</h3>
           </div>
           <pre className="bg-slate-950 p-4 rounded-xl text-xs text-slate-300 font-mono overflow-x-auto">
-            {`curl -X POST https://api.linkly.ai/v1/links \\
+            {`curl -X POST https://api.gather.ai/v1/links \\
   -H "Authorization: Bearer lk_live_..." \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -213,7 +215,7 @@ const DashboardLayout: React.FC = () => {
             <h3 className="text-white font-bold">Get Analytics</h3>
           </div>
           <pre className="bg-slate-950 p-4 rounded-xl text-xs text-slate-300 font-mono overflow-x-auto">
-            {`curl -X GET https://api.linkly.ai/v1/stats/my-link \\
+            {`curl -X GET https://api.gather.ai/v1/stats/my-link \\
   -H "Authorization: Bearer lk_live_..."`}
           </pre>
         </div>
@@ -222,7 +224,7 @@ const DashboardLayout: React.FC = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0f] text-slate-200">
+    <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900">
       {/* Icon Sidebar */}
       <IconSidebar
         activeItem={activeSidebarItem}
@@ -305,55 +307,52 @@ const DashboardLayout: React.FC = () => {
  * Sets up routing and auth provider
  * Requirements: 4.1, 4.2, 4.3
  */
-const App: React.FC = () => {
-  const [redirectCode, setRedirectCode] = useState<string | null>(null);
-  const [bioHandle, setBioHandle] = useState<string | null>(null);
+// Legacy Hash Redirect Component
+const LegacyHashHandler: React.FC = () => {
+  const navigate = useNavigate();
 
-  // Handle hash-based redirects for short links and bio pages
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
-
       if (hash.startsWith('#/r/')) {
         const code = hash.replace('#/r/', '');
-        setRedirectCode(code);
-        setBioHandle(null);
+        navigate(`/r/${code}`, { replace: true });
       } else if (hash.startsWith('#/p/')) {
         const handle = hash.replace('#/p/', '');
-        setBioHandle(handle);
-        setRedirectCode(null);
-      } else {
-        setRedirectCode(null);
-        setBioHandle(null);
+        navigate(`/p/${handle}`, { replace: true });
       }
     };
 
+    // Check on mount
     handleHashChange();
+
+    // Check on hash change
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [navigate]);
 
-  // If we are in redirect mode, show the Redirect page exclusively
-  if (redirectCode) {
-    return <Redirect code={redirectCode} />;
-  }
+  return null;
+};
 
-  // If we are in Bio Page mode, show the Bio View exclusively
-  if (bioHandle) {
-    return <BioView handle={bioHandle} />;
-  }
-
+const App: React.FC = () => {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
+          <LegacyHashHandler />
           <Routes>
             {/* Public auth routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
+
+            {/* Public Link & Bio Routes */}
+            <Route path="/r/:code" element={<Redirect />} />
+            <Route path="/p/:handle" element={<BioView />} />
+
             <Route path="/store/:userId" element={<Storefront />} />
+            <Route path="/store/product/:productId" element={<ProductPage />} />
 
             {/* Protected routes - Requirements 4.1, 4.2, 4.3 */}
             <Route
@@ -361,6 +360,14 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <DashboardLayout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics/:id"
+              element={
+                <ProtectedRoute>
+                  <LinkAnalytics />
                 </ProtectedRoute>
               }
             />

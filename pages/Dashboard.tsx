@@ -199,8 +199,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       } else if (link.clicks < 5 && Date.now() - link.createdAt > 3 * 24 * 60 * 60 * 1000) {
         status = 'low-ctr';
       }
-      
-      const lastClickedAt = link.lastClickedAt 
+
+      const lastClickedAt = link.lastClickedAt
         ? formatTimeAgo(link.lastClickedAt)
         : 'Never';
 
@@ -245,10 +245,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-cyan-600 dark:text-cyan-400 animate-spin mx-auto mb-4" />
-          <p className="text-slate-500 dark:text-slate-400">Loading your links...</p>
+          <Loader2 className="w-12 h-12 text-amber-500 animate-spin mx-auto mb-4" />
+          <p className="text-stone-500">Loading your links...</p>
         </div>
       </div>
     );
@@ -257,16 +257,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
-          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-500 dark:text-red-400" />
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-500" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Unable to load data</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-6">{error}</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Unable to load data</h2>
+          <p className="text-stone-500 mb-6">{error}</p>
           <button
             onClick={loadLinks}
-            className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-black font-semibold rounded-xl transition-colors"
+            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-amber-500/20"
           >
             Try Again
           </button>
@@ -279,7 +279,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const hasNoLinks = links.length === 0;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0a0a0f] transition-all duration-300">
+    <div className="min-h-screen bg-[#FDFBF7] transition-all duration-300">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
 
         {/* Empty State - Show when no links exist */}
@@ -290,16 +290,16 @@ const Dashboard: React.FC<DashboardProps> = ({
             transition={{ duration: 0.5 }}
             className="text-center py-20"
           >
-            <div className="w-20 h-20 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <LinkIcon className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />
+            <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <LinkIcon className="w-10 h-10 text-yellow-600" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">Welcome to Linkly!</h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-md mx-auto">
+            <h2 className="text-2xl font-bold text-slate-900 mb-3">Welcome to Gather!</h2>
+            <p className="text-stone-500 mb-8 max-w-md mx-auto">
               Create your first shortened link to start tracking clicks and analyzing your traffic.
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-black font-semibold rounded-xl transition-colors inline-flex items-center gap-2"
+              className="px-8 py-3 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors inline-flex items-center gap-2 shadow-sm shadow-yellow-400/20"
             >
               <Plus className="w-5 h-5" />
               Create Your First Link
@@ -336,125 +336,125 @@ const Dashboard: React.FC<DashboardProps> = ({
               </motion.div>
             )}
 
-        {/* Date Range Filter and Export */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15 }}
-          className="flex justify-end items-center gap-3"
-        >
-          <DateRangeSelector
-            selectedRange={dateRange}
-            onRangeChange={setDateRange}
-          />
-          <button
-            onClick={handleExport}
-            disabled={isExporting}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-[#12121a] border border-slate-200 dark:border-white/10 hover:border-cyan-500/50 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Export all data as CSV"
-          >
-            {isExporting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" />
-            )}
-            <span className="text-sm font-medium">
-              {isExporting ? 'Exporting...' : 'Export'}
-            </span>
-          </button>
-        </motion.div>
+            {/* Date Range Filter and Export */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="flex justify-end items-center gap-3"
+            >
+              <DateRangeSelector
+                selectedRange={dateRange}
+                onRangeChange={setDateRange}
+              />
+              <button
+                onClick={handleExport}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 hover:border-yellow-400 text-stone-600 hover:text-slate-900 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                title="Export all data as CSV"
+              >
+                {isExporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span className="text-sm font-medium">
+                  {isExporting ? 'Exporting...' : 'Export'}
+                </span>
+              </button>
+            </motion.div>
 
-        {/* Charts Row - Click Forecast and Traffic Source */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-        >
-          <div className="lg:col-span-2">
-            <ClickForecastChart data={clickForecastData} />
-          </div>
-          <div>
-            <TrafficSourceChart data={trafficSourceData} total={trafficSourceTotal} />
-          </div>
-        </motion.div>
+            {/* Charts Row - Click Forecast and Traffic Source */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+            >
+              <div className="lg:col-span-2">
+                <ClickForecastChart data={clickForecastData} />
+              </div>
+              <div>
+                <TrafficSourceChart data={trafficSourceData} total={trafficSourceTotal} />
+              </div>
+            </motion.div>
 
-        {/* Bottom Row - Link Health and Priority Links */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-        >
-          <LinkHealthChart data={linkHealthData} />
-          <PriorityLinksList
-            links={priorityLinks}
-            onLinkToggle={handlePriorityLinkToggle}
-            onViewAll={() => {}}
-          />
-        </motion.div>
+            {/* Bottom Row - Link Health and Priority Links */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+              <LinkHealthChart data={linkHealthData} />
+              <PriorityLinksList
+                links={priorityLinks}
+                onLinkToggle={handlePriorityLinkToggle}
+                onViewAll={() => { }}
+              />
+            </motion.div>
 
-        {/* Links List Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Your Links</h2>
+            {/* Links List Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Your Links</h2>
 
-          <div className="relative group">
-            <Search className="absolute left-4 top-3 w-5 h-5 text-slate-400 dark:text-slate-500 group-focus-within:text-cyan-500 dark:group-focus-within:text-cyan-400 transition-colors" />
-            <input
-              type="text"
-              placeholder="Search links..."
-              className="bg-slate-100 dark:bg-[#12121a] border border-slate-200 dark:border-white/5 text-slate-900 dark:text-white pl-12 pr-6 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 w-full md:w-80 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
+              <div className="relative group">
+                <Search className="absolute left-4 top-3 w-5 h-5 text-stone-400 group-focus-within:text-yellow-500 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search links..."
+                  className="bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 w-full md:w-80 transition-all placeholder:text-stone-400 shadow-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
 
-        {/* Links List */}
-        <div className="bg-white dark:bg-[#12121a] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm dark:shadow-none">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-slate-900 dark:text-white font-semibold text-sm uppercase tracking-wider">All Links</h3>
-            <span className="text-slate-500 text-xs">{filteredLinks.length} links</span>
-          </div>
-          <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
-              {filteredLinks.length > 0 ? (
-                filteredLinks.map((link, index) => (
-                  <motion.div
-                    key={link.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <LinkCard
-                      link={link}
-                      onDelete={handleDeleteLink}
-                      onEdit={openEditModal}
-                    />
-                  </motion.div>
-                ))
-              ) : (
-                <div className="text-center py-16 bg-slate-50 dark:bg-[#0a0a0f] border border-slate-200 dark:border-white/5 rounded-2xl border-dashed">
-                  <div className="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Search className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">No links found</h3>
-                  <p className="text-slate-500 mb-4 max-w-sm mx-auto text-sm">
-                    {searchTerm ? 'Try a different search term.' : 'Get started by creating your first shortened link.'}
-                  </p>
-                  {!searchTerm && (
-                    <button
-                      onClick={() => setIsModalOpen(true)}
-                      className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold flex items-center justify-center gap-2 mx-auto text-sm"
-                    >
-                      Create your first link <ArrowUpRight className="w-4 h-4" />
-                    </button>
+            {/* Links List */}
+            <div className="bg-white border border-stone-200 rounded-[2rem] p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-slate-900 font-bold text-sm uppercase tracking-wider">All Links</h3>
+                <span className="text-stone-500 text-xs">{filteredLinks.length} links</span>
+              </div>
+              <div className="space-y-3">
+                <AnimatePresence mode="popLayout">
+                  {filteredLinks.length > 0 ? (
+                    filteredLinks.map((link, index) => (
+                      <motion.div
+                        key={link.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                      >
+                        <LinkCard
+                          link={link}
+                          onDelete={handleDeleteLink}
+                          onEdit={openEditModal}
+                        />
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-16 bg-stone-50 border border-stone-200 rounded-2xl border-dashed">
+                      <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Search className="w-6 h-6 text-yellow-600" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">No links found</h3>
+                      <p className="text-stone-500 mb-4 max-w-sm mx-auto text-sm">
+                        {searchTerm ? 'Try a different search term.' : 'Get started by creating your first shortened link.'}
+                      </p>
+                      {!searchTerm && (
+                        <button
+                          onClick={() => setIsModalOpen(true)}
+                          className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
+                        >
+                          Create your first link <ArrowUpRight className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+                </AnimatePresence>
+              </div>
+            </div>
           </>
         )}
       </div>

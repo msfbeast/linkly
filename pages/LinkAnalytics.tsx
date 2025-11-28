@@ -1,0 +1,386 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check } from 'lucide-react';
+import { LinkData, ClickEvent, getCategoryColor } from '../types';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import {
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    BarChart, Bar, Cell, PieChart, Pie, Legend
+} from 'recharts';
+
+const LinkAnalytics: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const [link, setLink] = useState<LinkData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [copied, setCopied] = useState(false);
+    const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('30d');
+
+    useEffect(() => {
+        const fetchLink = async () => {
+            if (!id) return;
+            try {
+                const data = await supabaseAdapter.getLink(id);
+                if (data) {
+                    setLink(data);
+                } else {
+                    // Handle not found
+                    navigate('/links');
+                }
+            } catch (error) {
+                console.error('Failed to load link:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchLink();
+    }, [id, navigate]);
+
+    const handleCopy = () => {
+        if (!link) return;
+        const url = `${window.location.origin}/#/r/${link.shortCode}`;
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (!link) return null;
+
+    // --- Data Processing ---
+
+    // Filter clicks by time range
+    const now = Date.now();
+    const timeLimit = timeRange === '7d' ? 7 * 24 * 60 * 60 * 1000 :
+        timeRange === '30d' ? 30 * 24 * 60 * 60 * 1000 : Infinity;
+
+    const filteredClicks = link.clickHistory.filter(c => (now - c.timestamp) <= timeLimit);
+
+    // 1. Timeline Data
+    const timelineData = (() => {
+        const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14; // Default to 14 for 'all' view
+        const data: Record<string, number> = {};
+
+        // Initialize last N days
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date(now - i * 24 * 60 * 60 * 1000);
+            const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            data[key] = 0;
+        }
+
+        filteredClicks.forEach(click => {
+            const key = new Date(click.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (data[key] !== undefined) data[key]++;
+        });
+
+        return Object.entries(data).map(([date, clicks]) => ({ date, clicks }));
+    })();
+
+    // 2. Device & Browser Data
+    const getDistribution = (field: keyof ClickEvent) => {
+        const counts: Record<string, number> = {};
+        filteredClicks.forEach(c => {
+            const val = (c[field] as string) || 'Unknown';
+            counts[val] = (counts[val] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    };
+
+    const deviceData = getDistribution('device');
+    const browserData = getDistribution('browser');
+    const osData = getDistribution('os');
+    const countryData = getDistribution('country').slice(0, 5);
+    const referrerData = getDistribution('referrer').slice(0, 5);
+
+    const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#6b7280'];
+
+    return (
+        <div className="min-h-screen bg-[#FDFBF7] p-8">
+            {/* Header */}
+            <div className="max-w-6xl mx-auto mb-8">
+                <button
+                    onClick={() => navigate('/links')}
+                    className="flex items-center text-stone-500 hover:text-slate-900 mb-4 transition-colors"
+                >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Links
+                </button>
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 mb-2">{link.title}</h1>
+                        <div className="flex items-center gap-4 text-sm">
+                            <a
+                                href={link.originalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-stone-500 hover:text-amber-600 flex items-center truncate max-w-md"
+                            >
+                                <Globe className="w-3 h-3 mr-1" />
+                                {link.originalUrl}
+                            </a>
+                            <span className="text-stone-300">|</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono text-slate-900 bg-white border border-stone-200 px-2 py-0.5 rounded">
+                                    /{link.shortCode}
+                                </span>
+                                <button
+                                    onClick={handleCopy}
+                                    className="text-stone-400 hover:text-amber-500 transition-colors"
+                                >
+                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex bg-white rounded-lg border border-stone-200 p-1 shadow-sm">
+                        {(['7d', '30d', 'all'] as const).map((range) => (
+                            <button
+                                key={range}
+                                onClick={() => setTimeRange(range)}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${timeRange === range
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'text-stone-500 hover:bg-stone-50'
+                                    }`}
+                            >
+                                {range === 'all' ? 'All Time' : `Last ${range.replace('d', ' Days')}`}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Overview Cards */}
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-amber-50 rounded-xl text-amber-500">
+                                <MousePointer2 className="w-5 h-5" />
+                            </div>
+                            <span className="text-stone-500 text-sm font-medium">Total Clicks</span>
+                        </div>
+                        <p className="text-3xl font-bold text-slate-900">{filteredClicks.length.toLocaleString()}</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-500">
+                                <MapPin className="w-5 h-5" />
+                            </div>
+                            <span className="text-stone-500 text-sm font-medium">Top Location</span>
+                        </div>
+                        <p className="text-xl font-bold text-slate-900 truncate">
+                            {countryData[0]?.name || 'N/A'}
+                        </p>
+                        <p className="text-xs text-stone-400">{countryData[0]?.value || 0} clicks</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-blue-50 rounded-xl text-blue-500">
+                                <Chrome className="w-5 h-5" />
+                            </div>
+                            <span className="text-stone-500 text-sm font-medium">Top Browser</span>
+                        </div>
+                        <p className="text-xl font-bold text-slate-900 truncate">
+                            {browserData[0]?.name || 'N/A'}
+                        </p>
+                        <p className="text-xs text-stone-400">{browserData[0]?.value || 0} clicks</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-purple-50 rounded-xl text-purple-500">
+                                <Share2 className="w-5 h-5" />
+                            </div>
+                            <span className="text-stone-500 text-sm font-medium">Top Source</span>
+                        </div>
+                        <p className="text-xl font-bold text-slate-900 truncate">
+                            {referrerData[0]?.name === 'direct' ? 'Direct / Email' : referrerData[0]?.name || 'N/A'}
+                        </p>
+                        <p className="text-xs text-stone-400">{referrerData[0]?.value || 0} clicks</p>
+                    </div>
+                </div>
+
+                {/* Timeline Chart */}
+                <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900 mb-6">Click Trends</h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                            <AreaChart data={timelineData}>
+                                <defs>
+                                    <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
+                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                <XAxis
+                                    dataKey="date"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                    dy={10}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="clicks"
+                                    stroke="#f59e0b"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#colorClicks)"
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Browser Breakdown */}
+                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900 mb-6">Browsers</h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                            <PieChart>
+                                <Pie
+                                    data={browserData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {browserData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip contentStyle={{ borderRadius: '8px' }} />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Geography Table */}
+                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">Top Locations</h3>
+                    <div className="space-y-3">
+                        {countryData.map((item, idx) => (
+                            <div key={item.name} className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs font-bold text-stone-400 w-4">#{idx + 1}</span>
+                                    <span className="text-sm font-medium text-slate-900">{item.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-24 h-2 bg-stone-200 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-emerald-500 rounded-full"
+                                            style={{ width: `${(item.value / filteredClicks.length) * 100}%` }}
+                                        />
+                                    </div>
+                                    <span className="text-xs text-stone-500 w-8 text-right">{item.value}</span>
+                                </div>
+                            </div>
+                        ))}
+                        {countryData.length === 0 && (
+                            <p className="text-stone-400 text-sm text-center py-4">No location data yet</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Device & OS */}
+                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">Devices & OS</h3>
+                    <div className="space-y-6">
+                        <div>
+                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Device Type</h4>
+                            <div className="space-y-2">
+                                {deviceData.map((item) => (
+                                    <div key={item.name} className="flex items-center justify-between text-sm">
+                                        <span className="text-slate-700">{item.name}</span>
+                                        <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="h-px bg-stone-100" />
+                        <div>
+                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Operating System</h4>
+                            <div className="space-y-2">
+                                {osData.map((item) => (
+                                    <div key={item.name} className="flex items-center justify-between text-sm">
+                                        <span className="text-slate-700">{item.name}</span>
+                                        <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Recent Activity Log */}
+                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">Recent Activity</h3>
+                    <div className="overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-stone-400 uppercase bg-stone-50">
+                                <tr>
+                                    <th className="px-4 py-3 rounded-l-lg">Time</th>
+                                    <th className="px-4 py-3">Location</th>
+                                    <th className="px-4 py-3">Device</th>
+                                    <th className="px-4 py-3 rounded-r-lg">Referrer</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-stone-100">
+                                {filteredClicks.slice(0, 10).map((click, idx) => (
+                                    <tr key={idx} className="hover:bg-stone-50/50 transition-colors">
+                                        <td className="px-4 py-3 text-stone-500">
+                                            {new Date(click.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-900">{click.country || 'Unknown'}</td>
+                                        <td className="px-4 py-3 text-stone-600">
+                                            {click.browser || 'Unknown'} on {click.os}
+                                        </td>
+                                        <td className="px-4 py-3 text-stone-500 truncate max-w-[150px]">
+                                            {click.referrer === 'direct' ? 'Direct' : click.referrer}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {filteredClicks.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-4 py-8 text-center text-stone-400">
+                                            No clicks recorded in this period
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
+export default LinkAnalytics;

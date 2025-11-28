@@ -76,14 +76,21 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   };
 
   return (
-    <div className="h-16 bg-[#0a0a0f] border-b border-white/5 flex items-center justify-end px-6">
+    <div className="h-16 bg-[#FDFBF7] border-b border-stone-200 flex items-center justify-between px-6 sticky top-0 z-10">
+      {/* Left: Brand Logo */}
+      <div className="flex items-center">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Gather<span className="text-yellow-400">.</span>
+        </h1>
+      </div>
+
       {/* Right: Clicks Display, New Link Button, and User Menu */}
       <div className="flex items-center gap-4">
         {/* Total Clicks Display */}
-        <div className="flex items-center gap-2 px-4 py-2 bg-[#12121a] rounded-lg border border-white/5">
-          <span className="text-slate-400 text-sm">Total Clicks</span>
-          <span className="text-white font-semibold">{totalClicks.toLocaleString()}</span>
-          <div className={`flex items-center gap-1 text-xs ${isPositiveChange ? 'text-emerald-400' : 'text-red-400'}`}>
+        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-stone-200 shadow-sm">
+          <span className="text-stone-500 text-sm">Total Clicks</span>
+          <span className="text-slate-900 font-bold">{totalClicks.toLocaleString()}</span>
+          <div className={`flex items-center gap-1 text-xs ${isPositiveChange ? 'text-emerald-500' : 'text-red-500'}`}>
             {isPositiveChange ? (
               <TrendingUp className="w-3 h-3" />
             ) : (
@@ -96,7 +103,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
         {/* New Link Button */}
         <button
           onClick={onNewLinkClick}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-medium rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-yellow-300 hover:bg-yellow-400 text-slate-900 font-bold rounded-lg transition-colors shadow-sm shadow-yellow-300/20"
         >
           <Plus className="w-4 h-4" />
           <span>New Link</span>
@@ -107,29 +114,29 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-stone-100 transition-colors"
               aria-expanded={isUserMenuOpen}
               aria-haspopup="true"
             >
               {/* User Avatar */}
-              <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-indigo-500 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-semibold">{getUserInitials()}</span>
               </div>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 text-stone-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown Menu */}
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#12121a] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-stone-200 rounded-xl shadow-xl z-50 overflow-hidden">
                 {/* User Info */}
-                <div className="px-4 py-3 border-b border-white/5">
+                <div className="px-4 py-3 border-b border-stone-100 bg-stone-50/50">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-indigo-500 rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center">
                       <span className="text-white font-semibold">{getUserInitials()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{getDisplayEmail()}</p>
-                      <p className="text-slate-500 text-xs">Free Plan</p>
+                      <p className="text-slate-900 text-sm font-bold truncate">{getDisplayEmail()}</p>
+                      <p className="text-stone-500 text-xs">Free Plan</p>
                     </div>
                   </div>
                 </div>
@@ -141,7 +148,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
                       setIsUserMenuOpen(false);
                       onSettingsClick?.();
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-slate-300 hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-stone-600 hover:bg-stone-50 transition-colors text-left font-medium"
                   >
                     <User className="w-4 h-4" />
                     <span className="text-sm">Account Settings</span>
@@ -149,11 +156,11 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
                 </div>
 
                 {/* Logout Button - Requirements: 3.1 */}
-                <div className="border-t border-white/5 py-2">
+                <div className="border-t border-stone-100 py-2">
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:bg-red-500/10 transition-colors text-left disabled:opacity-50"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-red-50 transition-colors text-left disabled:opacity-50 font-medium"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="text-sm">{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>

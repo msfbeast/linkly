@@ -5,10 +5,12 @@ import { Tooltip } from 'react-tooltip';
 import { ClickEvent } from '../types';
 import { subscribeToClickEvents } from '../services/realtimeService';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Globe, Map as MapIcon } from 'lucide-react';
 
 // URL to a valid TopoJSON file for the world map
-const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const GEO_URL_WORLD = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+// URL to a valid TopoJSON file for the US map
+const GEO_URL_US = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 interface LiveWorldMapProps {
     clickHistory: ClickEvent[];
@@ -19,25 +21,37 @@ interface MapClick {
     id: string;
     coordinates: [number, number];
     country: string;
+    region?: string;
     timestamp: number;
 }
+
+type ViewMode = 'world' | 'usa';
 
 const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '' }) => {
     const [recentClicks, setRecentClicks] = useState<MapClick[]>([]);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('world');
 
     // Process historical data for heatmap
-    const countryCounts = useMemo(() => {
+    const locationCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         clickHistory.forEach(click => {
-            if (click.country) {
-                counts[click.country] = (counts[click.country] || 0) + 1;
+            if (viewMode === 'world') {
+                if (click.country) {
+                    counts[click.country] = (counts[click.country] || 0) + 1;
+                }
+            } else {
+                // In USA mode, aggregate by region (State)
+                // We check if the click is from US to avoid pollution
+                if (click.country === 'United States' && click.region) {
+                    counts[click.region] = (counts[click.region] || 0) + 1;
+                }
             }
         });
         return counts;
-    }, [clickHistory]);
+    }, [clickHistory, viewMode]);
 
-    const maxClicks = Math.max(...Object.values(countryCounts), 1);
+    const maxClicks = Math.max(...Object.values(locationCounts), 1);
 
     // Color scale for heatmap
     const colorScale = scaleLinear<string>()
@@ -47,18 +61,13 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
     // Subscribe to real-time clicks
     useEffect(() => {
         const unsubscribe = subscribeToClickEvents((event) => {
-            // If we have coordinates, use them. Otherwise, try to map country to coordinates (simplified)
-            // For this demo, we'll generate random coordinates within the country if not provided, 
-            // or just use a default if we can't determine.
-            // Ideally, the backend provides lat/long.
-
             let coordinates: [number, number] = [0, 0];
 
-            // Use precise coordinates if available (from granular analytics)
+            // Use precise coordinates if available
             if (event.click.longitude && event.click.latitude) {
                 coordinates = [event.click.longitude, event.click.latitude];
             } else {
-                // Fallback: Random placement for visual effect if no precise location
+                // Fallback: Random placement
                 coordinates = [
                     (Math.random() * 360) - 180,
                     (Math.random() * 160) - 80
@@ -69,6 +78,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                 id: Math.random().toString(36).substr(2, 9),
                 coordinates,
                 country: event.click.country || 'Unknown',
+                region: event.click.region,
                 timestamp: Date.now(),
             };
 
@@ -94,12 +104,30 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                         </span>
-                        Live Global View
+                        {viewMode === 'world' ? 'Live Global View' : 'Live US View'}
                     </h3>
                 </div>
             </div>
 
-            <div className="absolute top-4 right-4 z-10">
+            <div className="absolute top-4 right-4 z-10 flex gap-2">
+                {/* View Toggle */}
+                <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 p-1 rounded-xl flex">
+                    <button
+                        onClick={() => setViewMode('world')}
+                        className={`p-2 rounded-lg transition-colors ${viewMode === 'world' ? 'bg-cyan-500/20 text-cyan-400' : 'text-slate-400 hover:text-white'}`}
+                        title="World View"
+                    >
+                        <Globe className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('usa')}
+                        className={`p-2 rounded-lg transition-colors ${viewMode === 'usa' ? 'bg-cyan-500/20 text-cyan-400' : 'text-slate-400 hover:text-white'}`}
+                        title="USA View"
+                    >
+                        <MapIcon className="w-5 h-5" />
+                    </button>
+                </div>
+
                 <button
                     onClick={() => setIsFullscreen(!isFullscreen)}
                     className="bg-slate-900/80 backdrop-blur-md border border-white/10 p-2 rounded-xl text-slate-400 hover:text-white transition-colors"
@@ -110,18 +138,16 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
 
             {/* Map */}
             <ComposableMap
-                projection="geoMercator"
-                projectionConfig={{
-                    scale: 140,
-                }}
+                projection={viewMode === 'world' ? "geoMercator" : "geoAlbersUsa"}
+                projectionConfig={viewMode === 'world' ? { scale: 140 } : { scale: 1000 }}
                 className="w-full h-full bg-[#0a0a0f]"
             >
                 <ZoomableGroup center={[0, 0]} zoom={1}>
-                    <Geographies geography={GEO_URL}>
+                    <Geographies geography={viewMode === 'world' ? GEO_URL_WORLD : GEO_URL_US}>
                         {({ geographies }) =>
                             geographies.map((geo) => {
-                                const countryName = geo.properties.name;
-                                const clickCount = countryCounts[countryName] || 0;
+                                const locationName = geo.properties.name;
+                                const clickCount = locationCounts[locationName] || 0;
 
                                 return (
                                     <Geography
@@ -136,7 +162,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                                             pressed: { fill: "#06b6d4", outline: "none" },
                                         }}
                                         data-tooltip-id="map-tooltip"
-                                        data-tooltip-content={`${countryName}: ${clickCount} clicks`}
+                                        data-tooltip-content={`${locationName}: ${clickCount} clicks`}
                                     />
                                 );
                             })

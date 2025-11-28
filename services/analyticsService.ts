@@ -44,14 +44,14 @@ export function filterByDateRange(
   referenceTime: number = Date.now()
 ): ClickEvent[] {
   const rangeMs = dateRangeToMs(range);
-  
+
   // 'all' range returns all events
   if (rangeMs === null) {
     return events;
   }
-  
+
   const startTime = referenceTime - rangeMs;
-  
+
   return events.filter(event => event.timestamp >= startTime && event.timestamp <= referenceTime);
 }
 
@@ -69,12 +69,12 @@ export function filterByDateRange(
 export function aggregateClicksByDayOfWeek(events: ClickEvent[]): Record<string, number> {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const dayClickCounts: Record<string, number> = {};
-  
+
   // Initialize all days with zero
   days.forEach(day => {
     dayClickCounts[day] = 0;
   });
-  
+
   // Aggregate clicks by day of week
   events.forEach(event => {
     const date = new Date(event.timestamp);
@@ -83,7 +83,7 @@ export function aggregateClicksByDayOfWeek(events: ClickEvent[]): Record<string,
     const dayName = days[dayIndex === 0 ? 6 : dayIndex - 1];
     dayClickCounts[dayName]++;
   });
-  
+
   return dayClickCounts;
 }
 
@@ -102,26 +102,26 @@ export function generateClickForecastData(
   dateRange: DateRange = 'all'
 ): ClickForecastDataPoint[] {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  
+
   // Collect all click events from all links
   const allEvents: ClickEvent[] = [];
   links.forEach(link => {
     allEvents.push(...link.clickHistory);
   });
-  
+
   // Filter by date range
   const filteredEvents = filterByDateRange(allEvents, dateRange);
-  
+
   // Aggregate by day of week
   const dayClickCounts = aggregateClicksByDayOfWeek(filteredEvents);
-  
+
   // Calculate forecast based on historical average
   const totalClicks = Object.values(dayClickCounts).reduce((sum, count) => sum + count, 0);
   const avgClicks = totalClicks / 7;
-  
+
   // Generate data points with actual data and forecast based on historical average
   return days.map(day => ({
-    day,
+    date: day,
     actual: dayClickCounts[day],
     // Forecast is the historical average (no random variation)
     forecast: Math.round(avgClicks),
@@ -140,12 +140,12 @@ export function generateClickForecastData(
  */
 export function categorizeReferrer(referrer: string): TrafficSource {
   const normalizedReferrer = referrer.toLowerCase().trim();
-  
+
   // Direct traffic: empty, null, or explicitly "direct"
   if (!normalizedReferrer || normalizedReferrer === 'direct') {
     return 'direct';
   }
-  
+
   // Social media patterns
   const socialPatterns = [
     'twitter',
@@ -167,11 +167,11 @@ export function categorizeReferrer(referrer: string): TrafficSource {
     'mastodon',
     'threads.net',
   ];
-  
+
   if (socialPatterns.some(pattern => normalizedReferrer.includes(pattern))) {
     return 'social';
   }
-  
+
   // Everything else is referral traffic
   return 'referral';
 }
@@ -196,22 +196,22 @@ export function generateTrafficSourceData(
     social: 0,
     referral: 0,
   };
-  
+
   // Collect all click events from all links
   const allEvents: ClickEvent[] = [];
   links.forEach(link => {
     allEvents.push(...link.clickHistory);
   });
-  
+
   // Filter by date range
   const filteredEvents = filterByDateRange(allEvents, dateRange);
-  
+
   // Categorize each click by referrer
   filteredEvents.forEach(event => {
     const category = categorizeReferrer(event.referrer);
     sourceCounts[category]++;
   });
-  
+
   return [
     { name: 'Direct', value: sourceCounts.direct, color: TRAFFIC_SOURCE_COLORS.direct },
     { name: 'Social', value: sourceCounts.social, color: TRAFFIC_SOURCE_COLORS.social },
@@ -251,33 +251,33 @@ export function generateLinkHealthData(links: LinkData[]): LinkHealthDataPoint[]
       { metric: 'Growth', value: 0 },
     ];
   }
-  
+
   const totalClicks = links.reduce((sum, link) => sum + link.clicks, 0);
   const avgClicks = totalClicks / links.length;
   const maxClicks = Math.max(...links.map(link => link.clicks));
-  
+
   // Calculate metrics (normalized to 0-100 scale)
   const ctr = Math.min(100, (avgClicks / 100) * 100); // Assume 100 clicks is 100% CTR baseline
-  
+
   // Engagement: based on click frequency
-  const recentClicks = links.filter(link => 
+  const recentClicks = links.filter(link =>
     link.lastClickedAt && Date.now() - link.lastClickedAt < 7 * 24 * 60 * 60 * 1000
   ).length;
   const engagement = (recentClicks / links.length) * 100;
-  
+
   // Reach: based on total clicks relative to max
   const reach = maxClicks > 0 ? (totalClicks / (maxClicks * links.length)) * 100 : 0;
-  
+
   // Retention: based on links with multiple clicks
   const linksWithMultipleClicks = links.filter(link => link.clicks > 1).length;
   const retention = (linksWithMultipleClicks / links.length) * 100;
-  
+
   // Growth: based on recent vs older clicks
   const now = Date.now();
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   let recentClickCount = 0;
   let olderClickCount = 0;
-  
+
   links.forEach(link => {
     link.clickHistory.forEach(click => {
       if (click.timestamp > weekAgo) {
@@ -287,11 +287,11 @@ export function generateLinkHealthData(links: LinkData[]): LinkHealthDataPoint[]
       }
     });
   });
-  
-  const growth = olderClickCount > 0 
-    ? Math.min(100, (recentClickCount / olderClickCount) * 50) 
+
+  const growth = olderClickCount > 0
+    ? Math.min(100, (recentClickCount / olderClickCount) * 50)
     : (recentClickCount > 0 ? 100 : 0);
-  
+
   return [
     { metric: 'CTR', value: Math.round(ctr) },
     { metric: 'Engagement', value: Math.round(engagement) },

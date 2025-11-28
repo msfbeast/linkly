@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -9,67 +9,65 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { useTheme } from '../contexts/ThemeContext';
-
-export interface ClickForecastDataPoint {
-  day: string;
-  forecast: number;
-  actual: number;
-}
+import { useTheme } from '../context/ThemeContext';
 
 export interface ClickForecastChartProps {
-  data: ClickForecastDataPoint[];
+  data: {
+    date: string;
+    actual: number;
+    forecast: number;
+  }[];
 }
 
 const ClickForecastChart: React.FC<ClickForecastChartProps> = ({ data }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-
-  // Theme-aware colors
-  const gridStroke = isDark ? '#ffffff' : '#e2e8f0';
-  const gridOpacity = isDark ? 0.05 : 0.5;
-  const tickColor = isDark ? '#64748b' : '#475569';
-  const tooltipBg = isDark ? 'rgba(2, 6, 23, 0.8)' : 'rgba(255, 255, 255, 0.95)';
-  const tooltipBorder = isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)';
-  const tooltipTextColor = isDark ? '#e2e8f0' : '#1e293b';
-  const tooltipShadow = isDark ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 30px rgba(0,0,0,0.15)';
-  const cursorFill = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-  const forecastColor = isDark ? '#22d3ee' : '#0891b2';
+  // Theme-aware colors for Warm Soft Minimalist
+  const gridStroke = '#e7e5e4'; // stone-200
+  const gridOpacity = 0.6;
+  const tickColor = '#78716c'; // stone-500
+  const tooltipBg = '#ffffff';
+  const tooltipBorder = '1px solid #e7e5e4';
+  const tooltipTextColor = '#1c1917'; // stone-900
+  const tooltipShadow = '0 4px 20px rgba(0,0,0,0.05)';
+  const actualStroke = '#1F2937'; // slate-900 (charcoal)
+  const forecastStroke = '#F59E0B'; // yellow-500
+  const forecastFill = 'url(#colorForecast)';
 
   return (
     <div
-      className="bg-white dark:bg-[#12121a] rounded-2xl p-6 border border-slate-200 dark:border-white/5 transition-colors duration-200"
+      className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm transition-colors duration-200"
       data-testid="click-forecast-chart"
     >
       <div className="mb-4">
         <h3
-          className="text-slate-900 dark:text-white text-lg font-semibold"
+          className="text-slate-900 text-lg font-bold"
           data-testid="chart-title"
         >
           Click Forecast
         </h3>
         <p
-          className="text-slate-500 dark:text-gray-400 text-sm"
+          className="text-stone-500 text-sm"
           data-testid="chart-subtitle"
         >
-          Projected engagement via analytics
+          Predicted vs Actual Performance
         </p>
       </div>
 
       <div className="w-full h-[250px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            barGap={4}
-          >
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid
               vertical={false}
               stroke={gridStroke}
               strokeOpacity={gridOpacity}
             />
             <XAxis
-              dataKey="day"
+              dataKey="date"
               axisLine={false}
               tickLine={false}
               tick={{ fill: tickColor, fontSize: 11, fontWeight: 500 }}
@@ -83,35 +81,39 @@ const ClickForecastChart: React.FC<ClickForecastChartProps> = ({ data }) => {
             <Tooltip
               contentStyle={{
                 backgroundColor: tooltipBg,
-                backdropFilter: 'blur(8px)',
                 border: tooltipBorder,
                 borderRadius: '12px',
                 boxShadow: tooltipShadow,
               }}
-              itemStyle={{ color: tooltipTextColor, fontSize: '12px' }}
-              cursor={{ fill: cursorFill }}
+              itemStyle={{ color: tooltipTextColor, fontSize: '12px', fontWeight: 600 }}
+              cursor={{ stroke: '#F59E0B', strokeWidth: 1, strokeDasharray: '4 4' }}
             />
             <Legend
-              wrapperStyle={{ paddingTop: '20px' }}
-              formatter={(value) => (
-                <span className="text-slate-500 dark:text-gray-400 text-sm capitalize">{value}</span>
-              )}
+              verticalAlign="top"
+              height={36}
+              iconType="circle"
+              wrapperStyle={{ fontSize: '12px', fontWeight: 500, color: '#78716c' }}
             />
-            <Bar
+            <Area
+              type="monotone"
+              dataKey="actual"
+              name="Actual Clicks"
+              stroke={actualStroke}
+              strokeWidth={3}
+              fill="transparent"
+              activeDot={{ r: 6, fill: '#1F2937', stroke: '#fff', strokeWidth: 2 }}
+            />
+            <Area
+              type="monotone"
               dataKey="forecast"
               name="Forecast"
-              fill={forecastColor}
-              radius={[4, 4, 0, 0]}
-              data-testid="forecast-series"
+              stroke={forecastStroke}
+              strokeWidth={3}
+              strokeDasharray="5 5"
+              fill={forecastFill}
+              activeDot={{ r: 6, fill: '#FBBF24', stroke: '#fff', strokeWidth: 2 }}
             />
-            <Bar
-              dataKey="actual"
-              name="Actual"
-              fill="#6b7280"
-              radius={[4, 4, 0, 0]}
-              data-testid="actual-series"
-            />
-          </BarChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>

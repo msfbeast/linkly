@@ -20,19 +20,18 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
 }) => {
   return (
     <div className="flex items-center gap-2">
-      <Calendar className="w-4 h-4 text-slate-400" />
-      <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#12121a] rounded-lg border border-slate-200 dark:border-white/5 p-1 transition-colors duration-200">
+      <Calendar className="w-4 h-4 text-stone-400" />
+      <div className="flex items-center gap-1 bg-white rounded-lg border border-stone-200 p-1 transition-colors duration-200 shadow-sm">
         {DATE_RANGE_OPTIONS.map((option) => {
           const isActive = selectedRange === option.value;
           return (
             <button
               key={option.value}
               onClick={() => onRangeChange(option.value)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/5'
-              }`}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${isActive
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'
+                }`}
               aria-pressed={isActive}
               aria-label={`Filter by ${option.label}`}
             >

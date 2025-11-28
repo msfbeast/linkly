@@ -6,11 +6,16 @@ import { isSupabaseConfigured } from '../services/storage/supabaseClient';
 import { createClickEventInput, validateClickEvent } from '../services/clickTrackingService';
 import { getLinkByCode as getLocalLinkByCode, incrementClicks } from '../services/storageService';
 
+import { useParams } from 'react-router-dom';
+
 interface RedirectProps {
-  code: string;
+  code?: string;
 }
 
-const Redirect: React.FC<RedirectProps> = ({ code }) => {
+const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
+  const { code: paramCode } = useParams<{ code: string }>();
+  const code = propCode || paramCode || '';
+
   const [error, setError] = useState<string | null>(null);
   const [destination, setDestination] = useState<string | null>(null);
   const [redirectMsg, setRedirectMsg] = useState('Analyzing request...');
@@ -242,14 +247,14 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
+        <div className="bg-white border border-stone-200 p-8 rounded-[2rem] max-w-md w-full text-center shadow-sm">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Link Unavailable</h1>
-          <p className="text-slate-400 mb-6">{error}</p>
-          <a href="/" className="inline-flex items-center text-indigo-400 hover:text-indigo-300 font-medium">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Link Unavailable</h1>
+          <p className="text-stone-500 mb-6">{error}</p>
+          <a href="/" className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium">
             Create your own link <ArrowRight className="w-4 h-4 ml-1" />
           </a>
         </div>
@@ -259,24 +264,24 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
 
   if (isLocked) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
-          <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-8 h-8 text-indigo-500" />
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
+        <div className="bg-white border border-stone-200 p-8 rounded-[2rem] max-w-md w-full text-center shadow-xl shadow-stone-200/50">
+          <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-8 h-8 text-amber-500" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Protected Link</h2>
-          <p className="text-slate-400 mb-6 text-sm">Enter the password to access this content.</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Protected Link</h2>
+          <p className="text-stone-500 mb-6 text-sm">Enter the password to access this content.</p>
 
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <input
               type="password"
               placeholder="Password"
-              className={`w-full bg-slate-950 border ${passwordError ? 'border-red-500' : 'border-slate-700'} text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+              className={`w-full bg-stone-50 border ${passwordError ? 'border-red-500' : 'border-stone-200'} text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500`}
               value={passwordInput}
               onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
               autoFocus
             />
-            <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors">
+            <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-amber-500/20">
               Unlock Link
             </button>
           </form>
@@ -286,29 +291,29 @@ const Redirect: React.FC<RedirectProps> = ({ code }) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
       <div className="text-center">
-        <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <div className="w-16 h-16 bg-white border border-stone-100 rounded-full flex items-center justify-center mx-auto mb-6 relative shadow-sm">
+          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center opacity-30">
-            <Globe className="w-4 h-4 text-white" />
+            <Globe className="w-4 h-4 text-stone-400" />
           </div>
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">{redirectMsg}</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">{redirectMsg}</h2>
 
         <div className="flex items-center justify-center gap-2 mb-8">
-          <p className="text-slate-400 text-sm">
+          <p className="text-stone-500 text-sm">
             Optimizing route for your device
           </p>
           {detectedLocale && (
-            <span className="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded border border-slate-700">
+            <span className="bg-stone-100 text-stone-600 text-[10px] px-2 py-0.5 rounded border border-stone-200 font-medium">
               {detectedLocale}
             </span>
           )}
         </div>
 
         {destination && (
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm text-slate-500 max-w-md mx-auto truncate animate-pulse">
+          <div className="bg-white border border-stone-200 rounded-lg p-3 text-sm text-stone-400 max-w-md mx-auto truncate animate-pulse">
             {destination}
           </div>
         )}

@@ -69,10 +69,10 @@ export interface LinkData {
 
 // Category color mapping for consistent styling across components
 export const CATEGORY_COLORS: Record<LinkCategory, string> = {
-  social: '#00d4ff',    // cyan
-  marketing: '#ffd700', // yellow
-  product: '#ff6b6b',   // coral
-  other: '#1a1a2e',     // dark
+  social: '#06b6d4',    // cyan-500
+  marketing: '#facc15', // yellow-400
+  product: '#f59e0b',   // amber-500 (replaced pink)
+  other: '#78716c',     // stone-500
 };
 
 // Helper function to categorize links based on URL patterns or tags
@@ -163,7 +163,7 @@ export interface Product {
 
 // Click Forecast Chart data point (bar chart with forecast vs actual)
 export interface ClickForecastDataPoint {
-  day: string;
+  date: string;
   forecast: number;
   actual: number;
 }
@@ -223,7 +223,7 @@ export function generateClickForecastData(links: LinkData[]): ClickForecastDataP
   const avgClicks = totalClicks / 7;
 
   return days.map(day => ({
-    day,
+    date: day,
     actual: dayClickCounts[day],
     forecast: Math.round(avgClicks * (0.8 + Math.random() * 0.4)), // ±20% variation
   }));

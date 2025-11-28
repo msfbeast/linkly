@@ -648,6 +648,28 @@ export class SupabaseAdapter implements StorageAdapter {
   }
 
   /**
+   * Get a single product by ID
+   */
+  async getProductById(id: string): Promise<Product | null> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data, error } = await supabase!
+      .from(TABLES.PRODUCTS)
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw new Error(`Failed to fetch product: ${error.message}`);
+    }
+
+    return rowToProduct(data as ProductRow);
+  }
+
+  /**
    * Update a product
    */
   async updateProduct(id: string, updates: Partial<Product>): Promise<Product> {

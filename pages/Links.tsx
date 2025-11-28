@@ -65,14 +65,14 @@ const Links: React.FC<LinksProps> = ({
   // Set up real-time subscriptions
   useEffect(() => {
     console.log('[Links] Setting up real-time subscriptions...');
-    
+
     // Subscribe to new click events
     const unsubscribeClicks = subscribeToClickEvents((event: RealtimeClickEvent) => {
       console.log('[Links] Real-time click received:', event);
       setIsRealtimeConnected(true);
-      
+
       // Update the link's click history in state
-      setLinks(prevLinks => 
+      setLinks(prevLinks =>
         prevLinks.map(link => {
           if (link.id === event.linkId) {
             return {
@@ -91,7 +91,7 @@ const Links: React.FC<LinksProps> = ({
     const unsubscribeLinks = subscribeToLinkUpdates((update: RealtimeLinkUpdate) => {
       console.log('[Links] Real-time link update received:', update);
       setIsRealtimeConnected(true);
-      
+
       // Update the link's click count in state
       setLinks(prevLinks =>
         prevLinks.map(link => {
@@ -200,10 +200,10 @@ const Links: React.FC<LinksProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-cyan-400 animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading your links...</p>
+          <Loader2 className="w-12 h-12 text-yellow-500 animate-spin mx-auto mb-4" />
+          <p className="text-stone-500">Loading your links...</p>
         </div>
       </div>
     );
@@ -211,16 +211,16 @@ const Links: React.FC<LinksProps> = ({
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
-          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-400" />
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-500" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Unable to load links</h2>
-          <p className="text-slate-400 mb-6">{error}</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Unable to load links</h2>
+          <p className="text-stone-500 mb-6">{error}</p>
           <button
             onClick={loadLinks}
-            className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl transition-colors"
+            className="px-6 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
           >
             Try Again
           </button>
@@ -231,31 +231,31 @@ const Links: React.FC<LinksProps> = ({
 
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[#FDFBF7]">
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Your Links</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Your Links</h1>
               {isRealtimeConnected && (
-                <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
-                  <span className="text-emerald-400 text-[10px] font-medium uppercase tracking-wider">Live</span>
+                  <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Live</span>
                 </span>
               )}
             </div>
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="text-stone-500 text-sm mt-1">
               {links.length} {links.length === 1 ? 'link' : 'links'} total
             </p>
           </div>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
           >
             <Plus className="w-5 h-5" />
             Create Link
@@ -264,18 +264,18 @@ const Links: React.FC<LinksProps> = ({
 
         {/* Search */}
         <div className="relative group">
-          <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+          <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-yellow-500 transition-colors" />
           <input
             type="text"
             placeholder="Search by title, short code, or URL..."
-            className="w-full bg-[#12121a] border border-white/5 text-white pl-12 pr-6 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-500"
+            className="w-full bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all placeholder:text-stone-400 shadow-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         {/* Links List */}
-        <div className="bg-[#12121a] border border-white/5 rounded-2xl p-5">
+        <div className="bg-white border border-stone-200 rounded-[2rem] p-6 shadow-sm">
           <div className="space-y-3">
             <AnimatePresence mode="popLayout">
               {filteredLinks.length > 0 ? (
@@ -300,25 +300,25 @@ const Links: React.FC<LinksProps> = ({
                   animate={{ opacity: 1 }}
                   className="text-center py-16"
                 >
-                  <div className="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-200">
                     {searchTerm ? (
-                      <Search className="w-6 h-6 text-cyan-400" />
+                      <Search className="w-6 h-6 text-yellow-600" />
                     ) : (
-                      <LinkIcon className="w-6 h-6 text-cyan-400" />
+                      <LinkIcon className="w-6 h-6 text-yellow-600" />
                     )}
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-2">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
                     {searchTerm ? 'No links found' : 'No links yet'}
                   </h3>
-                  <p className="text-slate-500 mb-4 max-w-sm mx-auto text-sm">
-                    {searchTerm 
-                      ? 'Try a different search term.' 
+                  <p className="text-stone-500 mb-4 max-w-sm mx-auto text-sm">
+                    {searchTerm
+                      ? 'Try a different search term.'
                       : 'Create your first shortened link to get started.'}
                   </p>
                   {!searchTerm && (
                     <button
                       onClick={() => setIsModalOpen(true)}
-                      className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center justify-center gap-2 mx-auto text-sm"
+                      className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
                     >
                       Create your first link <ArrowUpRight className="w-4 h-4" />
                     </button>

@@ -21,28 +21,28 @@ export interface LinkPerformanceCardProps {
  */
 export const categoryColorMap: Record<LinkCategory, { bg: string; text: string; label: string; clicksText: string; isThemeAware?: boolean }> = {
   social: {
-    bg: 'bg-cyan-500',
-    text: 'text-white',
-    label: 'bg-cyan-600/50 text-cyan-100',
-    clicksText: 'text-white',
+    bg: 'bg-white border border-stone-200',
+    text: 'text-slate-900',
+    label: 'bg-cyan-50 text-cyan-700 border border-cyan-100',
+    clicksText: 'text-slate-900',
   },
   marketing: {
-    bg: 'bg-yellow-500',
+    bg: 'bg-yellow-400',
     text: 'text-slate-900',
-    label: 'bg-yellow-600/50 text-yellow-900',
+    label: 'bg-white/30 text-yellow-900 border border-yellow-500/20',
     clicksText: 'text-slate-900',
   },
   product: {
-    bg: 'bg-pink-500',
-    text: 'text-white',
-    label: 'bg-pink-600/50 text-pink-100',
-    clicksText: 'text-white',
+    bg: 'bg-white border border-stone-200',
+    text: 'text-slate-900',
+    label: 'bg-yellow-50 text-yellow-700 border border-yellow-100',
+    clicksText: 'text-slate-900',
   },
   other: {
-    bg: 'bg-slate-100 dark:bg-[#1a1a24]',
-    text: 'text-slate-900 dark:text-white',
-    label: 'bg-slate-300/50 dark:bg-slate-600/50 text-slate-700 dark:text-slate-300',
-    clicksText: 'text-slate-900 dark:text-white',
+    bg: 'bg-white border border-stone-200',
+    text: 'text-slate-900',
+    label: 'bg-stone-100 text-stone-600 border border-stone-200',
+    clicksText: 'text-slate-900',
     isThemeAware: true,
   },
 };
@@ -69,24 +69,18 @@ const LinkPerformanceCard: React.FC<LinkPerformanceCardProps> = ({
 
   // Menu button styles based on background type
   const getMenuButtonStyles = () => {
-    if (isLightBg) {
-      return 'text-slate-700 hover:text-slate-900 hover:bg-black/10';
+    if (category === 'marketing') {
+      return 'text-yellow-900 hover:bg-black/5';
     }
-    if (isThemeAware) {
-      return 'text-slate-500 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10';
-    }
-    return 'text-white/70 hover:text-white hover:bg-white/10';
+    return 'text-stone-400 hover:text-slate-900 hover:bg-stone-100';
   };
 
   // Date text styles based on background type
   const getDateStyles = () => {
-    if (isLightBg) {
-      return 'text-slate-700/70';
+    if (category === 'marketing') {
+      return 'text-yellow-800/70';
     }
-    if (isThemeAware) {
-      return 'text-slate-500 dark:text-white/70';
-    }
-    return 'text-white/70';
+    return 'text-stone-400';
   };
 
   return (

@@ -90,7 +90,7 @@ const Login: React.FC = () => {
             <LinkIcon className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Welcome back</h1>
-          <p className="text-slate-600 dark:text-slate-400">Sign in to your Linkly account</p>
+          <p className="text-slate-600 dark:text-slate-400">Sign in to your Gather account</p>
         </div>
 
         {/* Login Form */}
@@ -126,9 +126,8 @@ const Login: React.FC = () => {
                     }
                   }}
                   placeholder="you@example.com"
-                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${
-                    fieldErrors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
-                  } text-slate-900 dark:text-white pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
+                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${fieldErrors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
+                    } text-slate-900 dark:text-white pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
                   disabled={isLoading}
                   aria-invalid={!!fieldErrors.email}
                   aria-describedby={fieldErrors.email ? 'email-error' : undefined}
@@ -160,9 +159,8 @@ const Login: React.FC = () => {
                     }
                   }}
                   placeholder="Enter your password"
-                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${
-                    fieldErrors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
-                  } text-slate-900 dark:text-white pl-12 pr-12 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
+                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${fieldErrors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
+                    } text-slate-900 dark:text-white pl-12 pr-12 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
                   disabled={isLoading}
                   aria-invalid={!!fieldErrors.password}
                   aria-describedby={fieldErrors.password ? 'password-error' : undefined}

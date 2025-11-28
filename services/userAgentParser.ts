@@ -7,24 +7,27 @@
 
 export type DeviceType = 'Mobile' | 'Desktop' | 'Tablet' | 'Other';
 export type OSType = 'iOS' | 'Android' | 'Windows' | 'MacOS' | 'Linux' | 'Other';
+export type BrowserType = 'Chrome' | 'Firefox' | 'Safari' | 'Edge' | 'Opera' | 'Other';
 
 export interface ParsedUserAgent {
   device: DeviceType;
   os: OSType;
+  browser: BrowserType;
 }
 
 /**
- * Parses a user agent string to extract device type and operating system.
+ * Parses a user agent string to extract device type, operating system, and browser.
  * 
  * @param userAgent - The user agent string from the request
- * @returns An object containing the detected device type and OS
+ * @returns An object containing the detected device type, OS, and browser
  */
 export function parseUserAgent(userAgent: string): ParsedUserAgent {
   const ua = userAgent.toLowerCase();
-  
+
   return {
     device: detectDevice(ua),
     os: detectOS(ua),
+    browser: detectBrowser(ua),
   };
 }
 
@@ -36,17 +39,17 @@ function detectDevice(ua: string): DeviceType {
   if (isTablet(ua)) {
     return 'Tablet';
   }
-  
+
   // Check for mobile devices
   if (isMobile(ua)) {
     return 'Mobile';
   }
-  
+
   // Check for desktop indicators
   if (isDesktop(ua)) {
     return 'Desktop';
   }
-  
+
   return 'Other';
 }
 
@@ -58,12 +61,12 @@ function isTablet(ua: string): boolean {
   if (ua.includes('ipad')) {
     return true;
   }
-  
+
   // Android tablets (have 'android' but not 'mobile')
   if (ua.includes('android') && !ua.includes('mobile')) {
     return true;
   }
-  
+
   // Other tablet indicators
   const tabletPatterns = [
     'tablet',
@@ -76,7 +79,7 @@ function isTablet(ua: string): boolean {
     'sm-t', // Samsung tablets
     'gt-p',  // Samsung tablets
   ];
-  
+
   return tabletPatterns.some(pattern => ua.includes(pattern));
 }
 
@@ -105,7 +108,7 @@ function isMobile(ua: string): boolean {
     'mot-',
     'sonyericsson',
   ];
-  
+
   return mobilePatterns.some(pattern => ua.includes(pattern));
 }
 
@@ -123,7 +126,7 @@ function isDesktop(ua: string): boolean {
     'x11',
     'cros', // Chrome OS
   ];
-  
+
   return desktopPatterns.some(pattern => ua.includes(pattern));
 }
 
@@ -135,26 +138,53 @@ function detectOS(ua: string): OSType {
   if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
     return 'iOS';
   }
-  
+
   // Android detection
   if (ua.includes('android')) {
     return 'Android';
   }
-  
+
   // Windows detection
   if (ua.includes('windows') || ua.includes('win32') || ua.includes('win64')) {
     return 'Windows';
   }
-  
+
   // MacOS detection (but not iOS devices)
   if (ua.includes('macintosh') || ua.includes('mac os x')) {
     return 'MacOS';
   }
-  
+
   // Linux detection (but not Android)
   if (ua.includes('linux') || ua.includes('x11')) {
     return 'Linux';
   }
-  
+
+  return 'Other';
+}
+
+/**
+ * Detects the browser from a lowercase user agent string.
+ */
+function detectBrowser(ua: string): BrowserType {
+  if (ua.includes('edg/')) {
+    return 'Edge';
+  }
+
+  if (ua.includes('opr/') || ua.includes('opera')) {
+    return 'Opera';
+  }
+
+  if (ua.includes('chrome') && !ua.includes('chromium') && !ua.includes('edg/')) {
+    return 'Chrome';
+  }
+
+  if (ua.includes('firefox')) {
+    return 'Firefox';
+  }
+
+  if (ua.includes('safari') && !ua.includes('chrome') && !ua.includes('chromium')) {
+    return 'Safari';
+  }
+
   return 'Other';
 }

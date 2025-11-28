@@ -148,8 +148,8 @@ export async function processClickRequest(
   request: ClickRequest,
   timestamp: number = Date.now()
 ): Promise<ClickEvent> {
-  // Parse user agent for device and OS
-  const { device, os } = parseUserAgent(request.userAgent || '');
+  // Parse user agent for device, OS, and browser
+  const { device, os, browser } = parseUserAgent(request.userAgent || '');
 
   // Get country from IP (returns "Unknown" on failure per Requirements 2.5)
   const country = await getCountryFromIP(request.ipAddress || '');
@@ -162,6 +162,7 @@ export async function processClickRequest(
     referrer,
     device,
     os,
+    browser,
     country,
   };
 }
