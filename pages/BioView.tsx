@@ -2,6 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { getBioProfileByHandle, getLinks } from '../services/storageService';
 import { BioProfile, LinkData } from '../types';
 import { UserCircle2, ExternalLink } from 'lucide-react';
+import VibrantBioTemplate from '../components/bio-templates/VibrantBioTemplate';
+import GlassBioTemplate from '../components/bio-templates/GlassBioTemplate';
+import IndustrialBioTemplate from '../components/bio-templates/IndustrialBioTemplate';
+import RetroPopBioTemplate from '../components/bio-templates/RetroPopBioTemplate';
+import CyberpunkBioTemplate from '../components/bio-templates/CyberpunkBioTemplate';
+import NeubrutalismBioTemplate from '../components/bio-templates/NeubrutalismBioTemplate';
+import LofiBioTemplate from '../components/bio-templates/LofiBioTemplate';
+import ClaymorphismBioTemplate from '../components/bio-templates/ClaymorphismBioTemplate';
+import BauhausBioTemplate from '../components/bio-templates/BauhausBioTemplate';
+import LabBioTemplate from '../components/bio-templates/LabBioTemplate';
+import ArchiveBioTemplate from '../components/bio-templates/ArchiveBioTemplate';
 
 import { useParams } from 'react-router-dom';
 
@@ -35,66 +46,34 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
     );
   }
 
-  // Theme Config
-  const getThemeClasses = (theme: string) => {
-    switch (theme) {
-      case 'light': return 'bg-[#FDFBF7] text-slate-900';
-      case 'blue': return 'bg-blue-50 text-blue-900';
-      case 'purple': return 'bg-purple-50 text-purple-900';
-      default: return 'bg-[#FDFBF7] text-slate-900';
-    }
-  };
-
-  const getButtonClasses = (theme: string) => {
-    switch (theme) {
-      case 'light': return 'bg-white border-slate-200 text-slate-900 hover:bg-slate-100 shadow-sm';
-      case 'blue': return 'bg-blue-800 border-blue-700 text-white hover:bg-blue-700';
-      case 'purple': return 'bg-purple-800 border-purple-700 text-white hover:bg-purple-700';
-      default: return 'bg-slate-900 border-slate-800 text-white hover:bg-slate-800';
-    }
-  };
-
-  return (
-    <div className={`min-h-screen flex flex-col items-center py-16 px-4 ${getThemeClasses(profile.theme)}`}>
-      <div className="max-w-md w-full text-center">
-        {/* Avatar */}
-        <div className="w-24 h-24 mx-auto mb-6 rounded-full overflow-hidden border-4 border-white/10 shadow-xl">
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-              <UserCircle2 className="w-12 h-12 opacity-50" />
-            </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <h1 className="text-2xl font-bold mb-2">{profile.displayName}</h1>
-        <p className="opacity-80 mb-10 text-sm leading-relaxed">{profile.bio}</p>
-
-        {/* Links */}
-        <div className="space-y-4">
-          {links.map(link => (
-            <a
-              key={link.id}
-              href={`/r/${link.shortCode}`} // Route through our redirect handler for tracking
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`block w-full py-4 px-6 rounded-xl border font-medium transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-between group ${getButtonClasses(profile.theme)}`}
-            >
-              <span>{link.title}</span>
-              <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
-            </a>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="mt-16 pt-8 border-t border-white/10 opacity-40 text-xs font-medium">
-          Powered by Gather
-        </div>
-      </div>
-    </div>
-  );
+  // Render the selected template
+  switch (profile.theme) {
+    case 'vibrant':
+      return <VibrantBioTemplate profile={profile} links={links} />;
+    case 'glass':
+      return <GlassBioTemplate profile={profile} links={links} />;
+    case 'industrial':
+      return <IndustrialBioTemplate profile={profile} links={links} />;
+    case 'retro':
+      return <RetroPopBioTemplate profile={profile} links={links} />;
+    case 'cyberpunk':
+      return <CyberpunkBioTemplate profile={profile} links={links} />;
+    case 'neubrutalism':
+      return <NeubrutalismBioTemplate profile={profile} links={links} />;
+    case 'lofi':
+      return <LofiBioTemplate profile={profile} links={links} />;
+    case 'clay':
+      return <ClaymorphismBioTemplate profile={profile} links={links} />;
+    case 'bauhaus':
+      return <BauhausBioTemplate profile={profile} links={links} />;
+    case 'lab':
+      return <LabBioTemplate profile={profile} links={links} />;
+    case 'archive':
+      return <ArchiveBioTemplate profile={profile} links={links} />;
+    default:
+      // Fallback to Vibrant for legacy themes or defaults
+      return <VibrantBioTemplate profile={profile} links={links} />;
+  }
 };
 
 export default BioView;

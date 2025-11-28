@@ -5,7 +5,7 @@
  * Implements date filtering, click aggregation, and traffic source categorization.
  */
 
-import { ClickEvent, LinkData, ClickForecastDataPoint, TrafficSourceDataPoint, LinkHealthDataPoint, TRAFFIC_SOURCE_COLORS, TrafficSource } from '../types';
+import { ClickEvent, LinkData, ClickForecastDataPoint, TrafficSourceDataPoint, LinkHealthDataPoint, TRAFFIC_SOURCE_COLORS, TrafficSource, DeviceData } from '../types';
 
 // Date range type for filtering
 export type DateRange = '7d' | '30d' | '90d' | 'all';
@@ -301,15 +301,58 @@ export function generateLinkHealthData(links: LinkData[]): LinkHealthDataPoint[]
   ];
 }
 
-/**
- * Gets top performing links by click count
- * 
- * @param links - Array of links to sort
- * @param limit - Maximum number of links to return
- * @returns Array of top performing links
- */
 export function getTopPerformingLinks(links: LinkData[], limit: number = 4): LinkData[] {
   return [...links]
     .sort((a, b) => b.clicks - a.clicks)
     .slice(0, limit);
+}
+
+/**
+ * Generates distribution data for a specific field
+ */
+export function generateDistributionData(
+  events: ClickEvent[],
+  field: keyof ClickEvent,
+  limit: number = 5
+): DeviceData[] {
+  const counts: Record<string, number> = {};
+
+  events.forEach(event => {
+    const value = String(event[field] || 'Unknown');
+    counts[value] = (counts[value] || 0) + 1;
+  });
+
+  return Object.entries(counts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit);
+}
+
+export function generateDeviceTypeData(events: ClickEvent[]): DeviceData[] {
+  return generateDistributionData(events, 'device');
+}
+
+export function generateOSVersionData(events: ClickEvent[]): DeviceData[] {
+  return generateDistributionData(events, 'osVersion');
+}
+
+export function generateBrowserVersionData(events: ClickEvent[]): DeviceData[] {
+  return generateDistributionData(events, 'browserVersion');
+}
+
+export function generateScreenResolutionData(events: ClickEvent[]): DeviceData[] {
+  // Custom handling for screen resolution to format it nicely
+  const counts: Record<string, number> = {};
+
+  events.forEach(event => {
+    const width = event.screenWidth;
+    const height = event.screenHeight;
+    const value = width && height ? `${width}x${height}` : 'Unknown';
+    counts[value] = (counts[value] || 0) + 1;
+  });
+
+  return Object.entries(counts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
 }

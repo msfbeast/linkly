@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff } from 'lucide-react';
+import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import StorefrontPreview from '../components/StorefrontPreview';
 
 /**
  * Settings Page - User account and app preferences
@@ -20,10 +21,17 @@ const Settings: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  // Storefront state
+  const [selectedTheme, setSelectedTheme] = useState(user?.storefrontTheme || 'vibrant');
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
+
   // Update local state when user loads
   React.useEffect(() => {
     if (user?.displayName) {
       setDisplayName(user.displayName);
+    }
+    if (user?.storefrontTheme) {
+      setSelectedTheme(user.storefrontTheme);
     }
   }, [user]);
 
@@ -39,6 +47,21 @@ const Settings: React.FC = () => {
       console.error('Failed to update profile', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveTheme = async (theme: string) => {
+    setIsSavingTheme(true);
+    setSelectedTheme(theme);
+    try {
+      const result = await updateProfile({ storefrontTheme: theme });
+      if (result.success) {
+        console.log('Theme updated');
+      }
+    } catch (error) {
+      console.error('Failed to update theme', error);
+    } finally {
+      setIsSavingTheme(false);
     }
   };
 
@@ -86,9 +109,52 @@ const Settings: React.FC = () => {
 
   const tabs = [
     { id: 'account', label: 'Account', icon: User },
+    { id: 'storefront', label: 'Storefront', icon: LayoutTemplate },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'api', label: 'API Keys', icon: Key },
+    { id: 'monetization', label: 'Monetization', icon: Check }, // Using Check icon for now, ideally DollarSign
+  ];
+
+  // Monetization state
+  const [flipkartId, setFlipkartId] = useState(user?.flipkartAffiliateId || '');
+  const [amazonTag, setAmazonTag] = useState(user?.amazonAssociateTag || '');
+  const [isSavingMonetization, setIsSavingMonetization] = useState(false);
+
+  React.useEffect(() => {
+    if (user?.flipkartAffiliateId) setFlipkartId(user.flipkartAffiliateId);
+    if (user?.amazonAssociateTag) setAmazonTag(user.amazonAssociateTag);
+  }, [user]);
+
+  const handleSaveMonetization = async () => {
+    setIsSavingMonetization(true);
+    try {
+      const result = await updateProfile({
+        flipkartAffiliateId: flipkartId,
+        amazonAssociateTag: amazonTag
+      });
+      if (result.success) {
+        console.log('Monetization settings updated');
+      }
+    } catch (error) {
+      console.error('Failed to update monetization settings', error);
+    } finally {
+      setIsSavingMonetization(false);
+    }
+  };
+
+  const templates = [
+    { id: 'vibrant', name: 'Vibrant', description: 'Bold colors and dynamic energy.', color: 'bg-[#FF3366]' },
+    { id: 'glass', name: 'Glass (BW)', description: 'Sleek glassmorphism in black & white.', color: 'bg-black' },
+    { id: 'cyberpunk', name: 'Cyberpunk', description: 'Neon lights and glitch effects.', color: 'bg-[#00ff00]' },
+    { id: 'retro', name: 'Retro Pop', description: 'Nostalgic 80s/90s vibe.', color: 'bg-[#FFCC00]' },
+    { id: 'neubrutalism', name: 'Neubrutalism', description: 'Raw, bold, and high contrast.', color: 'bg-[#FF6B6B]' },
+    { id: 'lofi', name: 'Lofi', description: 'Calm, textured, and relaxed.', color: 'bg-[#F7F2E8]' },
+    { id: 'clay', name: 'Claymorphism', description: 'Soft, 3D inflated shapes.', color: 'bg-[#f0f4f8]' },
+    { id: 'bauhaus', name: 'Bauhaus', description: 'Geometric, artistic, primary colors.', color: 'bg-[#f4f1ea]' },
+    { id: 'industrial', name: 'Industrial', description: 'Clean, technical, engineered look.', color: 'bg-[#E2E2E2]' },
+    { id: 'lab', name: 'Lab', description: 'Clinical, white industrial, pure.', color: 'bg-white border border-gray-200' },
+    { id: 'archive', name: 'Archive', description: 'Database style, structured, curated.', color: 'bg-[#F0F0F0]' },
   ];
 
   return (
@@ -180,6 +246,52 @@ const Settings: React.FC = () => {
                     <Trash2 className="w-4 h-4" />
                     Delete Account
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Storefront Tab */}
+            {activeTab === 'storefront' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-900">Storefront Template</h2>
+                  <a href="/test-storefront" target="_blank" className="text-sm text-yellow-600 hover:text-yellow-700 flex items-center gap-1">
+                    Preview All <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <p className="text-stone-500 text-sm">Choose the design for your public product store.</p>
+
+                <div className="bg-stone-50 rounded-xl p-6 border border-stone-100 flex justify-center">
+                  <div className="w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden border-4 border-slate-900 bg-white">
+                    <StorefrontPreview theme={selectedTheme} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {templates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleSaveTheme(template.id)}
+                      disabled={isSavingTheme}
+                      className={`relative p-4 rounded-xl border-2 text-left transition-all group ${selectedTheme === template.id
+                        ? 'border-yellow-400 bg-yellow-50/50'
+                        : 'border-stone-100 hover:border-stone-200 bg-white'
+                        }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-lg shadow-sm flex-shrink-0 ${template.color}`}></div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">{template.name}</h3>
+                          <p className="text-stone-500 text-xs mt-1">{template.description}</p>
+                        </div>
+                      </div>
+                      {selectedTheme === template.id && (
+                        <div className="absolute top-4 right-4 text-yellow-500">
+                          <Check className="w-5 h-5" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -356,6 +468,50 @@ const Settings: React.FC = () => {
                 >
                   {user?.apiKey ? 'Regenerate Key' : 'Generate New Key'}
                 </button>
+              </div>
+            )}
+            {/* Monetization Tab */}
+            {activeTab === 'monetization' && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-slate-900">Monetization</h2>
+                <p className="text-stone-500 text-sm">Automatically add your affiliate tags to links you create.</p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-stone-500 mb-2">Flipkart Affiliate ID</label>
+                    <input
+                      type="text"
+                      value={flipkartId}
+                      onChange={(e) => setFlipkartId(e.target.value)}
+                      placeholder="e.g. yourname"
+                      className="w-full bg-white border border-stone-200 text-slate-900 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-stone-500 mb-2">Amazon Associate Tag</label>
+                    <input
+                      type="text"
+                      value={amazonTag}
+                      onChange={(e) => setAmazonTag(e.target.value)}
+                      placeholder="e.g. yourname-21"
+                      className="w-full bg-white border border-stone-200 text-slate-900 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-4">
+                  <button
+                    onClick={handleSaveMonetization}
+                    disabled={isSavingMonetization}
+                    className={`px-6 py-2.5 rounded-xl font-semibold transition-all ${isSavingMonetization
+                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                      : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20'
+                      }`}
+                  >
+                    {isSavingMonetization ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

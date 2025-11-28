@@ -121,7 +121,7 @@ export interface BioProfile {
   displayName: string;
   bio: string;
   avatarUrl: string;
-  theme: 'dark' | 'light' | 'blue' | 'purple';
+  theme: 'vibrant' | 'glass' | 'industrial' | 'retro' | 'cyberpunk' | 'neubrutalism' | 'lofi' | 'clay' | 'bauhaus' | 'lab' | 'archive' | 'dark' | 'light' | 'blue' | 'purple';
   links: string[]; // Array of LinkData IDs
   views: number;
 }
@@ -156,6 +156,7 @@ export interface Product {
   currency: string;
   imageUrl?: string;
   linkId: string; // Links to LinkData for tracking
+  category?: string;
   createdAt: number;
 }
 

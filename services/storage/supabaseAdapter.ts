@@ -10,6 +10,7 @@ import { LinkData, ClickEvent, Product } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
+import { monetizeUrl } from '../../utils/affiliateUtils';
 
 /**
  * Database row types for Supabase tables
@@ -42,6 +43,7 @@ interface ClickEventRow {
   referrer: string;
   device: string;
   os: string;
+  browser?: string;
   country: string;
   country_code?: string;
   city?: string;
@@ -164,8 +166,7 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
     screenHeight: row.screen_height,
     language: row.language,
     visitorId: row.visitor_id,
-    // These might not be in the row yet, but keeping for compatibility if added later
-    browser: undefined,
+    browser: row.browser,
     fingerprint: undefined,
   };
 }
@@ -183,9 +184,19 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error('Supabase is not configured');
     }
 
+    // Get the current user's ID from the auth session
+    const { data: { session } } = await supabase!.auth.getSession();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      console.warn('[SupabaseAdapter] No authenticated user found for getLinks');
+      return [];
+    }
+
     const { data: linkRows, error } = await supabase!
       .from(TABLES.LINKS)
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -268,8 +279,18 @@ export class SupabaseAdapter implements StorageAdapter {
     const { data: { session } } = await supabase!.auth.getSession();
     const userId = session?.user?.id ?? null;
 
+    // Apply monetization if user has configured it
+    let finalUrl = link.originalUrl;
+    if (userId && session?.user?.user_metadata) {
+      const { flipkart_affiliate_id, amazon_associate_tag } = session.user.user_metadata;
+      finalUrl = monetizeUrl(finalUrl, {
+        flipkartAffiliateId: flipkart_affiliate_id,
+        amazonAssociateTag: amazon_associate_tag,
+      });
+    }
+
     const id = uuidv4();
-    const rowData = linkDataToRow({ ...link, id }, userId);
+    const rowData = linkDataToRow({ ...link, id, originalUrl: finalUrl }, userId);
 
     const { data: row, error } = await supabase!
       .from(TABLES.LINKS)
@@ -365,46 +386,46 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error('Supabase is not configured');
     }
 
-    // Parse user agent for device and OS
-    const { device, os } = parseUserAgent(event.userAgent);
-    console.log('[SupabaseAdapter] Parsed UA - device:', device, 'os:', os);
+    // Parse user agent for device, OS, and browser
+    const { device, os, browser, browserVersion, osVersion } = parseUserAgent(event.userAgent);
+    console.log('[SupabaseAdapter] Parsed UA:', { device, os, browser, browserVersion, osVersion });
 
     // Get geolocation data
     const geoData = await getGeolocation(event.ipAddress);
     console.log('[SupabaseAdapter] Geolocation:', geoData);
 
     // Create click event row
-    const clickEventRow = {
+    const clickEventRow: ClickEventRow = {
       id: uuidv4(),
       link_id: linkId,
-      timestamp: new Date(event.timestamp).toISOString(),
-      referrer: event.referrer || 'direct',
+      timestamp: new Date().toISOString(),
+      referrer: event.referrer,
       device,
       os,
-      country: geoData.country,
+      browser, // New field
+      country: geoData.country || 'Unknown',
       country_code: geoData.countryCode,
       city: geoData.city,
-      region: geoData.regionName || geoData.region,
+      region: geoData.region,
       latitude: geoData.lat,
       longitude: geoData.lon,
       isp: geoData.isp,
-      timezone: event.timezone || geoData.timezone,
-      // Advanced Analytics
-      browser_version: parseUserAgent(event.userAgent).browserVersion,
-      os_version: parseUserAgent(event.userAgent).osVersion,
+      timezone: geoData.timezone || event.timezone,
+      browser_version: browserVersion,
+      os_version: osVersion,
       screen_width: event.screenWidth,
       screen_height: event.screenHeight,
       language: event.language,
       visitor_id: event.visitorId,
+      raw_user_agent: event.userAgent,
+      ip_hash: hashIP(event.ipAddress),
       // Marketing analytics
       utm_source: event.utm_source,
       utm_medium: event.utm_medium,
       utm_campaign: event.utm_campaign,
       utm_term: event.utm_term,
       utm_content: event.utm_content,
-      trigger_source: event.trigger_source || 'link',
-      raw_user_agent: event.userAgent,
-      ip_hash: event.ipAddress ? hashIP(event.ipAddress) : null,
+      trigger_source: event.trigger_source,
     };
     console.log('[SupabaseAdapter] Click event row:', clickEventRow);
 

@@ -5,6 +5,7 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { isSupabaseConfigured } from '../services/storage/supabaseClient';
 import { createClickEventInput, validateClickEvent } from '../services/clickTrackingService';
 import { getLinkByCode as getLocalLinkByCode, incrementClicks } from '../services/storageService';
+import { getAppDeepLink } from '../utils/appDeepLinking';
 
 import { useParams } from 'react-router-dom';
 
@@ -261,27 +262,41 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       }
     }
 
-    // Append lcid for conversion tracking
-    // We generate a click ID (lcid) that can be used to track conversions downstream
-    // Ideally this ID matches the one in the database, but since we insert async, 
-    // we generate a client-side ID for the URL parameter.
-    const lcid = crypto.randomUUID();
-    const separator = finalUrl.includes('?') ? '&' : '?';
-    finalUrl = `${finalUrl}${separator}lcid=${lcid}`;
+    // Append lcid for conversion tracking - REMOVED to prevent WAF blocking
+    // const lcid = crypto.randomUUID();
+    // const separator = finalUrl.includes('?') ? '&' : '?';
+    // finalUrl = `${finalUrl}${separator}lcid=${lcid}`;
 
     setDestination(finalUrl);
 
     // Record click with full metadata capture before redirect
-    // This is done asynchronously but we don't wait for it to complete
-    // to avoid delaying the redirect. Failures are handled gracefully.
     recordClick(link).catch(err => {
       console.error('Click recording failed:', err);
     });
 
-    // Redirect
-    setTimeout(() => {
-      window.location.href = finalUrl;
-    }, 1500);
+    // Smart App Redirect
+    // Try to detect if we can open an app directly
+    const deepLink = getAppDeepLink(finalUrl);
+
+    if (deepLink) {
+      console.log('Attempting deep link:', deepLink);
+      setRedirectMsg("Opening App...");
+
+      // Try to open the app
+      window.location.href = deepLink;
+
+      // Fallback to web URL if app doesn't open within 2.5s
+      // Note: If app opens, this timeout might still fire when user returns, 
+      // but usually the browser backgrounding prevents immediate execution.
+      setTimeout(() => {
+        window.location.replace(finalUrl);
+      }, 2500);
+    } else {
+      // Standard Redirect
+      setTimeout(() => {
+        window.location.replace(finalUrl);
+      }, 800);
+    }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -342,7 +357,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
-      <div className="text-center">
+      <div className="text-center w-full max-w-md">
         <div className="w-16 h-16 bg-white border border-stone-100 rounded-full flex items-center justify-center mx-auto mb-6 relative shadow-sm">
           <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center opacity-30">
@@ -363,8 +378,18 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         </div>
 
         {destination && (
-          <div className="bg-white border border-stone-200 rounded-lg p-3 text-sm text-stone-400 max-w-md mx-auto truncate animate-pulse">
-            {destination}
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="bg-white border border-stone-200 rounded-lg p-3 text-sm text-stone-400 truncate animate-pulse">
+              {destination}
+            </div>
+
+            <a
+              href={destination}
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 font-bold text-sm bg-amber-50 px-4 py-2 rounded-lg hover:bg-amber-100 transition-colors"
+            >
+              Click here if you are not redirected <ArrowRight className="w-4 h-4" />
+            </a>
           </div>
         )}
       </div>

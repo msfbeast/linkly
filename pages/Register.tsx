@@ -171,9 +171,8 @@ const Register: React.FC = () => {
                     }
                   }}
                   placeholder="you@example.com"
-                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${
-                    fieldErrors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
-                  } text-slate-900 dark:text-white pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
+                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${fieldErrors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
+                    } text-slate-900 dark:text-white pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
                   disabled={isLoading}
                   aria-invalid={!!fieldErrors.email}
                   aria-describedby={fieldErrors.email ? 'email-error' : undefined}
@@ -205,9 +204,8 @@ const Register: React.FC = () => {
                     }
                   }}
                   placeholder="Create a password"
-                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${
-                    fieldErrors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
-                  } text-slate-900 dark:text-white pl-12 pr-12 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
+                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${fieldErrors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
+                    } text-slate-900 dark:text-white pl-12 pr-12 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
                   disabled={isLoading}
                   aria-invalid={!!fieldErrors.password}
                   aria-describedby={fieldErrors.password ? 'password-error' : 'password-hint'}
@@ -251,9 +249,8 @@ const Register: React.FC = () => {
                     }
                   }}
                   placeholder="Confirm your password"
-                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${
-                    fieldErrors.confirmPassword ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
-                  } text-slate-900 dark:text-white pl-12 pr-12 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
+                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${fieldErrors.confirmPassword ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
+                    } text-slate-900 dark:text-white pl-12 pr-12 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
                   disabled={isLoading}
                   aria-invalid={!!fieldErrors.confirmPassword}
                   aria-describedby={fieldErrors.confirmPassword ? 'confirm-password-error' : undefined}

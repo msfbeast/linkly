@@ -80,7 +80,7 @@ const PriorityLinkItem: React.FC<{
         type="checkbox"
         checked={link.checked}
         onChange={() => onToggle(link.id)}
-        className="w-4 h-4 rounded border-stone-300 bg-white text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0 cursor-pointer"
+        className="w-4 h-4 rounded border-stone-300 bg-white text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
         data-testid="link-checkbox"
       />
 
@@ -93,16 +93,16 @@ const PriorityLinkItem: React.FC<{
           {link.title}
         </h4>
         <p
-          className="text-xs text-stone-500 mt-0.5"
+          className="text-xs text-stone-500 mt-0.5 truncate"
           data-testid="link-short-code"
         >
           link.ly/{link.shortCode}
         </p>
       </div>
 
-      {/* Last click time */}
+      {/* Last click time - Hidden on mobile */}
       <span
-        className="text-xs text-stone-400 whitespace-nowrap"
+        className="text-xs text-stone-400 whitespace-nowrap hidden sm:block"
         data-testid="last-click-time"
       >
         {link.lastClickedAt}
@@ -110,7 +110,7 @@ const PriorityLinkItem: React.FC<{
 
       {/* Status tag */}
       <span
-        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${statusColors.bg} ${statusColors.text}`}
+        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${statusColors.bg} ${statusColors.text} flex-shrink-0`}
         data-testid="status-tag"
       >
         {statusLabel}

@@ -16,7 +16,12 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<AuthResult>;
   updatePassword: (newPassword: string) => Promise<AuthResult>;
-  updateProfile: (data: { displayName?: string }) => Promise<AuthResult>;
+  updateProfile: (data: {
+    displayName?: string;
+    storefrontTheme?: string;
+    flipkartAffiliateId?: string;
+    amazonAssociateTag?: string;
+  }) => Promise<AuthResult>;
   regenerateApiKey: () => Promise<AuthResult>;
 }
 
@@ -156,7 +161,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   /**
    * Update user profile
    */
-  const updateProfile = useCallback(async (data: { displayName?: string }): Promise<AuthResult> => {
+  const updateProfile = useCallback(async (data: {
+    displayName?: string;
+    storefrontTheme?: string;
+    flipkartAffiliateId?: string;
+    amazonAssociateTag?: string;
+  }): Promise<AuthResult> => {
     const response = await authService.updateProfile(data);
 
     if (response.user) {

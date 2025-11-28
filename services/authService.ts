@@ -9,6 +9,9 @@ export interface User {
   email: string;
   displayName?: string;
   apiKey?: string;
+  storefrontTheme?: string;
+  flipkartAffiliateId?: string;
+  amazonAssociateTag?: string;
   emailVerified: boolean;
   createdAt: string;
 }
@@ -41,6 +44,9 @@ function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
     email: supabaseUser.email || '',
     displayName: supabaseUser.user_metadata?.display_name,
     apiKey: supabaseUser.user_metadata?.api_key,
+    storefrontTheme: supabaseUser.user_metadata?.storefront_theme,
+    flipkartAffiliateId: supabaseUser.user_metadata?.flipkart_affiliate_id,
+    amazonAssociateTag: supabaseUser.user_metadata?.amazon_associate_tag,
     emailVerified: supabaseUser.email_confirmed_at !== null,
     createdAt: supabaseUser.created_at,
   };
@@ -192,7 +198,12 @@ export const authService = {
   /**
    * Update user profile data
    */
-  async updateProfile(updates: { displayName?: string }): Promise<AuthResponse> {
+  async updateProfile(updates: {
+    displayName?: string;
+    storefrontTheme?: string;
+    flipkartAffiliateId?: string;
+    amazonAssociateTag?: string;
+  }): Promise<AuthResponse> {
     if (!isSupabaseConfigured() || !supabase) {
       return {
         user: null,
@@ -204,6 +215,9 @@ export const authService = {
     const { data, error } = await supabase.auth.updateUser({
       data: {
         display_name: updates.displayName,
+        storefront_theme: updates.storefrontTheme,
+        flipkart_affiliate_id: updates.flipkartAffiliateId,
+        amazon_associate_tag: updates.amazonAssociateTag,
       },
     });
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Wifi } from 'lucide-react';
 import LinkCard from '../components/LinkCard';
+import SmartLinkCard from '../components/SmartLinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
 import { LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
@@ -275,58 +276,56 @@ const Links: React.FC<LinksProps> = ({
         </div>
 
         {/* Links List */}
-        <div className="bg-white border border-stone-200 rounded-[2rem] p-6 shadow-sm">
-          <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
-              {filteredLinks.length > 0 ? (
-                filteredLinks.map((link, index) => (
-                  <motion.div
-                    key={link.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2, delay: index * 0.03 }}
-                  >
-                    <LinkCard
-                      link={link}
-                      onDelete={handleDeleteLink}
-                      onEdit={openEditModal}
-                    />
-                  </motion.div>
-                ))
-              ) : (
+        <div className="space-y-4">
+          <AnimatePresence mode="popLayout">
+            {filteredLinks.length > 0 ? (
+              filteredLinks.map((link, index) => (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-16"
+                  key={link.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
                 >
-                  <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-200">
-                    {searchTerm ? (
-                      <Search className="w-6 h-6 text-yellow-600" />
-                    ) : (
-                      <LinkIcon className="w-6 h-6 text-yellow-600" />
-                    )}
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">
-                    {searchTerm ? 'No links found' : 'No links yet'}
-                  </h3>
-                  <p className="text-stone-500 mb-4 max-w-sm mx-auto text-sm">
-                    {searchTerm
-                      ? 'Try a different search term.'
-                      : 'Create your first shortened link to get started.'}
-                  </p>
-                  {!searchTerm && (
-                    <button
-                      onClick={() => setIsModalOpen(true)}
-                      className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
-                    >
-                      Create your first link <ArrowUpRight className="w-4 h-4" />
-                    </button>
-                  )}
+                  <LinkCard
+                    link={link}
+                    onDelete={handleDeleteLink}
+                    onEdit={openEditModal}
+                  />
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+              ))
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-16 bg-white rounded-[2rem] border border-stone-200"
+              >
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-200">
+                  {searchTerm ? (
+                    <Search className="w-6 h-6 text-yellow-600" />
+                  ) : (
+                    <LinkIcon className="w-6 h-6 text-yellow-600" />
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">
+                  {searchTerm ? 'No links found' : 'No links yet'}
+                </h3>
+                <p className="text-stone-500 mb-4 max-w-sm mx-auto text-sm">
+                  {searchTerm
+                    ? 'Try a different search term.'
+                    : 'Create your first shortened link to get started.'}
+                </p>
+                {!searchTerm && (
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
+                  >
+                    Create your first link <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -338,7 +337,7 @@ const Links: React.FC<LinksProps> = ({
         onBulkCreate={handleBulkCreate}
         editingLink={editingLink}
       />
-    </div>
+    </div >
   );
 };
 

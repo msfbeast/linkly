@@ -3,6 +3,7 @@ import { Plus, UserCircle2, ExternalLink, Trash2, Edit, Layout } from 'lucide-re
 import { BioProfile, LinkData } from '../types';
 import { getBioProfiles, saveBioProfile, deleteBioProfile, getLinks } from '../services/storageService';
 import { v4 as uuidv4 } from 'uuid';
+import BioPreview from '../components/BioPreview';
 
 const BioDashboard: React.FC = () => {
     const [profiles, setProfiles] = useState<BioProfile[]>([]);
@@ -125,10 +126,17 @@ const BioDashboard: React.FC = () => {
                                         onChange={e => setCurrentProfile({ ...currentProfile, theme: e.target.value as any })}
                                         className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900"
                                     >
-                                        <option value="dark">Dark Slate</option>
-                                        <option value="light">Minimal Light</option>
-                                        <option value="blue">Electric Blue</option>
-                                        <option value="purple">Royal Purple</option>
+                                        <option value="vibrant">Vibrant (Pop!)</option>
+                                        <option value="glass">Glass (Modern Dark)</option>
+                                        <option value="industrial">Industrial (Technical)</option>
+                                        <option value="retro">Retro Pop (90s)</option>
+                                        <option value="cyberpunk">Cyberpunk (Neon)</option>
+                                        <option value="neubrutalism">Neubrutalism (Bold)</option>
+                                        <option value="lofi">Lofi (Chill)</option>
+                                        <option value="clay">Claymorphism (Soft 3D)</option>
+                                        <option value="bauhaus">Bauhaus (Geometric)</option>
+                                        <option value="lab">Lab (Scientific)</option>
+                                        <option value="archive">Archive (Vintage)</option>
                                     </select>
                                 </div>
                             </div>
@@ -136,9 +144,18 @@ const BioDashboard: React.FC = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <div className="bg-white border border-stone-200 rounded-xl p-6 h-full flex flex-col shadow-sm">
+                        <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
+                            <h3 className="text-slate-900 font-bold mb-4">Live Preview</h3>
+                            <div className="flex justify-center bg-stone-50 rounded-xl p-4 border border-stone-100">
+                                <div className="w-48 shadow-2xl rounded-2xl overflow-hidden border-4 border-slate-900 bg-white">
+                                    <BioPreview profile={currentProfile} links={availableLinks.filter(l => currentProfile.links?.includes(l.id))} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white border border-stone-200 rounded-xl p-6 flex flex-col shadow-sm">
                             <h3 className="text-slate-900 font-bold mb-4">Select Links to Display</h3>
-                            <div className="flex-1 overflow-y-auto space-y-2 max-h-[400px] custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto space-y-2 max-h-[300px] custom-scrollbar">
                                 {availableLinks.length === 0 && <p className="text-stone-500 text-sm">No links created yet.</p>}
                                 {availableLinks.map(link => (
                                     <label key={link.id} className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 cursor-pointer transition-colors">

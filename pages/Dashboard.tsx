@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download } from 'lucide-react';
 import LinkCard from '../components/LinkCard';
+import SmartLinkCard from '../components/SmartLinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
 import LinkPerformanceCard from '../components/LinkPerformanceCard';
 import ClickForecastChart from '../components/ClickForecastChart';
@@ -325,14 +326,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.1 }}
                   >
-                    <LinkPerformanceCard
-                      category={categorizeLink(link)}
-                      title={link.title}
-                      shortCode={link.shortCode}
-                      createdAt={formatDate(link.createdAt)}
-                      clicks={link.clicks}
-                      onMenuClick={() => openEditModal(link)}
-                      onClick={() => navigate(`/analytics/${link.id}`)}
+                    <SmartLinkCard
+                      link={link}
+                      onDelete={handleDeleteLink}
+                      onEdit={openEditModal}
                     />
                   </motion.div>
                 ))}
@@ -437,7 +434,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </motion.div>
                     ))
                   ) : (
-                    <div className="text-center py-20 bg-stone-50/50 border border-stone-200 rounded-3xl border-dashed">
+                    <div className="col-span-full text-center py-20 bg-stone-50/50 border border-stone-200 rounded-3xl border-dashed">
                       <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-stone-100">
                         <Search className="w-6 h-6 text-stone-400" />
                       </div>

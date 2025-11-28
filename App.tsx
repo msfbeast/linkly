@@ -16,6 +16,7 @@ import GlobalAnalytics from './pages/GlobalAnalytics';
 import ProductManager from './pages/ProductManager';
 import Storefront from './pages/Storefront';
 import ProductPage from './pages/ProductPage';
+import TestStorefront from './pages/TestStorefront';
 import LinkAnalytics from './pages/LinkAnalytics';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
@@ -225,20 +226,38 @@ const DashboardLayout: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900">
-      {/* Icon Sidebar */}
-      <IconSidebar
-        activeItem={activeSidebarItem}
-        onItemClick={handleSidebarItemClick}
-      />
+      {/* Icon Sidebar - Hidden on Mobile */}
+      <div className="hidden md:block">
+        <IconSidebar
+          activeItem={activeSidebarItem}
+          onItemClick={handleSidebarItemClick}
+        />
+      </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-16 flex flex-col">
+      <div className="flex-1 md:ml-16 flex flex-col transition-all duration-300">
         {/* Top Navigation */}
         <TopNavigation
           totalClicks={totalClicks}
           clickChange={clickChange}
           onNewLinkClick={() => setIsModalOpen(true)}
           onSettingsClick={() => handleSidebarItemClick('settings')}
+          currentView={view}
+          onChangeView={(newView) => {
+            setView(newView);
+            // Also update active sidebar item to match
+            const itemMap: Record<string, string> = {
+              [ViewState.DASHBOARD]: 'dashboard',
+              [ViewState.LINKS]: 'links',
+              [ViewState.ANALYTICS]: 'analytics',
+              [ViewState.SETTINGS]: 'settings',
+              [ViewState.PRODUCTS]: 'products',
+              [ViewState.API]: 'api',
+            };
+            // Find key for value
+            const key = Object.keys(itemMap).find(k => k === newView);
+            if (key) setActiveSidebarItem(itemMap[key]);
+          }}
         />
 
         {/* Page Content */}
@@ -353,6 +372,7 @@ const App: React.FC = () => {
 
             <Route path="/store/:userId" element={<Storefront />} />
             <Route path="/store/product/:productId" element={<ProductPage />} />
+            <Route path="/test-storefront" element={<TestStorefront />} />
 
             {/* Protected routes - Requirements 4.1, 4.2, 4.3 */}
             <Route

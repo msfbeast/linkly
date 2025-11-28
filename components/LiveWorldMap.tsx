@@ -138,6 +138,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
 
             {/* Map */}
             <ComposableMap
+                key={viewMode}
                 projection={viewMode === 'world' ? "geoMercator" : "geoAlbersUsa"}
                 projectionConfig={viewMode === 'world' ? { scale: 140 } : { scale: 1000 }}
                 className="w-full h-full bg-[#0a0a0f]"
