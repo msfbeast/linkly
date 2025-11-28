@@ -79,7 +79,7 @@ const SmartLinkCard: React.FC<SmartLinkCardProps> = ({ link, onCopy, onEdit, onD
             </div>
 
             {/* Footer Section */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-3 mt-1">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-3 mt-1 relative z-10">
                 {/* Stats */}
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 font-bold text-[#141417]">
@@ -97,8 +97,9 @@ const SmartLinkCard: React.FC<SmartLinkCardProps> = ({ link, onCopy, onEdit, onD
                         href={fullUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 text-[#141417] hover:bg-stone-100 rounded-lg transition-colors"
+                        className="p-2 text-[#141417] hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
                         title="Visit"
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <ExternalLink className="w-5 h-5" />
                     </a>

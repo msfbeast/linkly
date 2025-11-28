@@ -23,9 +23,9 @@ interface ProtectedRouteProps {
  * - 4.3: Render requested page for authenticated users
  * - 4.4: Redirect to login on session expiry, preserving intended destination
  */
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  redirectTo = '/login' 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  redirectTo = '/login'
 }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -34,10 +34,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // This prevents flash of login page during initial auth check
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-          <p className="text-slate-400 text-sm">Checking authentication...</p>
+          <Loader2 className="w-8 h-8 text-yellow-500 animate-spin" />
+          <p className="text-stone-500 text-sm">Checking authentication...</p>
         </div>
       </div>
     );
@@ -47,10 +47,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Preserve the intended destination in location state for post-login redirect
   if (!user) {
     return (
-      <Navigate 
-        to={redirectTo} 
-        state={{ from: location.pathname }} 
-        replace 
+      <Navigate
+        to={redirectTo}
+        state={{ from: location.pathname }}
+        replace
       />
     );
   }
