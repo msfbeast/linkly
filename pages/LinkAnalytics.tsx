@@ -15,6 +15,7 @@ const LinkAnalytics: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('30d');
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         const fetchLink = async () => {
@@ -103,6 +104,17 @@ const LinkAnalytics: React.FC = () => {
 
     const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#6b7280'];
 
+    const itemsPerPage = 10;
+    const totalPages = Math.ceil(filteredClicks.length / itemsPerPage);
+
+    const paginatedClicks = filteredClicks.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    // Calculate Unique Clicks
+    const uniqueClicks = new Set(filteredClicks.map(c => c.visitorId).filter(Boolean)).size;
+
     return (
         <div className="min-h-screen bg-[#FDFBF7] p-8">
             {/* Header */}
@@ -163,8 +175,8 @@ const LinkAnalytics: React.FC = () => {
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Overview Cards */}
-                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-amber-50 rounded-xl text-amber-500">
                                 <MousePointer2 className="w-5 h-5" />
@@ -174,7 +186,17 @@ const LinkAnalytics: React.FC = () => {
                         <p className="text-3xl font-bold text-slate-900">{filteredClicks.length.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-indigo-50 rounded-xl text-indigo-500">
+                                <Smartphone className="w-5 h-5" />
+                            </div>
+                            <span className="text-stone-500 text-sm font-medium">Unique Visitors</span>
+                        </div>
+                        <p className="text-3xl font-bold text-slate-900">{uniqueClicks.toLocaleString()}</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-emerald-50 rounded-xl text-emerald-500">
                                 <MapPin className="w-5 h-5" />
@@ -187,7 +209,7 @@ const LinkAnalytics: React.FC = () => {
                         <p className="text-xs text-stone-400">{countryData[0]?.value || 0} clicks</p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-blue-50 rounded-xl text-blue-500">
                                 <Chrome className="w-5 h-5" />
@@ -200,7 +222,7 @@ const LinkAnalytics: React.FC = () => {
                         <p className="text-xs text-stone-400">{browserData[0]?.value || 0} clicks</p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-purple-50 rounded-xl text-purple-500">
                                 <Share2 className="w-5 h-5" />
@@ -215,7 +237,7 @@ const LinkAnalytics: React.FC = () => {
                 </div>
 
                 {/* Timeline Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     <h3 className="text-lg font-bold text-slate-900 mb-6">Click Trends</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -256,7 +278,7 @@ const LinkAnalytics: React.FC = () => {
                 </div>
 
                 {/* Browser Breakdown */}
-                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     <h3 className="text-lg font-bold text-slate-900 mb-6">Browsers</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -282,7 +304,7 @@ const LinkAnalytics: React.FC = () => {
                 </div>
 
                 {/* Geography Table */}
-                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     <h3 className="text-lg font-bold text-slate-900 mb-4">Top Locations</h3>
                     <div className="space-y-3">
                         {countryData.map((item, idx) => (
@@ -309,7 +331,7 @@ const LinkAnalytics: React.FC = () => {
                 </div>
 
                 {/* Device & OS */}
-                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
+                <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     <h3 className="text-lg font-bold text-slate-900 mb-4">Devices & OS</h3>
                     <div className="space-y-6">
                         <div>
@@ -338,9 +360,110 @@ const LinkAnalytics: React.FC = () => {
                     </div>
                 </div>
 
+                {/* UTM Parameters */}
+                <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                    <h3 className="text-lg font-bold text-slate-900 mb-6">Marketing Campaigns (UTM)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {['utm_source', 'utm_medium', 'utm_campaign'].map((field) => {
+                            const data = getDistribution(field as keyof ClickEvent).slice(0, 5);
+                            return (
+                                <div key={field}>
+                                    <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-4">
+                                        {field.replace('utm_', '')}
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {data.map((item) => (
+                                            <div key={item.name} className="flex items-center justify-between text-sm">
+                                                <span className="text-slate-700 truncate max-w-[150px]" title={item.name}>
+                                                    {item.name === 'Unknown' ? '-' : item.name}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-amber-400 rounded-full"
+                                                            style={{ width: `${(item.value / filteredClicks.length) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="font-medium text-slate-900 text-xs w-6 text-right">{item.value}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Tech Details & Locale */}
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Technical Details */}
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                        <h3 className="text-lg font-bold text-slate-900 mb-6">Technical Details</h3>
+                        <div className="space-y-6">
+                            {[
+                                { label: 'Browser Version', field: 'browserVersion' },
+                                { label: 'OS Version', field: 'osVersion' },
+                                { label: 'Screen Resolution', field: 'screenWidth', format: (v: any) => v ? `${v}px width` : 'Unknown' }
+                            ].map((metric) => {
+                                const data = getDistribution(metric.field as keyof ClickEvent).slice(0, 3);
+                                return (
+                                    <div key={metric.label}>
+                                        <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
+                                        <div className="space-y-2">
+                                            {data.map((item) => (
+                                                <div key={item.name} className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-700">
+                                                        {metric.format ? metric.format(item.name) : (item.name === 'Unknown' ? '-' : item.name)}
+                                                    </span>
+                                                    <span className="font-medium text-slate-900">{item.value}</span>
+                                                </div>
+                                            ))}
+                                            {data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Locale & Time */}
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                        <h3 className="text-lg font-bold text-slate-900 mb-6">Locale & Time</h3>
+                        <div className="space-y-6">
+                            {[
+                                { label: 'Language', field: 'language' },
+                                { label: 'Timezone', field: 'timezone' }
+                            ].map((metric) => {
+                                const data = getDistribution(metric.field as keyof ClickEvent).slice(0, 5);
+                                return (
+                                    <div key={metric.label}>
+                                        <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
+                                        <div className="space-y-2">
+                                            {data.map((item) => (
+                                                <div key={item.name} className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-700">{item.name === 'Unknown' ? '-' : item.name}</span>
+                                                    <span className="font-medium text-slate-900">{item.value}</span>
+                                                </div>
+                                            ))}
+                                            {data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Recent Activity Log */}
-                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">Recent Activity</h3>
+                <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+                        <span className="text-sm text-stone-500">
+                            Showing {paginatedClicks.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredClicks.length)} of {filteredClicks.length}
+                        </span>
+                    </div>
                     <div className="overflow-hidden">
                         <table className="w-full text-sm text-left">
                             <thead className="text-xs text-stone-400 uppercase bg-stone-50">
@@ -352,10 +475,13 @@ const LinkAnalytics: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-stone-100">
-                                {filteredClicks.slice(0, 10).map((click, idx) => (
+                                {paginatedClicks.map((click, idx) => (
                                     <tr key={idx} className="hover:bg-stone-50/50 transition-colors">
                                         <td className="px-4 py-3 text-stone-500">
                                             {new Date(click.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            <span className="text-xs text-stone-300 ml-2">
+                                                {new Date(click.timestamp).toLocaleDateString()}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-3 text-slate-900">{click.country || 'Unknown'}</td>
                                         <td className="px-4 py-3 text-stone-600">
@@ -376,6 +502,48 @@ const LinkAnalytics: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 mt-6">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 rounded-lg border border-stone-200 text-stone-500 disabled:opacity-50 hover:bg-stone-50 transition-colors"
+                            >
+                                Previous
+                            </button>
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    // Logic to show window of pages around current
+                                    let p = i + 1;
+                                    if (totalPages > 5) {
+                                        if (currentPage > 3) p = currentPage - 2 + i;
+                                        if (p > totalPages) p = totalPages - 4 + i;
+                                    }
+                                    return (
+                                        <button
+                                            key={p}
+                                            onClick={() => setCurrentPage(p)}
+                                            className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === p
+                                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25'
+                                                : 'text-stone-500 hover:bg-stone-50'
+                                                }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 rounded-lg border border-stone-200 text-stone-500 disabled:opacity-50 hover:bg-stone-50 transition-colors"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
 
             </div>

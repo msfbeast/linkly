@@ -6,13 +6,77 @@ import { useAuth } from '../contexts/AuthContext';
  * Settings Page - User account and app preferences
  */
 const Settings: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateProfile, updatePassword, regenerateApiKey } = useAuth();
   const [activeTab, setActiveTab] = useState('account');
   const [showApiKey, setShowApiKey] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Mock API key
-  const apiKey = 'lk_live_' + (user?.id?.slice(0, 24) || 'demo_key_12345678');
+  // Account state
+  const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Password state
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Update local state when user loads
+  React.useEffect(() => {
+    if (user?.displayName) {
+      setDisplayName(user.displayName);
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const result = await updateProfile({ displayName });
+      if (result.success) {
+        // Ideally show a toast here
+        console.log('Profile updated');
+      }
+    } catch (error) {
+      console.error('Failed to update profile', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword) return;
+    setIsLoading(true);
+    setPasswordMessage(null);
+    try {
+      const result = await updatePassword(newPassword);
+      if (result.success) {
+        setPasswordMessage({ type: 'success', text: 'Password updated successfully' });
+        setNewPassword('');
+        setIsChangingPassword(false);
+      } else {
+        setPasswordMessage({ type: 'error', text: result.error || 'Failed to update password' });
+      }
+    } catch (error) {
+      setPasswordMessage({ type: 'error', text: 'An error occurred' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegenerateKey = async () => {
+    if (window.confirm('Are you sure? This will invalidate your old key.')) {
+      setIsLoading(true);
+      try {
+        await regenerateApiKey();
+      } catch (error) {
+        console.error('Failed to regenerate key', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Use real API key or fallback
+  const apiKey = user?.apiKey || 'No API Key Generated';
 
   const handleCopyApiKey = () => {
     navigator.clipboard.writeText(apiKey);
@@ -76,6 +140,8 @@ const Settings: React.FC = () => {
                     <label className="block text-sm text-stone-500 mb-2">Display Name</label>
                     <input
                       type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="Enter your name"
                       className="w-full bg-white border border-stone-200 text-slate-900 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
                     />
@@ -93,6 +159,19 @@ const Settings: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-4">
+                  <button
+                    onClick={handleSave}
+                    disabled={isLoading || displayName === user?.displayName}
+                    className={`px-6 py-2.5 rounded-xl font-semibold transition-all ${isLoading || displayName === user?.displayName
+                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                      : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20'
+                      }`}
+                  >
+                    {isLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
 
                 <div className="pt-6 border-t border-stone-100">
@@ -139,25 +218,68 @@ const Settings: React.FC = () => {
 
                 <div className="space-y-4">
                   <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-slate-900 font-medium">Password</p>
-                        <p className="text-stone-500 text-sm">Last changed 30 days ago</p>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-slate-900 font-medium">Password</p>
+                          <p className="text-stone-500 text-sm">Update your password securely</p>
+                        </div>
+                        {!isChangingPassword && (
+                          <button
+                            onClick={() => setIsChangingPassword(true)}
+                            className="px-4 py-2 bg-white hover:bg-stone-100 text-slate-900 border border-stone-200 rounded-lg text-sm transition-colors"
+                          >
+                            Change Password
+                          </button>
+                        )}
                       </div>
-                      <button className="px-4 py-2 bg-white hover:bg-stone-100 text-slate-900 border border-stone-200 rounded-lg text-sm transition-colors">
-                        Change Password
-                      </button>
+
+                      {isChangingPassword && (
+                        <div className="mt-2 p-4 bg-stone-50 rounded-lg border border-stone-200">
+                          <input
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Enter new password"
+                            className="w-full mb-3 px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleChangePassword}
+                              disabled={isLoading || !newPassword}
+                              className="px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                            >
+                              {isLoading ? 'Updating...' : 'Update Password'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsChangingPassword(false);
+                                setNewPassword('');
+                                setPasswordMessage(null);
+                              }}
+                              className="px-3 py-1.5 bg-white border border-stone-300 text-slate-700 text-sm rounded-lg hover:bg-stone-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {passwordMessage && (
+                            <p className={`text-sm mt-2 ${passwordMessage.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {passwordMessage.text}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
+                  <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl opacity-70">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-slate-900 font-medium">Two-Factor Authentication</p>
                         <p className="text-stone-500 text-sm">Add an extra layer of security</p>
                       </div>
-                      <button className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-semibold rounded-lg text-sm transition-colors shadow-sm shadow-yellow-400/20">
-                        Enable 2FA
+                      <button disabled className="px-4 py-2 bg-stone-200 text-stone-500 font-semibold rounded-lg text-sm cursor-not-allowed">
+                        Coming Soon
                       </button>
                     </div>
                   </div>
@@ -197,30 +319,42 @@ const Settings: React.FC = () => {
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-slate-900 font-medium">Live API Key</p>
-                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full border border-emerald-200">Active</span>
+                    {user?.apiKey ? (
+                      <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full border border-emerald-200">Active</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-stone-200 text-stone-600 text-xs rounded-full border border-stone-300">Not Generated</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-white border border-stone-200 rounded-lg px-4 py-3 text-emerald-600 font-mono text-sm">
-                      {showApiKey ? apiKey : '•'.repeat(32)}
+                    <code className="flex-1 bg-white border border-stone-200 rounded-lg px-4 py-3 text-emerald-600 font-mono text-sm overflow-hidden text-ellipsis">
+                      {user?.apiKey ? (showApiKey ? apiKey : '•'.repeat(32)) : 'No API Key Generated'}
                     </code>
-                    <button
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="p-3 bg-white hover:bg-stone-50 text-stone-500 border border-stone-200 rounded-lg transition-colors"
-                    >
-                      {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                    <button
-                      onClick={handleCopyApiKey}
-                      className="p-3 bg-white hover:bg-stone-50 text-stone-500 border border-stone-200 rounded-lg transition-colors"
-                    >
-                      {copied ? <Check className="w-5 h-5 text-emerald-500" /> : <Copy className="w-5 h-5" />}
-                    </button>
+                    {user?.apiKey && (
+                      <button
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="p-3 bg-white hover:bg-stone-50 text-stone-500 border border-stone-200 rounded-lg transition-colors"
+                      >
+                        {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    )}
+                    {user?.apiKey && (
+                      <button
+                        onClick={handleCopyApiKey}
+                        className="p-3 bg-white hover:bg-stone-50 text-stone-500 border border-stone-200 rounded-lg transition-colors"
+                      >
+                        {copied ? <Check className="w-5 h-5 text-emerald-500" /> : <Copy className="w-5 h-5" />}
+                      </button>
+                    )}
                   </div>
                   <p className="text-stone-500 text-xs mt-2">Keep this key secret. Do not share it in client-side code.</p>
                 </div>
 
-                <button className="px-4 py-2 bg-white hover:bg-stone-50 text-slate-900 border border-stone-200 rounded-lg text-sm transition-colors">
-                  Generate New Key
+                <button
+                  onClick={handleRegenerateKey}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-white hover:bg-stone-50 text-slate-900 border border-stone-200 rounded-lg text-sm transition-colors"
+                >
+                  {user?.apiKey ? 'Regenerate Key' : 'Generate New Key'}
                 </button>
               </div>
             )}

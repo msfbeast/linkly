@@ -7,21 +7,21 @@
   --bg-secondary: #f8fafc;
   --bg-card: #ffffff;
   --bg-elevated: #f1f5f9;
-  
+
   /* Text colors */
   --text-primary: #0f172a;
   --text-secondary: #334155;
   --text-muted: #64748b;
-  
+
   /* Border colors */
   --border-default: #e2e8f0;
   --border-light: #f1f5f9;
-  
+
   /* Accent colors (darker for light mode) */
   --accent-cyan: #0891b2;
   --accent-yellow: #d97706;
   --accent-coral: #ea580c;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -35,21 +35,21 @@
   --bg-secondary: #12121a;
   --bg-card: #12121a;
   --bg-elevated: #1a1a24;
-  
+
   /* Text colors */
   --text-primary: #ffffff;
   --text-secondary: #a1a1aa;
   --text-muted: #64748b;
-  
+
   /* Border colors */
   --border-default: rgba(255, 255, 255, 0.05);
   --border-light: rgba(255, 255, 255, 0.1);
-  
+
   /* Accent colors (brighter for dark mode) */
   --accent-cyan: #22d3ee;
   --accent-yellow: #fbbf24;
   --accent-coral: #f97316;
-  
+
   /* Shadows (glow effect for dark mode) */
   --shadow-sm: 0 0 10px rgba(34, 211, 238, 0.05);
   --shadow-md: 0 0 20px rgba(34, 211, 238, 0.08);
@@ -59,16 +59,18 @@
 /* Theme transition utilities - Requirements 5.1 */
 .theme-transition {
   transition: background-color 200ms ease-in-out,
-              border-color 200ms ease-in-out,
-              color 200ms ease-in-out,
-              box-shadow 200ms ease-in-out;
+    border-color 200ms ease-in-out,
+    color 200ms ease-in-out,
+    box-shadow 200ms ease-in-out;
 }
 
 /* Apply theme transition to common elements */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   transition: background-color 200ms ease-in-out,
-              border-color 200ms ease-in-out,
-              color 200ms ease-in-out;
+    border-color 200ms ease-in-out,
+    color 200ms ease-in-out;
 }
 
 @layer base {
@@ -122,4 +124,95 @@ body::before {
   background:
     radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.08), transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(124, 58, 237, 0.08), transparent 25%);
+}
+
+/* Stack Card Effect */
+.stack-card-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.48s cubic-bezier(0.23, 1, 0.32, 1);
+  z-index: 1;
+}
+
+.stack-card-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  transition: all 0.48s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.stack-card-content::before,
+.stack-card-content::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 90%;
+  height: 90%;
+  transform: translateX(-50%);
+  transform-origin: bottom;
+  border-radius: inherit;
+  transition: all 0.48s cubic-bezier(0.23, 1, 0.32, 1);
+  z-index: -1;
+  opacity: 0;
+}
+
+.stack-card-content::after {
+  width: 80%;
+  height: 80%;
+  z-index: -2;
+}
+
+/* Hover Effects */
+.stack-card-wrapper:hover {
+  transform: translateY(-8px);
+}
+
+.stack-card-wrapper:hover .stack-card-content::before {
+  transform: translateX(-50%) rotate(-6deg);
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+}
+
+.stack-card-wrapper:hover .stack-card-content::after {
+  transform: translateX(-50%) rotate(6deg);
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+}
+
+/* Stack Colors - White Theme */
+.stack-card-white .stack-card-content::before {
+  background-color: #F5F5F4;
+  /* stone-100 */
+  border: 1px solid #E7E5E4;
+  /* stone-200 */
+}
+
+.stack-card-white .stack-card-content::after {
+  background-color: #E7E5E4;
+  /* stone-200 */
+  border: 1px solid #D6D3D1;
+  /* stone-300 */
+}
+
+/* Stack Colors - Gold/Marketing Theme */
+.stack-card-gold .stack-card-content::before {
+  background-color: #FDE68A;
+  /* amber-200 */
+  border: 1px solid #FCD34D;
+  /* amber-300 */
+}
+
+.stack-card-gold .stack-card-content::after {
+  background-color: #FEF3C7;
+  /* amber-100 */
+  border: 1px solid #FDE68A;
+  /* amber-200 */
 }

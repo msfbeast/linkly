@@ -16,6 +16,8 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<AuthResult>;
   updatePassword: (newPassword: string) => Promise<AuthResult>;
+  updateProfile: (data: { displayName?: string }) => Promise<AuthResult>;
+  regenerateApiKey: () => Promise<AuthResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -103,8 +105,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Requirements: 2.1, 2.3, 2.4
    */
   const signIn = useCallback(async (
-    email: string, 
-    password: string, 
+    email: string,
+    password: string,
     rememberMe: boolean = false
   ): Promise<AuthResult> => {
     const response = await authService.signIn(email, password, rememberMe);
@@ -151,6 +153,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return toAuthResult(response);
   }, []);
 
+  /**
+   * Update user profile
+   */
+  const updateProfile = useCallback(async (data: { displayName?: string }): Promise<AuthResult> => {
+    const response = await authService.updateProfile(data);
+
+    if (response.user) {
+      setUser(response.user);
+    }
+
+    return toAuthResult(response);
+  }, []);
+
+  /**
+   * Regenerate API Key
+   */
+  const regenerateApiKey = useCallback(async (): Promise<AuthResult> => {
+    // Generate a new key (lk_live_ + random string)
+    const newKey = 'lk_live_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+    const response = await authService.updateApiKey(newKey);
+
+    if (response.user) {
+      setUser(response.user);
+    }
+
+    return toAuthResult(response);
+  }, []);
+
   const value: AuthContextType = {
     user,
     session,
@@ -160,6 +191,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     resetPassword,
     updatePassword,
+    updateProfile,
+    regenerateApiKey,
   };
 
   return (

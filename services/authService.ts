@@ -7,6 +7,8 @@ import { Session, User as SupabaseUser, AuthError } from '@supabase/supabase-js'
 export interface User {
   id: string;
   email: string;
+  displayName?: string;
+  apiKey?: string;
   emailVerified: boolean;
   createdAt: string;
 }
@@ -33,10 +35,12 @@ export interface AuthResult {
  */
 function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
   if (!supabaseUser) return null;
-  
+
   return {
     id: supabaseUser.id,
     email: supabaseUser.email || '',
+    displayName: supabaseUser.user_metadata?.display_name,
+    apiKey: supabaseUser.user_metadata?.api_key,
     emailVerified: supabaseUser.email_confirmed_at !== null,
     createdAt: supabaseUser.created_at,
   };
@@ -47,14 +51,14 @@ function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
  */
 function normalizeAuthError(error: AuthError | null): string | undefined {
   if (!error) return undefined;
-  
+
   const errorMap: Record<string, string> = {
     'Invalid login credentials': 'Invalid email or password',
     'User already registered': 'An account with this email already exists',
     'Email not confirmed': 'Please verify your email before logging in',
     'Password should be at least 6 characters': 'Password must be at least 8 characters',
   };
-  
+
   return errorMap[error.message] || error.message;
 }
 
@@ -186,6 +190,56 @@ export const authService = {
   },
 
   /**
+   * Update user profile data
+   */
+  async updateProfile(updates: { displayName?: string }): Promise<AuthResponse> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'Supabase is not configured', name: 'ConfigError', status: 500 } as AuthError,
+      };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        display_name: updates.displayName,
+      },
+    });
+
+    return {
+      user: mapSupabaseUser(data.user),
+      session: null, // Session isn't returned by updateUser, but user data is
+      error,
+    };
+  },
+
+  /**
+   * Update user API key
+   */
+  async updateApiKey(apiKey: string): Promise<AuthResponse> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'Supabase is not configured', name: 'ConfigError', status: 500 } as AuthError,
+      };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        api_key: apiKey,
+      },
+    });
+
+    return {
+      user: mapSupabaseUser(data.user),
+      session: null,
+      error,
+    };
+  },
+
+  /**
    * Get the current session
    */
   async getSession(): Promise<Session | null> {
@@ -214,7 +268,7 @@ export const authService = {
    */
   onAuthStateChange(callback: (session: Session | null) => void): () => void {
     if (!isSupabaseConfigured() || !supabase) {
-      return () => {};
+      return () => { };
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

@@ -78,9 +78,45 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
    * Captures detailed device fingerprint data for analytics.
    * This data is sent to the Edge Function for server-side processing.
    */
-  const captureDeviceFingerprint = () => {
+  /**
+   * Generates a privacy-preserving visitor hash.
+   * Uses SHA-256 on (UserAgent + IP + Date + Salt) to create a daily unique ID
+   * without storing persistent cookies or PII.
+   */
+  const generateVisitorHash = async (ip: string, ua: string): Promise<string> => {
+    const today = new Date().toISOString().split('T')[0]; // Daily rotation
+    const salt = 'linkly-privacy-salt'; // In prod, this should be an env var
+    const data = `${ua}|${ip}|${today}|${salt}`;
+
+    const msgBuffer = new TextEncoder().encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  /**
+   * Captures detailed device fingerprint data for analytics.
+   * Fetches IP for hashing but does NOT store it.
+   */
+  const captureDeviceFingerprint = async () => {
+    // Fetch IP for fingerprinting (not stored)
+    let ip = '';
+    try {
+      // We use the geolocation service to get the IP
+      // Note: In a real edge function, the IP is available in headers.
+      // Here we fetch it from the client side.
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      ip = data.ip;
+    } catch (e) {
+      console.warn('Failed to fetch IP for fingerprinting');
+    }
+
+    const ua = navigator.userAgent || '';
+    const visitorId = await generateVisitorHash(ip, ua);
+
     return {
-      userAgent: navigator.userAgent || '',
+      userAgent: ua,
       referrer: document.referrer || '',
       screenWidth: window.screen?.width,
       screenHeight: window.screen?.height,
@@ -90,6 +126,8 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       platform: navigator.platform,
       cookiesEnabled: navigator.cookieEnabled,
       doNotTrack: navigator.doNotTrack === '1',
+      visitorId,
+      ipAddress: ip, // Passed for geolocation lookup, but not stored raw
     };
   };
 
@@ -100,7 +138,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
    * Requirements: 2.1, 2.2
    */
   const recordClick = async (link: LinkData): Promise<void> => {
-    const fingerprint = captureDeviceFingerprint();
+    const fingerprint = await captureDeviceFingerprint();
 
     console.log('[Click Tracking] Starting click recording for link:', link.id);
     console.log('[Click Tracking] Device fingerprint:', fingerprint);
@@ -145,13 +183,19 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         const clickEventInput = createClickEventInput({
           userAgent: fingerprint.userAgent,
           referrer: fingerprint.referrer,
-          ipAddress: '',
+          ipAddress: fingerprint.ipAddress,
           utm_source: searchParams.get('utm_source') || undefined,
           utm_medium: searchParams.get('utm_medium') || undefined,
           utm_campaign: searchParams.get('utm_campaign') || undefined,
           utm_term: searchParams.get('utm_term') || undefined,
           utm_content: searchParams.get('utm_content') || undefined,
           trigger_source: searchParams.get('qr') === '1' ? 'qr' : 'link',
+          // Advanced Analytics
+          language: fingerprint.language,
+          timezone: fingerprint.timezone,
+          screenWidth: fingerprint.screenWidth,
+          screenHeight: fingerprint.screenHeight,
+          visitorId: fingerprint.visitorId,
         }, Date.now());
 
         await supabaseAdapter.recordClick(link.id, clickEventInput);
@@ -170,7 +214,13 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           const clickEventInput = createClickEventInput({
             userAgent: fingerprint.userAgent,
             referrer: fingerprint.referrer,
-            ipAddress: '',
+            ipAddress: fingerprint.ipAddress,
+            // Advanced Analytics
+            language: fingerprint.language,
+            timezone: fingerprint.timezone,
+            screenWidth: fingerprint.screenWidth,
+            screenHeight: fingerprint.screenHeight,
+            visitorId: fingerprint.visitorId,
           }, Date.now());
           await supabaseAdapter.recordClick(link.id, clickEventInput);
         }

@@ -15,6 +15,7 @@ export interface GeolocationResult {
   lon?: number;
   isp?: string;
   timezone?: string;
+  ip?: string;
 }
 
 interface IpApiResponse {
@@ -28,6 +29,7 @@ interface IpApiResponse {
   lon?: number;
   isp?: string;
   timezone?: string;
+  query?: string; // IP address returned by API
   message?: string;
 }
 
@@ -87,7 +89,7 @@ async function fetchGeolocation(ipAddress: string): Promise<GeolocationResult> {
 
   try {
     const response = await fetch(
-      `${IP_API_BASE_URL}/${encodeURIComponent(ipAddress)}?fields=status,country,countryCode,city,region,regionName,lat,lon,isp,timezone,message`,
+      `${IP_API_BASE_URL}/${encodeURIComponent(ipAddress)}?fields=status,country,countryCode,city,region,regionName,lat,lon,isp,timezone,query,message`,
       { signal: controller.signal }
     );
 
@@ -111,6 +113,7 @@ async function fetchGeolocation(ipAddress: string): Promise<GeolocationResult> {
       lon: data.lon,
       isp: data.isp,
       timezone: data.timezone,
+      ip: data.query,
     };
   } finally {
     clearTimeout(timeoutId);

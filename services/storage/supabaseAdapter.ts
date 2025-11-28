@@ -50,6 +50,12 @@ interface ClickEventRow {
   longitude?: number;
   isp?: string;
   timezone?: string;
+  browser_version?: string;
+  os_version?: string;
+  screen_width?: number;
+  screen_height?: number;
+  language?: string;
+  visitor_id?: string;
   raw_user_agent: string | null;
   ip_hash: string | null;
   // Marketing analytics
@@ -151,11 +157,15 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
     utm_term: row.utm_term,
     utm_content: row.utm_content,
     trigger_source: row.trigger_source,
+    // Advanced Analytics
+    browserVersion: row.browser_version,
+    osVersion: row.os_version,
+    screenWidth: row.screen_width,
+    screenHeight: row.screen_height,
+    language: row.language,
+    visitorId: row.visitor_id,
     // These might not be in the row yet, but keeping for compatibility if added later
     browser: undefined,
-    screenWidth: undefined,
-    screenHeight: undefined,
-    language: undefined,
     fingerprint: undefined,
   };
 }
@@ -378,7 +388,14 @@ export class SupabaseAdapter implements StorageAdapter {
       latitude: geoData.lat,
       longitude: geoData.lon,
       isp: geoData.isp,
-      timezone: geoData.timezone,
+      timezone: event.timezone || geoData.timezone,
+      // Advanced Analytics
+      browser_version: parseUserAgent(event.userAgent).browserVersion,
+      os_version: parseUserAgent(event.userAgent).osVersion,
+      screen_width: event.screenWidth,
+      screen_height: event.screenHeight,
+      language: event.language,
+      visitor_id: event.visitorId,
       // Marketing analytics
       utm_source: event.utm_source,
       utm_medium: event.utm_medium,

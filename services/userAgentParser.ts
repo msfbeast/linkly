@@ -13,6 +13,8 @@ export interface ParsedUserAgent {
   device: DeviceType;
   os: OSType;
   browser: BrowserType;
+  browserVersion: string;
+  osVersion: string;
 }
 
 /**
@@ -28,6 +30,8 @@ export function parseUserAgent(userAgent: string): ParsedUserAgent {
     device: detectDevice(ua),
     os: detectOS(ua),
     browser: detectBrowser(ua),
+    browserVersion: detectBrowserVersion(ua),
+    osVersion: detectOSVersion(ua),
   };
 }
 
@@ -187,4 +191,52 @@ function detectBrowser(ua: string): BrowserType {
   }
 
   return 'Other';
+}
+
+/**
+ * Detects the browser version from a lowercase user agent string.
+ */
+export function detectBrowserVersion(ua: string): string {
+  const match =
+    ua.match(/edg\/([\d.]+)/) ||
+    ua.match(/opr\/([\d.]+)/) ||
+    ua.match(/chrome\/([\d.]+)/) ||
+    ua.match(/firefox\/([\d.]+)/) ||
+    ua.match(/version\/([\d.]+)/); // Safari uses 'version/'
+
+  return match ? match[1].split('.')[0] : 'Unknown';
+}
+
+/**
+ * Detects the OS version from a lowercase user agent string.
+ */
+export function detectOSVersion(ua: string): string {
+  if (/windows/.test(ua)) {
+    const match = ua.match(/windows nt ([\d.]+)/);
+    if (match) {
+      const ver = match[1];
+      if (ver === '10.0') return '10/11';
+      if (ver === '6.3') return '8.1';
+      if (ver === '6.2') return '8';
+      if (ver === '6.1') return '7';
+      return ver;
+    }
+  }
+
+  if (/mac os x/.test(ua)) {
+    const match = ua.match(/mac os x ([\d_]+)/);
+    return match ? match[1].replace(/_/g, '.') : 'Unknown';
+  }
+
+  if (/android/.test(ua)) {
+    const match = ua.match(/android ([\d.]+)/);
+    return match ? match[1] : 'Unknown';
+  }
+
+  if (/os ([\d_]+) like mac os x/.test(ua)) { // iOS
+    const match = ua.match(/os ([\d_]+) like mac os x/);
+    return match ? match[1].replace(/_/g, '.') : 'Unknown';
+  }
+
+  return 'Unknown';
 }

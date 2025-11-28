@@ -25,6 +25,12 @@ export interface ClickRequest {
   utm_term?: string;
   utm_content?: string;
   trigger_source?: string;
+  // Advanced Analytics
+  language?: string;
+  timezone?: string;
+  screenWidth?: number;
+  screenHeight?: number;
+  visitorId?: string;
 }
 
 /**
@@ -149,7 +155,7 @@ export async function processClickRequest(
   timestamp: number = Date.now()
 ): Promise<ClickEvent> {
   // Parse user agent for device, OS, and browser
-  const { device, os, browser } = parseUserAgent(request.userAgent || '');
+  const { device, os, browser, browserVersion, osVersion } = parseUserAgent(request.userAgent || '');
 
   // Get country from IP (returns "Unknown" on failure per Requirements 2.5)
   const country = await getCountryFromIP(request.ipAddress || '');
@@ -163,7 +169,19 @@ export async function processClickRequest(
     device,
     os,
     browser,
+    browserVersion,
+    osVersion,
     country,
+    language: request.language,
+    timezone: request.timezone,
+    screenWidth: request.screenWidth,
+    screenHeight: request.screenHeight,
+    visitorId: request.visitorId,
+    utm_source: request.utm_source,
+    utm_medium: request.utm_medium,
+    utm_campaign: request.utm_campaign,
+    utm_term: request.utm_term,
+    utm_content: request.utm_content,
   };
 }
 
@@ -189,6 +207,11 @@ export function createClickEventInput(
     utm_term: request.utm_term,
     utm_content: request.utm_content,
     trigger_source: request.trigger_source,
+    language: request.language,
+    timezone: request.timezone,
+    screenWidth: request.screenWidth,
+    screenHeight: request.screenHeight,
+    visitorId: request.visitorId,
   };
 }
 

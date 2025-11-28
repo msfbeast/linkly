@@ -10,31 +10,32 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+        display: ['"Outfit"', 'sans-serif'],
       },
       colors: {
         // Light theme colors (Requirements 2.1, 2.2)
         light: {
           bg: {
-            DEFAULT: '#ffffff',      // Main container background
-            primary: '#ffffff',      // Primary light background
-            secondary: '#f8fafc',    // Secondary background
-            card: '#ffffff',         // Card background
-            elevated: '#f1f5f9',     // Elevated surfaces
+            DEFAULT: '#FAFAFA',      // Slightly warmer/neutral off-white
+            primary: '#FFFFFF',      // Pure white
+            secondary: '#F4F4F5',    // Zinc-100
+            card: '#FFFFFF',         // Card background
+            elevated: '#FFFFFF',     // Elevated surfaces
           },
           text: {
-            primary: '#0f172a',      // Primary text (dark slate)
-            secondary: '#334155',    // Secondary text
-            muted: '#64748b',        // Muted text
+            primary: '#18181B',      // Zinc-900
+            secondary: '#52525B',    // Zinc-600
+            muted: '#A1A1AA',        // Zinc-400
           },
           border: {
-            DEFAULT: '#e2e8f0',      // Default borders
-            light: '#f1f5f9',        // Light borders
+            DEFAULT: '#E4E4E7',      // Zinc-200
+            light: '#F4F4F5',        // Zinc-100
           },
           accent: {
-            cyan: '#0891b2',         // Darker cyan for light mode
-            yellow: '#d97706',       // Darker yellow for light mode
-            coral: '#ea580c',        // Darker coral for light mode
+            cyan: '#06B6D4',         // Cyan-500
+            yellow: '#F59E0B',       // Amber-500
+            coral: '#F97316',        // Orange-500
           },
         },
         sparks: {

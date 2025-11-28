@@ -44,7 +44,7 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
         whileHover={{ scale: 1.01 }}
-        className="bg-white border border-stone-200 rounded-[2rem] p-1 transition-all hover:shadow-md group relative mb-4"
+        className="bg-white border border-stone-200/60 rounded-xl p-1 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] group relative mb-4"
       >
         <div className="p-5">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">

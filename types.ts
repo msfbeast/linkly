@@ -6,6 +6,9 @@ export interface ClickEvent {
   country?: string;
   // Enhanced analytics fields
   browser?: string;
+  browserVersion?: string;
+  osVersion?: string;
+  visitorId?: string;
   countryCode?: string;
   region?: string;
   city?: string;

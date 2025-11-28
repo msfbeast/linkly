@@ -24,6 +24,12 @@ export interface ClickEventInput {
   utm_term?: string;
   utm_content?: string;
   trigger_source?: string;
+  // Advanced Analytics
+  language?: string;
+  timezone?: string;
+  screenWidth?: number;
+  screenHeight?: number;
+  visitorId?: string;
 }
 
 /**

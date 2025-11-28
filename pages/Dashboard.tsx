@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download } from 'lucide-react';
 import LinkCard from '../components/LinkCard';
@@ -35,6 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [isExporting, setIsExporting] = useState(false);
+  const navigate = useNavigate();
 
   // Use external modal state if provided, otherwise use internal
   const isModalOpen = externalModalOpen !== undefined ? externalModalOpen : internalModalOpen;
@@ -290,16 +292,16 @@ const Dashboard: React.FC<DashboardProps> = ({
             transition={{ duration: 0.5 }}
             className="text-center py-20"
           >
-            <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-yellow-100/50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-yellow-500/10">
               <LinkIcon className="w-10 h-10 text-yellow-600" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-3">Welcome to Gather!</h2>
-            <p className="text-stone-500 mb-8 max-w-md mx-auto">
+            <h2 className="text-3xl font-display font-bold text-slate-900 mb-3">Welcome to Gather!</h2>
+            <p className="text-stone-500 mb-8 max-w-md mx-auto text-lg">
               Create your first shortened link to start tracking clicks and analyzing your traffic.
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-8 py-3 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors inline-flex items-center gap-2 shadow-sm shadow-yellow-400/20"
+              className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all inline-flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5" />
               Create Your First Link
@@ -313,7 +315,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
                 data-testid="link-cards-row"
               >
                 {topLinks.map((link, index) => (
@@ -330,6 +332,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       createdAt={formatDate(link.createdAt)}
                       clicks={link.clicks}
                       onMenuClick={() => openEditModal(link)}
+                      onClick={() => navigate(`/analytics/${link.id}`)}
                     />
                   </motion.div>
                 ))}
@@ -350,7 +353,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <button
                 onClick={handleExport}
                 disabled={isExporting}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 hover:border-yellow-400 text-stone-600 hover:text-slate-900 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 hover:border-slate-300 text-stone-600 hover:text-slate-900 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
                 title="Export all data as CSV"
               >
                 {isExporting ? (
@@ -396,14 +399,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Links List Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Your Links</h2>
+              <h2 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Your Links</h2>
 
               <div className="relative group">
-                <Search className="absolute left-4 top-3 w-5 h-5 text-stone-400 group-focus-within:text-yellow-500 transition-colors" />
+                <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-slate-900 transition-colors" />
                 <input
                   type="text"
                   placeholder="Search links..."
-                  className="bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 w-full md:w-80 transition-all placeholder:text-stone-400 shadow-sm"
+                  className="bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 w-full md:w-80 transition-all placeholder:text-stone-400 shadow-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -411,10 +414,10 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Links List */}
-            <div className="bg-white border border-stone-200 rounded-[2rem] p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
+            <div className="bg-white border border-stone-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+              <div className="flex justify-between items-center mb-6">
                 <h3 className="text-slate-900 font-bold text-sm uppercase tracking-wider">All Links</h3>
-                <span className="text-stone-500 text-xs">{filteredLinks.length} links</span>
+                <span className="px-3 py-1 bg-stone-100 rounded-full text-stone-600 text-xs font-medium">{filteredLinks.length} links</span>
               </div>
               <div className="space-y-3">
                 <AnimatePresence mode="popLayout">
@@ -434,18 +437,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </motion.div>
                     ))
                   ) : (
-                    <div className="text-center py-16 bg-stone-50 border border-stone-200 rounded-2xl border-dashed">
-                      <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Search className="w-6 h-6 text-yellow-600" />
+                    <div className="text-center py-20 bg-stone-50/50 border border-stone-200 rounded-3xl border-dashed">
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-stone-100">
+                        <Search className="w-6 h-6 text-stone-400" />
                       </div>
                       <h3 className="text-lg font-bold text-slate-900 mb-2">No links found</h3>
-                      <p className="text-stone-500 mb-4 max-w-sm mx-auto text-sm">
+                      <p className="text-stone-500 mb-6 max-w-sm mx-auto text-sm">
                         {searchTerm ? 'Try a different search term.' : 'Get started by creating your first shortened link.'}
                       </p>
                       {!searchTerm && (
                         <button
                           onClick={() => setIsModalOpen(true)}
-                          className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
+                          className="text-slate-900 hover:text-slate-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm bg-white px-4 py-2 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all"
                         >
                           Create your first link <ArrowUpRight className="w-4 h-4" />
                         </button>
