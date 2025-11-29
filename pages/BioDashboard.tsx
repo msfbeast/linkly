@@ -4,17 +4,57 @@ import { BioProfile, LinkData } from '../types';
 import { getBioProfiles, saveBioProfile, deleteBioProfile, getLinks } from '../services/storageService';
 import { v4 as uuidv4 } from 'uuid';
 import BioPreview from '../components/BioPreview';
+import BioAppearanceEditor from '../components/BioAppearanceEditor';
+import { SortableBioLinkItem } from '../components/SortableBioLinkItem';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 const BioDashboard: React.FC = () => {
     const [profiles, setProfiles] = useState<BioProfile[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentProfile, setCurrentProfile] = useState<Partial<BioProfile>>({});
+    const [activeTab, setActiveTab] = useState<'details' | 'appearance'>('details');
     const [availableLinks, setAvailableLinks] = useState<LinkData[]>([]);
 
     useEffect(() => {
         setProfiles(getBioProfiles());
         setAvailableLinks(getLinks());
     }, []);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (active.id !== over?.id) {
+            const currentLinks = currentProfile.links || [];
+            const oldIndex = currentLinks.indexOf(active.id as string);
+            const newIndex = currentLinks.indexOf(over?.id as string);
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newLinks = arrayMove(currentLinks, oldIndex, newIndex);
+                setCurrentProfile({ ...currentProfile, links: newLinks });
+            }
+        }
+    };
 
     const handleCreateNew = () => {
         setCurrentProfile({
@@ -27,11 +67,13 @@ const BioDashboard: React.FC = () => {
             links: [],
             views: 0
         });
+        setActiveTab('details');
         setIsEditing(true);
     };
 
     const handleEdit = (profile: BioProfile) => {
         setCurrentProfile({ ...profile });
+        setActiveTab('details');
         setIsEditing(true);
     };
 
@@ -65,16 +107,39 @@ const BioDashboard: React.FC = () => {
         }
     };
 
+    const activeLinksList = (currentProfile.links || [])
+        .map(id => availableLinks.find(l => l.id === id))
+        .filter((l): l is LinkData => !!l);
+
+    const inactiveLinksList = availableLinks.filter(l => !(currentProfile.links || []).includes(l.id));
+
     if (isEditing) {
         return (
-            <div className="p-8 max-w-4xl mx-auto pl-72">
+            <div className="p-8 max-w-4xl mx-auto">
                 <h2 className="text-2xl font-bold text-slate-900 mb-6">
                     {currentProfile.id ? 'Edit Profile' : 'Create Bio Profile'}
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                        <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
+                        {/* Tabs */}
+                        <div className="flex bg-stone-100 p-1 rounded-xl mb-4">
+                            <button
+                                onClick={() => setActiveTab('details')}
+                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'details' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                            >
+                                Details
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('appearance')}
+                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'appearance' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                            >
+                                Appearance
+                            </button>
+                        </div>
+
+                        {/* Details Tab Content */}
+                        <div className={`bg-white border border-stone-200 rounded-xl p-6 shadow-sm ${activeTab === 'details' ? 'block' : 'hidden'}`}>
                             <h3 className="text-slate-900 font-bold mb-4">Profile Details</h3>
                             <div className="space-y-3">
                                 <div>
@@ -141,6 +206,16 @@ const BioDashboard: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Appearance Tab Content */}
+                        <div className={activeTab === 'appearance' ? 'block' : 'hidden'}>
+                            {currentProfile.id && (
+                                <BioAppearanceEditor
+                                    profile={currentProfile as BioProfile}
+                                    onChange={(updates) => setCurrentProfile(prev => ({ ...prev, ...updates }))}
+                                />
+                            )}
+                        </div>
                     </div>
 
                     <div className="space-y-4">
@@ -153,24 +228,68 @@ const BioDashboard: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white border border-stone-200 rounded-xl p-6 flex flex-col shadow-sm">
-                            <h3 className="text-slate-900 font-bold mb-4">Select Links to Display</h3>
-                            <div className="flex-1 overflow-y-auto space-y-2 max-h-[300px] custom-scrollbar">
-                                {availableLinks.length === 0 && <p className="text-stone-500 text-sm">No links created yet.</p>}
-                                {availableLinks.map(link => (
-                                    <label key={link.id} className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 cursor-pointer transition-colors">
-                                        <input
-                                            type="checkbox"
-                                            checked={currentProfile.links?.includes(link.id)}
-                                            onChange={() => toggleLinkSelection(link.id)}
-                                            className="w-4 h-4 rounded border-stone-300 bg-white text-yellow-600 focus:ring-yellow-500"
-                                        />
-                                        <div className="overflow-hidden">
-                                            <p className="text-slate-900 text-sm font-medium truncate">{link.title}</p>
-                                            <p className="text-stone-500 text-xs truncate">{link.shortCode}</p>
+                        <div className="bg-white border border-stone-200 rounded-xl p-6 flex flex-col shadow-sm h-[600px]">
+                            <h3 className="text-slate-900 font-bold mb-4">Manage Links</h3>
+
+                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-2">
+                                {/* Active Links Section */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
+                                        Active Links ({activeLinksList.length})
+                                    </h4>
+                                    {activeLinksList.length === 0 ? (
+                                        <div className="text-center py-8 bg-stone-50 rounded-xl border border-dashed border-stone-200">
+                                            <p className="text-stone-400 text-sm">No links added yet.</p>
+                                            <p className="text-stone-400 text-xs mt-1">Select links below to add them.</p>
                                         </div>
-                                    </label>
-                                ))}
+                                    ) : (
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
+                                        >
+                                            <SortableContext
+                                                items={activeLinksList.map(l => l.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                <div className="space-y-2">
+                                                    {activeLinksList.map(link => (
+                                                        <SortableBioLinkItem
+                                                            key={link.id}
+                                                            link={link}
+                                                            onRemove={() => toggleLinkSelection(link.id)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </SortableContext>
+                                        </DndContext>
+                                    )}
+                                </div>
+
+                                {/* Available Links Section */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3 pt-4 border-t border-stone-100">
+                                        Available Links ({inactiveLinksList.length})
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {inactiveLinksList.length === 0 && <p className="text-stone-400 text-sm italic">No more links available.</p>}
+                                        {inactiveLinksList.map(link => (
+                                            <button
+                                                key={link.id}
+                                                onClick={() => toggleLinkSelection(link.id)}
+                                                className="w-full flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 hover:border-yellow-400/50 transition-all group text-left"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
+                                                    <Plus className="w-4 h-4" />
+                                                </div>
+                                                <div className="overflow-hidden">
+                                                    <p className="text-slate-900 text-sm font-medium truncate group-hover:text-yellow-700 transition-colors">{link.title}</p>
+                                                    <p className="text-stone-500 text-xs truncate">{link.shortCode}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -185,7 +304,7 @@ const BioDashboard: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#FDFBF7] pl-64">
+        <div className="min-h-screen bg-[#FDFBF7]">
             <div className="p-8 max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <div>

@@ -1,25 +1,18 @@
 export interface ClickEvent {
   timestamp: number;
   referrer: string;
-  device: 'Mobile' | 'Desktop' | 'Tablet' | 'Other' | string;
-  os: 'iOS' | 'Android' | 'Windows' | 'MacOS' | 'Linux' | 'Other' | string;
-  country?: string;
-  // Enhanced analytics fields
+  device: 'mobile' | 'desktop' | 'tablet' | 'unknown';
+  os: 'ios' | 'android' | 'windows' | 'macos' | 'linux' | 'unknown';
   browser?: string;
-  browserVersion?: string;
-  osVersion?: string;
-  visitorId?: string;
+  country: string;
+  // Enhanced analytics fields
   countryCode?: string;
   region?: string;
   city?: string;
   latitude?: number;
   longitude?: number;
   isp?: string;
-  screenWidth?: number;
-  screenHeight?: number;
   timezone?: string;
-  language?: string;
-  fingerprint?: string;
   // Marketing analytics
   utm_source?: string;
   utm_medium?: string;
@@ -27,6 +20,15 @@ export interface ClickEvent {
   utm_term?: string;
   utm_content?: string;
   trigger_source?: 'link' | 'qr' | string;
+  // Advanced Analytics
+  browserVersion?: string;
+  osVersion?: string;
+  screenWidth?: number;
+  screenHeight?: number;
+  language?: string;
+  visitorId?: string;
+  fingerprint?: string;
+  destinationUrl?: string; // For A/B testing tracking
 }
 
 export interface SmartRedirects {
@@ -38,6 +40,21 @@ export interface SmartRedirects {
 // Link category type for color-coded performance cards
 export type LinkCategory = 'social' | 'marketing' | 'product' | 'other';
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  userId: string;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  userId: string;
+  parentId?: string | null;
+  createdAt: number;
+}
+
 export interface LinkData {
   id: string;
   originalUrl: string;
@@ -45,6 +62,7 @@ export interface LinkData {
   title: string;
   description?: string;
   tags: string[];
+  folderId?: string | null;
   createdAt: number;
 
   // Category for dashboard display
@@ -58,6 +76,7 @@ export interface LinkData {
   // Advanced Config
   smartRedirects?: SmartRedirects;
   geoRedirects?: Record<string, string>; // e.g. { 'US': '...', 'IN': '...' }
+  startDate?: number | null;
   expirationDate?: number | null;
   maxClicks?: number | null;
   password?: string | null;
@@ -67,6 +86,14 @@ export interface LinkData {
     sentiment: string;
     category: string;
     predictedEngagement: 'High' | 'Medium' | 'Low';
+  };
+  abTestConfig?: {
+    enabled: boolean;
+    variants: {
+      id: string;
+      url: string;
+      weight: number; // Percentage 0-100
+    }[];
   };
 }
 
@@ -115,6 +142,16 @@ export function getCategoryColor(category: LinkCategory): string {
   return CATEGORY_COLORS[category];
 }
 
+export interface BioThemeConfig {
+  backgroundType: 'solid' | 'gradient' | 'image';
+  backgroundValue: string;
+  textColor: string;
+  buttonStyle: 'rounded' | 'square' | 'pill' | 'shadow' | 'outline' | 'hard-shadow';
+  buttonColor: string;
+  buttonTextColor: string;
+  font: 'inter' | 'roboto' | 'lora' | 'poppins' | 'space-mono' | 'outfit';
+}
+
 export interface BioProfile {
   id: string;
   handle: string; // unique slug
@@ -124,6 +161,7 @@ export interface BioProfile {
   theme: 'vibrant' | 'glass' | 'industrial' | 'retro' | 'cyberpunk' | 'neubrutalism' | 'lofi' | 'clay' | 'bauhaus' | 'lab' | 'archive' | 'dark' | 'light' | 'blue' | 'purple';
   links: string[]; // Array of LinkData IDs
   views: number;
+  customTheme?: BioThemeConfig;
 }
 
 export interface AnalyticsData {
@@ -156,8 +194,21 @@ export interface Product {
   currency: string;
   imageUrl?: string;
   linkId: string; // Links to LinkData for tracking
-  category?: string;
+  shortCode?: string; // For direct linking from storefront
+  originalUrl?: string; // For direct linking fallback
   createdAt: number;
+}
+
+export type DomainStatus = 'pending' | 'active' | 'failed';
+
+export interface Domain {
+  id: string;
+  userId: string;
+  domain: string;
+  status: DomainStatus;
+  verificationToken: string;
+  createdAt: number;
+  verifiedAt?: number;
 }
 
 

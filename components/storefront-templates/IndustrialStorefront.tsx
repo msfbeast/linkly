@@ -99,9 +99,11 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product, index) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="group block bg-[#F0F0F0] border border-slate-300 hover:border-slate-800 transition-colors"
                             >
                                 <div className="p-4 border-b border-slate-300 flex justify-between items-center text-[10px] text-slate-500 uppercase">
@@ -138,7 +140,7 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
                                         </div>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

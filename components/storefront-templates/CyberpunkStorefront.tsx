@@ -48,9 +48,9 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
             </header>
 
             {/* Hero Section */}
-            <section className="pt-32 pb-20 px-6 relative z-10">
+            <section className="pt-24 pb-20 px-6 relative z-10">
                 <div className="max-w-7xl mx-auto">
-                    <div className="border border-[#00ff00] p-8 md:p-16 relative overflow-hidden group">
+                    <div className="border border-[#00ff00] p-8 md:p-10 relative overflow-hidden group">
                         <div className="absolute top-0 left-0 w-2 h-2 bg-[#00ff00]"></div>
                         <div className="absolute top-0 right-0 w-2 h-2 bg-[#00ff00]"></div>
                         <div className="absolute bottom-0 left-0 w-2 h-2 bg-[#00ff00]"></div>
@@ -60,7 +60,7 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
 
                         <div className="relative z-10">
                             <div className="text-xs mb-4 text-[#ff00ff] animate-pulse">&gt;&gt; INCOMING_TRANSMISSION</div>
-                            <h1 className="text-4xl md:text-7xl font-bold mb-6 uppercase tracking-tighter glitch-effect">
+                            <h1 className="text-4xl md:text-5xl font-bold mb-6 uppercase tracking-tighter glitch-effect">
                                 Upgrade Your <br />
                                 <span className="text-white bg-[#00ff00]/20 px-2">Reality</span>
                             </h1>
@@ -85,10 +85,12 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {products.map((product, i) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
-                                className="group border border-[#00ff00]/30 bg-black/50 hover:border-[#00ff00] transition-colors relative overflow-hidden"
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group block bg-black border border-[#00ff00] p-4 relative overflow-hidden hover:shadow-[0_0_20px_rgba(0,255,0,0.5)] transition-all duration-300"
                             >
                                 {/* Corner Accents */}
                                 <div className="absolute top-0 left-0 w-0 h-0 border-t-[20px] border-l-[20px] border-t-[#00ff00] border-l-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -98,7 +100,7 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
                                         <img
                                             src={product.imageUrl}
                                             alt={product.name}
-                                            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300 mix-blend-screen"
+                                            className="w-full h-full object-contain p-2 grayscale group-hover:grayscale-0 transition-all duration-300 mix-blend-screen"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center">
@@ -125,7 +127,7 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
                                         <span className="group-hover:translate-x-1 transition-transform">&gt;&gt; ACQUIRE</span>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

@@ -53,10 +53,10 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
 
     const maxClicks = Math.max(...Object.values(locationCounts), 1);
 
-    // Color scale for heatmap
+    // Color scale for heatmap - Modern Light Theme
     const colorScale = scaleLinear<string>()
         .domain([0, maxClicks])
-        .range(["#1e293b", "#06b6d4"]); // slate-800 to cyan-500
+        .range(["#F1F5F9", "#93C5FD"]); // slate-100 to blue-300
 
     // Subscribe to real-time clicks
     useEffect(() => {
@@ -94,15 +94,15 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
     }, []);
 
     return (
-        <div className={`relative bg-[#12121a] border border-white/5 rounded-2xl overflow-hidden transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : 'h-[500px]'} ${className}`}>
+        <div className={`relative bg-white border border-stone-200 rounded-2xl overflow-hidden transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : 'h-[500px]'} ${className}`}>
 
             {/* Header / Controls */}
             <div className="absolute top-4 left-4 z-10 flex items-center gap-4">
-                <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 px-4 py-2 rounded-xl">
-                    <h3 className="text-white font-bold flex items-center gap-2">
+                <div className="bg-white/80 backdrop-blur-md border border-stone-200 px-4 py-2 rounded-xl shadow-sm">
+                    <h3 className="text-slate-900 font-bold flex items-center gap-2">
                         <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
                         </span>
                         {viewMode === 'world' ? 'Live Global View' : 'Live US View'}
                     </h3>
@@ -111,17 +111,17 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
 
             <div className="absolute top-4 right-4 z-10 flex gap-2">
                 {/* View Toggle */}
-                <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 p-1 rounded-xl flex">
+                <div className="bg-white/80 backdrop-blur-md border border-stone-200 p-1 rounded-xl flex shadow-sm">
                     <button
                         onClick={() => setViewMode('world')}
-                        className={`p-2 rounded-lg transition-colors ${viewMode === 'world' ? 'bg-cyan-500/20 text-cyan-400' : 'text-slate-400 hover:text-white'}`}
+                        className={`p-2 rounded-lg transition-colors ${viewMode === 'world' ? 'bg-blue-50 text-blue-600' : 'text-stone-400 hover:text-slate-900'}`}
                         title="World View"
                     >
                         <Globe className="w-5 h-5" />
                     </button>
                     <button
                         onClick={() => setViewMode('usa')}
-                        className={`p-2 rounded-lg transition-colors ${viewMode === 'usa' ? 'bg-cyan-500/20 text-cyan-400' : 'text-slate-400 hover:text-white'}`}
+                        className={`p-2 rounded-lg transition-colors ${viewMode === 'usa' ? 'bg-blue-50 text-blue-600' : 'text-stone-400 hover:text-slate-900'}`}
                         title="USA View"
                     >
                         <MapIcon className="w-5 h-5" />
@@ -130,7 +130,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
 
                 <button
                     onClick={() => setIsFullscreen(!isFullscreen)}
-                    className="bg-slate-900/80 backdrop-blur-md border border-white/10 p-2 rounded-xl text-slate-400 hover:text-white transition-colors"
+                    className="bg-white/80 backdrop-blur-md border border-stone-200 p-2 rounded-xl text-stone-500 hover:text-slate-900 transition-colors shadow-sm"
                 >
                     {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
                 </button>
@@ -141,9 +141,9 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                 key={viewMode}
                 projection={viewMode === 'world' ? "geoMercator" : "geoAlbersUsa"}
                 projectionConfig={viewMode === 'world' ? { scale: 140 } : { scale: 1000 }}
-                className="w-full h-full bg-[#0a0a0f]"
+                className="w-full h-full bg-[#FAFAFA]" // Very light grey background
             >
-                <ZoomableGroup center={[0, 0]} zoom={1}>
+                <ZoomableGroup center={[0, 0]} zoom={1} minZoom={1} maxZoom={4}>
                     <Geographies geography={viewMode === 'world' ? GEO_URL_WORLD : GEO_URL_US}>
                         {({ geographies }) =>
                             geographies.map((geo) => {
@@ -154,13 +154,13 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                                     <Geography
                                         key={geo.rsmKey}
                                         geography={geo}
-                                        fill={clickCount > 0 ? colorScale(clickCount) : "#1e293b"}
-                                        stroke="#0f172a"
+                                        fill={clickCount > 0 ? colorScale(clickCount) : "#F1F5F9"} // slate-100 default
+                                        stroke="#E2E8F0" // slate-200 borders
                                         strokeWidth={0.5}
                                         style={{
                                             default: { outline: "none", transition: "all 250ms" },
-                                            hover: { fill: "#22d3ee", outline: "none", cursor: "pointer" },
-                                            pressed: { fill: "#06b6d4", outline: "none" },
+                                            hover: { fill: "#BFDBFE", outline: "none", cursor: "pointer" }, // blue-200 hover
+                                            pressed: { fill: "#60A5FA", outline: "none" }, // blue-400 pressed
                                         }}
                                         data-tooltip-id="map-tooltip"
                                         data-tooltip-content={`${locationName}: ${clickCount} clicks`}
@@ -181,9 +181,9 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                                         exit={{ opacity: 0 }}
                                         transition={{ duration: 1.5, ease: "easeOut" }}
                                         fill="none"
-                                        stroke="#22d3ee"
+                                        stroke="#3B82F6" // blue-500
                                     />
-                                    <circle r={3} fill="#fff" />
+                                    <circle r={3} fill="#2563EB" /> {/* blue-600 */}
                                 </g>
                             </Marker>
                         ))}
@@ -194,9 +194,9 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
             <Tooltip id="map-tooltip" className="z-50 !bg-slate-900 !opacity-100 !border !border-white/10 !rounded-lg !px-3 !py-2 !text-sm !font-medium" />
 
             {/* Legend */}
-            <div className="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur-md border border-white/10 px-4 py-2 rounded-xl text-xs text-slate-400 flex items-center gap-2">
+            <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur-md border border-stone-200 px-4 py-2 rounded-xl text-xs text-stone-500 flex items-center gap-2 shadow-sm">
                 <span>Low Activity</span>
-                <div className="w-24 h-2 bg-gradient-to-r from-slate-800 to-cyan-500 rounded-full"></div>
+                <div className="w-24 h-2 bg-gradient-to-r from-slate-100 to-blue-300 rounded-full"></div>
                 <span>High Activity</span>
             </div>
         </div>

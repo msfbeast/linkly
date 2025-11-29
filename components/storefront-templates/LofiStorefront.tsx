@@ -79,10 +79,12 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }
                 <div className="max-w-5xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
-                                className="group block bg-white rounded-2xl border-2 border-[#5C4B51] p-3 shadow-[4px_4px_0px_#E2C2C6] hover:shadow-[6px_6px_0px_#E2C2C6] hover:-translate-y-1 transition-all duration-200"
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group block bg-white border border-stone-200 rounded-lg p-4 hover:border-stone-400 transition-colors"
                             >
                                 <div className="aspect-square bg-[#F7F2E8] rounded-xl mb-3 overflow-hidden relative border-2 border-[#5C4B51]/10">
                                     {product.imageUrl ? (
@@ -113,7 +115,7 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }
                                         </span>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

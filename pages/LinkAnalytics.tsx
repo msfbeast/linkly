@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check, Split, Download, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { LinkData, ClickEvent, getCategoryColor } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import {
@@ -14,7 +14,7 @@ const LinkAnalytics: React.FC = () => {
     const [link, setLink] = useState<LinkData | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
-    const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('30d');
+    const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
@@ -59,27 +59,93 @@ const LinkAnalytics: React.FC = () => {
 
     // Filter clicks by time range
     const now = Date.now();
-    const timeLimit = timeRange === '7d' ? 7 * 24 * 60 * 60 * 1000 :
-        timeRange === '30d' ? 30 * 24 * 60 * 60 * 1000 : Infinity;
+    const getTimeLimit = (range: typeof timeRange) => {
+        switch (range) {
+            case '24h': return 24 * 60 * 60 * 1000;
+            case '7d': return 7 * 24 * 60 * 60 * 1000;
+            case '30d': return 30 * 24 * 60 * 60 * 1000;
+            default: return Infinity;
+        }
+    };
 
+    const timeLimit = getTimeLimit(timeRange);
     const filteredClicks = link.clickHistory.filter(c => (now - c.timestamp) <= timeLimit);
 
+    // Calculate Comparison Metrics (Previous Period)
+    const previousTimeLimit = timeLimit * 2;
+    const previousClicks = link.clickHistory.filter(c =>
+        (now - c.timestamp) > timeLimit && (now - c.timestamp) <= previousTimeLimit
+    );
+
+    const calculateGrowth = (current: number, previous: number) => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const clickGrowth = calculateGrowth(filteredClicks.length, previousClicks.length);
+
+    const uniqueClicks = new Set(filteredClicks.map(c => c.visitorId).filter(Boolean)).size;
+    const previousUniqueClicks = new Set(previousClicks.map(c => c.visitorId).filter(Boolean)).size;
+    const uniqueGrowth = calculateGrowth(uniqueClicks, previousUniqueClicks);
+
+    // Export to CSV
+    const handleExportCSV = () => {
+        const headers = ['Timestamp', 'Country', 'City', 'Device', 'OS', 'Browser', 'Referrer', 'Visitor ID'];
+        const rows = filteredClicks.map(c => [
+            new Date(c.timestamp).toISOString(),
+            c.country || '',
+            c.city || '',
+            c.device || '',
+            c.os || '',
+            c.browser || '',
+            c.referrer || '',
+            c.visitorId || ''
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `linkly_analytics_${id}_${timeRange}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // 1. Timeline Data
     // 1. Timeline Data
     const timelineData = (() => {
-        const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14; // Default to 14 for 'all' view
+        const days = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14;
         const data: Record<string, number> = {};
 
-        // Initialize last N days
-        for (let i = days - 1; i >= 0; i--) {
-            const d = new Date(now - i * 24 * 60 * 60 * 1000);
-            const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            data[key] = 0;
+        if (timeRange === '24h') {
+            // Hourly breakdown for 24h
+            for (let i = 23; i >= 0; i--) {
+                const d = new Date(now - i * 60 * 60 * 1000);
+                const key = d.toLocaleTimeString([], { hour: '2-digit', hour12: true });
+                data[key] = 0;
+            }
+            filteredClicks.forEach(click => {
+                const key = new Date(click.timestamp).toLocaleTimeString([], { hour: '2-digit', hour12: true });
+                if (data[key] !== undefined) data[key]++;
+            });
+        } else {
+            // Daily breakdown
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(now - i * 24 * 60 * 60 * 1000);
+                const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                data[key] = 0;
+            }
+            filteredClicks.forEach(click => {
+                const key = new Date(click.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                if (data[key] !== undefined) data[key]++;
+            });
         }
-
-        filteredClicks.forEach(click => {
-            const key = new Date(click.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            if (data[key] !== undefined) data[key]++;
-        });
 
         return Object.entries(data).map(([date, clicks]) => ({ date, clicks }));
     })();
@@ -112,8 +178,33 @@ const LinkAnalytics: React.FC = () => {
         currentPage * itemsPerPage
     );
 
-    // Calculate Unique Clicks
-    const uniqueClicks = new Set(filteredClicks.map(c => c.visitorId).filter(Boolean)).size;
+
+
+    // 3. A/B Test Data
+    const abTestData = (() => {
+        if (!link.abTestConfig?.enabled) return null;
+
+        const variants = link.abTestConfig.variants;
+        const totalClicks = filteredClicks.length;
+
+        // Count clicks per destination URL
+        const clickCounts: Record<string, number> = {};
+        filteredClicks.forEach(c => {
+            if (c.destinationUrl) {
+                clickCounts[c.destinationUrl] = (clickCounts[c.destinationUrl] || 0) + 1;
+            } else {
+                // Fallback for older clicks or if destinationUrl missing - assume originalUrl?
+                // Or just count as "Other/Original"
+                clickCounts['original'] = (clickCounts['original'] || 0) + 1;
+            }
+        });
+
+        return variants.map(v => ({
+            ...v,
+            clicks: clickCounts[v.url] || 0,
+            percentage: totalClicks > 0 ? ((clickCounts[v.url] || 0) / totalClicks) * 100 : 0
+        }));
+    })();
 
     return (
         <div className="min-h-screen bg-[#FDFBF7] p-8">
@@ -155,19 +246,28 @@ const LinkAnalytics: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex bg-white rounded-lg border border-stone-200 p-1 shadow-sm">
-                        {(['7d', '30d', 'all'] as const).map((range) => (
-                            <button
-                                key={range}
-                                onClick={() => setTimeRange(range)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${timeRange === range
-                                    ? 'bg-amber-50 text-amber-700'
-                                    : 'text-stone-500 hover:bg-stone-50'
-                                    }`}
-                            >
-                                {range === 'all' ? 'All Time' : `Last ${range.replace('d', ' Days')}`}
-                            </button>
-                        ))}
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-lg text-stone-600 hover:text-slate-900 hover:bg-stone-50 transition-colors text-sm font-medium shadow-sm"
+                        >
+                            <Download className="w-4 h-4" />
+                            Export CSV
+                        </button>
+                        <div className="flex bg-white rounded-lg border border-stone-200 p-1 shadow-sm">
+                            {(['24h', '7d', '30d', 'all'] as const).map((range) => (
+                                <button
+                                    key={range}
+                                    onClick={() => setTimeRange(range)}
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${timeRange === range
+                                        ? 'bg-amber-50 text-amber-700'
+                                        : 'text-stone-500 hover:bg-stone-50'
+                                        }`}
+                                >
+                                    {range === 'all' ? 'All Time' : range === '24h' ? '24h' : `Last ${range.replace('d', ' Days')}`}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -183,7 +283,11 @@ const LinkAnalytics: React.FC = () => {
                             </div>
                             <span className="text-stone-500 text-sm font-medium">Total Clicks</span>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900">{filteredClicks.length.toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-slate-900 mb-1">{filteredClicks.length.toLocaleString()}</p>
+                        <div className={`flex items-center text-xs font-medium ${clickGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {clickGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                            {Math.abs(clickGrowth)}% vs previous
+                        </div>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -193,7 +297,11 @@ const LinkAnalytics: React.FC = () => {
                             </div>
                             <span className="text-stone-500 text-sm font-medium">Unique Visitors</span>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900">{uniqueClicks.toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-slate-900 mb-1">{uniqueClicks.toLocaleString()}</p>
+                        <div className={`flex items-center text-xs font-medium ${uniqueGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {uniqueGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                            {Math.abs(uniqueGrowth)}% vs previous
+                        </div>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -235,6 +343,59 @@ const LinkAnalytics: React.FC = () => {
                         <p className="text-xs text-stone-400">{referrerData[0]?.value || 0} clicks</p>
                     </div>
                 </div>
+
+                {/* A/B Test Performance */}
+                {abTestData && (
+                    <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 bg-amber-50 rounded-xl text-amber-500">
+                                <Split className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900">A/B Test Performance</h3>
+                        </div>
+
+                        <div className="overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-stone-400 uppercase bg-stone-50">
+                                    <tr>
+                                        <th className="px-4 py-3 rounded-l-lg">Variant URL</th>
+                                        <th className="px-4 py-3">Configured Weight</th>
+                                        <th className="px-4 py-3">Actual Clicks</th>
+                                        <th className="px-4 py-3 rounded-r-lg">Traffic Share</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-stone-100">
+                                    {abTestData.map((variant, idx) => (
+                                        <tr key={idx} className="hover:bg-stone-50/50 transition-colors">
+                                            <td className="px-4 py-3 text-slate-900 font-medium truncate max-w-xs">
+                                                {variant.url}
+                                            </td>
+                                            <td className="px-4 py-3 text-stone-500">
+                                                {variant.weight}%
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-900 font-bold">
+                                                {variant.clicks}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-24 h-2 bg-stone-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-amber-500 rounded-full"
+                                                            style={{ width: `${variant.percentage}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-stone-500 w-10 text-right">
+                                                        {variant.percentage.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
 
                 {/* Timeline Chart */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">

@@ -6,11 +6,21 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent, Product } from '../../types';
+import { LinkData, ClickEvent, Product, Tag, Folder, Domain } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
 import { monetizeUrl } from '../../utils/affiliateUtils';
+
+const STORAGE_KEYS = {
+  LINKS: 'linkly_links',
+  CLICKS: 'linkly_clicks',
+  BIO_PROFILES: 'linkly_bio_profiles',
+  PRODUCTS: 'linkly_products',
+  DOMAINS: 'linkly_domains',
+  TAGS: 'linkly_tags',
+  FOLDERS: 'linkly_folders',
+};
 
 /**
  * Database row types for Supabase tables
@@ -27,13 +37,23 @@ interface LinkRow {
   clicks: number;
   last_clicked_at: string | null;
   smart_redirects: { ios?: string; android?: string; desktop?: string } | null;
-  geo_redirects: Record<string, string> | null;
-  expiration_date: string | null;
+  geo_redirects?: Record<string, string>;
+  start_date?: number | null;
+  expiration_date?: number | null;
   max_clicks: number | null;
   password_hash: string | null;
   qr_code_data: string | null;
   ai_analysis: Record<string, unknown> | null;
   user_id: string | null;
+  folder_id: string | null;
+  ab_test_config: {
+    enabled: boolean;
+    variants: {
+      id: string;
+      url: string;
+      weight: number;
+    }[];
+  } | null;
 }
 
 interface ClickEventRow {
@@ -67,6 +87,7 @@ interface ClickEventRow {
   utm_term?: string;
   utm_content?: string;
   trigger_source?: string;
+  destination_url?: string;
 }
 
 interface ProductRow {
@@ -78,6 +99,22 @@ interface ProductRow {
   currency: string;
   image_url: string | null;
   link_id: string;
+  created_at: string;
+}
+
+interface TagRow {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+interface FolderRow {
+  id: string;
+  user_id: string;
+  name: string;
+  parent_id: string | null;
   created_at: string;
 }
 
@@ -100,11 +137,33 @@ function rowToLinkData(row: LinkRow, clickHistory: ClickEvent[] = []): LinkData 
     clickHistory,
     smartRedirects: row.smart_redirects as LinkData['smartRedirects'] ?? undefined,
     geoRedirects: row.geo_redirects ?? undefined,
-    expirationDate: row.expiration_date ? new Date(row.expiration_date).getTime() : null,
+    startDate: row.start_date ?? null,
+    expirationDate: row.expiration_date ?? null,
     maxClicks: row.max_clicks,
     password: row.password_hash,
     qrCodeData: row.qr_code_data ?? undefined,
     aiAnalysis: row.ai_analysis as LinkData['aiAnalysis'] ?? undefined,
+    folderId: row.folder_id ?? undefined,
+    abTestConfig: row.ab_test_config as LinkData['abTestConfig'] ?? undefined,
+  };
+}
+
+function rowToTag(row: TagRow): Tag {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    color: row.color,
+  };
+}
+
+function rowToFolder(row: FolderRow): Folder {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    parentId: row.parent_id,
+    createdAt: new Date(row.created_at).getTime(),
   };
 }
 
@@ -125,12 +184,15 @@ function linkDataToRow(link: Omit<LinkData, 'id'> & { id?: string }, userId?: st
     last_clicked_at: link.lastClickedAt !== undefined ? new Date(link.lastClickedAt).toISOString() : null,
     smart_redirects: link.smartRedirects ?? null,
     geo_redirects: link.geoRedirects ?? null,
-    expiration_date: link.expirationDate !== undefined && link.expirationDate !== null ? new Date(link.expirationDate).toISOString() : null,
+    start_date: link.startDate ?? null,
+    expiration_date: link.expirationDate ?? null,
     max_clicks: link.maxClicks ?? null,
     password_hash: link.password ?? null,
     qr_code_data: link.qrCodeData ?? null,
     ai_analysis: link.aiAnalysis ?? null,
     user_id: userId ?? null,
+    folder_id: link.folderId ?? null,
+    ab_test_config: link.abTestConfig ?? null,
   };
 }
 
@@ -168,6 +230,7 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
     visitorId: row.visitor_id,
     browser: row.browser,
     fingerprint: undefined,
+    destinationUrl: row.destination_url,
   };
 }
 
@@ -332,14 +395,17 @@ export class SupabaseAdapter implements StorageAdapter {
     if (updateFields.smartRedirects !== undefined) rowUpdates.smart_redirects = updateFields.smartRedirects ?? null;
     if (updateFields.geoRedirects !== undefined) rowUpdates.geo_redirects = updateFields.geoRedirects ?? null;
     if (updateFields.expirationDate !== undefined) {
-      rowUpdates.expiration_date = updateFields.expirationDate
-        ? new Date(updateFields.expirationDate).toISOString()
-        : null;
+      rowUpdates.expiration_date = updateFields.expirationDate ?? null;
     }
-    if (updateFields.maxClicks !== undefined) rowUpdates.max_clicks = updateFields.maxClicks ?? null;
+    if (updateFields.startDate !== undefined) {
+      rowUpdates.start_date = updateFields.startDate ?? null;
+    }
+    rowUpdates.max_clicks = updateFields.maxClicks ?? null;
     if (updateFields.password !== undefined) rowUpdates.password_hash = updateFields.password ?? null;
     if (updateFields.qrCodeData !== undefined) rowUpdates.qr_code_data = updateFields.qrCodeData ?? null;
     if (updateFields.aiAnalysis !== undefined) rowUpdates.ai_analysis = updateFields.aiAnalysis ?? null;
+    if (updateFields.folderId !== undefined) rowUpdates.folder_id = updateFields.folderId ?? null;
+    if (updateFields.abTestConfig !== undefined) rowUpdates.ab_test_config = updateFields.abTestConfig ?? null;
 
     const { data: row, error } = await supabase!
       .from(TABLES.LINKS)
@@ -372,6 +438,37 @@ export class SupabaseAdapter implements StorageAdapter {
     if (error) {
       throw new Error(`Failed to delete link: ${error.message}`);
     }
+  }
+
+  /**
+   * Delete a tag
+   */
+
+
+  /**
+   * Update a tag
+   */
+  async updateTag(id: string, updates: Partial<Tag>): Promise<Tag> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const rowUpdates: Partial<TagRow> = {};
+    if (updates.name !== undefined) rowUpdates.name = updates.name;
+    if (updates.color !== undefined) rowUpdates.color = updates.color;
+
+    const { data, error } = await supabase!
+      .from(TABLES.TAGS)
+      .update(rowUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update tag: ${error.message}`);
+    }
+
+    return rowToTag(data as TagRow);
   }
 
 
@@ -426,6 +523,7 @@ export class SupabaseAdapter implements StorageAdapter {
       utm_term: event.utm_term,
       utm_content: event.utm_content,
       trigger_source: event.trigger_source,
+      destination_url: event.destinationUrl,
     };
     console.log('[SupabaseAdapter] Click event row:', clickEventRow);
 
@@ -601,6 +699,98 @@ export class SupabaseAdapter implements StorageAdapter {
     return result.sort((a, b) => a.period.localeCompare(b.period));
   }
 
+  async getDomains(userId: string): Promise<Domain[]> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+      const domains: Domain[] = stored ? JSON.parse(stored) : [];
+      return domains.filter(d => d.userId === userId);
+    }
+
+    // Supabase implementation would go here
+    // For now, mocking with local storage even in "supabase" mode for this demo
+    const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+    const domains: Domain[] = stored ? JSON.parse(stored) : [];
+    return domains.filter(d => d.userId === userId);
+  }
+
+  async addDomain(userId: string, domainName: string): Promise<Domain> {
+    const newDomain: Domain = {
+      id: uuidv4(),
+      userId,
+      domain: domainName,
+      status: 'pending',
+      verificationToken: `verify_${uuidv4().substring(0, 8)}`,
+      createdAt: Date.now(),
+    };
+
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+      const domains: Domain[] = stored ? JSON.parse(stored) : [];
+      domains.push(newDomain);
+      localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(domains));
+    } else {
+      // Mocking Supabase for now
+      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+      const domains: Domain[] = stored ? JSON.parse(stored) : [];
+      domains.push(newDomain);
+      localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(domains));
+    }
+
+    return newDomain;
+  }
+
+  async removeDomain(id: string): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+      if (stored) {
+        const domains: Domain[] = JSON.parse(stored);
+        const filtered = domains.filter(d => d.id !== id);
+        localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(filtered));
+      }
+    } else {
+      // Mocking Supabase
+      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+      if (stored) {
+        const domains: Domain[] = JSON.parse(stored);
+        const filtered = domains.filter(d => d.id !== id);
+        localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(filtered));
+      }
+    }
+  }
+
+  async verifyDomain(id: string): Promise<Domain | null> {
+    // Simulate verification delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+      if (stored) {
+        const domains: Domain[] = JSON.parse(stored);
+        const index = domains.findIndex(d => d.id === id);
+        if (index !== -1) {
+          domains[index].status = 'active';
+          domains[index].verifiedAt = Date.now();
+          localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(domains));
+          return domains[index];
+        }
+      }
+    } else {
+      // Mocking Supabase
+      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
+      if (stored) {
+        const domains: Domain[] = JSON.parse(stored);
+        const index = domains.findIndex(d => d.id === id);
+        if (index !== -1) {
+          domains[index].status = 'active';
+          domains[index].verifiedAt = Date.now();
+          localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(domains));
+          return domains[index];
+        }
+      }
+    }
+    return null;
+  }
+
   /**
    * Export all data (links and click events)
    */
@@ -674,7 +864,13 @@ export class SupabaseAdapter implements StorageAdapter {
 
     const { data, error } = await supabase!
       .from(TABLES.PRODUCTS)
-      .select('*')
+      .select(`
+        *,
+        link:links (
+          short_code,
+          original_url
+        )
+      `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -682,7 +878,11 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error(`Failed to fetch products: ${error.message}`);
     }
 
-    return (data || []).map((row: ProductRow) => rowToProduct(row));
+    return (data || []).map((row: any) => ({
+      ...rowToProduct(row),
+      shortCode: row.link?.short_code,
+      originalUrl: row.link?.original_url
+    }));
   }
 
   /**
@@ -753,7 +953,117 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error(`Failed to delete product: ${error.message}`);
     }
   }
+
+
+  /**
+   * Tag Methods
+   */
+
+  async getTags(userId: string): Promise<Tag[]> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
+
+    const { data, error } = await supabase!
+      .from(TABLES.TAGS)
+      .select('*')
+      .eq('user_id', userId)
+      .order('name');
+
+    if (error) throw new Error(`Failed to fetch tags: ${error.message}`);
+    return (data || []).map((row: any) => rowToTag(row));
+  }
+
+  async createTag(tag: Omit<Tag, 'id'>): Promise<Tag> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
+
+    const { data, error } = await supabase!
+      .from(TABLES.TAGS)
+      .insert({
+        user_id: tag.userId,
+        name: tag.name,
+        color: tag.color,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to create tag: ${error.message}`);
+    return rowToTag(data as TagRow);
+  }
+
+  async deleteTag(id: string): Promise<void> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
+
+    const { error } = await supabase!
+      .from(TABLES.TAGS)
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(`Failed to delete tag: ${error.message}`);
+  }
+
+  /**
+   * Folder Methods
+   */
+
+  async getFolders(userId: string): Promise<Folder[]> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
+
+    const { data, error } = await supabase!
+      .from(TABLES.FOLDERS)
+      .select('*')
+      .eq('user_id', userId)
+      .order('name');
+
+    if (error) throw new Error(`Failed to fetch folders: ${error.message}`);
+    return (data || []).map((row: any) => rowToFolder(row));
+  }
+
+  async createFolder(folder: Omit<Folder, 'id' | 'createdAt'>): Promise<Folder> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
+
+    const { data, error } = await supabase!
+      .from(TABLES.FOLDERS)
+      .insert({
+        user_id: folder.userId,
+        name: folder.name,
+        parent_id: folder.parentId ?? null,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to create folder: ${error.message}`);
+    return rowToFolder(data as FolderRow);
+  }
+
+  async updateFolder(id: string, updates: Partial<Folder>): Promise<Folder> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
+
+    const rowUpdates: any = {};
+    if (updates.name !== undefined) rowUpdates.name = updates.name;
+    if (updates.parentId !== undefined) rowUpdates.parent_id = updates.parentId;
+
+    const { data, error } = await supabase!
+      .from(TABLES.FOLDERS)
+      .update(rowUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update folder: ${error.message}`);
+    return rowToFolder(data as FolderRow);
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
+
+    const { error } = await supabase!
+      .from(TABLES.FOLDERS)
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(`Failed to delete folder: ${error.message}`);
+  }
 }
+
 
 /**
  * Convert a product database row to Product object

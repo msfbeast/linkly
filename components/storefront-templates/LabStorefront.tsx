@@ -86,10 +86,12 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading })
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-black border border-black">
                         {products.map((product, index) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
-                                className="group bg-white p-6 hover:bg-gray-50 transition-colors relative"
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group block bg-white border border-slate-200 rounded-lg p-4 hover:border-blue-500 transition-colors relative overflow-hidden"
                             >
                                 <div className="absolute top-4 right-4 text-[10px] text-gray-400">
                                     #{String(index + 1).padStart(3, '0')}
@@ -119,7 +121,7 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading })
                                         <span className="border border-gray-200 px-1 rounded">In Stock</span>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

@@ -60,12 +60,12 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
             </header>
 
             {/* Hero Section */}
-            <section className="pt-32 pb-20 px-6 relative z-10">
+            <section className="pt-24 pb-20 px-6 relative z-10">
                 <div className="max-w-7xl mx-auto text-center">
                     <div className="inline-block mb-6 px-4 py-1.5 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-sm font-medium text-white/80 shadow-lg">
                         Pure Monochrome Aesthetics
                     </div>
-                    <h1 className="text-5xl md:text-7xl font-bold mb-8 tracking-tight drop-shadow-2xl">
+                    <h1 className="text-5xl md:text-6xl font-bold mb-8 tracking-tight drop-shadow-2xl">
                         Crystal Clear <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Simplicity</span>
                     </h1>
@@ -83,17 +83,19 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="group block bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl p-4 hover:bg-white/10 transition-all duration-300 hover:-translate-y-2 shadow-xl shadow-black/20"
                             >
-                                <div className="aspect-square bg-white/5 rounded-2xl mb-4 overflow-hidden relative flex items-center justify-center">
+                                <div className="aspect-square bg-white rounded-2xl mb-4 overflow-hidden relative flex items-center justify-center">
                                     {product.imageUrl ? (
                                         <img
                                             src={product.imageUrl}
                                             alt={product.name}
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 grayscale group-hover:grayscale-0"
+                                            className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500 grayscale group-hover:grayscale-0"
                                         />
                                     ) : (
                                         <ShoppingBag className="w-12 h-12 text-white/20" />
@@ -113,7 +115,7 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                                         </div>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

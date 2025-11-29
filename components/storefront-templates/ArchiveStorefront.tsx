@@ -89,9 +89,11 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                     {/* Items */}
                     <div className="divide-y divide-[#CCC]">
                         {products.map((product, index) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="group block hover:bg-white transition-colors"
                             >
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center">
@@ -143,7 +145,7 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </button>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </main>

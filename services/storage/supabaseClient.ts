@@ -55,4 +55,6 @@ export const TABLES = {
   LINKS: 'links',
   CLICK_EVENTS: 'click_events',
   PRODUCTS: 'products',
+  TAGS: 'tags',
+  FOLDERS: 'folders',
 } as const;

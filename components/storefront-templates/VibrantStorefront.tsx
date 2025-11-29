@@ -43,9 +43,9 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
             </header>
 
             {/* Hero Section */}
-            <section className="pt-32 pb-12 px-4">
+            <section className="pt-24 pb-12 px-4">
                 <div className="max-w-7xl mx-auto">
-                    <div className="bg-[#6B46C1] rounded-[3rem] p-8 md:p-20 text-center relative overflow-hidden border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                    <div className="bg-[#6B46C1] rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
                         {/* Decorative Shapes */}
                         <div className="absolute top-10 left-10 w-20 h-20 bg-[#FF3366] rounded-full border-4 border-black"></div>
                         <div className="absolute bottom-10 right-10 w-32 h-32 bg-yellow-300 rotate-12 border-4 border-black"></div>
@@ -55,7 +55,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                             <div className="inline-block bg-white border-2 border-black px-4 py-1 rounded-full font-black uppercase tracking-widest text-xs mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">
                                 Fresh Drop
                             </div>
-                            <h1 className="text-5xl md:text-8xl font-black text-white mb-8 leading-none tracking-tighter drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                            <h1 className="text-5xl md:text-6xl font-black text-white mb-8 leading-none tracking-tighter drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                                 LOUD & <br />
                                 <span className="text-yellow-300">PROUD</span>
                             </h1>
@@ -86,17 +86,19 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product, i) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className={`group bg-white rounded-[2rem] border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all ${i % 2 === 0 ? 'rotate-1' : '-rotate-1'} hover:rotate-0`}
                             >
-                                <div className="aspect-square bg-[#E0E7FF] rounded-[1.5rem] mb-4 overflow-hidden relative border-2 border-black">
+                                <div className="aspect-square bg-white rounded-[1.5rem] mb-4 overflow-hidden relative border-2 border-black">
                                     {product.imageUrl ? (
                                         <img
                                             src={product.imageUrl}
                                             alt={product.name}
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-white">
@@ -117,7 +119,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </div>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

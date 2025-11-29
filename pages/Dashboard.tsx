@@ -16,6 +16,21 @@ import { DateRange, generateClickForecastData, generateTrafficSourceData } from 
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 interface DashboardProps {
   externalModalOpen?: boolean;
@@ -37,7 +52,27 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [isExporting, setIsExporting] = useState(false);
+
   const navigate = useNavigate();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      setLinks((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over?.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   // Use external modal state if provided, otherwise use internal
   const isModalOpen = externalModalOpen !== undefined ? externalModalOpen : internalModalOpen;
@@ -417,42 +452,47 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <span className="px-3 py-1 bg-stone-100 rounded-full text-stone-600 text-xs font-medium">{filteredLinks.length} links</span>
               </div>
               <div className="space-y-3">
-                <AnimatePresence mode="popLayout">
-                  {filteredLinks.length > 0 ? (
-                    filteredLinks.map((link, index) => (
-                      <motion.div
-                        key={link.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                      >
-                        <LinkCard
-                          link={link}
-                          onDelete={handleDeleteLink}
-                          onEdit={openEditModal}
-                        />
-                      </motion.div>
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center py-20 bg-stone-50/50 border border-stone-200 rounded-3xl border-dashed">
-                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-stone-100">
-                        <Search className="w-6 h-6 text-stone-400" />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">No links found</h3>
-                      <p className="text-stone-500 mb-6 max-w-sm mx-auto text-sm">
-                        {searchTerm ? 'Try a different search term.' : 'Get started by creating your first shortened link.'}
-                      </p>
-                      {!searchTerm && (
-                        <button
-                          onClick={() => setIsModalOpen(true)}
-                          className="text-slate-900 hover:text-slate-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm bg-white px-4 py-2 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all"
-                        >
-                          Create your first link <ArrowUpRight className="w-4 h-4" />
-                        </button>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={filteredLinks.map(l => l.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <AnimatePresence mode="popLayout">
+                      {filteredLinks.length > 0 ? (
+                        filteredLinks.map((link) => (
+                          <LinkCard
+                            key={link.id}
+                            link={link}
+                            onDelete={handleDeleteLink}
+                            onEdit={openEditModal}
+                          />
+                        ))
+                      ) : (
+                        <div className="col-span-full text-center py-20 bg-stone-50/50 border border-stone-200 rounded-3xl border-dashed">
+                          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-stone-100">
+                            <Search className="w-6 h-6 text-stone-400" />
+                          </div>
+                          <h3 className="text-lg font-bold text-slate-900 mb-2">No links found</h3>
+                          <p className="text-stone-500 mb-6 max-w-sm mx-auto text-sm">
+                            {searchTerm ? 'Try a different search term.' : 'Get started by creating your first shortened link.'}
+                          </p>
+                          {!searchTerm && (
+                            <button
+                              onClick={() => setIsModalOpen(true)}
+                              className="text-slate-900 hover:text-slate-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm bg-white px-4 py-2 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all"
+                            >
+                              Create your first link <ArrowUpRight className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
-                </AnimatePresence>
+                    </AnimatePresence>
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
           </>

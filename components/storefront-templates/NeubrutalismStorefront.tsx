@@ -44,14 +44,14 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
             </header>
 
             {/* Hero Section */}
-            <section className="pt-32 pb-20 px-4">
+            <section className="pt-24 pb-20 px-4">
                 <div className="max-w-6xl mx-auto">
-                    <div className="bg-[#FF6B6B] border-4 border-black p-8 md:p-16 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
+                    <div className="bg-[#FF6B6B] border-4 border-black p-8 md:p-10 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
                         <div className="relative z-10">
                             <div className="inline-block bg-white border-2 border-black px-4 py-1 font-bold uppercase mb-6 transform -rotate-2">
                                 New Collection Drop
                             </div>
-                            <h1 className="text-5xl md:text-8xl font-black mb-8 uppercase leading-none text-white drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                            <h1 className="text-5xl md:text-6xl font-black mb-8 uppercase leading-none text-white drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                                 Bold.<br />Loud.<br />Yours.
                             </h1>
                             <p className="text-xl font-bold mb-8 max-w-xl bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -79,17 +79,19 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product, i) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="group block bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:-translate-x-1 transition-all duration-200"
                             >
-                                <div className="aspect-square bg-gray-100 border-2 border-black mb-4 overflow-hidden relative">
+                                <div className="aspect-square bg-white border-2 border-black mb-4 overflow-hidden relative">
                                     {product.imageUrl ? (
                                         <img
                                             src={product.imageUrl}
                                             alt={product.name}
-                                            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300"
+                                            className="w-full h-full object-contain p-2 grayscale group-hover:grayscale-0 transition-all duration-300"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-[#4ECDC4]">
@@ -113,7 +115,7 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                         </div>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

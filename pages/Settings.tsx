@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 import StorefrontPreview from '../components/StorefrontPreview';
+import DomainManager from '../components/DomainManager';
+import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink, Globe } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Settings Page - User account and app preferences
@@ -110,6 +111,7 @@ const Settings: React.FC = () => {
   const tabs = [
     { id: 'account', label: 'Account', icon: User },
     { id: 'storefront', label: 'Storefront', icon: LayoutTemplate },
+    { id: 'domains', label: 'Domains', icon: Globe },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'api', label: 'API Keys', icon: Key },
@@ -294,6 +296,11 @@ const Settings: React.FC = () => {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Domains Tab */}
+            {activeTab === 'domains' && user && (
+              <DomainManager userId={user.id} />
             )}
 
             {/* Notifications Tab */}

@@ -31,6 +31,7 @@ export interface ClickRequest {
   screenWidth?: number;
   screenHeight?: number;
   visitorId?: string;
+  destinationUrl?: string;
 }
 
 /**
@@ -166,8 +167,8 @@ export async function processClickRequest(
   return {
     timestamp,
     referrer,
-    device,
-    os,
+    device: device.toLowerCase() as 'mobile' | 'desktop' | 'tablet' | 'unknown',
+    os: os.toLowerCase() as 'ios' | 'android' | 'windows' | 'macos' | 'linux' | 'unknown',
     browser,
     browserVersion,
     osVersion,
@@ -212,6 +213,7 @@ export function createClickEventInput(
     screenWidth: request.screenWidth,
     screenHeight: request.screenHeight,
     visitorId: request.visitorId,
+    destinationUrl: request.destinationUrl,
   };
 }
 

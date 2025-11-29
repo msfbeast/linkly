@@ -245,13 +245,13 @@ const ProductManager: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {products.map((product) => (
-                    <div key={product.id} className="bg-white border border-stone-200 rounded-[2rem] overflow-hidden group hover:shadow-md transition-all">
-                        <div className="aspect-video bg-stone-100 relative">
+                    <div key={product.id} className="bg-white border border-stone-200 rounded-[2rem] overflow-hidden group hover:shadow-md transition-all flex flex-col h-full">
+                        <div className="h-64 w-full bg-stone-100 relative overflow-hidden shrink-0">
                             {product.imageUrl ? (
                                 <img
                                     src={product.imageUrl}
                                     alt={product.name}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                                     referrerPolicy="no-referrer"
                                 />
                             ) : (
@@ -275,16 +275,16 @@ const ProductManager: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="p-5">
+                        <div className="p-5 flex flex-col flex-1">
                             <div className="flex justify-between items-start mb-2">
-                                <h3 className="text-lg font-bold text-slate-900">{product.name}</h3>
-                                <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg">
+                                <h3 className="text-lg font-bold text-slate-900 line-clamp-1">{product.name}</h3>
+                                <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0 ml-2">
                                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
                                 </span>
                             </div>
-                            <p className="text-stone-500 text-sm mb-4 line-clamp-2">{product.description}</p>
+                            <p className="text-stone-500 text-sm mb-4 line-clamp-2 flex-1">{product.description}</p>
 
-                            <div className="flex items-center justify-between pt-4 border-t border-stone-100">
+                            <div className="flex items-center justify-between pt-4 border-t border-stone-100 mt-auto">
                                 <div className="flex items-center gap-2 text-stone-400 text-sm">
                                     <Package className="w-4 h-4" />
                                     <span>Physical Item</span>

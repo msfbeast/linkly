@@ -4,10 +4,14 @@ import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Wif
 import LinkCard from '../components/LinkCard';
 import SmartLinkCard from '../components/SmartLinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
+import { FolderTree } from '../components/FolderTree';
+import { useAuth } from '../contexts/AuthContext';
 import { LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { execute as retryExecute } from '../services/retryService';
 import { subscribeToClickEvents, subscribeToLinkUpdates, RealtimeClickEvent, RealtimeLinkUpdate } from '../services/realtimeService';
+import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, DragOverlay } from '@dnd-kit/core';
+import { TagManager } from '../components/TagManager';
 
 interface LinksProps {
   externalModalOpen?: boolean;
@@ -24,10 +28,13 @@ const Links: React.FC<LinksProps> = ({
   setExternalModalOpen,
   onLinksUpdate,
 }) => {
+  const { user } = useAuth();
   const [links, setLinks] = useState<LinkData[]>([]);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [editingLink, setEditingLink] = useState<LinkData | null>(null);
+  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,6 +129,37 @@ const Links: React.FC<LinksProps> = ({
     };
   }, []);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const linkId = active.id as string;
+      const folderId = over.id as string;
+
+      // Optimistic update
+      setLinks(prevLinks => prevLinks.map(link =>
+        link.id === linkId ? { ...link, folderId } : link
+      ));
+
+      try {
+        await supabaseAdapter.updateLink(linkId, { folderId });
+        // Optional: Show success toast
+      } catch (error) {
+        console.error('Failed to move link:', error);
+        // Revert on failure
+        await loadLinks();
+      }
+    }
+  };
+
 
   const handleCreateLink = async (link: LinkData) => {
     try {
@@ -193,11 +231,17 @@ const Links: React.FC<LinksProps> = ({
     setEditingLink(null);
   };
 
-  const filteredLinks = links.filter(link =>
-    link.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    link.shortCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    link.originalUrl.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLinks = links.filter(link => {
+    const matchesSearch = link.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      link.shortCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      link.originalUrl.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFolder = selectedFolderId === null
+      ? true
+      : link.folderId === selectedFolderId;
+
+    return matchesSearch && matchesFolder;
+  });
 
   if (isLoading) {
     return (
@@ -232,112 +276,141 @@ const Links: React.FC<LinksProps> = ({
 
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7]">
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Your Links</h1>
-              {isRealtimeConnected && (
-                <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Live</span>
-                </span>
-              )}
-            </div>
-            <p className="text-stone-500 text-sm mt-1">
-              {links.length} {links.length === 1 ? 'link' : 'links'} total
-            </p>
-          </div>
-
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
-          >
-            <Plus className="w-5 h-5" />
-            Create Link
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="relative group">
-          <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-yellow-500 transition-colors" />
-          <input
-            type="text"
-            placeholder="Search by title, short code, or URL..."
-            className="w-full bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all placeholder:text-stone-400 shadow-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <div className="min-h-screen bg-[#FDFBF7] flex">
+        {/* Folder Sidebar */}
+        <div className="w-64 border-r border-stone-200 bg-white p-4 hidden md:block h-screen sticky top-0 overflow-y-auto">
+          <FolderTree
+            userId={user?.id || ''}
+            selectedFolderId={selectedFolderId}
+            onSelectFolder={setSelectedFolderId}
           />
         </div>
 
-        {/* Links List */}
-        <div className="space-y-4">
-          <AnimatePresence mode="popLayout">
-            {filteredLinks.length > 0 ? (
-              filteredLinks.map((link, index) => (
-                <motion.div
-                  key={link.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                >
-                  <LinkCard
-                    link={link}
-                    onDelete={handleDeleteLink}
-                    onEdit={openEditModal}
-                  />
-                </motion.div>
-              ))
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-16 bg-white rounded-[2rem] border border-stone-200"
-              >
-                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-200">
-                  {searchTerm ? (
-                    <Search className="w-6 h-6 text-yellow-600" />
-                  ) : (
-                    <LinkIcon className="w-6 h-6 text-yellow-600" />
-                  )}
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">
-                  {searchTerm ? 'No links found' : 'No links yet'}
-                </h3>
-                <p className="text-stone-500 mb-4 max-w-sm mx-auto text-sm">
-                  {searchTerm
-                    ? 'Try a different search term.'
-                    : 'Create your first shortened link to get started.'}
-                </p>
-                {!searchTerm && (
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
-                  >
-                    Create your first link <ArrowUpRight className="w-4 h-4" />
-                  </button>
+        <div className="flex-1 p-6 max-w-5xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Your Links</h1>
+                {isRealtimeConnected && (
+                  <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Live</span>
+                  </span>
                 )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+              </div>
+              <p className="text-stone-500 text-sm mt-1">
+                {links.length} {links.length === 1 ? 'link' : 'links'} total
+              </p>
+            </div>
 
-      <CreateLinkModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onCreate={handleCreateLink}
-        onUpdate={handleUpdateLink}
-        onBulkCreate={handleBulkCreate}
-        editingLink={editingLink}
-      />
-    </div >
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
+            >
+              <Plus className="w-5 h-5" />
+              Create Link
+            </button>
+          </div>
+
+          {/* Search and Tag Manager */}
+          <div className="flex gap-4">
+            <div className="relative group flex-1">
+              <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-yellow-500 transition-colors" />
+              <input
+                type="text"
+                placeholder="Search by title, short code, or URL..."
+                className="w-full bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all placeholder:text-stone-400 shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={() => setIsTagManagerOpen(true)}
+              className="px-4 py-3 bg-white border border-stone-200 text-stone-600 font-bold rounded-xl hover:bg-stone-50 hover:text-slate-900 transition-colors flex items-center gap-2"
+            >
+              Manage Tags
+            </button>
+          </div>
+
+          {/* Links List */}
+          <div className="space-y-4">
+            <AnimatePresence mode="popLayout">
+              {filteredLinks.length > 0 ? (
+                filteredLinks.map((link, index) => (
+                  <motion.div
+                    key={link.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                  >
+                    <LinkCard
+                      link={link}
+                      onDelete={handleDeleteLink}
+                      onEdit={openEditModal}
+                    />
+                  </motion.div>
+                ))
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-16 bg-white rounded-[2rem] border border-stone-200"
+                >
+                  <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-200">
+                    {searchTerm ? (
+                      <Search className="w-6 h-6 text-yellow-600" />
+                    ) : (
+                      <LinkIcon className="w-6 h-6 text-yellow-600" />
+                    )}
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    {searchTerm ? 'No links found' : 'No links yet'}
+                  </h3>
+                  <p className="text-stone-500 mb-4 max-w-sm mx-auto text-sm">
+                    {searchTerm
+                      ? 'Try a different search term.'
+                      : 'Create your first shortened link to get started.'}
+                  </p>
+                  {!searchTerm && (
+                    <button
+                      onClick={() => setIsModalOpen(true)}
+                      className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
+                    >
+                      Create your first link <ArrowUpRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <CreateLinkModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onCreate={handleCreateLink}
+          onUpdate={handleUpdateLink}
+          onBulkCreate={handleBulkCreate}
+          editingLink={editingLink}
+        />
+
+        <TagManager
+          isOpen={isTagManagerOpen}
+          onClose={() => setIsTagManagerOpen(false)}
+          userId={user?.id || ''}
+          onTagsUpdate={() => {
+            // Optionally refresh links if tags changed significantly, though not strictly needed for just tag definitions
+            loadLinks();
+          }}
+        />
+      </div>
+    </DndContext>
   );
 };
 

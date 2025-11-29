@@ -13,6 +13,7 @@ import ClaymorphismBioTemplate from '../components/bio-templates/ClaymorphismBio
 import BauhausBioTemplate from '../components/bio-templates/BauhausBioTemplate';
 import LabBioTemplate from '../components/bio-templates/LabBioTemplate';
 import ArchiveBioTemplate from '../components/bio-templates/ArchiveBioTemplate';
+import CustomBioTemplate from '../components/bio-templates/CustomBioTemplate';
 
 import { useParams } from 'react-router-dom';
 
@@ -44,6 +45,11 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
         Profile not found
       </div>
     );
+  }
+
+  // Render Custom Template if configured
+  if (profile.customTheme) {
+    return <CustomBioTemplate profile={profile} links={links} />;
   }
 
   // Render the selected template

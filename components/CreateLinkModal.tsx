@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag } from 'lucide-react';
+import UTMBuilderModal from './UTMBuilderModal';
 import { analyzeUrlWithGemini, GeminiAnalysisResult } from '../services/geminiService';
-import { LinkData, SmartRedirects } from '../types';
+import { LinkData, SmartRedirects, Folder } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { TagInput } from './TagInput';
+import { useAuth } from '../contexts/AuthContext';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -15,6 +19,7 @@ interface CreateLinkModalProps {
 }
 
 const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCreate, onUpdate, onBulkCreate, editingLink }) => {
+  const { user } = useAuth();
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
 
   // Single Mode States
@@ -22,6 +27,9 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const [slug, setSlug] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<GeminiAnalysisResult | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
 
   // Bulk Mode States
   const [bulkUrls, setBulkUrls] = useState('');
@@ -30,9 +38,15 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [smartRedirects, setSmartRedirects] = useState<SmartRedirects>({ ios: '', android: '', desktop: '' });
   const [geoRedirects, setGeoRedirects] = useState<{ country: string, url: string }[]>([]);
+  const [showUTMBuilder, setShowUTMBuilder] = useState(false);
+  const [startDate, setStartDate] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
   const [clickLimit, setClickLimit] = useState('');
   const [password, setPassword] = useState('');
+
+  // A/B Testing State
+  const [abTestEnabled, setAbTestEnabled] = useState(false);
+  const [variants, setVariants] = useState<{ id: string; url: string; weight: number }[]>([]);
 
   useEffect(() => {
     if (editingLink) {
@@ -50,6 +64,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
         : [];
       setGeoRedirects(geoArray);
 
+      setStartDate(editingLink.startDate ? new Date(editingLink.startDate).toISOString().slice(0, 16) : '');
       setExpirationDate(editingLink.expirationDate ? new Date(editingLink.expirationDate).toISOString().slice(0, 16) : '');
       setClickLimit(editingLink.maxClicks ? editingLink.maxClicks.toString() : '');
       setPassword(editingLink.password || '');
@@ -57,8 +72,32 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       if (editingLink.smartRedirects?.ios || editingLink.smartRedirects?.android || geoArray.length > 0 || editingLink.expirationDate || editingLink.maxClicks || editingLink.password) {
         setShowAdvanced(true);
       }
+      setTags(editingLink.tags || []);
+      setFolderId(editingLink.folderId || null);
+
+      if (editingLink.abTestConfig) {
+        setAbTestEnabled(editingLink.abTestConfig.enabled);
+        setVariants(editingLink.abTestConfig.variants);
+        if (editingLink.abTestConfig.enabled) setShowAdvanced(true);
+      }
     }
   }, [editingLink, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      loadFolders();
+    }
+  }, [isOpen, user]);
+
+  const loadFolders = async () => {
+    if (!user) return;
+    try {
+      const loadedFolders = await supabaseAdapter.getFolders(user.id);
+      setFolders(loadedFolders);
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -110,9 +149,16 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
         desktop: smartRedirects.desktop || undefined
       },
       geoRedirects: Object.keys(geoRecord).length > 0 ? geoRecord : undefined,
+      startDate: startDate ? new Date(startDate).getTime() : null,
       expirationDate: expirationDate ? new Date(expirationDate).getTime() : null,
       maxClicks: clickLimit ? parseInt(clickLimit) : null,
       password: password || null,
+      tags: tags,
+      folderId: folderId,
+      abTestConfig: abTestEnabled ? {
+        enabled: true,
+        variants: variants
+      } : undefined
     };
 
     if (editingLink) {
@@ -120,7 +166,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
         ...commonData,
         title: analysis?.title || editingLink.title,
         description: analysis?.description || editingLink.description,
-        tags: analysis?.tags || editingLink.tags,
+        tags: tags.length > 0 ? tags : (analysis?.tags || editingLink.tags),
         aiAnalysis: analysis ? {
           sentiment: analysis.sentiment,
           category: analysis.category,
@@ -133,7 +179,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
         ...commonData,
         title: analysis?.title || 'Untitled Link',
         description: analysis?.description || '',
-        tags: analysis?.tags || [],
+
+        tags: tags.length > 0 ? tags : (analysis?.tags || []),
         clicks: 0,
         clickHistory: [],
         createdAt: Date.now(),
@@ -177,9 +224,14 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       setBulkUrls('');
       setSmartRedirects({ ios: '', android: '', desktop: '' });
       setGeoRedirects([]);
+      setStartDate('');
       setExpirationDate('');
       setClickLimit('');
       setPassword('');
+      setTags([]);
+      setFolderId(null);
+      setAbTestEnabled(false);
+      setVariants([]);
       setMode('single');
       setShowAdvanced(false);
     }, 200);
@@ -231,17 +283,26 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
             <>
               {/* URL Input */}
               <div className="mb-8">
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Destination URL</label>
+                <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Destination URL</label>
                 <div className="flex gap-3">
-                  <div className="relative flex-1 group">
-                    <LinkIcon className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-amber-500 transition-colors" />
+                  <div className="relative flex-1">
                     <input
                       type="url"
-                      placeholder="https://example.com/very-long-url..."
-                      className="w-full bg-stone-50 border border-stone-200 text-slate-900 rounded-xl py-3.5 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400"
+                      placeholder="https://example.com/my-long-url"
+                      className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-4 rounded-xl pl-12 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
+                      required
                     />
+                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                    <button
+                      type="button"
+                      onClick={() => setShowUTMBuilder(true)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-stone-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                      title="UTM Builder"
+                    >
+                      <Tag className="w-4 h-4" />
+                    </button>
                   </div>
                   <button
                     type="button"
@@ -294,6 +355,31 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       value={slug}
                       onChange={(e) => setSlug(e.target.value)}
                     />
+                  </div>
+                </div>
+
+                {/* Tags and Folder */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Tags</label>
+                    <TagInput
+                      userId={user?.id || ''}
+                      selectedTags={tags}
+                      onChange={setTags}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Folder</label>
+                    <select
+                      value={folderId || ''}
+                      onChange={(e) => setFolderId(e.target.value || null)}
+                      className="w-full bg-stone-50 border border-stone-200 text-slate-900 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    >
+                      <option value="">No Folder</option>
+                      {folders.map(folder => (
+                        <option key={folder.id} value={folder.id}>{folder.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -362,9 +448,20 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
                     <div className="grid grid-cols-2 gap-4 pt-2 border-t border-stone-200">
                       <div>
-                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Expiration Date</label>
+                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> Start Date
+                        </label>
+                        <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> End Date
+                        </label>
                         <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} />
                       </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-stone-200">
                       <div>
                         <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Click Limit</label>
                         <input type="number" placeholder="∞" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickLimit} onChange={e => setClickLimit(e.target.value)} />
@@ -383,6 +480,84 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                       />
+                    </div>
+
+                    {/* A/B Testing */}
+                    <div className="pt-2 border-t border-stone-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <Split className="w-3 h-3" /> A/B Testing
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-stone-400 font-medium">{abTestEnabled ? 'Enabled' : 'Disabled'}</span>
+                          <button
+                            type="button"
+                            onClick={() => setAbTestEnabled(!abTestEnabled)}
+                            className={`w-10 h-5 rounded-full transition-colors relative ${abTestEnabled ? 'bg-amber-500' : 'bg-stone-200'}`}
+                          >
+                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${abTestEnabled ? 'left-6' : 'left-1'}`} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {abTestEnabled && (
+                        <div className="space-y-3 animate-fadeIn">
+                          <p className="text-xs text-stone-500 mb-2">
+                            Add variants to split traffic. Weights determine the percentage of traffic each URL receives.
+                          </p>
+
+                          {variants.map((variant, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
+                              <span className="text-xs font-bold text-stone-400 w-4">{String.fromCharCode(65 + idx)}</span>
+                              <input
+                                type="url"
+                                placeholder="https://variant-url.com"
+                                className="flex-1 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                                value={variant.url}
+                                onChange={e => {
+                                  const newVariants = [...variants];
+                                  newVariants[idx].url = e.target.value;
+                                  setVariants(newVariants);
+                                }}
+                              />
+                              <div className="relative w-24">
+                                <input
+                                  type="number"
+                                  placeholder="%"
+                                  min="0"
+                                  max="100"
+                                  className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400 pr-8"
+                                  value={variant.weight}
+                                  onChange={e => {
+                                    const newVariants = [...variants];
+                                    newVariants[idx].weight = parseInt(e.target.value) || 0;
+                                    setVariants(newVariants);
+                                  }}
+                                />
+                                <span className="absolute right-3 top-3 text-stone-400 text-xs font-bold">%</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newVariants = variants.filter((_, i) => i !== idx);
+                                  setVariants(newVariants);
+                                }}
+                                className="text-stone-400 hover:text-red-500 p-3 hover:bg-red-50 rounded-xl transition-colors"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={() => setVariants([...variants, { id: uuidv4(), url: '', weight: 50 }])}
+                            className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-4 py-2 rounded-lg font-bold transition-colors w-full flex items-center justify-center gap-2"
+                          >
+                            <Split className="w-3 h-3" /> Add Variant
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -432,8 +607,15 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
             </div>
           )}
         </div>
-      </motion.div>
-    </div>
+      </motion.div >
+
+      <UTMBuilderModal
+        isOpen={showUTMBuilder}
+        onClose={() => setShowUTMBuilder(false)}
+        baseUrl={url}
+        onApply={(newUrl) => setUrl(newUrl)}
+      />
+    </div >
   );
 };
 

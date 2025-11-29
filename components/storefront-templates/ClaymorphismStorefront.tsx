@@ -108,60 +108,56 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                         {products.map((product) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
-                                className="group block"
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group block bg-[#f0f4f8] rounded-[2.5rem] p-6 shadow-[12px_12px_24px_#cdd5e0,-12px_-12px_24px_#ffffff] transition-all duration-300 hover:scale-[1.02]"
                             >
-                                <div className="bg-[#f0f4f8] rounded-[2.5rem] p-6 transition-all duration-300 hover:scale-[1.02]"
+                                <div className="aspect-square rounded-[2rem] mb-6 overflow-hidden relative bg-[#f0f4f8]"
                                     style={{
-                                        boxShadow: '12px 12px 24px #cdd5e0, -12px -12px 24px #ffffff'
+                                        boxShadow: 'inset 8px 8px 16px #cdd5e0, inset -8px -8px 16px #ffffff'
                                     }}
                                 >
-                                    <div className="aspect-square rounded-[2rem] mb-6 overflow-hidden relative bg-[#f0f4f8]"
+                                    {product.imageUrl ? (
+                                        <img
+                                            src={product.imageUrl}
+                                            alt={product.name}
+                                            className="w-full h-full object-cover mix-blend-multiply opacity-90 group-hover:scale-110 transition-transform duration-500"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <ShoppingBag className="w-12 h-12 text-slate-300" />
+                                        </div>
+                                    )}
+
+                                    <button className="absolute top-4 right-4 w-10 h-10 bg-[#f0f4f8] rounded-xl flex items-center justify-center text-slate-400 hover:text-[#ff6b6b] transition-colors shadow-sm"
                                         style={{
-                                            boxShadow: 'inset 8px 8px 16px #cdd5e0, inset -8px -8px 16px #ffffff'
+                                            boxShadow: '4px 4px 8px #cdd5e0, -4px -4px 8px #ffffff'
                                         }}
                                     >
-                                        {product.imageUrl ? (
-                                            <img
-                                                src={product.imageUrl}
-                                                alt={product.name}
-                                                className="w-full h-full object-cover mix-blend-multiply opacity-90 group-hover:scale-110 transition-transform duration-500"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <ShoppingBag className="w-12 h-12 text-slate-300" />
-                                            </div>
-                                        )}
+                                        <Heart className="w-5 h-5" />
+                                    </button>
+                                </div>
 
-                                        <button className="absolute top-4 right-4 w-10 h-10 bg-[#f0f4f8] rounded-xl flex items-center justify-center text-slate-400 hover:text-[#ff6b6b] transition-colors shadow-sm"
-                                            style={{
-                                                boxShadow: '4px 4px 8px #cdd5e0, -4px -4px 8px #ffffff'
-                                            }}
-                                        >
-                                            <Heart className="w-5 h-5" />
-                                        </button>
+                                <div className="px-2">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="text-xl font-bold text-slate-700 leading-tight group-hover:text-[#7b61ff] transition-colors">{product.name}</h3>
                                     </div>
-
-                                    <div className="px-2">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className="text-xl font-bold text-slate-700 leading-tight group-hover:text-[#7b61ff] transition-colors">{product.name}</h3>
-                                        </div>
-                                        <div className="flex justify-between items-center mt-4">
-                                            <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">{product.category || 'Item'}</span>
-                                            <span className="text-lg font-black text-[#7b61ff]">
-                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
-                                            </span>
-                                        </div>
+                                    <div className="flex justify-between items-center mt-4">
+                                        <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">{product.category || 'Item'}</span>
+                                        <span className="text-lg font-black text-[#7b61ff]">
+                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                        </span>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>
-            </section>
-        </div>
+            </section >
+        </div >
     );
 };
 

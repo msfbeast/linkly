@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock } from 'lucide-react';
+import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock, GripVertical, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import QRCodeGenerator from './QRCodeGenerator';
 import { LinkData } from '../types';
 import { generateSocialPost } from '../services/geminiService';
+import { checkLinkHealth, getHealthColor, getHealthTooltip } from '../services/linkHealthService';
 
 
 interface LinkCardProps {
@@ -18,8 +21,38 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
   const navigate = useNavigate();
   const [isGeneratingPost, setIsGeneratingPost] = useState(false);
   const [generatedPost, setGeneratedPost] = useState<string | null>(null);
+  const [healthStatus, setHealthStatus] = useState<'healthy' | 'broken' | 'unknown'>('unknown');
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: link.id, data: { link } });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+  };
 
   const fullShortUrl = `${window.location.origin}/#/r/${link.shortCode}`;
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      if (link.originalUrl) {
+        const result = await checkLinkHealth(link.originalUrl);
+        setHealthStatus(result.status);
+      }
+    };
+
+    // Initial check
+    checkHealth();
+
+    // Re-check when URL changes
+  }, [link.originalUrl]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullShortUrl);
@@ -37,42 +70,106 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
   return (
     <>
       <motion.div
+        ref={setNodeRef}
+        style={style}
         layout
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
         whileHover={{ scale: 1.01 }}
-        className="bg-white border border-stone-200/60 rounded-xl p-1 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] group relative mb-4"
+        className={`bg-white border border-stone-200/60 rounded-xl p-1 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] group relative mb-4 ${isDragging ? 'opacity-50 rotate-3 scale-105 shadow-2xl cursor-grabbing' : ''}`}
       >
+        {/* Health Indicator */}
+        <div
+          className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ${getHealthColor(healthStatus)} ring-2 ring-white cursor-help transition-colors duration-300`}
+          title={getHealthTooltip(healthStatus)}
+        >
+          {healthStatus === 'broken' && (
+            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 opacity-20"></span>
+            </span>
+          )}
+        </div>
         <div className="p-4 sm:p-5">
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 lg:gap-6">
             {/* Main Info */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-3">
+
+              {/* Header Row: Drag Handle, Badges, Tags, Date */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {/* Drag Handle */}
+                <div
+                  {...listeners}
+                  {...attributes}
+                  className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-stone-300 hover:text-stone-500 transition-colors flex-shrink-0"
+                >
+                  <GripVertical className="w-4 h-4" />
+                </div>
+
                 {/* Status Badges */}
+                {(() => {
+                  const now = Date.now();
+                  const isScheduled = link.startDate && now < link.startDate;
+                  const isExpired = link.expirationDate && now > link.expirationDate;
+                  const isActive = (!link.startDate || now >= link.startDate) && (!link.expirationDate || now <= link.expirationDate);
+
+                  if (isScheduled) {
+                    return (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title={`Starts: ${new Date(link.startDate!).toLocaleString()}`}>
+                        <Clock className="w-3 h-3" /> Scheduled
+                      </span>
+                    );
+                  }
+                  if (isExpired) {
+                    return (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title={`Expired: ${new Date(link.expirationDate!).toLocaleString()}`}>
+                        <AlertCircle className="w-3 h-3" /> Expired
+                      </span>
+                    );
+                  }
+                  // Optional: Show Active badge if it has dates but is currently active
+                  if (isActive && (link.startDate || link.expirationDate)) {
+                    return (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title="Link is active">
+                        <CheckCircle2 className="w-3 h-3" /> Active
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {link.password && (
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-600 border border-amber-200" title="Password Protected">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-600 border border-amber-200 flex-shrink-0" title="Password Protected">
                     <Lock className="w-3 h-3" />
                   </span>
                 )}
                 {link.smartRedirects && (link.smartRedirects.ios || link.smartRedirects.android) && (
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 border border-indigo-200" title="Smart Redirects">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 border border-indigo-200 flex-shrink-0" title="Smart Redirects">
                     <Smartphone className="w-3 h-3" />
                   </span>
                 )}
                 {link.geoRedirects && (
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200" title="Geo Targeting">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200 flex-shrink-0" title="Geo Targeting">
                     <Globe className="w-3 h-3" />
                   </span>
                 )}
 
                 {link.aiAnalysis?.category && (
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200 flex-shrink-0">
                     {link.aiAnalysis.category}
                   </span>
                 )}
 
-                <span className="text-stone-400 text-xs flex items-center gap-1 ml-auto lg:ml-0">
+                {/* Tags */}
+                {link.tags && link.tags.length > 0 && link.tags.map((tag, i) => (
+                  <span key={i} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100 flex-shrink-0">
+                    #{tag}
+                  </span>
+                ))}
+
+                {/* Date - Pushed to end */}
+                <span className="text-stone-400 text-xs flex items-center gap-1 ml-auto flex-shrink-0">
                   <Calendar className="w-3 h-3" />
                   {new Date(link.createdAt).toLocaleDateString()}
                 </span>
@@ -171,15 +268,16 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
               </div>
             </div>
           </div>
-
-          {/* Expandable QR Section */}
-          {showQr && (
-            <div className="mt-4 p-6 bg-stone-50 border-t border-stone-200 rounded-b-xl animate-fadeIn">
-              <QRCodeGenerator url={fullShortUrl} title={link.title} />
-            </div>
-          )}
         </div>
-      </motion.div>
+
+        {/* Expandable QR Section */}
+        {showQr && (
+          <div className="mt-4 p-6 bg-stone-50 border-t border-stone-200 rounded-b-xl animate-fadeIn">
+            <QRCodeGenerator url={fullShortUrl} title={link.title} />
+          </div>
+        )}
+
+      </motion.div >
 
 
     </>

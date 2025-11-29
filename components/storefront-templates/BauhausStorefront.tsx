@@ -72,9 +72,11 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {products.map((product, index) => (
-                            <Link
+                            <a
                                 key={product.id}
-                                to={`/store/product/${product.id}`}
+                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="group block"
                             >
                                 <div className="border-4 border-[#1d1d1d] bg-white transition-transform duration-300 hover:-translate-y-2 hover:shadow-[10px_10px_0px_#1d3557]">
@@ -107,7 +109,7 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </div>
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         ))}
                     </div>
                 </div>

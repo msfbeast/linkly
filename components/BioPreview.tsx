@@ -11,6 +11,7 @@ import ClaymorphismBioTemplate from './bio-templates/ClaymorphismBioTemplate';
 import BauhausBioTemplate from './bio-templates/BauhausBioTemplate';
 import LabBioTemplate from './bio-templates/LabBioTemplate';
 import ArchiveBioTemplate from './bio-templates/ArchiveBioTemplate';
+import CustomBioTemplate from './bio-templates/CustomBioTemplate';
 
 interface BioPreviewProps {
     profile: Partial<BioProfile>;
@@ -26,6 +27,7 @@ const BioPreview: React.FC<BioPreviewProps> = ({ profile, links }) => {
         bio: profile.bio || 'This is a preview of your bio page.',
         avatarUrl: profile.avatarUrl || '',
         theme: profile.theme || 'vibrant',
+        customTheme: profile.customTheme,
         links: [],
         views: 0,
     };
@@ -38,6 +40,10 @@ const BioPreview: React.FC<BioPreviewProps> = ({ profile, links }) => {
     ];
 
     const renderTemplate = () => {
+        if (previewProfile.customTheme) {
+            return <CustomBioTemplate profile={previewProfile} links={previewLinks} />;
+        }
+
         switch (previewProfile.theme) {
             case 'vibrant': return <VibrantBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'glass': return <GlassBioTemplate profile={previewProfile} links={previewLinks} />;

@@ -27,8 +27,13 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [targetLink, setTargetLink] = useState<LinkData | null>(null);
+  const processedCode = React.useRef<string | null>(null);
 
   useEffect(() => {
+    // Prevent double execution (React Strict Mode or re-renders)
+    if (!code || processedCode.current === code) return;
+    processedCode.current = code;
+
     const fetchLink = async () => {
       try {
         let link: LinkData | null | undefined = null;
@@ -43,9 +48,15 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         if (link) {
           setTargetLink(link);
 
-          // 1. Check Expiration
-          if (link.expirationDate && Date.now() > link.expirationDate) {
+          // 1. Check Expiration and Start Date
+          const now = Date.now();
+          if (link.expirationDate && now > link.expirationDate) {
             setError("This link has expired.");
+            return;
+          }
+
+          if (link.startDate && now < link.startDate) {
+            setError("This link is not yet active.");
             return;
           }
 
@@ -138,7 +149,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
    * 
    * Requirements: 2.1, 2.2
    */
-  const recordClick = async (link: LinkData): Promise<void> => {
+  const recordClick = async (link: LinkData, destinationUrl?: string): Promise<void> => {
     const fingerprint = await captureDeviceFingerprint();
 
     console.log('[Click Tracking] Starting click recording for link:', link.id);
@@ -161,6 +172,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           body: JSON.stringify({
             linkId: link.id,
             shortCode: link.shortCode,
+            destinationUrl, // Pass destination URL for A/B testing
             ...fingerprint,
           }),
         });
@@ -197,6 +209,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           screenWidth: fingerprint.screenWidth,
           screenHeight: fingerprint.screenHeight,
           visitorId: fingerprint.visitorId,
+          destinationUrl, // Pass destination URL for A/B testing
         }, Date.now());
 
         await supabaseAdapter.recordClick(link.id, clickEventInput);
@@ -222,6 +235,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
             screenWidth: fingerprint.screenWidth,
             screenHeight: fingerprint.screenHeight,
             visitorId: fingerprint.visitorId,
+            destinationUrl, // Pass destination URL for A/B testing
           }, Date.now());
           await supabaseAdapter.recordClick(link.id, clickEventInput);
         }
@@ -240,7 +254,31 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
     let finalUrl = link.originalUrl;
 
-    // Device Check
+    // 1. A/B Testing Logic
+    if (link.abTestConfig?.enabled && link.abTestConfig.variants.length > 0) {
+      const random = Math.random() * 100;
+      let cumulativeWeight = 0;
+
+      // Default to original URL (Variant A usually) if something goes wrong
+      // But typically we treat originalUrl as one of the variants or separate?
+      // Implementation Plan said: variants list.
+      // Let's assume variants list contains ALL options including "original" if user added it there.
+      // Or we can treat originalUrl as fallback.
+
+      for (const variant of link.abTestConfig.variants) {
+        cumulativeWeight += variant.weight;
+        if (random <= cumulativeWeight) {
+          finalUrl = variant.url;
+          setRedirectMsg("Redirecting to test variant...");
+          break;
+        }
+      }
+    }
+
+    // 2. Device Check (Overrides A/B if specific device rule exists? Or A/B first? 
+    // Usually A/B is for the main destination. Smart Redirects are for specific devices.
+    // Let's keep Smart Redirects as higher priority for specific devices, 
+    // but A/B applies to the "default" traffic.)
     if (link.smartRedirects) {
       if (/iPad|iPhone|iPod/.test(ua) && link.smartRedirects.ios) {
         finalUrl = link.smartRedirects.ios;
@@ -253,7 +291,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       }
     }
 
-    // Geo Check (Overrides Device if specific geo rule exists)
+    // 3. Geo Check (Overrides Device if specific geo rule exists)
     if (link.geoRedirects) {
       const geoUrl = link.geoRedirects[userCountry.toUpperCase()];
       if (geoUrl) {
@@ -270,7 +308,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
     setDestination(finalUrl);
 
     // Record click with full metadata capture before redirect
-    recordClick(link).catch(err => {
+    recordClick(link, finalUrl).catch(err => {
       console.error('Click recording failed:', err);
     });
 

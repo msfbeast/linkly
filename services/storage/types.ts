@@ -30,6 +30,7 @@ export interface ClickEventInput {
   screenWidth?: number;
   screenHeight?: number;
   visitorId?: string;
+  destinationUrl?: string;
 }
 
 /**

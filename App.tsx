@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import IconSidebar from './components/IconSidebar';
+import Sidebar from './components/Sidebar';
 import TopNavigation from './components/TopNavigation';
 import Dashboard from './pages/Dashboard';
 import Links from './pages/Links';
@@ -169,9 +169,8 @@ const DashboardLayout: React.FC = () => {
     }
   };
 
-  // API Page Component (Internal)
   const ApiPage = () => (
-    <div className="p-8 max-w-5xl mx-auto pl-72">
+    <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Developer API</h1>
         <p className="text-slate-400">Integrate Gather into your applications.</p>
@@ -226,16 +225,30 @@ const DashboardLayout: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900">
-      {/* Icon Sidebar - Hidden on Mobile */}
+      {/* Sidebar - Hidden on Mobile */}
       <div className="hidden md:block">
-        <IconSidebar
-          activeItem={activeSidebarItem}
-          onItemClick={handleSidebarItemClick}
+        <Sidebar
+          currentView={view}
+          onChangeView={(newView) => {
+            setView(newView);
+            // Also update active sidebar item to match (for compatibility if needed)
+            const itemMap: Record<string, string> = {
+              [ViewState.DASHBOARD]: 'dashboard',
+              [ViewState.LINKS]: 'links',
+              [ViewState.ANALYTICS]: 'analytics',
+              [ViewState.SETTINGS]: 'settings',
+              [ViewState.PRODUCTS]: 'products',
+              [ViewState.API]: 'api',
+              [ViewState.BIO_PAGES]: 'bio',
+            };
+            const key = Object.keys(itemMap).find(k => k === newView);
+            if (key) setActiveSidebarItem(itemMap[key]);
+          }}
         />
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 md:ml-16 flex flex-col transition-all duration-300">
+      <div className="flex-1 md:ml-64 flex flex-col transition-all duration-300">
         {/* Top Navigation */}
         <TopNavigation
           totalClicks={totalClicks}
