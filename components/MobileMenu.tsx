@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, ShoppingBag, Link as LinkIcon, BarChart2, Settings, Code2, LogOut, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ViewState } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -13,6 +14,7 @@ interface MobileMenuProps {
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, currentView, onChangeView }) => {
     const { signOut } = useAuth();
+    const navigate = useNavigate();
 
     const menuItems = [
         { id: ViewState.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
@@ -28,10 +30,14 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, currentView, o
         onClose();
     };
 
+    // ...
+
     const handleLogout = async () => {
         try {
-            await signOut();
-            window.location.href = '/login';
+            navigate('/');
+            setTimeout(async () => {
+                await signOut();
+            }, 50);
         } catch (error) {
             console.error('Logout failed:', error);
         }
@@ -81,8 +87,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, currentView, o
                                         key={item.id}
                                         onClick={() => handleItemClick(item.id)}
                                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                                ? 'bg-yellow-100/50 text-slate-900 font-medium'
-                                                : 'text-stone-500 hover:bg-stone-100 hover:text-slate-900'
+                                            ? 'bg-yellow-100/50 text-slate-900 font-medium'
+                                            : 'text-stone-500 hover:bg-stone-100 hover:text-slate-900'
                                             }`}
                                     >
                                         <Icon className={`w-5 h-5 ${isActive ? 'text-yellow-600' : 'text-stone-400'}`} />

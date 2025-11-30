@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import StorefrontPreview from '../components/StorefrontPreview';
 import DomainManager from '../components/DomainManager';
 import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink, Globe, CreditCard } from 'lucide-react';
@@ -9,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
  */
 const Settings: React.FC = () => {
   const { user, signOut, updateProfile, updatePassword, regenerateApiKey } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('account');
   const [showApiKey, setShowApiKey] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -447,7 +449,12 @@ const Settings: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => signOut()}
+                  onClick={async () => {
+                    navigate('/');
+                    setTimeout(async () => {
+                      await signOut();
+                    }, 50);
+                  }}
                   className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
@@ -643,8 +650,8 @@ const Settings: React.FC = () => {
                       </p>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${user?.preferences?.subscription_status === 'active'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-stone-200 text-stone-600'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-stone-200 text-stone-600'
                       }`}>
                       {user?.preferences?.subscription_status === 'active' ? 'Active' : 'Free'}
                     </span>

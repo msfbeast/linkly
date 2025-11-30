@@ -116,7 +116,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
         <div className={`relative bg-white border border-stone-200 rounded-2xl overflow-hidden transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : 'h-[500px]'} ${className}`}>
 
             {/* Header / Controls */}
-            <div className="absolute top-4 left-4 z-10 flex items-center gap-4">
+            <div className="absolute top-4 left-4 z-[5] flex items-center gap-4">
                 <div className="bg-white/80 backdrop-blur-md border border-stone-200 px-4 py-2 rounded-xl shadow-sm">
                     <h3 className="text-slate-900 font-bold flex items-center gap-2">
                         <span className="relative flex h-3 w-3">
@@ -128,7 +128,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                 </div>
             </div>
 
-            <div className="absolute top-4 right-4 z-10 flex gap-2">
+            <div className="absolute top-4 right-4 z-[5] flex gap-2">
                 {/* View Toggle */}
                 <div className="bg-white/80 backdrop-blur-md border border-stone-200 p-1 rounded-xl flex shadow-sm">
                     <button

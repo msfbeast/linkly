@@ -40,9 +40,9 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
         // Try cache-first approach for maximum performance
         if (isSupabaseConfigured()) {
-          // Import cache service dynamically to avoid issues if Redis is not configured
-          const { getLinkByShortCode } = await import('../services/cacheService');
-          link = await getLinkByShortCode(code);
+          // Direct Supabase call (safe for browser)
+          // Note: cacheService uses Redis which is not browser-compatible
+          link = await supabaseAdapter.getLinkByCode(code);
         } else {
           // Fallback to localStorage for local development
           link = getLocalLinkByCode(code);

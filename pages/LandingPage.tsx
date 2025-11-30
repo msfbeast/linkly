@@ -123,7 +123,7 @@ const LandingPage: React.FC = () => {
                                 <input
                                     type="text"
                                     placeholder={placeholder}
-                                    className="flex-1 px-2 py-3 bg-transparent border-none focus:ring-0 text-lg placeholder:text-stone-300 text-slate-900 font-bold transition-all"
+                                    className="flex-1 px-2 py-3 bg-transparent border-none focus:ring-0 outline-none text-lg placeholder:text-stone-300 text-slate-900 font-bold transition-all"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                 />

@@ -53,8 +53,12 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      await signOut();
-      navigate('/login');
+      navigate('/');
+      // Small delay to ensure navigation completes before auth state clears
+      // This prevents ProtectedRoute from triggering a redirect to /login
+      setTimeout(async () => {
+        await signOut();
+      }, 50);
     } catch (error) {
       console.error('Failed to log out', error);
       setIsLoggingOut(false);
@@ -84,7 +88,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
 
   return (
     <>
-      <div className="h-20 flex items-center justify-between px-6 md:px-8 sticky top-0 z-10 bg-[#FDFBF7]/80 backdrop-blur-md">
+      <div className="h-20 flex items-center justify-between px-6 md:px-8 sticky top-0 z-40 bg-[#FDFBF7]/80 backdrop-blur-md">
         {/* Left: Logo and Tabs */}
         <div className="flex items-center gap-4 md:gap-8">
           {/* Mobile Menu Button */}
