@@ -61,6 +61,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [isExporting, setIsExporting] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -386,9 +388,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 
 
-  // Upgrade Modal State
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
+
 
   // Check link limit
   const handleCreateClick = () => {
