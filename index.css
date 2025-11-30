@@ -216,3 +216,18 @@ body::before {
   border: 1px solid #FDE68A;
   /* amber-200 */
 }
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translate(-50%, 0) scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate(-50%, -2%) scale(1.05);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './storage/supabaseClient';
 import { Session, User as SupabaseUser, AuthError } from '@supabase/supabase-js';
+import { supabaseAdapter } from './storage/supabaseAdapter';
 
 /**
  * User interface for the application
@@ -16,9 +17,11 @@ export interface User {
     onboarding_step?: number;
     onboarding_skipped?: boolean;
     onboarding_started_at?: string;
-    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium';
+    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium' | 'business';
     subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
     trial_ends_at?: string;
+    stripe_customer_id?: string;
+    stripe_subscription_id?: string;
   };
   user_metadata?: {
     full_name?: string;
@@ -137,7 +140,32 @@ export const authService = {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          display_name: username || email.split('@')[0],
+          username: username,
+        }
+      }
     });
+
+    if (data.user && username) {
+      try {
+        // Create bio profile for the new user
+        await supabaseAdapter.createBioProfile({
+          userId: data.user.id,
+          handle: username,
+          displayName: username,
+          bio: `Welcome to my Linkly page!`,
+          avatarUrl: `https://ui-avatars.com/api/?name=${username}&background=random`,
+          theme: 'vibrant',
+          links: [],
+          customTheme: undefined
+        });
+      } catch (err) {
+        console.error('Failed to create bio profile:', err);
+        // Don't fail signup if bio profile creation fails, but log it
+      }
+    }
 
     // Fetch profile for settings and preferences
     let settingsNotifications;
@@ -145,7 +173,7 @@ export const authService = {
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
         .eq('id', data.user.id)
         .single();
 
@@ -155,6 +183,11 @@ export const authService = {
         onboarding_step: profile?.onboarding_step,
         onboarding_skipped: profile?.onboarding_skipped,
         onboarding_started_at: profile?.onboarding_started_at,
+        subscription_tier: profile?.subscription_tier,
+        subscription_status: profile?.subscription_status,
+        trial_ends_at: profile?.trial_ends_at,
+        stripe_customer_id: profile?.stripe_customer_id,
+        stripe_subscription_id: profile?.stripe_subscription_id,
       };
     }
 
@@ -220,7 +253,7 @@ export const authService = {
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
         .eq('id', data.user.id)
         .single();
 
@@ -230,6 +263,11 @@ export const authService = {
         onboarding_step: profile?.onboarding_step,
         onboarding_skipped: profile?.onboarding_skipped,
         onboarding_started_at: profile?.onboarding_started_at,
+        subscription_tier: profile?.subscription_tier,
+        subscription_status: profile?.subscription_status,
+        trial_ends_at: profile?.trial_ends_at,
+        stripe_customer_id: profile?.stripe_customer_id,
+        stripe_subscription_id: profile?.stripe_subscription_id,
       };
     }
 
@@ -402,7 +440,7 @@ export const authService = {
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
         .eq('id', data.user.id)
         .single();
 
@@ -412,6 +450,11 @@ export const authService = {
         onboarding_step: profile?.onboarding_step,
         onboarding_skipped: profile?.onboarding_skipped,
         onboarding_started_at: profile?.onboarding_started_at,
+        subscription_tier: profile?.subscription_tier,
+        subscription_status: profile?.subscription_status,
+        trial_ends_at: profile?.trial_ends_at,
+        stripe_customer_id: profile?.stripe_customer_id,
+        stripe_subscription_id: profile?.stripe_subscription_id,
       };
     }
 

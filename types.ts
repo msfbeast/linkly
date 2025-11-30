@@ -220,6 +220,8 @@ export interface TeamInvite {
   createdBy: string;
 }
 
+export type StorefrontTheme = 'vibrant' | 'glass' | 'industrial' | 'retro' | 'cyberpunk' | 'neubrutalism' | 'lofi' | 'clay' | 'bauhaus' | 'lab' | 'archive' | 'dark' | 'light' | 'blue' | 'purple';
+
 export interface UserProfile {
   id: string;
   username: string;
@@ -242,6 +244,7 @@ export interface UserProfile {
 
   // Storefront
   storefrontTheme?: StorefrontTheme;
+
 
   // Onboarding
   onboardingCompleted?: boolean;
@@ -276,7 +279,7 @@ export interface User {
     onboarding_step?: number;
     onboarding_skipped?: boolean;
     onboarding_started_at?: string;
-    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium';
+    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium' | 'business';
     subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
     trial_ends_at?: string;
   };

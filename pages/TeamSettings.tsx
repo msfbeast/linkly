@@ -18,6 +18,12 @@ const TeamSettings: React.FC = () => {
     const [inviteRole, setInviteRole] = useState<TeamRole>('viewer');
     const [inviting, setInviting] = useState(false);
 
+    // Create Team Modal State
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newTeamName, setNewTeamName] = useState('');
+    const [newTeamSlug, setNewTeamSlug] = useState('');
+    const [creating, setCreating] = useState(false);
+
     useEffect(() => {
         loadTeamData();
     }, [user]);
@@ -40,6 +46,8 @@ const TeamSettings: React.FC = () => {
 
                 setMembers(teamMembers);
                 // setInvites(teamInvites);
+            } else {
+                setTeam(null);
             }
         } catch (error) {
             console.error('Failed to load team data:', error);
@@ -67,6 +75,25 @@ const TeamSettings: React.FC = () => {
         }
     };
 
+    const handleCreateTeam = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user || !newTeamName || !newTeamSlug) return;
+
+        setCreating(true);
+        try {
+            await supabaseAdapter.createTeam(newTeamName, newTeamSlug, user.id);
+            setNewTeamName('');
+            setNewTeamSlug('');
+            setShowCreateModal(false);
+            loadTeamData();
+        } catch (error) {
+            console.error('Failed to create team:', error);
+            alert('Failed to create team. Slug might be taken.');
+        } finally {
+            setCreating(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
@@ -85,10 +112,75 @@ const TeamSettings: React.FC = () => {
                 <p className="text-stone-500 mb-6">Create a team to start collaborating.</p>
                 <button
                     className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors"
-                    onClick={() => {/* TODO: Create Team Flow */ }}
+                    onClick={() => setShowCreateModal(true)}
                 >
                     Create Team
                 </button>
+
+                {/* Create Team Modal (Empty State) */}
+                {showCreateModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 text-left">
+                        <div
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                            onClick={() => setShowCreateModal(false)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+                        >
+                            <h3 className="text-xl font-bold text-slate-900 mb-4">Create New Team</h3>
+                            <form onSubmit={handleCreateTeam} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Team Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newTeamName}
+                                        onChange={(e) => {
+                                            setNewTeamName(e.target.value);
+                                            // Auto-generate slug
+                                            setNewTeamSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
+                                        }}
+                                        className="w-full px-4 py-2 rounded-xl border border-stone-200 focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
+                                        placeholder="Acme Corp"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Team Slug (URL)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newTeamSlug}
+                                        onChange={(e) => setNewTeamSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'))}
+                                        className="w-full px-4 py-2 rounded-xl border border-stone-200 focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
+                                        placeholder="acme-corp"
+                                    />
+                                </div>
+                                <div className="flex gap-3 mt-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCreateModal(false)}
+                                        className="flex-1 px-4 py-2 bg-stone-100 text-slate-900 font-bold rounded-xl hover:bg-stone-200 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={creating}
+                                        className="flex-1 px-4 py-2 bg-yellow-400 text-slate-900 font-bold rounded-xl hover:bg-yellow-500 transition-colors disabled:opacity-50"
+                                    >
+                                        {creating ? 'Creating...' : 'Create Team'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -101,13 +193,22 @@ const TeamSettings: React.FC = () => {
                     <h1 className="text-2xl font-bold text-slate-900">Team Settings</h1>
                     <p className="text-stone-500">Manage members and permissions for {team.name}</p>
                 </div>
-                <button
-                    onClick={() => setShowInviteModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors"
-                >
-                    <UserPlus className="w-4 h-4" />
-                    <span>Invite Member</span>
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 hover:bg-stone-50 text-slate-900 font-bold rounded-xl transition-colors"
+                    >
+                        <Users className="w-4 h-4" />
+                        <span>New Team</span>
+                    </button>
+                    <button
+                        onClick={() => setShowInviteModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors"
+                    >
+                        <UserPlus className="w-4 h-4" />
+                        <span>Invite Member</span>
+                    </button>
+                </div>
             </div>
 
             {/* Members List */}
@@ -207,6 +308,71 @@ const TeamSettings: React.FC = () => {
                                     className="flex-1 px-4 py-2 bg-yellow-400 text-slate-900 font-bold rounded-xl hover:bg-yellow-500 transition-colors disabled:opacity-50"
                                 >
                                     {inviting ? 'Sending...' : 'Send Invite'}
+                                </button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Create Team Modal (Authenticated State) */}
+            {showCreateModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        onClick={() => setShowCreateModal(false)}
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+                    >
+                        <h3 className="text-xl font-bold text-slate-900 mb-4">Create New Team</h3>
+                        <form onSubmit={handleCreateTeam} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Team Name
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newTeamName}
+                                    onChange={(e) => {
+                                        setNewTeamName(e.target.value);
+                                        // Auto-generate slug
+                                        setNewTeamSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
+                                    }}
+                                    className="w-full px-4 py-2 rounded-xl border border-stone-200 focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
+                                    placeholder="Acme Corp"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Team Slug (URL)
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newTeamSlug}
+                                    onChange={(e) => setNewTeamSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'))}
+                                    className="w-full px-4 py-2 rounded-xl border border-stone-200 focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
+                                    placeholder="acme-corp"
+                                />
+                            </div>
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex-1 px-4 py-2 bg-stone-100 text-slate-900 font-bold rounded-xl hover:bg-stone-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={creating}
+                                    className="flex-1 px-4 py-2 bg-yellow-400 text-slate-900 font-bold rounded-xl hover:bg-yellow-500 transition-colors disabled:opacity-50"
+                                >
+                                    {creating ? 'Creating...' : 'Create Team'}
                                 </button>
                             </div>
                         </form>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import StorefrontPreview from '../components/StorefrontPreview';
 import DomainManager from '../components/DomainManager';
-import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink, Globe } from 'lucide-react';
+import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink, Globe, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
@@ -115,6 +115,7 @@ const Settings: React.FC = () => {
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'api', label: 'API Keys', icon: Key },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'monetization', label: 'Monetization', icon: Check }, // Using Check icon for now, ideally DollarSign
   ];
 
@@ -503,6 +504,189 @@ const Settings: React.FC = () => {
                 </button>
               </div>
             )}
+            {/* Billing Tab */}
+            {activeTab === 'billing' && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-slate-900">Billing & Subscription</h2>
+                <p className="text-stone-500 text-sm">Manage your plan and payment details.</p>
+
+                <div className="p-6 bg-stone-50 border border-stone-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <p className="text-slate-900 font-medium text-lg capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</p>
+                      <p className="text-stone-500 text-sm">
+                        {user?.preferences?.subscription_status === 'active'
+                          ? 'Your subscription is active.'
+                          : 'You are currently on the free plan.'}
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${user?.preferences?.subscription_status === 'active'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-stone-200 text-stone-600'
+                      }`}>
+                      {user?.preferences?.subscription_status === 'active' ? 'Active' : 'Free'}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    {user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier ? (
+                      <button
+                        onClick={() => window.location.href = '/pricing'}
+                        className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Upgrade Plan
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/create-portal-session', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                customerId: user?.preferences?.stripe_customer_id,
+                                returnUrl: window.location.href
+                              }),
+                            });
+                            const data = await response.json();
+                            if (data.url) window.location.href = data.url;
+                          } catch (err) {
+                            console.error('Failed to open portal:', err);
+                            alert('Failed to load billing portal.');
+                          }
+                        }}
+                        className="px-4 py-2 bg-white border border-stone-300 text-slate-700 hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Manage Subscription
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Billing Tab */}
+            {activeTab === 'billing' && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-slate-900">Billing & Subscription</h2>
+                <p className="text-stone-500 text-sm">Manage your plan and payment details.</p>
+
+                <div className="p-6 bg-stone-50 border border-stone-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <p className="text-slate-900 font-medium text-lg capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</p>
+                      <p className="text-stone-500 text-sm">
+                        {user?.preferences?.subscription_status === 'active'
+                          ? 'Your subscription is active.'
+                          : 'You are currently on the free plan.'}
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${user?.preferences?.subscription_status === 'active'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-stone-200 text-stone-600'
+                      }`}>
+                      {user?.preferences?.subscription_status === 'active' ? 'Active' : 'Free'}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    {user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier ? (
+                      <button
+                        onClick={() => window.location.href = '/pricing'}
+                        className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Upgrade Plan
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/create-portal-session', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                customerId: user?.preferences?.stripe_customer_id,
+                                returnUrl: window.location.href
+                              }),
+                            });
+                            const data = await response.json();
+                            if (data.url) window.location.href = data.url;
+                          } catch (err) {
+                            console.error('Failed to open portal:', err);
+                            alert('Failed to load billing portal.');
+                          }
+                        }}
+                        className="px-4 py-2 bg-white border border-stone-300 text-slate-700 hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Manage Subscription
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Billing Tab */}
+            {activeTab === 'billing' && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-slate-900">Billing & Subscription</h2>
+                <p className="text-stone-500 text-sm">Manage your plan and payment details.</p>
+
+                <div className="p-6 bg-stone-50 border border-stone-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <p className="text-slate-900 font-medium text-lg capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</p>
+                      <p className="text-stone-500 text-sm">
+                        {user?.preferences?.subscription_status === 'active'
+                          ? 'Your subscription is active.'
+                          : 'You are currently on the free plan.'}
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${user?.preferences?.subscription_status === 'active'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-stone-200 text-stone-600'
+                      }`}>
+                      {user?.preferences?.subscription_status === 'active' ? 'Active' : 'Free'}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    {user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier ? (
+                      <button
+                        onClick={() => window.location.href = '/pricing'}
+                        className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Upgrade Plan
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/create-portal-session', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                customerId: user?.preferences?.stripe_customer_id,
+                                returnUrl: window.location.href
+                              }),
+                            });
+                            const data = await response.json();
+                            if (data.url) window.location.href = data.url;
+                          } catch (err) {
+                            console.error('Failed to open portal:', err);
+                            alert('Failed to load billing portal.');
+                          }
+                        }}
+                        className="px-4 py-2 bg-white border border-stone-300 text-slate-700 hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Manage Subscription
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Monetization Tab */}
             {activeTab === 'monetization' && (
               <div className="space-y-6">
