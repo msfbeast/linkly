@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Link as LinkIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Link as LinkIcon, Check, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { validatePassword, MIN_PASSWORD_LENGTH } from '../services/passwordValidation';
 import AuthVisuals from '../components/AuthVisuals';
@@ -25,6 +25,10 @@ const Register: React.FC = () => {
     confirmPassword?: string;
   }>({});
   const [step, setStep] = useState(1); // Multi-step form state
+  const [username, setUsername] = useState('');
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
 
   const { signUp } = useAuth();
   const navigate = useNavigate();
