@@ -135,13 +135,16 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           <div className="h-8 w-px bg-stone-200 hidden sm:block"></div>
 
           {/* New Link Button */}
-          <button
-            onClick={onNewLinkClick}
-            className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full transition-all shadow-lg shadow-slate-900/20 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden md:inline">New Link</span>
-          </button>
+          {/* New Link Button - Hide on Dashboard since we have the Hero button */}
+          {currentView !== ViewState.DASHBOARD && (
+            <button
+              onClick={onNewLinkClick}
+              className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full transition-all shadow-lg shadow-slate-900/20 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden md:inline">New Link</span>
+            </button>
+          )}
 
           {/* User Menu */}
           <div className="relative" ref={menuRef}>

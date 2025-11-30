@@ -56,29 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
       </nav>
 
       <div className="mt-auto">
-        <div className="bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl p-4 relative overflow-hidden group shadow-sm">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-100/50 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
-
-          <div className="flex items-center gap-2 mb-2">
-            <Zap className="w-4 h-4 text-yellow-500 fill-yellow-200" />
-            <span className="text-xs font-bold text-slate-700 tracking-wider uppercase">AI Model</span>
-          </div>
-          <p className="text-xs text-stone-500 mb-2">Gemini 2.5 Flash is active and analyzing your links.</p>
-          <div className="w-full bg-stone-100/50 h-1 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-yellow-400 rounded-full"
-              animate={{
-                width: ["60%", "75%", "60%"],
-                opacity: [0.8, 1, 0.8]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            />
-          </div>
-        </div>
+        {/* AI Model card removed */}
       </div>
     </div>
   );

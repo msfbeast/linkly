@@ -9,6 +9,7 @@ import CreateLinkModal from '../components/CreateLinkModal';
 import { TagManager } from '../components/TagManager';
 import { UpgradeModal } from '../components/UpgradeModal';
 import QuickLinkInput from '../components/QuickLinkInput';
+import HeroCreateButton from '../components/HeroCreateButton';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 import DashboardHeader from '../components/dashboard/DashboardHeader';
@@ -437,7 +438,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
           {/* Hero Input */}
           <div className="relative z-10 max-w-3xl mx-auto mb-12">
-            <QuickLinkInput onCreate={handleQuickCreate} isLoading={isLoading} />
+            <HeroCreateButton onClick={handleCreateClick} />
           </div>
 
           {/* Analytics Overview (Bento Grid) */}
