@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Plus, Users, Check, User } from 'lucide-react';
+import { ChevronDown, Plus, Users, Check, User, Settings } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { Team } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,13 +44,23 @@ const TeamSwitcher: React.FC = () => {
                 <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-sm">
                     {currentTeam ? currentTeam.name.substring(0, 2).toUpperCase() : 'ME'}
                 </div>
-                <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-slate-900 truncate">
+                <div className="flex-1 min-w-0 text-left">
+                    <div className="text-sm font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
                         {currentTeam ? currentTeam.name : 'Personal Workspace'}
                     </div>
                     <div className="text-xs text-stone-500 truncate">
                         {currentTeam ? 'Team Plan' : 'Free Plan'}
                     </div>
+                </div>
+                <div
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/team/settings');
+                    }}
+                    className="p-1 hover:bg-stone-200 rounded-full transition-colors"
+                    title="Team Settings"
+                >
+                    <Settings className="w-4 h-4 text-stone-400 hover:text-slate-900" />
                 </div>
                 <ChevronDown className={`w-4 h-4 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ViewState, LinkData } from '../types';
 import Sidebar from './Sidebar';
 import TopNavigation from './TopNavigation';
 import { TrialCountdown } from './TrialCountdown';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import LoadingFallback from './LoadingFallback';
+import TeamSettings from '../pages/TeamSettings';
 
 // Lazy Load Pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
@@ -16,7 +18,17 @@ const ProductManager = React.lazy(() => import('../pages/ProductManager'));
 const ApiPage = React.lazy(() => import('../pages/ApiPage'));
 
 const DashboardLayout: React.FC = () => {
-    const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
+    const [view, setView] = useState<ViewState>(() => {
+        const path = window.location.pathname;
+        if (path.includes('/team/settings')) return ViewState.TEAM_SETTINGS;
+        if (path.includes('/settings')) return ViewState.SETTINGS;
+        if (path.includes('/analytics')) return ViewState.ANALYTICS;
+        if (path.includes('/products')) return ViewState.PRODUCTS;
+        if (path.includes('/api')) return ViewState.API;
+        if (path.includes('/bio')) return ViewState.BIO_PAGES;
+        if (path.includes('/links')) return ViewState.LINKS;
+        return ViewState.DASHBOARD;
+    });
     const [activeSidebarItem, setActiveSidebarItem] = useState<string>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,6 +76,29 @@ const DashboardLayout: React.FC = () => {
         };
         loadLinks();
     }, []);
+
+    // Sync view with URL
+    useEffect(() => {
+        const path = location.pathname;
+        console.log('DashboardLayout: path changed to', path);
+
+        if (path.includes('/team/settings')) {
+            setView(ViewState.TEAM_SETTINGS);
+            setActiveSidebarItem('settings');
+        } else if (path.includes('/settings')) {
+            setView(ViewState.SETTINGS);
+            setActiveSidebarItem('settings');
+        } else if (path.includes('/analytics')) {
+            setView(ViewState.ANALYTICS);
+            setActiveSidebarItem('analytics');
+        } else if (path.includes('/products')) {
+            setView(ViewState.PRODUCTS);
+            setActiveSidebarItem('products');
+        } else if (path === '/dashboard' || path === '/') {
+            setView(ViewState.DASHBOARD);
+            setActiveSidebarItem('dashboard');
+        }
+    }, [location.pathname]);
 
     // Calculate total clicks from real data
     const totalClicks = links.reduce((acc, curr) => acc + curr.clicks, 0);
@@ -154,6 +189,10 @@ const DashboardLayout: React.FC = () => {
         }
     };
 
+    // ... (rest of component)
+
+    console.log('DashboardLayout rendering view:', view);
+
     return (
         <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900 relative overflow-hidden">
             {/* Aurora Background */}
@@ -232,6 +271,7 @@ const DashboardLayout: React.FC = () => {
                             {view === ViewState.ANALYTICS && <GlobalAnalytics />}
                             {view === ViewState.PRODUCTS && <ProductManager />}
                             {view === ViewState.SETTINGS && <Settings />}
+                            {view === ViewState.TEAM_SETTINGS && <TeamSettings />}
                         </Suspense>
                     </main>
                 </div>

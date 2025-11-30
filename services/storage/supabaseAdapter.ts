@@ -1748,29 +1748,26 @@ export class SupabaseAdapter implements StorageAdapter {
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
 
-    const { data, error } = await supabase!
-      .from('team_invites')
-      .insert({
-        team_id: teamId,
-        email,
-        role,
-        token,
-        expires_at: expiresAt,
-      })
-      .select()
-      .single();
+    // Use RPC to bypass RLS issues
+    const { data, error } = await supabase!.rpc('create_team_invite', {
+      p_team_id: teamId,
+      p_email: email,
+      p_role: role,
+      p_token: token
+    });
 
     if (error) throw error;
 
+    // Return constructed object since RPC only returns ID
     return {
-      id: data.id,
-      teamId: data.team_id,
-      email: data.email,
-      role: data.role as any,
-      token: data.token,
-      expiresAt: new Date(data.expires_at).getTime(),
-      createdAt: new Date(data.created_at).getTime(),
-      createdBy: data.created_by,
+      id: (data as any).id,
+      teamId,
+      email,
+      role: role as any,
+      token,
+      expiresAt: new Date(expiresAt).getTime(),
+      createdAt: Date.now(),
+      createdBy: (await supabase!.auth.getUser()).data.user?.id || '',
     };
   }
 

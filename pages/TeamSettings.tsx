@@ -29,10 +29,16 @@ const TeamSettings: React.FC = () => {
     }, [user]);
 
     const loadTeamData = async () => {
-        if (!user) return;
+        if (!user) {
+            console.log('TeamSettings: No user, stopping load');
+            setLoading(false);
+            return;
+        }
         try {
+            console.log('TeamSettings: Loading team data...');
             // For now, assume single team or fetch first team
             const teams = await supabaseAdapter.getTeams();
+            console.log('TeamSettings: Teams found:', teams);
             if (teams.length > 0) {
                 const currentTeam = teams[0];
                 setTeam(currentTeam);
@@ -68,8 +74,8 @@ const TeamSettings: React.FC = () => {
             // Reload data or add to local state
             loadTeamData();
         } catch (error) {
-            console.error('Failed to invite member:', error);
-            alert('Failed to send invite');
+            console.error('Failed to invite member:', JSON.stringify(error, null, 2));
+            alert(`Failed to send invite: ${(error as any).message || 'Unknown error'}`);
         } finally {
             setInviting(false);
         }
@@ -77,7 +83,19 @@ const TeamSettings: React.FC = () => {
 
     const handleCreateTeam = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !newTeamName || !newTeamSlug) return;
+        console.log('handleCreateTeam called');
+        console.log('User:', user);
+        console.log('Name:', newTeamName);
+        console.log('Slug:', newTeamSlug);
+
+        if (!user) {
+            alert('Error: User not logged in');
+            return;
+        }
+        if (!newTeamName || !newTeamSlug) {
+            alert('Error: Team name or slug missing');
+            return;
+        }
 
         setCreating(true);
         try {
@@ -88,21 +106,25 @@ const TeamSettings: React.FC = () => {
             loadTeamData();
         } catch (error) {
             console.error('Failed to create team:', error);
-            alert('Failed to create team. Slug might be taken.');
+            alert(`Failed to create team: ${(error as Error).message}`);
         } finally {
             setCreating(false);
         }
     };
 
+    console.log('TeamSettings render:', { loading, team: team?.name, members: members.length });
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-96">
+            <div className="flex items-center justify-center h-96 border-2 border-red-500"> {/* Added border to verify visibility */}
                 <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+                <span className="ml-2">Loading Team Settings...</span>
             </div>
         );
     }
 
     if (!team) {
+        console.log('TeamSettings: Rendering No Team state');
         return (
             <div className="p-8 text-center">
                 <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -130,7 +152,7 @@ const TeamSettings: React.FC = () => {
                             className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
                         >
                             <h3 className="text-xl font-bold text-slate-900 mb-4">Create New Team</h3>
-                            <form onSubmit={handleCreateTeam} className="space-y-4">
+                            <form onSubmit={handleCreateTeam} className="space-y-4" noValidate>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
                                         Team Name
@@ -227,7 +249,9 @@ const TeamSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <div className="font-bold text-slate-900">
-                                        {member.userId === user?.id ? 'You' : 'Team Member'}
+                                        {member.userId === user?.id
+                                            ? (user.user_metadata?.full_name || user.email || 'You')
+                                            : 'Team Member'}
                                     </div>
                                     <div className="text-sm text-stone-500">{member.userId}</div>
                                 </div>
