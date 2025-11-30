@@ -1643,6 +1643,32 @@ export class SupabaseAdapter implements StorageAdapter {
   async createTeam(name: string, slug: string, ownerId: string): Promise<Team> {
     if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
 
+    // Use RPC for atomic creation to avoid RLS issues
+    const { data, error } = await supabase!.rpc('create_team_with_owner', {
+      team_name: name,
+      team_slug: slug,
+      owner_uuid: ownerId
+    });
+
+    if (error) {
+      console.error('RPC create_team_with_owner failed:', error);
+      // Fallback to manual insertion if RPC doesn't exist (for backward compatibility or if migration wasn't run)
+      // Note: This fallback might fail if RLS policies aren't fixed, but it's better than nothing.
+      return this.createTeamFallback(name, slug, ownerId);
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      avatarUrl: null, // RPC doesn't return avatar currently
+      ownerId: data.owner_id,
+      createdAt: new Date(data.created_at).getTime(),
+    };
+  }
+
+  // Fallback implementation (original logic)
+  private async createTeamFallback(name: string, slug: string, ownerId: string): Promise<Team> {
     const { data, error } = await supabase!
       .from('teams')
       .insert({
