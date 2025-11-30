@@ -66,6 +66,23 @@ const Register: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  /**
+   * Handle step 1 submission (username validation)
+   */
+  const handleStep1Submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username && isUsernameAvailable) {
+      setStep(2);
+    }
+  };
+
+  /**
+   * Handle final registration
+   */
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSubmit(e);
+  };
 
   /**
    * Handle form submission
