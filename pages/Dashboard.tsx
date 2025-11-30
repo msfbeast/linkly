@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download } from 'lucide-react';
+import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download, Tag as TagIcon } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import LinkCard from '../components/LinkCard';
 import SmartLinkCard from '../components/SmartLinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
+import { TagManager } from '../components/TagManager';
+import { UpgradeModal } from '../components/UpgradeModal';
 import LinkPerformanceCard from '../components/LinkPerformanceCard';
 import ClickForecastChart from '../components/ClickForecastChart';
 import TrafficSourceChart, { calculateTrafficTotal } from '../components/TrafficSourceChart';
-import LinkHealthChart from '../components/LinkHealthChart';
-import PriorityLinksList, { PriorityLink } from '../components/PriorityLinksList';
+import { HealthScoreCard } from '../components/HealthScoreCard';
+import { InsightsCard } from '../components/InsightsCard';
+import PriorityLinksList, { PriorityLink } from '../components/PriorityLinksList'; // Keep PriorityLink type if needed, or refactor
 import DateRangeSelector from '../components/DateRangeSelector';
+import SetupChecklist from '../components/SetupChecklist';
+import QuickLinkInput from '../components/QuickLinkInput';
 import { LinkData, categorizeLink, generateLinkHealthData, getTopPerformingLinks } from '../types';
 import { DateRange, generateClickForecastData, generateTrafficSourceData } from '../services/analyticsService';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
@@ -45,6 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
+  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingLink, setEditingLink] = useState<LinkData | null>(null);
   const [priorityLinksChecked, setPriorityLinksChecked] = useState<Record<string, boolean>>({});
@@ -53,6 +60,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [isExporting, setIsExporting] = useState(false);
 
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const sensors = useSensors(
@@ -66,10 +74,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     const { active, over } = event;
 
     if (active.id !== over?.id) {
-      setLinks((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over?.id);
-        return arrayMove(items, oldIndex, newIndex);
+      const oldIndex = links.findIndex((item) => item.id === active.id);
+      const newIndex = links.findIndex((item) => item.id === over?.id);
+
+      const newLinks = arrayMove(links, oldIndex, newIndex);
+      setLinks(newLinks);
+
+      // Persist the new order
+      const linkIds = newLinks.map(l => l.id);
+      supabaseAdapter.updateLinkOrder(linkIds).catch(err => {
+        console.error('Failed to update link order:', err);
       });
     }
   };
@@ -85,15 +99,36 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
       const storedLinks = await retryExecute(
         () => supabaseAdapter.getLinks(),
-        {
-          maxRetries: 3,
-          baseDelayMs: 1000,
-          onRetry: (attempt, err) => {
-            console.warn(`Retry attempt ${attempt} for loading links:`, err.message);
-          },
-        }
+        { maxRetries: 3, baseDelayMs: 1000 }
       );
       setLinks(storedLinks);
+
+      // Check for pending link from landing page
+      const pendingLinkUrl = sessionStorage.getItem('pending_link_url');
+      if (pendingLinkUrl) {
+        try {
+          const newLink: Omit<LinkData, 'id'> = {
+            originalUrl: pendingLinkUrl,
+            shortCode: '', // Let backend generate it
+            title: new URL(pendingLinkUrl).hostname,
+            createdAt: Date.now(),
+            clicks: 0,
+            tags: [],
+            clickHistory: [],
+          };
+          await retryExecute(
+            () => supabaseAdapter.createLink(newLink),
+            { maxRetries: 3, baseDelayMs: 1000 }
+          );
+          sessionStorage.removeItem('pending_link_url');
+          // Reload links to show the new one
+          const updatedLinks = await supabaseAdapter.getLinks();
+          setLinks(updatedLinks);
+        } catch (err) {
+          console.error('Failed to create pending link:', err);
+        }
+      }
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load links';
       setError(errorMessage);
@@ -313,12 +348,79 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
+  // Quick Link Creation Handler
+  const handleQuickCreate = async (url: string) => {
+    try {
+      // Create link with default settings
+      const newLink: Omit<LinkData, 'id'> = {
+        originalUrl: url,
+        shortCode: '', // Let backend generate it
+        title: new URL(url).hostname, // Default title
+        createdAt: Date.now(),
+        clicks: 0,
+        tags: [],
+        clickHistory: [],
+      };
+
+      await retryExecute(
+        () => supabaseAdapter.createLink(newLink),
+        { maxRetries: 3, baseDelayMs: 1000 }
+      );
+
+      await loadLinks();
+      onLinksUpdate?.();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create link';
+      setError(errorMessage);
+      console.error('Failed to quick create link:', err);
+    }
+  };
+
   // Empty state - no links exist
   const hasNoLinks = links.length === 0;
 
+
+
+  // Upgrade Modal State
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
+
+  // Check link limit
+  const handleCreateClick = () => {
+    const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
+    const linkCount = links.length;
+
+    if (isFreePlan && linkCount >= 50) {
+      setUpgradeTrigger('limit_reached');
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] transition-all duration-300">
+      <TagManager
+        isOpen={isTagManagerOpen}
+        onClose={() => setIsTagManagerOpen(false)}
+        userId={user?.id || ''}
+        onTagsUpdate={loadLinks}
+      />
+
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        trigger={upgradeTrigger}
+      />
+
       <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+        {/* Setup Checklist */}
+        <SetupChecklist links={links} />
+
+        {/* Quick Link Input */}
+        <QuickLinkInput onCreate={handleQuickCreate} isLoading={isLoading} />
 
         {/* Empty State - Show when no links exist */}
         {hasNoLinks ? (
@@ -331,12 +433,15 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="w-20 h-20 bg-yellow-100/50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-yellow-500/10">
               <LinkIcon className="w-10 h-10 text-yellow-600" />
             </div>
-            <h2 className="text-3xl font-display font-bold text-slate-900 mb-3">Welcome to Gather!</h2>
+            <h2 className="text-3xl font-display font-bold text-slate-900 mb-3">
+              Welcome to Gather{user?.user_metadata?.username ? `, @${user.user_metadata.username}` : '!'}
+            </h2>
             <p className="text-stone-500 mb-8 max-w-md mx-auto text-lg">
               Create your first shortened link to start tracking clicks and analyzing your traffic.
             </p>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleCreateClick}
+              data-tour="create-link-button"
               className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all inline-flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5" />
@@ -414,18 +519,53 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </motion.div>
 
-            {/* Bottom Row - Link Health and Priority Links */}
+            {/* Bottom Row - Link Health, Insights, and Priority List */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
             >
-              <LinkHealthChart data={linkHealthData} />
+              <HealthScoreCard
+                score={linkHealthData.find(d => d.metric === 'Score')?.value || 0}
+                metrics={{
+                  avgClicks: linkHealthData.find(d => d.metric === 'Avg Clicks')?.value || 0,
+                  growth: linkHealthData.find(d => d.metric === 'Growth')?.value || 0,
+                  engagement: linkHealthData.find(d => d.metric === 'Engagement')?.value || 0,
+                  reach: linkHealthData.find(d => d.metric === 'Reach')?.value || 0,
+                }}
+              />
+              <InsightsCard
+                insights={[
+                  ...priorityLinks.filter(l => l.status === 'expiring').map(l => ({
+                    id: l.id,
+                    type: 'warning' as const,
+                    title: 'Link Expiring Soon',
+                    description: `"${l.title}" expires in less than 7 days.`,
+                    actionLabel: 'Extend',
+                    onAction: () => openEditModal(links.find(link => link.id === l.id)!),
+                  })),
+                  ...priorityLinks.filter(l => l.status === 'low-ctr').map(l => ({
+                    id: l.id,
+                    type: 'info' as const,
+                    title: 'Low Engagement',
+                    description: `"${l.title}" has low click-through rate. Consider updating the title or sharing it more.`,
+                    actionLabel: 'Edit Link',
+                    onAction: () => openEditModal(links.find(link => link.id === l.id)!),
+                  })),
+                  // Add a positive insight if no issues
+                  ...(priorityLinks.length === 0 ? [{
+                    id: 'all-good',
+                    type: 'success' as const,
+                    title: 'All Systems Go',
+                    description: 'Your links are performing well. No immediate actions required.',
+                  }] : [])
+                ].slice(0, 4)}
+              />
               <PriorityLinksList
                 links={priorityLinks}
                 onLinkToggle={handlePriorityLinkToggle}
-                onViewAll={() => { }}
+                onViewAll={() => navigate('/links')}
               />
             </motion.div>
 
@@ -433,15 +573,26 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
               <h2 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Your Links</h2>
 
-              <div className="relative group">
-                <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-slate-900 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Search links..."
-                  className="bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 w-full md:w-80 transition-all placeholder:text-stone-400 shadow-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsTagManagerOpen(true)}
+                  data-tour="tag-filter"
+                  className="p-3 bg-white border border-stone-200 text-stone-500 hover:text-slate-900 rounded-2xl hover:border-stone-300 transition-all shadow-sm"
+                  title="Manage Tags"
+                >
+                  <TagIcon className="w-5 h-5" />
+                </button>
+
+                <div className="relative group">
+                  <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-slate-900 transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Search links..."
+                    className="bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 w-full md:w-80 transition-all placeholder:text-stone-400 shadow-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 

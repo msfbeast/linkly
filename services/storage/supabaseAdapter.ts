@@ -6,7 +6,7 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent, Product, Tag, Folder, Domain } from '../../types';
+import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,6 +46,9 @@ interface LinkRow {
   ai_analysis: Record<string, unknown> | null;
   user_id: string | null;
   folder_id: string | null;
+  is_guest?: boolean;
+  claim_token?: string | null;
+  expires_at?: string | null;
   ab_test_config: {
     enabled: boolean;
     variants: {
@@ -100,6 +103,7 @@ interface ProductRow {
   image_url: string | null;
   link_id: string;
   created_at: string;
+  slug: string | null;
 }
 
 interface TagRow {
@@ -118,7 +122,46 @@ interface FolderRow {
   created_at: string;
 }
 
+interface TeamRow {
+  id: string;
+  name: string;
+  slug: string;
+  avatar_url: string | null;
+  owner_id: string;
+  created_at: string;
+}
 
+interface TeamMemberRow {
+  team_id: string;
+  user_id: string;
+  role: string;
+  joined_at: string;
+}
+
+interface TeamInviteRow {
+  id: string;
+  team_id: string;
+  email: string;
+  role: string;
+  token: string;
+  expires_at: string;
+  created_at: string;
+  created_by: string;
+}
+
+interface ApiKeyRow {
+  id: string;
+  user_id: string;
+  name: string;
+  key_hash: string;
+  prefix: string;
+  scopes: string[];
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+// Helper to convert DB rows to app typese
 /**
  * Convert a database row to LinkData object
  */
@@ -236,9 +279,69 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
 
 
 /**
+ * Bio Profile Row
+ */
+interface BioProfileRow {
+  id: string;
+  user_id: string;
+  handle: string;
+  display_name: string;
+  bio: string;
+  avatar_url: string;
+  theme: string;
+  links: string[]; // JSONB array stored as string[]
+  views: number;
+  created_at: string;
+  updated_at: string;
+  custom_theme?: any;
+}
+
+function rowToBioProfile(row: BioProfileRow): BioProfile {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    handle: row.handle,
+    displayName: row.display_name,
+    bio: row.bio,
+    avatarUrl: row.avatar_url,
+    theme: row.theme as BioProfile['theme'],
+    links: row.links || [],
+    views: row.views,
+    customTheme: row.custom_theme,
+  };
+}
+
+function bioProfileToRow(profile: Partial<BioProfile>, userId?: string): Partial<BioProfileRow> {
+  const row: Partial<BioProfileRow> = {};
+  if (profile.handle) row.handle = profile.handle;
+  if (profile.displayName) row.display_name = profile.displayName;
+  if (profile.bio) row.bio = profile.bio;
+  if (profile.avatarUrl) row.avatar_url = profile.avatarUrl;
+  if (profile.theme) row.theme = profile.theme;
+  if (profile.links) row.links = profile.links;
+  if (profile.views !== undefined) row.views = profile.views;
+  if (profile.customTheme) row.custom_theme = profile.customTheme;
+  if (userId) row.user_id = userId;
+  return row;
+}
+
+/**
  * Supabase implementation of the StorageAdapter interface
  */
 export class SupabaseAdapter implements StorageAdapter {
+  /**
+   * Generate a random short code for links
+   * Uses base62 encoding (alphanumeric) for URL-safe codes
+   */
+  private generateShortCode(length: number = 6): string {
+    const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < length; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
   /**
    * Get all links from the database
    */
@@ -275,6 +378,31 @@ export class SupabaseAdapter implements StorageAdapter {
     );
 
     return links;
+  }
+
+  /**
+   * Get public links by IDs (for Bio Pages)
+   */
+  async getPublicLinks(ids: string[]): Promise<LinkData[]> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.LINKS);
+      const links: LinkData[] = stored ? JSON.parse(stored) : [];
+      return links.filter(l => ids.includes(l.id));
+    }
+
+    if (ids.length === 0) return [];
+
+    const { data: linkRows, error } = await supabase!
+      .from(TABLES.LINKS)
+      .select('*')
+      .in('id', ids);
+
+    if (error) {
+      throw new Error(`Failed to fetch public links: ${error.message}`);
+    }
+
+    // For public view, we don't need click history
+    return (linkRows || []).map((row: LinkRow) => rowToLinkData(row, []));
   }
 
   /**
@@ -418,6 +546,16 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error(`Failed to update link: ${error.message}`);
     }
 
+    // Invalidate cache for this link
+    try {
+      const { invalidateLinkCache } = await import('../cacheService');
+      if (row.short_code) {
+        await invalidateLinkCache(row.short_code);
+      }
+    } catch (cacheError) {
+      console.warn('Failed to invalidate cache:', cacheError);
+    }
+
     const clickHistory = await this.getClickEvents(id);
     return rowToLinkData(row as LinkRow, clickHistory);
   }
@@ -430,6 +568,13 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error('Supabase is not configured');
     }
 
+    // Get short code before deleting (for cache invalidation)
+    const { data: linkData } = await supabase!
+      .from(TABLES.LINKS)
+      .select('short_code')
+      .eq('id', id)
+      .single();
+
     const { error } = await supabase!
       .from(TABLES.LINKS)
       .delete()
@@ -438,6 +583,130 @@ export class SupabaseAdapter implements StorageAdapter {
     if (error) {
       throw new Error(`Failed to delete link: ${error.message}`);
     }
+
+    // Invalidate cache for this link
+    if (linkData?.short_code) {
+      try {
+        const { invalidateLinkCache } = await import('../cacheService');
+        await invalidateLinkCache(linkData.short_code);
+      } catch (cacheError) {
+        console.warn('Failed to invalidate cache:', cacheError);
+      }
+    }
+  }
+
+  /**
+   * Create a guest link (no authentication required)
+   * Links expire after 7 days to drive signup conversion
+   */
+  async createGuestLink(url: string, title?: string): Promise<LinkData> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    // Generate short code and claim token
+    const shortCode = this.generateShortCode();
+    const claimToken = uuidv4();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const { data: row, error } = await supabase!
+      .from(TABLES.LINKS)
+      .insert({
+        original_url: url,
+        short_code: shortCode,
+        title: title || 'Guest Link',
+        is_guest: true,
+        claim_token: claimToken,
+        expires_at: expiresAt.toISOString(),
+        user_id: null,
+        tags: [],
+        clicks: 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create guest link: ${error.message}`);
+    }
+
+    return rowToLinkData(row as LinkRow, []);
+  }
+
+  /**
+   * Claim a guest link and transfer it to a user account
+   */
+  async claimGuestLink(claimToken: string, userId: string): Promise<LinkData> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    // Update link to transfer ownership
+    const { data: row, error } = await supabase!
+      .from(TABLES.LINKS)
+      .update({
+        user_id: userId,
+        is_guest: false,
+        claim_token: null,
+        expires_at: null,
+      })
+      .eq('claim_token', claimToken)
+      .eq('is_guest', true)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error('Link not found or already claimed');
+    }
+
+    const clickHistory = await this.getClickEvents(row.id);
+    return rowToLinkData(row as LinkRow, clickHistory);
+  }
+
+  /**
+   * Get guest link by claim token
+   */
+  async getGuestLinkByToken(claimToken: string): Promise<LinkData | null> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data: row, error } = await supabase!
+      .from(TABLES.LINKS)
+      .select('*')
+      .eq('claim_token', claimToken)
+      .eq('is_guest', true)
+      .single();
+
+    if (error || !row) {
+      return null;
+    }
+
+    const clickHistory = await this.getClickEvents(row.id);
+    return rowToLinkData(row as LinkRow, clickHistory);
+  }
+
+  /**
+   * Cleanup expired guest links
+   * Should be run daily via cron job
+   */
+  async cleanupExpiredGuestLinks(): Promise<number> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data, error } = await supabase!
+      .from(TABLES.LINKS)
+      .delete()
+      .eq('is_guest', true)
+      .lt('expires_at', new Date().toISOString())
+      .select('id');
+
+    if (error) {
+      console.error('Failed to cleanup expired guest links:', error);
+      return 0;
+    }
+
+    return data?.length || 0;
   }
 
   /**
@@ -792,6 +1061,208 @@ export class SupabaseAdapter implements StorageAdapter {
   }
 
   /**
+   * Update user profile
+   */
+  async updateProfile(userId: string, updates: Partial<any>): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { error } = await supabase!
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId);
+
+    if (error) {
+      throw new Error(`Failed to update profile: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all bio profiles for the current user
+   */
+  async getBioProfiles(userId: string): Promise<BioProfile[]> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.BIO_PROFILES);
+      const profiles: BioProfile[] = stored ? JSON.parse(stored) : [];
+      return profiles;
+    }
+
+    const { data, error } = await supabase!
+      .from(TABLES.BIO_PROFILES)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch bio profiles: ${error.message}`);
+    }
+
+    return (data || []).map((row: BioProfileRow) => rowToBioProfile(row));
+  }
+
+  /**
+   * Get a bio profile by handle (public access)
+   */
+  async getBioProfileByHandle(handle: string): Promise<BioProfile | null> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.BIO_PROFILES);
+      const profiles: BioProfile[] = stored ? JSON.parse(stored) : [];
+      return profiles.find(p => p.handle === handle) || null;
+    }
+
+    const { data, error } = await supabase!
+      .from(TABLES.BIO_PROFILES)
+      .select('*')
+      .eq('handle', handle)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw new Error(`Failed to fetch bio profile: ${error.message}`);
+    }
+
+    // Increment views (fire and forget)
+    supabase!.rpc('increment_bio_views', { profile_id: data.id }).then(({ error }) => {
+      if (error) console.error('Failed to increment views:', error);
+    });
+
+    return rowToBioProfile(data as BioProfileRow);
+  }
+
+  /**
+   * Create a new bio profile
+   */
+  async createBioProfile(profile: Omit<BioProfile, 'id' | 'views'>): Promise<BioProfile> {
+    if (!isSupabaseConfigured()) {
+      const newProfile: BioProfile = {
+        ...profile,
+        id: uuidv4(),
+        views: 0,
+      };
+      const stored = localStorage.getItem(STORAGE_KEYS.BIO_PROFILES);
+      const profiles: BioProfile[] = stored ? JSON.parse(stored) : [];
+      profiles.push(newProfile);
+      localStorage.setItem(STORAGE_KEYS.BIO_PROFILES, JSON.stringify(profiles));
+      return newProfile;
+    }
+
+    const { data: { session } } = await supabase!.auth.getSession();
+    const userId = session?.user?.id;
+
+    if (!userId) throw new Error('User not authenticated');
+
+    const rowData = bioProfileToRow(profile, userId);
+
+    const { data, error } = await supabase!
+      .from(TABLES.BIO_PROFILES)
+      .insert(rowData)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create bio profile: ${error.message}`);
+    }
+
+    return rowToBioProfile(data as BioProfileRow);
+  }
+
+  /**
+   * Update a bio profile
+   */
+  async updateBioProfile(id: string, updates: Partial<BioProfile>): Promise<BioProfile> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.BIO_PROFILES);
+      if (stored) {
+        const profiles: BioProfile[] = JSON.parse(stored);
+        const index = profiles.findIndex(p => p.id === id);
+        if (index !== -1) {
+          profiles[index] = { ...profiles[index], ...updates };
+          localStorage.setItem(STORAGE_KEYS.BIO_PROFILES, JSON.stringify(profiles));
+          return profiles[index];
+        }
+      }
+      throw new Error('Profile not found');
+    }
+
+    const rowUpdates = bioProfileToRow(updates);
+
+    const { data, error } = await supabase!
+      .from(TABLES.BIO_PROFILES)
+      .update(rowUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update bio profile: ${error.message}`);
+    }
+
+    return rowToBioProfile(data as BioProfileRow);
+  }
+
+  /**
+   * Delete a bio profile
+   */
+  async deleteBioProfile(id: string): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.BIO_PROFILES);
+      if (stored) {
+        const profiles: BioProfile[] = JSON.parse(stored);
+        const filtered = profiles.filter(p => p.id !== id);
+        localStorage.setItem(STORAGE_KEYS.BIO_PROFILES, JSON.stringify(filtered));
+      }
+      return;
+    }
+
+    const { error } = await supabase!
+      .from(TABLES.BIO_PROFILES)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete bio profile: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update the order of links
+   */
+  async updateLinkOrder(linkIds: string[]): Promise<void> {
+    if (!isSupabaseConfigured()) return;
+
+    // We'll update each link's order_index
+    const updates = linkIds.map((id, index) =>
+      supabase!
+        .from(TABLES.LINKS)
+        .update({ order_index: index })
+        .eq('id', id)
+    );
+
+    await Promise.all(updates);
+  }
+
+  /**
+   * Update user notification settings
+   */
+  async updateNotificationSettings(settings: any): Promise<void> {
+    if (!isSupabaseConfigured()) return;
+
+    const { data: { session } } = await supabase!.auth.getSession();
+    if (!session?.user) return;
+
+    const { error } = await supabase!
+      .from('profiles')
+      .update({ settings_notifications: settings })
+      .eq('id', session.user.id);
+
+    if (error) {
+      console.error('Failed to update notification settings:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Export all data (links and click events)
    */
   async exportAllData(): Promise<ExportData> {
@@ -839,6 +1310,7 @@ export class SupabaseAdapter implements StorageAdapter {
       image_url: product.imageUrl ?? null,
       link_id: product.linkId,
       created_at: now,
+      slug: product.slug ?? null,
     };
 
     const { data, error } = await supabase!
@@ -886,6 +1358,22 @@ export class SupabaseAdapter implements StorageAdapter {
   }
 
   /**
+   * Fetches aggregated analytics from the summary table
+   */
+  async getAnalyticsSummary(linkId: string, startDate: string, endDate: string) {
+    const { data, error } = await supabase!
+      .from('analytics_daily_summary')
+      .select('*')
+      .eq('link_id', linkId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  }
+
+  /**
    * Get a single product by ID
    */
   async getProductById(id: string): Promise<Product | null> {
@@ -897,6 +1385,28 @@ export class SupabaseAdapter implements StorageAdapter {
       .from(TABLES.PRODUCTS)
       .select('*')
       .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw new Error(`Failed to fetch product: ${error.message}`);
+    }
+
+    return rowToProduct(data as ProductRow);
+  }
+
+  /**
+   * Get a single product by Slug
+   */
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data, error } = await supabase!
+      .from(TABLES.PRODUCTS)
+      .select('*')
+      .eq('slug', slug)
       .single();
 
     if (error) {
@@ -920,7 +1430,9 @@ export class SupabaseAdapter implements StorageAdapter {
     if (updates.description !== undefined) rowUpdates.description = updates.description;
     if (updates.price !== undefined) rowUpdates.price = updates.price;
     if (updates.currency !== undefined) rowUpdates.currency = updates.currency;
+    if (updates.currency !== undefined) rowUpdates.currency = updates.currency;
     if (updates.imageUrl !== undefined) rowUpdates.image_url = updates.imageUrl;
+    if (updates.slug !== undefined) rowUpdates.slug = updates.slug;
 
     const { data, error } = await supabase!
       .from(TABLES.PRODUCTS)
@@ -1052,6 +1564,30 @@ export class SupabaseAdapter implements StorageAdapter {
     return rowToFolder(data as FolderRow);
   }
 
+  async moveFolder(folderId: string, newParentId: string | null): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.FOLDERS);
+      if (stored) {
+        const folders: Folder[] = JSON.parse(stored);
+        const index = folders.findIndex(f => f.id === folderId);
+        if (index !== -1) {
+          folders[index].parentId = newParentId;
+          localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(folders));
+        }
+      }
+      return;
+    }
+
+    const { error } = await supabase!
+      .from(TABLES.FOLDERS)
+      .update({ parent_id: newParentId })
+      .eq('id', folderId);
+
+    if (error) {
+      throw new Error(`Failed to move folder: ${error.message}`);
+    }
+  }
+
   async deleteFolder(id: string): Promise<void> {
     if (!isSupabaseConfigured()) throw new Error('Supabase is not configured');
 
@@ -1061,6 +1597,236 @@ export class SupabaseAdapter implements StorageAdapter {
       .eq('id', id);
 
     if (error) throw new Error(`Failed to delete folder: ${error.message}`);
+  }
+  // Team Management
+  async createTeam(name: string, slug: string, ownerId: string): Promise<Team> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase!
+      .from('teams')
+      .insert({
+        name,
+        slug,
+        owner_id: ownerId,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Add owner as a member automatically
+    await supabase!.from('team_members').insert({
+      team_id: data.id,
+      user_id: ownerId,
+      role: 'owner',
+    });
+
+    return {
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      avatarUrl: data.avatar_url,
+      ownerId: data.owner_id,
+      createdAt: new Date(data.created_at).getTime(),
+    };
+  }
+
+  async getTeams(): Promise<Team[]> {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data, error } = await supabase!
+      .from('teams')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching teams:', error);
+      return [];
+    }
+
+    return data.map((row: TeamRow) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      avatarUrl: row.avatar_url || undefined,
+      ownerId: row.owner_id,
+      createdAt: new Date(row.created_at).getTime(),
+    }));
+  }
+
+  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data, error } = await supabase!
+      .from('team_members')
+      .select('*')
+      .eq('team_id', teamId);
+
+    if (error) {
+      console.error('Error fetching team members:', error);
+      return [];
+    }
+
+    return data.map((row: TeamMemberRow) => ({
+      teamId: row.team_id,
+      userId: row.user_id,
+      role: row.role as any,
+      joinedAt: new Date(row.joined_at).getTime(),
+    }));
+  }
+
+  async createInvite(teamId: string, email: string, role: string): Promise<TeamInvite> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+    const { data, error } = await supabase!
+      .from('team_invites')
+      .insert({
+        team_id: teamId,
+        email,
+        role,
+        token,
+        expires_at: expiresAt,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      teamId: data.team_id,
+      email: data.email,
+      role: data.role as any,
+      token: data.token,
+      expiresAt: new Date(data.expires_at).getTime(),
+      createdAt: new Date(data.created_at).getTime(),
+      createdBy: data.created_by,
+    };
+  }
+
+  async acceptInvite(token: string, userId: string): Promise<void> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    // 1. Get invite
+    const { data: invite, error: inviteError } = await supabase!
+      .from('team_invites')
+      .select('*')
+      .eq('token', token)
+      .single();
+
+    if (inviteError || !invite) throw new Error('Invalid invite');
+
+    if (new Date(invite.expires_at) < new Date()) {
+      throw new Error('Invite expired');
+    }
+
+    // 2. Add member
+    const { error: memberError } = await supabase!
+      .from('team_members')
+      .insert({
+        team_id: invite.team_id,
+        user_id: userId,
+        role: invite.role,
+      });
+
+    if (memberError) throw memberError;
+
+    // 3. Delete invite
+    await supabase!.from('team_invites').delete().eq('id', invite.id);
+  }
+
+  // API Access
+  async createApiKey(name: string, scopes: string[] = ['links:read']): Promise<{ apiKey: ApiKey; secretKey: string }> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const { data: { user } } = await supabase!.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Generate key
+    const prefix = 'pk_live_';
+    const randomBytes = new Uint8Array(24);
+    crypto.getRandomValues(randomBytes);
+    const secretPart = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    const secretKey = `${prefix}${secretPart}`;
+
+    // Hash key for storage (simple sha256 for demo, ideally use bcrypt/argon2 on server)
+    // Note: In a real app, hashing should happen on the server/edge function to keep the secret secret.
+    // Since we are client-side only for now, we'll simulate this flow.
+    // Ideally, we'd call an Edge Function: supabase.functions.invoke('create-api-key')
+
+    // For this demo, we'll store the hash.
+    const encoder = new TextEncoder();
+    const data = encoder.encode(secretKey);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const keyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    const { data: row, error } = await supabase!
+      .from('api_keys')
+      .insert({
+        user_id: user.id,
+        name,
+        key_hash: keyHash,
+        prefix: secretKey.substring(0, 12) + '...', // Store prefix for display
+        scopes,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      apiKey: {
+        id: row.id,
+        userId: row.user_id,
+        name: row.name,
+        prefix: row.prefix,
+        scopes: row.scopes,
+        lastUsedAt: row.last_used_at ? new Date(row.last_used_at).getTime() : undefined,
+        expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined,
+        createdAt: new Date(row.created_at).getTime(),
+      },
+      secretKey, // Return full key only once
+    };
+  }
+
+  async getApiKeys(): Promise<ApiKey[]> {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data, error } = await supabase!
+      .from('api_keys')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching API keys:', error);
+      return [];
+    }
+
+    return data.map((row: ApiKeyRow) => ({
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      prefix: row.prefix,
+      scopes: row.scopes,
+      lastUsedAt: row.last_used_at ? new Date(row.last_used_at).getTime() : undefined,
+      expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined,
+      createdAt: new Date(row.created_at).getTime(),
+    }));
+  }
+
+  async revokeApiKey(id: string): Promise<void> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const { error } = await supabase!
+      .from('api_keys')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   }
 }
 
@@ -1078,6 +1844,7 @@ function rowToProduct(row: ProductRow): Product {
     currency: row.currency,
     imageUrl: row.image_url ?? undefined,
     linkId: row.link_id,
+    slug: row.slug ?? undefined,
     createdAt: new Date(row.created_at).getTime(),
   };
 }

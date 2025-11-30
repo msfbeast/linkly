@@ -21,28 +21,24 @@ const ProductPage: React.FC = () => {
     const fetchProduct = async () => {
         try {
             if (!productId) return;
-            // We don't have a direct getProduct(id) method exposed yet, 
-            // so we'll fetch all products for the user (if we had userId) or we need to add a getProductById method.
-            // Wait, supabaseAdapter.getProducts takes userId. 
-            // We need a way to get a single product by ID without knowing the userId first.
-            // Let's add getProductById to supabaseAdapter or just query supabase directly here for now to save time,
-            // but better to use adapter. 
-            // Actually, looking at supabaseAdapter, we don't have getProductById.
-            // I'll implement a quick fetch here using the adapter's supabase client if possible, 
-            // or better, I'll add the method to the adapter in a separate step if needed.
-            // For now, let's assume I can filter from the list if I knew the user, but I don't.
-            // I will add a getProductById method to the adapter.
 
-            // actually, I can just use the existing getLink logic pattern but for products.
-            // Let's try to fetch it directly for now to be fast.
-            const product = await supabaseAdapter.getProductById(productId);
+            let fetchedProduct: Product | null = null;
 
-            if (!product) {
+            // Check if productId is a UUID
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+
+            if (isUuid) {
+                fetchedProduct = await supabaseAdapter.getProductById(productId);
+            } else {
+                fetchedProduct = await supabaseAdapter.getProductBySlug(productId);
+            }
+
+            if (!fetchedProduct) {
                 setError('Product not found.');
                 return;
             }
 
-            setProduct(product);
+            setProduct(fetchedProduct);
         } catch (err) {
             console.error('Error fetching product:', err);
             setError('Product not found.');

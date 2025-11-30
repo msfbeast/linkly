@@ -356,3 +356,25 @@ export function generateScreenResolutionData(events: ClickEvent[]): DeviceData[]
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 }
+
+/**
+ * Fetches link stats, using summary table for historical data if available
+ * 
+ * @param linkId - ID of the link to fetch stats for
+ * @param dateRange - Date range filter
+ */
+export async function getLinkStats(linkId: string, dateRange: DateRange) {
+  // This function would ideally be implemented in supabaseAdapter
+  // but we'll define the logic here for now.
+
+  // Logic:
+  // 1. If range is 'today' or < 24h, query raw click_events
+  // 2. If range is > 24h, query analytics_daily_summary
+  // 3. Combine with today's raw events for real-time accuracy
+
+  // For now, we are keeping the existing client-side aggregation 
+  // until the backend function is fully deployed and accessible.
+  // This placeholder prepares the service for the switch.
+
+  return null;
+}

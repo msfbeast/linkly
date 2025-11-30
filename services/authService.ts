@@ -7,6 +7,28 @@ import { Session, User as SupabaseUser, AuthError } from '@supabase/supabase-js'
 export interface User {
   id: string;
   email: string;
+  full_name?: string;
+  avatar_url?: string;
+  preferences?: {
+    theme?: 'light' | 'dark' | 'system';
+    email_notifications?: boolean;
+    onboarding_completed?: boolean;
+    onboarding_step?: number;
+    onboarding_skipped?: boolean;
+    onboarding_started_at?: string;
+    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium';
+    subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
+    trial_ends_at?: string;
+  };
+  user_metadata?: {
+    full_name?: string;
+    avatar_url?: string;
+    [key: string]: any;
+  };
+  app_metadata?: {
+    provider?: string;
+    [key: string]: any;
+  };
   displayName?: string;
   apiKey?: string;
   storefrontTheme?: string;
@@ -14,6 +36,12 @@ export interface User {
   amazonAssociateTag?: string;
   emailVerified: boolean;
   createdAt: string;
+  settingsNotifications?: {
+    email: boolean;
+    milestones: boolean;
+    reports: boolean;
+    security: boolean;
+  };
 }
 
 /**
@@ -74,10 +102,30 @@ function normalizeAuthError(error: AuthError | null): string | undefined {
  */
 export const authService = {
   /**
+   * Check if a username is available
+   */
+  async checkUsernameAvailability(username: string): Promise<boolean> {
+    if (!isSupabaseConfigured() || !supabase) return false;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking username:', error);
+      return false;
+    }
+
+    return !data; // If no data returned, username is available
+  },
+
+  /**
    * Sign up a new user with email and password
    * Requirements: 1.1
    */
-  async signUp(email: string, password: string): Promise<AuthResponse> {
+  async signUp(email: string, password: string, username?: string): Promise<AuthResponse> {
     if (!isSupabaseConfigured() || !supabase) {
       return {
         user: null,
@@ -91,8 +139,40 @@ export const authService = {
       password,
     });
 
+    // Fetch profile for settings and preferences
+    let settingsNotifications;
+    let preferences;
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at')
+        .eq('id', data.user.id)
+        .single();
+
+      settingsNotifications = profile?.settings_notifications;
+      preferences = {
+        onboarding_completed: profile?.onboarding_completed,
+        onboarding_step: profile?.onboarding_step,
+        onboarding_skipped: profile?.onboarding_skipped,
+        onboarding_started_at: profile?.onboarding_started_at,
+      };
+    }
+
+    const user = mapSupabaseUser(data.user);
+    if (user) {
+      if (settingsNotifications) {
+        user.settingsNotifications = settingsNotifications;
+      }
+      if (preferences) {
+        user.preferences = {
+          ...user.preferences,
+          ...preferences,
+        };
+      }
+    }
+
     return {
-      user: mapSupabaseUser(data.user),
+      user,
       session: data.session,
       error,
     };
@@ -116,6 +196,14 @@ export const authService = {
       password,
     });
 
+    if (error) {
+      return {
+        user: null,
+        session: null,
+        error,
+      };
+    }
+
     // Handle "Remember me" by adjusting session persistence
     // Supabase handles session persistence via cookies/localStorage by default
     // The rememberMe flag can be used to clear session on browser close if false
@@ -126,10 +214,42 @@ export const authService = {
       sessionStorage.removeItem('linkly_session_temp');
     }
 
+    // Fetch profile for settings and preferences
+    let settingsNotifications;
+    let preferences;
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at')
+        .eq('id', data.user.id)
+        .single();
+
+      settingsNotifications = profile?.settings_notifications;
+      preferences = {
+        onboarding_completed: profile?.onboarding_completed,
+        onboarding_step: profile?.onboarding_step,
+        onboarding_skipped: profile?.onboarding_skipped,
+        onboarding_started_at: profile?.onboarding_started_at,
+      };
+    }
+
+    const user = mapSupabaseUser(data.user);
+    if (user) {
+      if (settingsNotifications) {
+        user.settingsNotifications = settingsNotifications;
+      }
+      if (preferences) {
+        user.preferences = {
+          ...user.preferences,
+          ...preferences,
+        };
+      }
+    }
+
     return {
-      user: mapSupabaseUser(data.user),
+      user,
       session: data.session,
-      error,
+      error: null,
     };
   },
 
@@ -267,6 +387,7 @@ export const authService = {
 
   /**
    * Get the current user
+   * Requirements: 2.1
    */
   async getUser(): Promise<User | null> {
     if (!isSupabaseConfigured() || !supabase) {
@@ -274,7 +395,40 @@ export const authService = {
     }
 
     const { data } = await supabase.auth.getUser();
-    return mapSupabaseUser(data.user);
+
+    // Fetch profile for settings and preferences
+    let settingsNotifications;
+    let preferences;
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at')
+        .eq('id', data.user.id)
+        .single();
+
+      settingsNotifications = profile?.settings_notifications;
+      preferences = {
+        onboarding_completed: profile?.onboarding_completed,
+        onboarding_step: profile?.onboarding_step,
+        onboarding_skipped: profile?.onboarding_skipped,
+        onboarding_started_at: profile?.onboarding_started_at,
+      };
+    }
+
+    const user = mapSupabaseUser(data.user);
+    if (user) {
+      if (settingsNotifications) {
+        user.settingsNotifications = settingsNotifications;
+      }
+      if (preferences) {
+        user.preferences = {
+          ...user.preferences,
+          ...preferences,
+        };
+      }
+    }
+
+    return user;
   },
 
   /**

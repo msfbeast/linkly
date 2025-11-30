@@ -37,7 +37,24 @@ const Storefront: React.FC = () => {
     const fetchProducts = async () => {
         try {
             if (!userId) return;
-            const fetchedProducts = await supabaseAdapter.getProducts(userId);
+
+            let targetUserId = userId;
+
+            // Check if userId is a UUID
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
+            if (!isUuid) {
+                // Assume it's a handle, resolve to userId
+                const profile = await supabaseAdapter.getBioProfileByHandle(userId);
+                if (profile) {
+                    targetUserId = profile.userId;
+                } else {
+                    setError('Store not found');
+                    return;
+                }
+            }
+
+            const fetchedProducts = await supabaseAdapter.getProducts(targetUserId);
             setProducts(fetchedProducts);
         } catch (err) {
             console.error('Error fetching products:', err);

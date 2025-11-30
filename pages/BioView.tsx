@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getBioProfileByHandle, getLinks } from '../services/storageService';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { BioProfile, LinkData } from '../types';
 import { UserCircle2, ExternalLink } from 'lucide-react';
 import VibrantBioTemplate from '../components/bio-templates/VibrantBioTemplate';
@@ -27,16 +27,30 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
 
   const [profile, setProfile] = useState<BioProfile | null>(null);
   const [links, setLinks] = useState<LinkData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const foundProfile = getBioProfileByHandle(handle);
-    if (foundProfile) {
-      setProfile(foundProfile);
-      const allLinks = getLinks();
-      // Filter links that belong to this profile
-      const profileLinks = allLinks.filter(l => foundProfile.links.includes(l.id));
-      setLinks(profileLinks);
-    }
+    const fetchProfile = async () => {
+      if (!handle) return;
+      setLoading(true);
+      try {
+        const foundProfile = await supabaseAdapter.getBioProfileByHandle(handle);
+        if (foundProfile) {
+          setProfile(foundProfile);
+          if (foundProfile.links && foundProfile.links.length > 0) {
+            const profileLinks = await supabaseAdapter.getPublicLinks(foundProfile.links);
+            setLinks(profileLinks);
+          } else {
+            setLinks([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
   }, [handle]);
 
   if (!profile) {

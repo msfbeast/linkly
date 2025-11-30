@@ -57,4 +57,5 @@ export const TABLES = {
   PRODUCTS: 'products',
   TAGS: 'tags',
   FOLDERS: 'folders',
+  BIO_PROFILES: 'bio_profiles',
 } as const;

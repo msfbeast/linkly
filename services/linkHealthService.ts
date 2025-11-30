@@ -1,4 +1,4 @@
-import { Link } from '../types';
+import { LinkData } from '../types';
 
 interface HealthCheckResult {
     status: 'healthy' | 'broken' | 'unknown';

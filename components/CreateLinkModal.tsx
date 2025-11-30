@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { TagInput } from './TagInput';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import InfoTooltip from './InfoTooltip';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -238,384 +239,414 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={resetAndClose} />
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4 text-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        />
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative bg-white backdrop-blur-xl border border-stone-200 w-full max-w-2xl rounded-[2rem] overflow-hidden shadow-2xl shadow-stone-200/50 flex flex-col max-h-[90vh]"
-      >{/* Header */}
-        <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-[#FDFBF7]/50">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">{editingLink ? 'Edit Link' : 'Create New Link'}</h2>
-            <p className="text-sm text-stone-500 mt-0.5">{editingLink ? 'Update destination and settings' : 'Supercharge your URLs with AI'}</p>
-          </div>
-          <button onClick={resetAndClose} className="text-stone-400 hover:text-slate-900 transition-colors bg-white border border-stone-200 p-2 rounded-xl hover:bg-stone-50 shadow-sm">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Tabs - Only show in Create Mode */}
-        {!editingLink && (
-          <div className="flex border-b border-stone-100 bg-[#FDFBF7]/30">
+        <motion.div
+          initial={{ opacity: 0, y: 100, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 100, scale: 0.95 }}
+          className="relative w-full max-w-2xl transform overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white text-left shadow-xl transition-all h-[90vh] sm:h-auto sm:max-h-[90vh] flex flex-col"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-100 bg-white sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
+                <LinkIcon className="w-5 h-5 text-slate-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-display font-bold text-slate-900">
+                  {editingLink ? 'Edit Link' : 'Create New Link'}
+                </h3>
+                <p className="text-xs text-stone-500">
+                  {mode === 'single' ? 'Shorten a single URL' : 'Batch create multiple links'}
+                </p>
+              </div>
+            </div>
             <button
-              onClick={() => setMode('single')}
-              className={`flex-1 py-4 text-sm font-bold transition-all relative ${mode === 'single' ? 'text-amber-600 bg-amber-50' : 'text-stone-500 hover:text-slate-700 hover:bg-stone-50'}`}
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-stone-100 transition-colors"
             >
-              Single Link
-              {mode === 'single' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500" />}
-            </button>
-            <button
-              onClick={() => setMode('bulk')}
-              className={`flex-1 py-4 text-sm font-bold transition-all relative ${mode === 'bulk' ? 'text-amber-600 bg-amber-50' : 'text-stone-500 hover:text-slate-700 hover:bg-stone-50'}`}
-            >
-              Bulk Create
-              {mode === 'bulk' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500" />}
+              <X className="w-5 h-5 text-stone-400" />
             </button>
           </div>
-        )}
 
-        <div className="p-8 overflow-y-auto custom-scrollbar bg-white">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
 
-          {mode === 'single' ? (
-            <>
-              {/* URL Input */}
-              <div className="mb-8">
-                <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Destination URL</label>
-                <div className="flex gap-3">
-                  <div className="relative flex-1">
-                    <input
-                      type="url"
-                      placeholder="https://example.com/my-long-url"
-                      className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-4 rounded-xl pl-12 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      required
-                    />
-                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+            {/* Tabs - Only show in Create Mode */}
+            {!editingLink && (
+              <div className="flex border-b border-stone-100 bg-[#FDFBF7]/30">
+                <button
+                  onClick={() => setMode('single')}
+                  className={`flex-1 py-4 text-sm font-bold transition-all relative ${mode === 'single' ? 'text-amber-600 bg-amber-50' : 'text-stone-500 hover:text-slate-700 hover:bg-stone-50'}`}
+                >
+                  Single Link
+                  {mode === 'single' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500" />}
+                </button>
+                <button
+                  onClick={() => setMode('bulk')}
+                  className={`flex-1 py-4 text-sm font-bold transition-all relative ${mode === 'bulk' ? 'text-amber-600 bg-amber-50' : 'text-stone-500 hover:text-slate-700 hover:bg-stone-50'}`}
+                >
+                  Bulk Create
+                  {mode === 'bulk' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500" />}
+                </button>
+              </div>
+            )}
+
+            {mode === 'single' ? (
+              <>
+                {/* URL Input */}
+                <div className="mb-8">
+                  <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Destination URL</label>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        type="url"
+                        placeholder="https://example.com/my-long-url"
+                        className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-4 rounded-xl pl-12 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        required
+                      />
+                      <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                      <button
+                        type="button"
+                        onClick={() => setShowUTMBuilder(true)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-stone-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="UTM Builder"
+                      >
+                        <Tag className="w-4 h-4" />
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setShowUTMBuilder(true)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-stone-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
-                      title="UTM Builder"
+                      onClick={handleAnalyze}
+                      disabled={!url || isAnalyzing}
+                      className="bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-bold px-5 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-amber-400/20 min-w-[140px] justify-center"
                     >
-                      <Tag className="w-4 h-4" />
+                      {isAnalyzing ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>AI Analyze</span>
+                        </>
+                      )}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAnalyze}
-                    disabled={!url || isAnalyzing}
-                    className="bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-bold px-5 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-amber-400/20 min-w-[140px] justify-center"
-                  >
-                    {isAnalyzing ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>AI Analyze</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* AI Analysis Result */}
-              {analysis && (
-                <div className="mb-8 bg-amber-50 rounded-2xl p-5 border border-amber-100 animate-fadeIn relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <Wand2 className="w-24 h-24 text-amber-500" />
-                  </div>
-                  <div className="flex items-center gap-2 mb-3 text-amber-700 relative z-10">
-                    <Wand2 className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Gemini Insights</span>
-                  </div>
-                  <h3 className="text-slate-900 font-bold text-lg mb-1 relative z-10">{analysis.title}</h3>
-                  <p className="text-stone-600 text-sm leading-relaxed relative z-10">{analysis.description}</p>
-
-                  <div className="flex gap-2 mt-4 relative z-10">
-                    {analysis.tags.slice(0, 3).map(tag => (
-                      <span key={tag} className="text-[10px] uppercase font-bold bg-white text-amber-700 px-2 py-1 rounded border border-amber-200">#{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <form onSubmit={handleSingleSubmit}>
-                <div className="mb-8">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Short Link (Slug)</label>
-                  <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-4 py-1 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500 transition-all">
-                    <span className="text-stone-500 font-mono text-sm mr-2 border-r border-stone-200 pr-2 py-2.5">link.ly/</span>
-                    <input
-                      type="text"
-                      placeholder="custom-slug"
-                      className="bg-transparent border-none text-slate-900 p-2.5 w-full focus:outline-none focus:ring-0 font-medium placeholder:text-stone-400"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                    />
-                  </div>
                 </div>
 
-                {/* Tags and Folder */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Tags</label>
-                    <TagInput
-                      userId={user?.id || ''}
-                      selectedTags={tags}
-                      onChange={setTags}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Folder</label>
-                    <select
-                      value={folderId || ''}
-                      onChange={(e) => setFolderId(e.target.value || null)}
-                      className="w-full bg-stone-50 border border-stone-200 text-slate-900 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                    >
-                      <option value="">No Folder</option>
-                      {folders.map(folder => (
-                        <option key={folder.id} value={folder.id}>{folder.name}</option>
+                {/* AI Analysis Result */}
+                {analysis && (
+                  <div className="mb-8 bg-amber-50 rounded-2xl p-5 border border-amber-100 animate-fadeIn relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <Wand2 className="w-24 h-24 text-amber-500" />
+                    </div>
+                    <div className="flex items-center gap-2 mb-3 text-amber-700 relative z-10">
+                      <Wand2 className="w-4 h-4" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Gemini Insights</span>
+                    </div>
+                    <h3 className="text-slate-900 font-bold text-lg mb-1 relative z-10">{analysis.title}</h3>
+                    <p className="text-stone-600 text-sm leading-relaxed relative z-10">{analysis.description}</p>
+
+                    <div className="flex gap-2 mt-4 relative z-10">
+                      {analysis.tags.slice(0, 3).map(tag => (
+                        <span key={tag} className="text-[10px] uppercase font-bold bg-white text-amber-700 px-2 py-1 rounded border border-amber-200">#{tag}</span>
                       ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Advanced Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="w-full flex items-center justify-between text-stone-600 text-sm font-bold mb-4 p-4 bg-stone-50 rounded-xl hover:bg-stone-100 transition-colors border border-stone-200"
-                >
-                  <span className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-amber-500" />
-                    Advanced Options
-                  </span>
-                  {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-
-                {showAdvanced && (
-                  <div className="space-y-6 mb-8 p-6 bg-stone-50 rounded-2xl border border-stone-200 animate-fadeIn">
-
-                    {/* Device Targets */}
-                    <div>
-                      <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Smartphone className="w-4 h-4 text-amber-500" /> Device Targeting
-                      </h4>
-                      <div className="space-y-3">
-                        <input type="text" placeholder="iOS Destination (App Store)" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400" value={smartRedirects.ios} onChange={e => setSmartRedirects({ ...smartRedirects, ios: e.target.value })} />
-                        <input type="text" placeholder="Android Destination (Play Store)" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400" value={smartRedirects.android} onChange={e => setSmartRedirects({ ...smartRedirects, android: e.target.value })} />
-                      </div>
-                    </div>
-
-                    {/* Geo Targets */}
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-amber-500" /> Geo-Targeting
-                        </h4>
-                        <button type="button" onClick={handleAddGeoRule} className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg font-bold transition-colors">+ Add Rule</button>
-                      </div>
-
-                      {geoRedirects.map((rule, idx) => (
-                        <div key={idx} className="flex gap-2 mb-2">
-                          <input
-                            type="text"
-                            placeholder="US"
-                            className="w-20 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl uppercase text-center font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
-                            maxLength={2}
-                            value={rule.country}
-                            onChange={e => updateGeoRule(idx, 'country', e.target.value)}
-                          />
-                          <input
-                            type="text"
-                            placeholder="https://us.example.com"
-                            className="flex-1 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
-                            value={rule.url}
-                            onChange={e => updateGeoRule(idx, 'url', e.target.value)}
-                          />
-                          <button type="button" onClick={() => removeGeoRule(idx)} className="text-stone-400 hover:text-red-500 p-3 hover:bg-red-50 rounded-xl transition-colors">
-                            <Trash className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                      {geoRedirects.length === 0 && (
-                        <p className="text-xs text-stone-400 italic text-center py-2">No geo-rules added yet.</p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-stone-200">
-                      <div>
-                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> Start Date
-                        </label>
-                        <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> End Date
-                        </label>
-                        <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-stone-200">
-                      <div>
-                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Click Limit</label>
-                        <input type="number" placeholder="∞" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickLimit} onChange={e => setClickLimit(e.target.value)} />
-                      </div>
-                    </div>
-
-                    {/* Password Protection */}
-                    <div className="pt-2 border-t border-stone-200">
-                      <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <Lock className="w-3 h-3" /> Password Protection
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Optional: Set a password"
-                        className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                      />
-                    </div>
-
-                    {/* A/B Testing */}
-                    <div className="pt-2 border-t border-stone-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                          <Split className="w-3 h-3" /> A/B Testing
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-stone-400 font-medium">{abTestEnabled ? 'Enabled' : 'Disabled'}</span>
-                          <button
-                            type="button"
-                            onClick={() => setAbTestEnabled(!abTestEnabled)}
-                            className={`w-10 h-5 rounded-full transition-colors relative ${abTestEnabled ? 'bg-amber-500' : 'bg-stone-200'}`}
-                          >
-                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${abTestEnabled ? 'left-6' : 'left-1'}`} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {abTestEnabled && (
-                        <div className="space-y-3 animate-fadeIn">
-                          <p className="text-xs text-stone-500 mb-2">
-                            Add variants to split traffic. Weights determine the percentage of traffic each URL receives.
-                          </p>
-
-                          {variants.map((variant, idx) => (
-                            <div key={idx} className="flex gap-2 items-center">
-                              <span className="text-xs font-bold text-stone-400 w-4">{String.fromCharCode(65 + idx)}</span>
-                              <input
-                                type="url"
-                                placeholder="https://variant-url.com"
-                                className="flex-1 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
-                                value={variant.url}
-                                onChange={e => {
-                                  const newVariants = [...variants];
-                                  newVariants[idx].url = e.target.value;
-                                  setVariants(newVariants);
-                                }}
-                              />
-                              <div className="relative w-24">
-                                <input
-                                  type="number"
-                                  placeholder="%"
-                                  min="0"
-                                  max="100"
-                                  className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400 pr-8"
-                                  value={variant.weight}
-                                  onChange={e => {
-                                    const newVariants = [...variants];
-                                    newVariants[idx].weight = parseInt(e.target.value) || 0;
-                                    setVariants(newVariants);
-                                  }}
-                                />
-                                <span className="absolute right-3 top-3 text-stone-400 text-xs font-bold">%</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newVariants = variants.filter((_, i) => i !== idx);
-                                  setVariants(newVariants);
-                                }}
-                                className="text-stone-400 hover:text-red-500 p-3 hover:bg-red-50 rounded-xl transition-colors"
-                              >
-                                <Trash className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
-
-                          <button
-                            type="button"
-                            onClick={() => setVariants([...variants, { id: uuidv4(), url: '', weight: 50 }])}
-                            className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-4 py-2 rounded-lg font-bold transition-colors w-full flex items-center justify-center gap-2"
-                          >
-                            <Split className="w-3 h-3" /> Add Variant
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
 
-                <div className="flex justify-end gap-3 pt-6 border-t border-stone-100">
+                <form onSubmit={handleSingleSubmit}>
+                  <div className="mb-8">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Short Link (Slug)</label>
+                    <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-4 py-1 focus-within:ring-2 focus-within:ring-amber-500/20 focus:border-amber-500 transition-all">
+                      <span className="text-stone-500 font-mono text-sm mr-2 border-r border-stone-200 pr-2 py-2.5">link.ly/</span>
+                      <input
+                        type="text"
+                        placeholder="custom-slug"
+                        className="bg-transparent border-none text-slate-900 p-2.5 w-full focus:outline-none focus:ring-0 font-medium placeholder:text-stone-400"
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tags and Folder */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Tags</label>
+                      <TagInput
+                        userId={user?.id || ''}
+                        selectedTags={tags}
+                        onChange={setTags}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Folder</label>
+                      <select
+                        value={folderId || ''}
+                        onChange={(e) => setFolderId(e.target.value || null)}
+                        className="w-full bg-stone-50 border border-stone-200 text-slate-900 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      >
+                        <option value="">No Folder</option>
+                        {folders.map(folder => (
+                          <option key={folder.id} value={folder.id}>{folder.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Advanced Toggle */}
                   <button
                     type="button"
-                    onClick={resetAndClose}
-                    className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold transition-colors hover:bg-stone-50 rounded-xl"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="w-full flex items-center justify-between text-stone-600 text-sm font-bold mb-4 p-4 bg-stone-50 rounded-xl hover:bg-stone-100 transition-colors border border-stone-200"
                   >
-                    Cancel
+                    <span className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-amber-500" />
+                      Advanced Options
+                    </span>
+                    {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
+
+                  {showAdvanced && (
+                    <div className="space-y-6 mb-8 p-6 bg-stone-50 rounded-2xl border border-stone-200 animate-fadeIn">
+
+                      {/* Device Targets */}
+                      <div>
+                        <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Smartphone className="w-4 h-4 text-amber-500" /> Device Targeting
+                          <InfoTooltip
+                            id="device-targeting-help"
+                            content="Redirect users to specific URLs based on their device (iOS, Android, or Desktop). Great for app downloads."
+                          />
+                        </h4>
+                        <div className="space-y-3">
+                          <input type="text" placeholder="iOS Destination (App Store)" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400" value={smartRedirects.ios} onChange={e => setSmartRedirects({ ...smartRedirects, ios: e.target.value })} />
+                          <input type="text" placeholder="Android Destination (Play Store)" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400" value={smartRedirects.android} onChange={e => setSmartRedirects({ ...smartRedirects, android: e.target.value })} />
+                        </div>
+                      </div>
+
+                      {/* Geo Targets */}
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-amber-500" /> Geo-Targeting
+                            <InfoTooltip
+                              id="geo-targeting-help"
+                              content="Redirect users to different URLs based on their country. Useful for localized content or regional stores."
+                            />
+                          </h4>
+                          <button type="button" onClick={handleAddGeoRule} className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg font-bold transition-colors">+ Add Rule</button>
+                        </div>
+
+                        {geoRedirects.map((rule, idx) => (
+                          <div key={idx} className="flex gap-2 mb-2">
+                            <input
+                              type="text"
+                              placeholder="US"
+                              className="w-20 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl uppercase text-center font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                              maxLength={2}
+                              value={rule.country}
+                              onChange={e => updateGeoRule(idx, 'country', e.target.value)}
+                            />
+                            <input
+                              type="text"
+                              placeholder="https://us.example.com"
+                              className="flex-1 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                              value={rule.url}
+                              onChange={e => updateGeoRule(idx, 'url', e.target.value)}
+                            />
+                            <button type="button" onClick={() => removeGeoRule(idx)} className="text-stone-400 hover:text-red-500 p-3 hover:bg-red-50 rounded-xl transition-colors">
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        {geoRedirects.length === 0 && (
+                          <p className="text-xs text-stone-400 italic text-center py-2">No geo-rules added yet.</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-stone-200">
+                        <div>
+                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> Start Date
+                          </label>
+                          <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> End Date
+                          </label>
+                          <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-stone-200">
+                        <div>
+                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Click Limit</label>
+                          <input type="number" placeholder="∞" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickLimit} onChange={e => setClickLimit(e.target.value)} />
+                        </div>
+                      </div>
+
+                      {/* Password Protection */}
+                      <div className="pt-2 border-t border-stone-200">
+                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <Lock className="w-3 h-3" /> Password Protection
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Optional: Set a password"
+                          className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                        />
+                      </div>
+
+                      {/* A/B Testing */}
+                      <div className="pt-2 border-t border-stone-200">
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                            <Split className="w-3 h-3" /> A/B Testing
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-stone-400 font-medium">{abTestEnabled ? 'Enabled' : 'Disabled'}</span>
+                            <button
+                              type="button"
+                              onClick={() => setAbTestEnabled(!abTestEnabled)}
+                              className={`w-10 h-5 rounded-full transition-colors relative ${abTestEnabled ? 'bg-amber-500' : 'bg-stone-200'}`}
+                            >
+                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${abTestEnabled ? 'left-6' : 'left-1'}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {abTestEnabled && (
+                          <div className="space-y-3 animate-fadeIn">
+                            <p className="text-xs text-stone-500 mb-2">
+                              Add variants to split traffic. Weights determine the percentage of traffic each URL receives.
+                            </p>
+
+                            {variants.map((variant, idx) => (
+                              <div key={idx} className="flex gap-2 items-center">
+                                <span className="text-xs font-bold text-stone-400 w-4">{String.fromCharCode(65 + idx)}</span>
+                                <input
+                                  type="url"
+                                  placeholder="https://variant-url.com"
+                                  className="flex-1 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                                  value={variant.url}
+                                  onChange={e => {
+                                    const newVariants = [...variants];
+                                    newVariants[idx].url = e.target.value;
+                                    setVariants(newVariants);
+                                  }}
+                                />
+                                <div className="relative w-24">
+                                  <input
+                                    type="number"
+                                    placeholder="%"
+                                    min="0"
+                                    max="100"
+                                    className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400 pr-8"
+                                    value={variant.weight}
+                                    onChange={e => {
+                                      const newVariants = [...variants];
+                                      newVariants[idx].weight = parseInt(e.target.value) || 0;
+                                      setVariants(newVariants);
+                                    }}
+                                  />
+                                  <span className="absolute right-3 top-3 text-stone-400 text-xs font-bold">%</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newVariants = variants.filter((_, i) => i !== idx);
+                                    setVariants(newVariants);
+                                  }}
+                                  className="text-stone-400 hover:text-red-500 p-3 hover:bg-red-50 rounded-xl transition-colors"
+                                >
+                                  <Trash className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={() => setVariants([...variants, { id: uuidv4(), url: '', weight: 50 }])}
+                              className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-4 py-2 rounded-lg font-bold transition-colors w-full flex items-center justify-center gap-2"
+                            >
+                              <Split className="w-3 h-3" /> Add Variant
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-3 pt-6 border-t border-stone-100">
+                    <button
+                      type="button"
+                      onClick={resetAndClose}
+                      className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold transition-colors hover:bg-stone-50 rounded-xl"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!url || !slug}
+                      className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-amber-400/20"
+                    >
+                      {editingLink ? 'Save Changes' : 'Create Link'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div className="flex flex-col h-full">
+                <div className="mb-4">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Paste URLs (One per line)</label>
+                  <textarea
+                    className="w-full h-64 bg-stone-50 border border-stone-200 text-slate-900 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono text-sm leading-relaxed placeholder:text-stone-400"
+                    placeholder={`https://google.com\nhttps://youtube.com\nhttps://twitter.com`}
+                    value={bulkUrls}
+                    onChange={e => setBulkUrls(e.target.value)}
+                  />
+                  <p className="text-xs text-stone-500 mt-2 flex items-center gap-1">
+                    <Layers className="w-3 h-3" /> Up to 50 URLs allowed per batch.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3 pt-6 border-t border-stone-100 mt-auto">
+                  <button onClick={resetAndClose} className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold hover:bg-stone-50 rounded-xl">Cancel</button>
                   <button
-                    type="submit"
-                    disabled={!url || !slug}
-                    className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-amber-400/20"
+                    onClick={handleBulkSubmit}
+                    disabled={!bulkUrls.trim()}
+                    className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-amber-400/20"
                   >
-                    {editingLink ? 'Save Changes' : 'Create Link'}
+                    <Layers className="w-4 h-4" /> Bulk Generate
                   </button>
                 </div>
-              </form>
-            </>
-          ) : (
-            <div className="flex flex-col h-full">
-              <div className="mb-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Paste URLs (One per line)</label>
-                <textarea
-                  className="w-full h-64 bg-stone-50 border border-stone-200 text-slate-900 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono text-sm leading-relaxed placeholder:text-stone-400"
-                  placeholder={`https://google.com\nhttps://youtube.com\nhttps://twitter.com`}
-                  value={bulkUrls}
-                  onChange={e => setBulkUrls(e.target.value)}
-                />
-                <p className="text-xs text-stone-500 mt-2 flex items-center gap-1">
-                  <Layers className="w-3 h-3" /> Up to 50 URLs allowed per batch.
-                </p>
               </div>
-              <div className="flex justify-end gap-3 pt-6 border-t border-stone-100 mt-auto">
-                <button onClick={resetAndClose} className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold hover:bg-stone-50 rounded-xl">Cancel</button>
-                <button
-                  onClick={handleBulkSubmit}
-                  disabled={!bulkUrls.trim()}
-                  className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-amber-400/20"
-                >
-                  <Layers className="w-4 h-4" /> Bulk Generate
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div >
+            )}
+          </div>
+        </motion.div>
 
-      <UTMBuilderModal
-        isOpen={showUTMBuilder}
-        onClose={() => setShowUTMBuilder(false)}
-        baseUrl={url}
-        onApply={(newUrl) => setUrl(newUrl)}
-      />
-    </div >
+        <UTMBuilderModal
+          isOpen={showUTMBuilder}
+          onClose={() => setShowUTMBuilder(false)}
+          baseUrl={url}
+          onApply={(newUrl) => setUrl(newUrl)}
+        />
+      </div>
+    </div>
   );
 };
 

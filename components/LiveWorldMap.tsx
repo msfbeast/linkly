@@ -9,6 +9,8 @@ import { Maximize2, Minimize2, Globe, Map as MapIcon } from 'lucide-react';
 
 // URL to a valid TopoJSON file for the world map
 const GEO_URL_WORLD = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+// URL to a valid TopoJSON file for the India map
+const GEO_URL_INDIA = "/india-states.json";
 // URL to a valid TopoJSON file for the US map
 const GEO_URL_US = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
@@ -25,7 +27,7 @@ interface MapClick {
     timestamp: number;
 }
 
-type ViewMode = 'world' | 'usa';
+type ViewMode = 'world' | 'usa' | 'india';
 
 const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '' }) => {
     const [recentClicks, setRecentClicks] = useState<MapClick[]>([]);
@@ -40,10 +42,14 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                 if (click.country) {
                     counts[click.country] = (counts[click.country] || 0) + 1;
                 }
-            } else {
+            } else if (viewMode === 'usa') {
                 // In USA mode, aggregate by region (State)
-                // We check if the click is from US to avoid pollution
                 if (click.country === 'United States' && click.region) {
+                    counts[click.region] = (counts[click.region] || 0) + 1;
+                }
+            } else if (viewMode === 'india') {
+                // In India mode, aggregate by region (State)
+                if (click.country === 'India' && click.region) {
                     counts[click.region] = (counts[click.region] || 0) + 1;
                 }
             }
@@ -93,6 +99,19 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
         return () => unsubscribe();
     }, []);
 
+    const getProjectionConfig = () => {
+        switch (viewMode) {
+            case 'usa':
+                return { projection: "geoAlbersUsa", config: { scale: 1000 } };
+            case 'india':
+                return { projection: "geoMercator", config: { center: [80, 22] as [number, number], scale: 800 } };
+            default:
+                return { projection: "geoMercator", config: { scale: 140 } };
+        }
+    };
+
+    const { projection, config } = getProjectionConfig();
+
     return (
         <div className={`relative bg-white border border-stone-200 rounded-2xl overflow-hidden transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : 'h-[500px]'} ${className}`}>
 
@@ -104,7 +123,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
                         </span>
-                        {viewMode === 'world' ? 'Live Global View' : 'Live US View'}
+                        {viewMode === 'world' ? 'Live Global View' : viewMode === 'usa' ? 'Live US View' : 'Live India View'}
                     </h3>
                 </div>
             </div>
@@ -124,7 +143,14 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                         className={`p-2 rounded-lg transition-colors ${viewMode === 'usa' ? 'bg-blue-50 text-blue-600' : 'text-stone-400 hover:text-slate-900'}`}
                         title="USA View"
                     >
-                        <MapIcon className="w-5 h-5" />
+                        <span className="text-xs font-bold">US</span>
+                    </button>
+                    <button
+                        onClick={() => setViewMode('india')}
+                        className={`p-2 rounded-lg transition-colors ${viewMode === 'india' ? 'bg-blue-50 text-blue-600' : 'text-stone-400 hover:text-slate-900'}`}
+                        title="India View"
+                    >
+                        <span className="text-xs font-bold">IN</span>
                     </button>
                 </div>
 
@@ -139,14 +165,15 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
             {/* Map */}
             <ComposableMap
                 key={viewMode}
-                projection={viewMode === 'world' ? "geoMercator" : "geoAlbersUsa"}
-                projectionConfig={viewMode === 'world' ? { scale: 140 } : { scale: 1000 }}
+                projection={projection as any}
+                projectionConfig={config}
                 className="w-full h-full bg-[#FAFAFA]" // Very light grey background
             >
                 <ZoomableGroup center={[0, 0]} zoom={1} minZoom={1} maxZoom={4}>
-                    <Geographies geography={viewMode === 'world' ? GEO_URL_WORLD : GEO_URL_US}>
+                    <Geographies geography={viewMode === 'world' ? GEO_URL_WORLD : viewMode === 'usa' ? GEO_URL_US : GEO_URL_INDIA}>
                         {({ geographies }) =>
                             geographies.map((geo) => {
+                                // Adjust property name based on map source
                                 const locationName = geo.properties.name;
                                 const clickCount = locationCounts[locationName] || 0;
 

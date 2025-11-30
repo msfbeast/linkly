@@ -74,24 +74,24 @@ export const deleteBioProfile = (id: string): void => {
 // --- ANALYTICS ---
 
 const getDeviceAndOS = (ua: string) => {
-  let os: ClickEvent['os'] = 'Other';
-  let device: ClickEvent['device'] = 'Desktop';
+  let os: ClickEvent['os'] = 'unknown';
+  let device: ClickEvent['device'] = 'desktop';
 
   if (/android/i.test(ua)) {
-    os = 'Android';
-    device = 'Mobile';
+    os = 'android';
+    device = 'mobile';
   } else if (/iPad|iPhone|iPod/.test(ua)) {
-    os = 'iOS';
-    device = /iPad/.test(ua) ? 'Tablet' : 'Mobile';
+    os = 'ios';
+    device = /iPad/.test(ua) ? 'tablet' : 'mobile';
   } else if (/Win/.test(ua)) {
-    os = 'Windows';
+    os = 'windows';
   } else if (/Mac/.test(ua)) {
-    os = 'MacOS';
+    os = 'macos';
   } else if (/Linux/.test(ua)) {
-    os = 'Linux';
+    os = 'linux';
   }
 
-  if (/Mobile/.test(ua)) device = 'Mobile';
+  if (/Mobile/.test(ua)) device = 'mobile';
 
   return { os, device };
 };
@@ -102,7 +102,7 @@ export const incrementClicks = (id: string): void => {
   if (index !== -1) {
     const ua = navigator.userAgent;
     const { os, device } = getDeviceAndOS(ua);
-    
+
     // Simple heuristic for country from locale (e.g. en-US -> US)
     // In a real app, this would be done via IP geolocation server-side
     const locale = navigator.language || 'en-US';

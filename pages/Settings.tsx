@@ -123,10 +123,31 @@ const Settings: React.FC = () => {
   const [amazonTag, setAmazonTag] = useState(user?.amazonAssociateTag || '');
   const [isSavingMonetization, setIsSavingMonetization] = useState(false);
 
+  // Notification state
+  const [notifications, setNotifications] = useState({
+    email: true,
+    milestones: true,
+    reports: true,
+    security: true
+  });
+
   React.useEffect(() => {
     if (user?.flipkartAffiliateId) setFlipkartId(user.flipkartAffiliateId);
     if (user?.amazonAssociateTag) setAmazonTag(user.amazonAssociateTag);
+    if (user?.settingsNotifications) {
+      setNotifications(user.settingsNotifications);
+    }
   }, [user]);
+
+  const handleNotificationChange = async (key: keyof typeof notifications) => {
+    const newSettings = { ...notifications, [key]: !notifications[key] };
+    setNotifications(newSettings);
+    try {
+      await import('../services/storage/supabaseAdapter').then(m => m.supabaseAdapter.updateNotificationSettings(newSettings));
+    } catch (error) {
+      console.error('Failed to update notifications', error);
+    }
+  };
 
   const handleSaveMonetization = async () => {
     setIsSavingMonetization(true);
@@ -310,18 +331,23 @@ const Settings: React.FC = () => {
 
                 <div className="space-y-4">
                   {[
-                    { label: 'Email notifications', desc: 'Receive updates about your links via email' },
-                    { label: 'Click milestones', desc: 'Get notified when links reach click milestones' },
-                    { label: 'Weekly reports', desc: 'Receive weekly analytics summaries' },
-                    { label: 'Security alerts', desc: 'Get notified about suspicious activity' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center justify-between py-3 border-b border-stone-100 last:border-0">
+                    { key: 'email', label: 'Email notifications', desc: 'Receive updates about your links via email' },
+                    { key: 'milestones', label: 'Click milestones', desc: 'Get notified when links reach click milestones' },
+                    { key: 'reports', label: 'Weekly reports', desc: 'Receive weekly analytics summaries' },
+                    { key: 'security', label: 'Security alerts', desc: 'Get notified about suspicious activity' },
+                  ].map((item) => (
+                    <div key={item.key} className="flex items-center justify-between py-3 border-b border-stone-100 last:border-0">
                       <div>
                         <p className="text-slate-900 font-medium">{item.label}</p>
                         <p className="text-stone-500 text-sm">{item.desc}</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" defaultChecked={i < 2} />
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={notifications[item.key as keyof typeof notifications]}
+                          onChange={() => handleNotificationChange(item.key as keyof typeof notifications)}
+                        />
                         <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-400"></div>
                       </label>
                     </div>

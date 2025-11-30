@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, BarChart2, Settings, Link as LinkIcon, Code2, Layers, UserCircle2, Zap, ShoppingBag } from 'lucide-react';
 import { ViewState } from '../types';
+import TeamSwitcher from './TeamSwitcher';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -20,17 +21,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
 
   return (
     <div className="fixed left-0 top-0 h-full w-64 bg-[#FDFBF7] border-r border-stone-200 p-6 flex flex-col z-20 transition-colors duration-200">
-      {/* Brand */}
-      <div className="flex items-center gap-3 mb-10 px-2 mt-2">
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-yellow-200 rounded-lg blur opacity-40 group-hover:opacity-75 transition duration-200"></div>
-          <div className="relative bg-white p-2 rounded-lg border border-stone-200 shadow-sm">
-            <LinkIcon className="w-5 h-5 text-yellow-500" />
-          </div>
-        </div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-          Gather<span className="text-yellow-500">.</span>
-        </h1>
+      {/* Team Switcher */}
+      <div className="mb-8 px-2">
+        <TeamSwitcher />
       </div>
 
       <nav className="flex-1 space-y-2">
@@ -41,6 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
             <button
               key={item.id}
               onClick={() => onChangeView(item.id)}
+              data-tour={item.id === ViewState.BIO_PAGES ? 'bio-nav' : undefined}
               className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group overflow-hidden ${isActive
                 ? 'text-slate-900'
                 : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'

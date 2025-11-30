@@ -34,8 +34,8 @@ function rowToClickEvent(row: Record<string, unknown>): ClickEvent {
   return {
     timestamp: new Date(row.timestamp as string).getTime(),
     referrer: (row.referrer as string) || 'direct',
-    device: (row.device as string) || 'Unknown',
-    os: (row.os as string) || 'Unknown',
+    device: (row.device as any) || 'unknown',
+    os: (row.os as any) || 'unknown',
     country: row.country as string | undefined,
     browser: row.browser as string | undefined,
     countryCode: row.country_code as string | undefined,
@@ -58,7 +58,7 @@ function rowToClickEvent(row: Record<string, unknown>): ClickEvent {
 export function subscribeToClickEvents(callback: ClickEventCallback): () => void {
   if (!isSupabaseConfigured() || !supabase) {
     console.warn('[Realtime] Supabase not configured, skipping subscription');
-    return () => {};
+    return () => { };
   }
 
   clickEventCallbacks.add(callback);
@@ -66,7 +66,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
   // Create channel if not exists
   if (!clickEventsChannel) {
     console.log('[Realtime] Creating click_events subscription...');
-    
+
     clickEventsChannel = supabase
       .channel('click_events_changes')
       .on(
@@ -83,7 +83,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
             linkId: row.link_id as string,
             click: rowToClickEvent(row),
           };
-          
+
           // Notify all callbacks
           clickEventCallbacks.forEach(cb => cb(clickEvent));
         }
@@ -96,7 +96,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
   // Return unsubscribe function
   return () => {
     clickEventCallbacks.delete(callback);
-    
+
     // If no more callbacks, unsubscribe from channel
     if (clickEventCallbacks.size === 0 && clickEventsChannel) {
       console.log('[Realtime] Unsubscribing from click_events...');
@@ -112,7 +112,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
 export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void {
   if (!isSupabaseConfigured() || !supabase) {
     console.warn('[Realtime] Supabase not configured, skipping subscription');
-    return () => {};
+    return () => { };
   }
 
   linkUpdateCallbacks.add(callback);
@@ -120,7 +120,7 @@ export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void
   // Create channel if not exists
   if (!linksChannel) {
     console.log('[Realtime] Creating links subscription...');
-    
+
     linksChannel = supabase
       .channel('links_changes')
       .on(
@@ -136,11 +136,11 @@ export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void
           const update: RealtimeLinkUpdate = {
             linkId: row.id as string,
             clicks: row.clicks as number,
-            lastClickedAt: row.last_clicked_at 
-              ? new Date(row.last_clicked_at as string).getTime() 
+            lastClickedAt: row.last_clicked_at
+              ? new Date(row.last_clicked_at as string).getTime()
               : Date.now(),
           };
-          
+
           // Notify all callbacks
           linkUpdateCallbacks.forEach(cb => cb(update));
         }
@@ -153,7 +153,7 @@ export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void
   // Return unsubscribe function
   return () => {
     linkUpdateCallbacks.delete(callback);
-    
+
     // If no more callbacks, unsubscribe from channel
     if (linkUpdateCallbacks.size === 0 && linksChannel) {
       console.log('[Realtime] Unsubscribing from links...');

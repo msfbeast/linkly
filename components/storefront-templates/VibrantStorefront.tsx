@@ -86,11 +86,9 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product, i) => (
-                            <a
+                            <Link
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                to={`/store/product/${product.id}`}
                                 className={`group bg-white rounded-[2rem] border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all ${i % 2 === 0 ? 'rotate-1' : '-rotate-1'} hover:rotate-0`}
                             >
                                 <div className="aspect-square bg-white rounded-[1.5rem] mb-4 overflow-hidden relative border-2 border-black">
@@ -119,7 +117,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </div>
                                     </div>
                                 </div>
-                            </a>
+                            </Link>
                         ))}
                     </div>
                 </div>

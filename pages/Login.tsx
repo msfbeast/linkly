@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, Link as LinkIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import AuthVisuals from '../components/AuthVisuals';
 
 /**
  * Login Page Component
@@ -77,44 +78,38 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0f] flex items-center justify-center p-4 transition-colors duration-200">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo/Brand */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <LinkIcon className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
+    <div className="min-h-screen flex bg-white">
+      {/* Left Side - Form */}
+      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24 bg-white relative z-10">
+        <div className="mx-auto w-full max-w-sm lg:w-96">
+          <div className="mb-10">
+            <Link to="/" className="inline-block mb-8">
+              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/20">
+                <LinkIcon className="w-5 h-5 text-white" />
+              </div>
+            </Link>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900">Welcome back</h2>
+            <p className="mt-2 text-sm text-stone-500">
+              Sign in to your Gather account
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Welcome back</h1>
-          <p className="text-slate-600 dark:text-slate-400">Sign in to your Gather account</p>
-        </div>
 
-        {/* Login Form */}
-        <div className="bg-white dark:bg-[#12121a] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm dark:shadow-none">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* General Error Message */}
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl"
+                className="flex items-center gap-3 p-4 bg-red-50 text-red-600 rounded-xl text-sm"
               >
-                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                <p className="text-red-400 text-sm">{error}</p>
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <p>{error}</p>
               </motion.div>
             )}
 
-            {/* Email Field - Requirement 7.1 */}
+            {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Email address
-              </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                 <input
                   id="email"
                   type="email"
@@ -125,29 +120,20 @@ const Login: React.FC = () => {
                       setFieldErrors((prev) => ({ ...prev, email: undefined }));
                     }
                   }}
-                  placeholder="you@example.com"
-                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${fieldErrors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
-                    } text-slate-900 dark:text-white pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
+                  placeholder="Email"
+                  className={`block w-full rounded-xl border-0 bg-stone-50 py-3.5 px-4 text-slate-900 shadow-sm ring-1 ring-inset ${fieldErrors.email ? 'ring-red-300 focus:ring-red-500' : 'ring-stone-200 focus:ring-slate-900'
+                    } placeholder:text-stone-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 transition-all`}
                   disabled={isLoading}
-                  aria-invalid={!!fieldErrors.email}
-                  aria-describedby={fieldErrors.email ? 'email-error' : undefined}
                 />
               </div>
-              {/* Inline error - Requirement 7.3 */}
               {fieldErrors.email && (
-                <p id="email-error" className="mt-2 text-sm text-red-400">
-                  {fieldErrors.email}
-                </p>
+                <p className="mt-2 text-sm text-red-600">{fieldErrors.email}</p>
               )}
             </div>
 
-            {/* Password Field - Requirement 7.1 */}
+            {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Password
-              </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -158,81 +144,71 @@ const Login: React.FC = () => {
                       setFieldErrors((prev) => ({ ...prev, password: undefined }));
                     }
                   }}
-                  placeholder="Enter your password"
-                  className={`w-full bg-slate-50 dark:bg-[#0a0a0f] border ${fieldErrors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-white/10'
-                    } text-slate-900 dark:text-white pl-12 pr-12 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500`}
+                  placeholder="Password"
+                  className={`block w-full rounded-xl border-0 bg-stone-50 py-3.5 px-4 text-slate-900 shadow-sm ring-1 ring-inset ${fieldErrors.password ? 'ring-red-300 focus:ring-red-500' : 'ring-stone-200 focus:ring-slate-900'
+                    } placeholder:text-stone-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 transition-all`}
                   disabled={isLoading}
-                  aria-invalid={!!fieldErrors.password}
-                  aria-describedby={fieldErrors.password ? 'password-error' : undefined}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {/* Inline error - Requirement 7.3 */}
               {fieldErrors.password && (
-                <p id="password-error" className="mt-2 text-sm text-red-400">
-                  {fieldErrors.password}
-                </p>
+                <p className="mt-2 text-sm text-red-600">{fieldErrors.password}</p>
               )}
             </div>
 
-            {/* Remember Me & Forgot Password - Requirements 2.3, 2.4 */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-[#0a0a0f] text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
+                  className="w-4 h-4 rounded border-stone-300 bg-stone-50 text-slate-900 focus:ring-slate-900"
                   disabled={isLoading}
                 />
-                <span className="text-sm text-slate-600 dark:text-slate-400">Remember me</span>
+                <span className="text-sm text-stone-600">Remember me</span>
               </label>
               <Link
                 to="/reset-password"
-                className="text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
+                className="text-sm font-semibold text-indigo-600 hover:text-indigo-500"
               >
                 Forgot password?
               </Link>
             </div>
 
-            {/* Submit Button - Requirement 7.4 */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-500/50 text-black font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="flex w-full justify-center rounded-full bg-slate-900 px-3 py-3.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Signing in...
-                </>
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 'Sign in'
               )}
             </button>
           </form>
 
-          {/* Link to Registration */}
-          <div className="mt-6 text-center">
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
+          <div className="mt-8 text-center">
+            <p className="text-sm text-stone-500">
               Don't have an account?{' '}
-              <Link
-                to="/register"
-                className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-medium transition-colors"
-              >
+              <Link to="/register" className="font-semibold text-indigo-600 hover:text-indigo-500">
                 Sign up
               </Link>
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Right Side - Visual Showcase */}
+      <div className="hidden lg:block relative w-0 flex-1 overflow-hidden">
+        <AuthVisuals />
+      </div>
     </div>
   );
 };

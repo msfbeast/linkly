@@ -1,29 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Sidebar';
 import TopNavigation from './components/TopNavigation';
-import Dashboard from './pages/Dashboard';
-import Links from './pages/Links';
-import Redirect from './pages/Redirect';
-import BioDashboard from './pages/BioDashboard';
-import BioView from './pages/BioView';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ResetPassword from './pages/ResetPassword';
-import UpdatePassword from './pages/UpdatePassword';
-import Settings from './pages/Settings';
-import GlobalAnalytics from './pages/GlobalAnalytics';
-import ProductManager from './pages/ProductManager';
-import Storefront from './pages/Storefront';
-import ProductPage from './pages/ProductPage';
-import TestStorefront from './pages/TestStorefront';
-import LinkAnalytics from './pages/LinkAnalytics';
-import ProtectedRoute from './components/ProtectedRoute';
+import LoadingFallback from './components/LoadingFallback';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ViewState, LinkData } from './types';
 import { supabaseAdapter } from './services/storage/supabaseAdapter';
 import { Copy, Terminal } from 'lucide-react';
+import LandingPage from './pages/LandingPage';
+import OnboardingTour from './components/OnboardingTour';
+import { TrialCountdown } from './components/TrialCountdown';
+import InstallPrompt from './components/InstallPrompt';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Redirect from './pages/Redirect';
+import ResetPassword from './pages/ResetPassword';
+import UpdatePassword from './pages/UpdatePassword';
+import ClaimLinkPage from './pages/ClaimLinkPage';
+import BioView from './pages/BioView';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Lazy Load Non-Critical Pages
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Links = React.lazy(() => import('./pages/Links'));
+const BioDashboard = React.lazy(() => import('./pages/BioDashboard'));
+const PricingPage = React.lazy(() => import('./pages/PricingPage').then(module => ({ default: module.PricingPage })));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const GlobalAnalytics = React.lazy(() => import('./pages/GlobalAnalytics'));
+const ProductManager = React.lazy(() => import('./pages/ProductManager'));
+const Storefront = React.lazy(() => import('./pages/Storefront'));
+const ProductPage = React.lazy(() => import('./pages/ProductPage'));
+const TeamSettings = React.lazy(() => import('./pages/TeamSettings'));
+const TeamInviteHandler = React.lazy(() => import('./pages/TeamInviteHandler'));
+const ApiPage = React.lazy(() => import('./pages/ApiPage'));
+const LinkAnalytics = React.lazy(() => import('./pages/LinkAnalytics'));
 
 /**
  * Main Dashboard Layout Component
@@ -32,6 +44,7 @@ import { Copy, Terminal } from 'lucide-react';
 const DashboardLayout: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
   const [activeSidebarItem, setActiveSidebarItem] = useState<string>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Added state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [links, setLinks] = useState<LinkData[]>([]);
 
@@ -169,59 +182,7 @@ const DashboardLayout: React.FC = () => {
     }
   };
 
-  const ApiPage = () => (
-    <div className="p-8 max-w-5xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Developer API</h1>
-        <p className="text-slate-400">Integrate Gather into your applications.</p>
-      </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
-        <h3 className="text-white font-bold mb-4">Your API Key</h3>
-        <div className="flex items-center gap-2">
-          <code className="bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-emerald-400 font-mono flex-1">
-            lk_live_592834729834729384729384
-          </code>
-          <button className="bg-slate-800 text-slate-300 p-3 rounded-lg hover:bg-slate-700 transition-colors">
-            <Copy className="w-5 h-5" />
-          </button>
-        </div>
-        <p className="text-xs text-slate-500 mt-2">Keep this key secret. Do not share it in client-side code.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Terminal className="w-5 h-5 text-indigo-500" />
-            <h3 className="text-white font-bold">Create a Link</h3>
-          </div>
-          <pre className="bg-slate-950 p-4 rounded-xl text-xs text-slate-300 font-mono overflow-x-auto">
-            {`curl -X POST https://api.gather.ai/v1/links \\
-  -H "Authorization: Bearer lk_live_..." \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "url": "https://example.com",
-    "slug": "my-link",
-    "smartRedirects": {
-       "ios": "https://apps.apple.com..."
-    }
-  }'`}
-          </pre>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Terminal className="w-5 h-5 text-indigo-500" />
-            <h3 className="text-white font-bold">Get Analytics</h3>
-          </div>
-          <pre className="bg-slate-950 p-4 rounded-xl text-xs text-slate-300 font-mono overflow-x-auto">
-            {`curl -X GET https://api.gather.ai/v1/stats/my-link \\
-  -H "Authorization: Bearer lk_live_..."`}
-          </pre>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900">
@@ -274,26 +235,30 @@ const DashboardLayout: React.FC = () => {
         />
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto">
-          {view === ViewState.DASHBOARD && (
-            <Dashboard
-              externalModalOpen={isModalOpen}
-              setExternalModalOpen={setIsModalOpen}
-              onLinksUpdate={handleLinksUpdate}
-            />
-          )}
-          {view === ViewState.LINKS && (
-            <Links
-              externalModalOpen={isModalOpen}
-              setExternalModalOpen={setIsModalOpen}
-              onLinksUpdate={handleLinksUpdate}
-            />
-          )}
-          {view === ViewState.BIO_PAGES && <BioDashboard />}
-          {view === ViewState.API && <ApiPage />}
-          {view === ViewState.ANALYTICS && <GlobalAnalytics />}
-          {view === ViewState.PRODUCTS && <ProductManager />}
-          {view === ViewState.SETTINGS && <Settings />}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <TrialCountdown />
+
+          <main className="flex-1 overflow-y-auto bg-[#FDFBF7] scroll-smooth">
+            {view === ViewState.DASHBOARD && (
+              <Dashboard
+                externalModalOpen={isModalOpen}
+                setExternalModalOpen={setIsModalOpen}
+                onLinksUpdate={handleLinksUpdate}
+              />
+            )}
+            {view === ViewState.LINKS && (
+              <Links
+                externalModalOpen={isModalOpen}
+                setExternalModalOpen={setIsModalOpen}
+                onLinksUpdate={handleLinksUpdate}
+              />
+            )}
+            {view === ViewState.BIO_PAGES && <BioDashboard />}
+            {view === ViewState.API && <ApiPage />}
+            {view === ViewState.ANALYTICS && <GlobalAnalytics />}
+            {view === ViewState.PRODUCTS && <ProductManager />}
+            {view === ViewState.SETTINGS && <Settings />}
+          </main>
         </div>
       </div>
 
@@ -366,56 +331,84 @@ const LegacyHashHandler: React.FC = () => {
   return null;
 };
 
+const AnimatedRoutes: React.FC = () => {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes location={location} key={location.pathname}>
+          {/* Public auth routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+
+          {/* Public Link & Bio Routes */}
+          <Route path="/r/:code" element={<Redirect />} />
+          <Route path="/p/:handle" element={<BioView />} />
+
+          <Route path="/store/:userId" element={<Storefront />} />
+          <Route path="/store/product/:productId" element={<ProductPage />} />
+
+          {/* Claim Guest Link */}
+          <Route path="/claim/:token" element={<ClaimLinkPage />} />
+          <Route path="/team/invite/:token" element={<TeamInviteHandler />} />
+          <Route path="/pricing" element={<PricingPage />} />
+
+          {/* Protected Dashboard Routes */}
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Protected routes - Requirements 4.1, 4.2, 4.3 */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics/:id"
+            element={
+              <ProtectedRoute>
+                <LinkAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/team/settings"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/api"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all redirect to landing page */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </AnimatePresence>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <LegacyHashHandler />
-          <Routes>
-            {/* Public auth routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
-
-            {/* Public Link & Bio Routes */}
-            <Route path="/r/:code" element={<Redirect />} />
-            <Route path="/p/:handle" element={<BioView />} />
-
-            <Route path="/store/:userId" element={<Storefront />} />
-            <Route path="/store/product/:productId" element={<ProductPage />} />
-            <Route path="/test-storefront" element={<TestStorefront />} />
-
-            {/* Protected routes - Requirements 4.1, 4.2, 4.3 */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics/:id"
-              element={
-                <ProtectedRoute>
-                  <LinkAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Catch-all redirect to dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AnimatedRoutes />
+          <InstallPrompt />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

@@ -38,10 +38,13 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       try {
         let link: LinkData | null | undefined = null;
 
-        // Try Supabase first if configured, fall back to localStorage
+        // Try cache-first approach for maximum performance
         if (isSupabaseConfigured()) {
-          link = await supabaseAdapter.getLinkByCode(code);
+          // Import cache service dynamically to avoid issues if Redis is not configured
+          const { getLinkByShortCode } = await import('../services/cacheService');
+          link = await getLinkByShortCode(code);
         } else {
+          // Fallback to localStorage for local development
           link = getLocalLinkByCode(code);
         }
 

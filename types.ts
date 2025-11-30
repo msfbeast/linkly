@@ -63,6 +63,7 @@ export interface LinkData {
   description?: string;
   tags: string[];
   folderId?: string | null;
+  teamId?: string | null;
   createdAt: number;
 
   // Category for dashboard display
@@ -154,6 +155,7 @@ export interface BioThemeConfig {
 
 export interface BioProfile {
   id: string;
+  userId: string;
   handle: string; // unique slug
   displayName: string;
   bio: string;
@@ -185,6 +187,89 @@ export enum ViewState {
   STOREFRONT = 'STOREFRONT'
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  slug: string;
+  avatarUrl?: string;
+  ownerId: string;
+  createdAt: number;
+}
+
+export type TeamRole = 'owner' | 'admin' | 'editor' | 'viewer';
+
+export interface TeamMember {
+  teamId: string;
+  userId: string;
+  role: TeamRole;
+  joinedAt: number;
+  // Joined fields
+  email?: string;
+  fullName?: string;
+  avatarUrl?: string;
+}
+
+export interface TeamInvite {
+  id: string;
+  teamId: string;
+  email: string;
+  role: Exclude<TeamRole, 'owner'>;
+  token: string;
+  expiresAt: number;
+  createdAt: number;
+  createdBy: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName?: string;
+  avatarUrl?: string;
+  createdAt: number;
+  // Settings
+  themePreference: 'light' | 'dark' | 'system';
+  emailNotifications: boolean;
+  marketingEmails: boolean;
+  // Team Context
+  currentTeamId?: string | null;
+  onboarding_completed?: boolean;
+  onboarding_step?: number;
+  onboarding_skipped?: boolean;
+  onboarding_started_at?: string;
+  subscription_tier?: 'free' | 'starter' | 'pro' | 'premium';
+  subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
+  trial_ends_at?: string;
+}
+
+export interface ApiKey {
+  id: string;
+  userId: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt?: number;
+  expiresAt?: number;
+  createdAt: number;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+  avatar_url?: string;
+  preferences?: {
+    theme?: 'light' | 'dark' | 'system';
+    email_notifications?: boolean;
+    onboarding_completed?: boolean;
+    onboarding_step?: number;
+    onboarding_skipped?: boolean;
+    onboarding_started_at?: string;
+    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium';
+    subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
+    trial_ends_at?: string;
+  };
+}
+
 export interface Product {
   id: string;
   userId: string;
@@ -196,6 +281,8 @@ export interface Product {
   linkId: string; // Links to LinkData for tracking
   shortCode?: string; // For direct linking from storefront
   originalUrl?: string; // For direct linking fallback
+  category?: string;
+  slug?: string;
   createdAt: number;
 }
 
@@ -329,7 +416,7 @@ export function calculateTrafficSourceTotal(data: TrafficSourceDataPoint[]): num
 export function generateLinkHealthData(links: LinkData[]): LinkHealthDataPoint[] {
   if (links.length === 0) {
     return [
-      { metric: 'CTR', value: 0 },
+      { metric: 'Avg Clicks', value: 0 },
       { metric: 'Engagement', value: 0 },
       { metric: 'Reach', value: 0 },
       { metric: 'Retention', value: 0 },
@@ -339,50 +426,68 @@ export function generateLinkHealthData(links: LinkData[]): LinkHealthDataPoint[]
 
   const totalClicks = links.reduce((sum, link) => sum + link.clicks, 0);
   const avgClicks = totalClicks / links.length;
-  const maxClicks = Math.max(...links.map(link => link.clicks));
 
-  // Calculate metrics (normalized to 0-100 scale)
-  const ctr = Math.min(100, (avgClicks / 100) * 100); // Assume 100 clicks is 100% CTR baseline
-
-  // Engagement: based on click frequency
-  const recentClicks = links.filter(link =>
-    link.lastClickedAt && Date.now() - link.lastClickedAt < 7 * 24 * 60 * 60 * 1000
+  // Engagement: % of links active in the last 7 days
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const activeLinksCount = links.filter(link =>
+    link.lastClickedAt && link.lastClickedAt > weekAgo
   ).length;
-  const engagement = (recentClicks / links.length) * 100;
+  const engagement = (activeLinksCount / links.length) * 100;
 
-  // Reach: based on total clicks relative to max
-  const reach = maxClicks > 0 ? (totalClicks / (maxClicks * links.length)) * 100 : 0;
+  // Reach: Unique visitors (fingerprints)
+  const uniqueVisitors = new Set<string>();
+  links.forEach(link => {
+    link.clickHistory.forEach(click => {
+      if (click.fingerprint) uniqueVisitors.add(click.fingerprint);
+      else if (click.visitorId) uniqueVisitors.add(click.visitorId);
+    });
+  });
+  const reach = uniqueVisitors.size;
 
-  // Retention: based on links with multiple clicks
+  // Retention: % of links with > 1 click (simple proxy for now)
   const linksWithMultipleClicks = links.filter(link => link.clicks > 1).length;
   const retention = (linksWithMultipleClicks / links.length) * 100;
 
-  // Growth: based on recent vs older clicks
-  const now = Date.now();
-  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-  let recentClickCount = 0;
-  let olderClickCount = 0;
+  // Growth: Week-over-week click growth
+  let currentWeekClicks = 0;
+  let previousWeekClicks = 0;
+  const twoWeeksAgo = now - 14 * 24 * 60 * 60 * 1000;
 
   links.forEach(link => {
     link.clickHistory.forEach(click => {
       if (click.timestamp > weekAgo) {
-        recentClickCount++;
-      } else {
-        olderClickCount++;
+        currentWeekClicks++;
+      } else if (click.timestamp > twoWeeksAgo) {
+        previousWeekClicks++;
       }
     });
   });
 
-  const growth = olderClickCount > 0
-    ? Math.min(100, (recentClickCount / olderClickCount) * 50)
-    : (recentClickCount > 0 ? 100 : 0);
+  const growth = previousWeekClicks > 0
+    ? ((currentWeekClicks - previousWeekClicks) / previousWeekClicks) * 100
+    : (currentWeekClicks > 0 ? 100 : 0);
+
+  // Calculate Overall Health Score (0-100)
+  // Weighted: 40% Activity (Engagement), 30% Growth (capped at 100), 30% Volume (normalized)
+  const volumeScore = Math.min(100, (totalClicks / 100) * 100); // Target: 100 clicks/month
+  const growthScore = Math.min(100, Math.max(0, growth + 100)); // Normalize growth (-100% to +100% -> 0-200, cap at 100?) -> actually let's just use raw growth capped
+  // Better Growth Score: 0% growth = 50 score. 100% growth = 100 score. -50% growth = 25 score.
+  const normalizedGrowthScore = Math.min(100, Math.max(0, 50 + growth / 2));
+
+  const healthScore = Math.round(
+    (engagement * 0.4) +
+    (normalizedGrowthScore * 0.3) +
+    (volumeScore * 0.3)
+  );
 
   return [
-    { metric: 'CTR', value: Math.round(ctr) },
-    { metric: 'Engagement', value: Math.round(engagement) },
-    { metric: 'Reach', value: Math.round(reach) },
+    { metric: 'Avg Clicks', value: parseFloat(avgClicks.toFixed(1)) },
+    { metric: 'Engagement', value: Math.round(engagement) }, // % of active links
+    { metric: 'Reach', value: reach }, // Raw count of unique visitors
     { metric: 'Retention', value: Math.round(retention) },
     { metric: 'Growth', value: Math.round(growth) },
+    { metric: 'Score', value: healthScore } // Add Score to the array
   ];
 }
 

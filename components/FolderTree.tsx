@@ -1,165 +1,357 @@
 import React, { useState, useEffect } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDroppable, useDraggable, DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { Folder } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { ChevronRight, ChevronDown, Folder as FolderIcon, FolderOpen, MoreVertical, Plus } from 'lucide-react';
+import { FolderContextMenu } from './FolderContextMenu';
+import { createPortal } from 'react-dom';
 
 interface FolderTreeProps {
-    userId: string;
+    folders: Folder[];
     selectedFolderId: string | null;
     onSelectFolder: (folderId: string | null) => void;
+    onCreateFolder: (name: string, parentId: string | null) => Promise<void>;
+    onRenameFolder: (id: string, name: string) => Promise<void>;
+    onDeleteFolder: (id: string) => Promise<void>;
+    onMoveFolder: (folderId: string, newParentId: string | null) => Promise<void>;
 }
 
-export const FolderTree: React.FC<FolderTreeProps> = ({ userId, selectedFolderId, onSelectFolder }) => {
-    const [folders, setFolders] = useState<Folder[]>([]);
+export const FolderTree: React.FC<FolderTreeProps> = ({
+    folders,
+    selectedFolderId,
+    onSelectFolder,
+    onCreateFolder,
+    onRenameFolder,
+    onDeleteFolder,
+    onMoveFolder
+}) => {
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; folderId: string } | null>(null);
+    const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
-    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+    const [createParentId, setCreateParentId] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadFolders();
-    }, [userId]);
-
-    const loadFolders = async () => {
-        try {
-            const loadedFolders = await supabaseAdapter.getFolders(userId);
-            setFolders(loadedFolders);
-        } catch (error) {
-            console.error('Failed to load folders:', error);
-        }
-    };
-
-    const handleCreateFolder = async () => {
+    const handleCreateFolder = async (parentId: string | null) => {
         if (!newFolderName.trim()) return;
 
         try {
-            const newFolder = await supabaseAdapter.createFolder({
-                userId,
-                name: newFolderName.trim(),
-                parentId: null, // Root level for now
-            });
-            setFolders([...folders, newFolder]);
+            await onCreateFolder(newFolderName.trim(), parentId);
             setNewFolderName('');
             setIsCreating(false);
+            setCreateParentId(null);
+            if (parentId) {
+                setExpandedFolders(prev => new Set(prev).add(parentId));
+            }
         } catch (error) {
             console.error('Failed to create folder:', error);
         }
     };
 
-    const handleDeleteFolder = async (folderId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!confirm('Are you sure you want to delete this folder? Links inside will be moved to root.')) return;
+    const handleRenameFolder = async () => {
+        if (!editingFolderId || !editName.trim()) return;
 
         try {
-            await supabaseAdapter.deleteFolder(folderId);
-            setFolders(folders.filter(f => f.id !== folderId));
-            if (selectedFolderId === folderId) {
-                onSelectFolder(null);
-            }
+            await onRenameFolder(editingFolderId, editName.trim());
+            setEditingFolderId(null);
+        } catch (error) {
+            console.error('Failed to rename folder:', error);
+        }
+    };
+
+    const handleDeleteFolder = async (folderId: string) => {
+        if (!confirm('Are you sure you want to delete this folder? Subfolders and links will be moved to root.')) return;
+
+        try {
+            await onDeleteFolder(folderId);
         } catch (error) {
             console.error('Failed to delete folder:', error);
         }
     };
 
-    const toggleExpand = (folderId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const newExpanded = new Set(expandedFolders);
-        if (newExpanded.has(folderId)) {
-            newExpanded.delete(folderId);
-        } else {
-            newExpanded.add(folderId);
+    const handleMoveFolder = async (folderId: string, newParentId: string | null) => {
+        // Prevent moving folder into itself or its children
+        if (folderId === newParentId) return;
+
+        // Check if newParentId is a child of folderId
+        let current = folders.find(f => f.id === newParentId);
+        while (current) {
+            if (current.id === folderId) return; // Cycle detected
+            current = folders.find(f => f.id === current?.parentId);
         }
-        setExpandedFolders(newExpanded);
+
+        try {
+            await onMoveFolder(folderId, newParentId);
+        } catch (error) {
+            console.error('Failed to move folder:', error);
+        }
     };
 
-    // Build tree structure (currently flat list for simplicity, but prepared for nesting)
+    const toggleExpand = (folderId: string) => {
+        setExpandedFolders(prev => {
+            const next = new Set(prev);
+            if (next.has(folderId)) next.delete(folderId);
+            else next.add(folderId);
+            return next;
+        });
+    };
+
+    const handleContextMenu = (e: React.MouseEvent, folderId: string) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, folderId });
+    };
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 8 },
+        })
+    );
+
+    const renderFolder = (folder: Folder, depth = 0) => {
+        const children = folders.filter(f => f.parentId === folder.id);
+        const isExpanded = expandedFolders.has(folder.id);
+        const isEditing = editingFolderId === folder.id;
+
+        return (
+            <div key={folder.id} className="select-none">
+                <FolderItem
+                    folder={folder}
+                    depth={depth}
+                    isSelected={selectedFolderId === folder.id}
+                    isExpanded={isExpanded}
+                    hasChildren={children.length > 0}
+                    onSelect={() => onSelectFolder(folder.id)}
+                    onToggleExpand={() => toggleExpand(folder.id)}
+                    onContextMenu={(e) => handleContextMenu(e, folder.id)}
+                    isEditing={isEditing}
+                    editName={editName}
+                    setEditName={setEditName}
+                    onSaveRename={handleRenameFolder}
+                    onCancelRename={() => setEditingFolderId(null)}
+                />
+
+                {isExpanded && (
+                    <div>
+                        {children.map(child => renderFolder(child, depth + 1))}
+                        {isCreating && createParentId === folder.id && (
+                            <div style={{ paddingLeft: `${(depth + 1) * 16 + 12}px` }} className="pr-2 py-1">
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={newFolderName}
+                                    onChange={(e) => setNewFolderName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleCreateFolder(folder.id);
+                                        if (e.key === 'Escape') { setIsCreating(false); setCreateParentId(null); }
+                                    }}
+                                    onBlur={() => { setIsCreating(false); setCreateParentId(null); }}
+                                    placeholder="New folder..."
+                                    className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     const rootFolders = folders.filter(f => !f.parentId);
 
     return (
-        <div className="w-full">
-            <div className="flex items-center justify-between mb-2 px-2">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Folders</h3>
+        <div className="w-full pb-20" onContextMenu={(e) => e.preventDefault()}>
+            <div className="flex items-center justify-between mb-4 px-2">
+                <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider">Folders</h3>
                 <button
-                    onClick={() => setIsCreating(true)}
-                    className="text-gray-400 hover:text-blue-500"
+                    onClick={() => { setIsCreating(true); setCreateParentId(null); }}
+                    className="p-1 text-stone-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                    title="New Root Folder"
                 >
-                    +
+                    <Plus className="w-4 h-4" />
                 </button>
             </div>
 
-            <div className="space-y-1">
-                <button
-                    onClick={() => onSelectFolder(null)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 ${selectedFolderId === null ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                >
-                    <span className="text-lg">📁</span>
-                    All Links
-                </button>
+            <div className="space-y-0.5">
+                <RootDropZone
+                    isSelected={selectedFolderId === null}
+                    onSelect={() => onSelectFolder(null)}
+                />
 
-                {rootFolders.map(folder => (
-                    <FolderItem
-                        key={folder.id}
-                        folder={folder}
-                        selectedFolderId={selectedFolderId}
-                        onSelectFolder={onSelectFolder}
-                        onDeleteFolder={handleDeleteFolder}
-                    />
-                ))}
+                {rootFolders.map(folder => renderFolder(folder))}
 
-                {isCreating && (
-                    <div className="px-3 py-2">
+                {isCreating && createParentId === null && (
+                    <div className="px-3 py-1">
                         <input
                             autoFocus
                             type="text"
                             value={newFolderName}
                             onChange={(e) => setNewFolderName(e.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleCreateFolder();
+                                if (e.key === 'Enter') handleCreateFolder(null);
                                 if (e.key === 'Escape') setIsCreating(false);
                             }}
                             onBlur={() => setIsCreating(false)}
-                            placeholder="Folder name..."
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            placeholder="New folder..."
+                            className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-200"
                         />
                     </div>
                 )}
             </div>
+
+            {contextMenu && (
+                <FolderContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                    onRename={() => {
+                        setEditingFolderId(contextMenu.folderId);
+                        setEditName(folders.find(f => f.id === contextMenu.folderId)?.name || '');
+                    }}
+                    onDelete={() => handleDeleteFolder(contextMenu.folderId)}
+                    onAddSubfolder={() => {
+                        setIsCreating(true);
+                        setCreateParentId(contextMenu.folderId);
+                        setExpandedFolders(prev => new Set(prev).add(contextMenu.folderId));
+                    }}
+                />
+            )}
         </div>
+    );
+};
+
+const RootDropZone = ({ isSelected, onSelect }: { isSelected: boolean; onSelect: () => void }) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: 'root',
+        data: { type: 'FOLDER', id: 'root' } // Acts as a folder for dropping
+    });
+
+    return (
+        <button
+            ref={setNodeRef}
+            onClick={onSelect}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${isSelected
+                ? 'bg-amber-50 text-amber-700 font-medium'
+                : isOver
+                    ? 'bg-amber-100 ring-2 ring-amber-300 ring-inset'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-slate-900'
+                }`}
+        >
+            <FolderIcon className={`w-4 h-4 ${isSelected ? 'fill-amber-500/20 text-amber-500' : 'text-stone-400'}`} />
+            All Links
+        </button>
     );
 };
 
 interface FolderItemProps {
     folder: Folder;
-    selectedFolderId: string | null;
-    onSelectFolder: (id: string) => void;
-    onDeleteFolder: (id: string, e: React.MouseEvent) => void;
+    depth: number;
+    isSelected: boolean;
+    isExpanded: boolean;
+    hasChildren: boolean;
+    onSelect: () => void;
+    onToggleExpand: () => void;
+    onContextMenu: (e: React.MouseEvent) => void;
+    isEditing: boolean;
+    editName: string;
+    setEditName: (name: string) => void;
+    onSaveRename: () => void;
+    onCancelRename: () => void;
 }
 
-const FolderItem: React.FC<FolderItemProps> = ({ folder, selectedFolderId, onSelectFolder, onDeleteFolder }) => {
-    const { isOver, setNodeRef } = useDroppable({
+const FolderItem: React.FC<FolderItemProps> = ({
+    folder,
+    depth,
+    isSelected,
+    isExpanded,
+    hasChildren,
+    onSelect,
+    onToggleExpand,
+    onContextMenu,
+    isEditing,
+    editName,
+    setEditName,
+    onSaveRename,
+    onCancelRename
+}) => {
+    const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
         id: folder.id,
-        data: { folder },
+        data: { type: 'FOLDER', folder }
     });
 
-    return (
-        <div ref={setNodeRef}>
-            <button
-                onClick={() => onSelectFolder(folder.id)}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group transition-colors ${selectedFolderId === folder.id ? 'bg-blue-50 text-blue-600' :
-                        isOver ? 'bg-blue-100 ring-2 ring-blue-400 ring-inset' : 'text-gray-700 hover:bg-gray-50'
-                    }`}
+    const { setNodeRef: setDropRef, isOver } = useDroppable({
+        id: folder.id,
+        data: { type: 'FOLDER', folder }
+    });
+
+    // Combine refs
+    const setNodeRef = (node: HTMLElement | null) => {
+        setDragRef(node);
+        setDropRef(node);
+    };
+
+    if (isEditing) {
+        return (
+            <div
+                style={{ paddingLeft: `${depth * 16 + 12}px` }}
+                className="pr-2 py-1"
             >
-                <div className="flex items-center gap-2">
-                    <span className="text-lg">📂</span>
-                    {folder.name}
-                </div>
-                <button
-                    onClick={(e) => onDeleteFolder(folder.id, e)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500"
-                >
-                    ×
-                </button>
+                <input
+                    autoFocus
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') onSaveRename();
+                        if (e.key === 'Escape') onCancelRename();
+                    }}
+                    onBlur={onSaveRename}
+                    className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div
+            ref={setNodeRef}
+            {...attributes}
+            {...listeners}
+            onContextMenu={onContextMenu}
+            onClick={(e) => {
+                // Prevent selecting when clicking expand toggle
+                if ((e.target as HTMLElement).closest('.expand-toggle')) return;
+                onSelect();
+            }}
+            style={{ paddingLeft: `${depth * 16 + 12}px` }}
+            className={`
+                group relative flex items-center gap-2 pr-3 py-2 rounded-lg text-sm cursor-pointer transition-all select-none
+                ${isSelected ? 'bg-amber-50 text-amber-900 font-medium' : 'text-stone-600 hover:bg-stone-50 hover:text-slate-900'}
+                ${isOver && !isDragging ? 'bg-amber-100 ring-2 ring-amber-300 ring-inset' : ''}
+                ${isDragging ? 'opacity-50' : ''}
+            `}
+        >
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleExpand();
+                }}
+                className={`expand-toggle p-0.5 rounded hover:bg-black/5 ${!hasChildren ? 'opacity-0' : ''}`}
+            >
+                {isExpanded ? (
+                    <ChevronDown className="w-3 h-3 text-stone-400" />
+                ) : (
+                    <ChevronRight className="w-3 h-3 text-stone-400" />
+                )}
             </button>
+
+            {isExpanded ? (
+                <FolderOpen className={`w-4 h-4 ${isSelected ? 'fill-amber-500/20 text-amber-500' : 'text-stone-400 group-hover:text-amber-500'}`} />
+            ) : (
+                <FolderIcon className={`w-4 h-4 ${isSelected ? 'fill-amber-500/20 text-amber-500' : 'text-stone-400 group-hover:text-amber-500'}`} />
+            )}
+
+            <span className="truncate flex-1">{folder.name}</span>
         </div>
     );
 };

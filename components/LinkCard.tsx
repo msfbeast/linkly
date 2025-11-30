@@ -14,9 +14,19 @@ interface LinkCardProps {
   link: LinkData;
   onDelete: (id: string) => void;
   onEdit: (link: LinkData) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
 }
 
-const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
+const LinkCard: React.FC<LinkCardProps> = ({
+  link,
+  onDelete,
+  onEdit,
+  selectable = false,
+  selected = false,
+  onSelect
+}) => {
   const [showQr, setShowQr] = useState(false);
   const navigate = useNavigate();
   const [isGeneratingPost, setIsGeneratingPost] = useState(false);
@@ -38,7 +48,7 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
     zIndex: isDragging ? 50 : undefined,
   };
 
-  const fullShortUrl = `${window.location.origin}/#/r/${link.shortCode}`;
+  const fullShortUrl = `${window.location.origin}/r/${link.shortCode}`;
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -77,7 +87,7 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
         whileHover={{ scale: 1.01 }}
-        className={`bg-white border border-stone-200/60 rounded-xl p-1 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] group relative mb-4 ${isDragging ? 'opacity-50 rotate-3 scale-105 shadow-2xl cursor-grabbing' : ''}`}
+        className={`bg-white border ${selected ? 'border-yellow-400 ring-1 ring-yellow-400' : 'border-stone-200/60'} rounded-xl p-1 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] group relative mb-4 ${isDragging ? 'opacity-50 rotate-3 scale-105 shadow-2xl cursor-grabbing' : ''}`}
       >
         {/* Health Indicator */}
         <div
@@ -98,14 +108,24 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
 
               {/* Header Row: Drag Handle, Badges, Tags, Date */}
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                {/* Drag Handle */}
-                <div
-                  {...listeners}
-                  {...attributes}
-                  className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-stone-300 hover:text-stone-500 transition-colors flex-shrink-0"
-                >
-                  <GripVertical className="w-4 h-4" />
-                </div>
+                {/* Drag Handle or Checkbox */}
+                {selectable && onSelect ? (
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={(e) => onSelect(link.id, e.target.checked)}
+                    className="w-4 h-4 rounded border-stone-300 text-yellow-500 focus:ring-yellow-500 cursor-pointer mr-1"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <div
+                    {...listeners}
+                    {...attributes}
+                    className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-stone-300 hover:text-stone-500 transition-colors flex-shrink-0"
+                  >
+                    <GripVertical className="w-4 h-4" />
+                  </div>
+                )}
 
                 {/* Status Badges */}
                 {(() => {
@@ -214,6 +234,15 @@ const LinkCard: React.FC<LinkCardProps> = ({ link, onDelete, onEdit }) => {
                 </div>
 
                 <div className="flex items-center gap-1 ml-auto sm:ml-0">
+                  {healthStatus === 'broken' && (
+                    <button
+                      onClick={() => onEdit(link)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors text-xs font-bold mr-2 animate-pulse"
+                      title="Link is broken. Click to fix."
+                    >
+                      <AlertCircle className="w-3.5 h-3.5" /> Fix Link
+                    </button>
+                  )}
                   <button onClick={() => navigate(`/analytics/${link.id}`)} className="p-2 rounded-lg text-stone-400 hover:text-slate-900 hover:bg-stone-100 transition-all" title="Analytics">
                     <BarChart2 className="w-4 h-4" />
                   </button>

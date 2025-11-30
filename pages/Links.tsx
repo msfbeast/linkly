@@ -6,7 +6,7 @@ import SmartLinkCard from '../components/SmartLinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
 import { FolderTree } from '../components/FolderTree';
 import { useAuth } from '../contexts/AuthContext';
-import { LinkData } from '../types';
+import { LinkData, Folder } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { execute as retryExecute } from '../services/retryService';
 import { subscribeToClickEvents, subscribeToLinkUpdates, RealtimeClickEvent, RealtimeLinkUpdate } from '../services/realtimeService';
@@ -30,6 +30,7 @@ const Links: React.FC<LinksProps> = ({
 }) => {
   const { user } = useAuth();
   const [links, setLinks] = useState<LinkData[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -41,34 +42,30 @@ const Links: React.FC<LinksProps> = ({
   const isModalOpen = externalModalOpen !== undefined ? externalModalOpen : internalModalOpen;
   const setIsModalOpen = setExternalModalOpen || setInternalModalOpen;
 
-  const loadLinks = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const storedLinks = await retryExecute(
-        () => supabaseAdapter.getLinks(),
-        {
-          maxRetries: 3,
-          baseDelayMs: 1000,
-          onRetry: (attempt, err) => {
-            console.warn(`Retry attempt ${attempt} for loading links:`, err.message);
-          },
-        }
-      );
+      const [storedLinks, storedFolders] = await Promise.all([
+        retryExecute(() => supabaseAdapter.getLinks(), { maxRetries: 3, baseDelayMs: 1000 }),
+        user ? retryExecute(() => supabaseAdapter.getFolders(user.id), { maxRetries: 3, baseDelayMs: 1000 }) : Promise.resolve([])
+      ]);
+
       setLinks(storedLinks);
+      setFolders(storedFolders);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load links';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
 
   useEffect(() => {
-    loadLinks();
-  }, [loadLinks]);
+    loadData();
+  }, [loadData]);
 
   // Set up real-time subscriptions
   useEffect(() => {
@@ -137,25 +134,99 @@ const Links: React.FC<LinksProps> = ({
     })
   );
 
+  // --- Folder Operations ---
+
+  const handleCreateFolder = async (name: string, parentId: string | null) => {
+    if (!user) return;
+    try {
+      const newFolder = await supabaseAdapter.createFolder({
+        userId: user.id,
+        name,
+        parentId,
+      });
+      setFolders(prev => [...prev, newFolder]);
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+    }
+  };
+
+  const handleRenameFolder = async (id: string, name: string) => {
+    try {
+      await supabaseAdapter.updateFolder(id, { name });
+      setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+    } catch (error) {
+      console.error('Failed to rename folder:', error);
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    try {
+      await supabaseAdapter.deleteFolder(id);
+      setFolders(prev => prev.filter(f => f.id !== id));
+      if (selectedFolderId === id) setSelectedFolderId(null);
+    } catch (error) {
+      console.error('Failed to delete folder:', error);
+    }
+  };
+
+  const handleMoveFolder = async (folderId: string, newParentId: string | null) => {
+    // Prevent moving folder into itself or its children
+    if (folderId === newParentId) return;
+
+    // Check if newParentId is a child of folderId
+    let current = folders.find(f => f.id === newParentId);
+    while (current) {
+      if (current.id === folderId) return; // Cycle detected
+      current = folders.find(f => f.id === current?.parentId);
+    }
+
+    try {
+      setFolders(prev => prev.map(f => f.id === folderId ? { ...f, parentId: newParentId } : f));
+      await supabaseAdapter.moveFolder(folderId, newParentId);
+    } catch (error) {
+      console.error('Failed to move folder:', error);
+      loadData(); // Revert
+    }
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    if (!over) return;
 
-    if (over && active.id !== over.id) {
-      const linkId = active.id as string;
-      const folderId = over.id as string;
+    const activeId = active.id as string;
+    const overId = over.id as string;
 
-      // Optimistic update
-      setLinks(prevLinks => prevLinks.map(link =>
-        link.id === linkId ? { ...link, folderId } : link
-      ));
+    // Case 1: Dragging a Folder
+    if (active.data.current?.type === 'FOLDER') {
+      if (activeId !== overId) {
+        if (over.data.current?.type === 'FOLDER') {
+          handleMoveFolder(activeId, overId);
+        } else if (overId === 'root') {
+          handleMoveFolder(activeId, null);
+        }
+      }
+      return;
+    }
 
-      try {
-        await supabaseAdapter.updateLink(linkId, { folderId });
-        // Optional: Show success toast
-      } catch (error) {
-        console.error('Failed to move link:', error);
-        // Revert on failure
-        await loadLinks();
+    // Case 2: Dragging a Link (to a folder)
+    if (over && activeId !== overId) {
+      // Check if dropped on a folder
+      const isFolder = folders.some(f => f.id === overId) || overId === 'root';
+
+      if (isFolder) {
+        const folderId = overId === 'root' ? null : overId;
+
+        // Optimistic update
+        setLinks(prevLinks => prevLinks.map(link =>
+          link.id === activeId ? { ...link, folderId } : link
+        ));
+
+        try {
+          await supabaseAdapter.updateLink(activeId, { folderId });
+        } catch (error) {
+          console.error('Failed to move link:', error);
+          loadData(); // Revert
+        }
       }
     }
   };
@@ -167,7 +238,7 @@ const Links: React.FC<LinksProps> = ({
         () => supabaseAdapter.createLink(link),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
-      await loadLinks();
+      await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create link';
@@ -185,7 +256,7 @@ const Links: React.FC<LinksProps> = ({
           )
         )
       );
-      await loadLinks();
+      await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create links';
@@ -199,7 +270,7 @@ const Links: React.FC<LinksProps> = ({
         () => supabaseAdapter.updateLink(id, updates),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
-      await loadLinks();
+      await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update link';
@@ -213,7 +284,7 @@ const Links: React.FC<LinksProps> = ({
         () => supabaseAdapter.deleteLink(id),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
-      await loadLinks();
+      await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete link';
@@ -264,7 +335,7 @@ const Links: React.FC<LinksProps> = ({
           <h2 className="text-xl font-bold text-slate-900 mb-2">Unable to load links</h2>
           <p className="text-stone-500 mb-6">{error}</p>
           <button
-            onClick={loadLinks}
+            onClick={loadData}
             className="px-6 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
           >
             Try Again
@@ -281,9 +352,13 @@ const Links: React.FC<LinksProps> = ({
         {/* Folder Sidebar */}
         <div className="w-64 border-r border-stone-200 bg-white p-4 hidden md:block h-screen sticky top-0 overflow-y-auto">
           <FolderTree
-            userId={user?.id || ''}
+            folders={folders}
             selectedFolderId={selectedFolderId}
             onSelectFolder={setSelectedFolderId}
+            onCreateFolder={handleCreateFolder}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onMoveFolder={handleMoveFolder}
           />
         </div>
 
@@ -405,8 +480,8 @@ const Links: React.FC<LinksProps> = ({
           onClose={() => setIsTagManagerOpen(false)}
           userId={user?.id || ''}
           onTagsUpdate={() => {
-            // Optionally refresh links if tags changed significantly, though not strictly needed for just tag definitions
-            loadLinks();
+            // Optionally refresh links if tags changed significantly
+            loadData();
           }}
         />
       </div>

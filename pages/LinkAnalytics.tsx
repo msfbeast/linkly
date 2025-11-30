@@ -7,6 +7,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie, Legend
 } from 'recharts';
+import LiveWorldMap from '../components/LiveWorldMap';
 
 const LinkAnalytics: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -462,6 +463,11 @@ const LinkAnalytics: React.FC = () => {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
+                </div>
+
+                {/* Map & Geography Row */}
+                <div className="lg:col-span-2 bg-white p-1 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
+                    <LiveWorldMap clickHistory={filteredClicks} className="h-[400px] w-full rounded-xl border-none" />
                 </div>
 
                 {/* Geography Table */}

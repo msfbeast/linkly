@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { Domain } from '../types';
-import { Plus, Globe, CheckCircle2, AlertCircle, Trash2, RefreshCw, Copy, Loader2, X } from 'lucide-react';
+import { Globe, Plus, Trash2, Check, AlertCircle, Loader2, X, RefreshCw, ShieldCheck, CheckCircle2, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import InfoTooltip from './InfoTooltip';
+import { UpgradeModal } from './UpgradeModal';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DomainManagerProps {
     userId: string;
@@ -16,8 +19,13 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
     const [verifyingId, setVerifyingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const { user } = useAuth();
+
     useEffect(() => {
-        fetchDomains();
+        if (userId) {
+            fetchDomains();
+        }
     }, [userId]);
 
     const fetchDomains = async () => {
@@ -35,6 +43,14 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
 
     const handleAddDomain = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Feature Gate: Custom domains require Starter plan or higher
+        const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
+        if (isFreePlan) {
+            setIsUpgradeModalOpen(true);
+            return;
+        }
+
         if (!newDomain) return;
 
         // Basic validation
@@ -95,9 +111,20 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
 
     return (
         <div className="space-y-6">
+            <UpgradeModal
+                isOpen={isUpgradeModalOpen}
+                onClose={() => setIsUpgradeModalOpen(false)}
+                trigger="custom_domain"
+            />
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-900">Custom Domains</h2>
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        Custom Domains
+                        <InfoTooltip
+                            id="domain-help"
+                            content="Connect your own domain (e.g., links.mybrand.com) to create branded short links that build trust and recognition."
+                        />
+                    </h2>
                     <p className="text-stone-500 text-sm">Connect your own domains to brand your links.</p>
                 </div>
                 <button
@@ -171,8 +198,8 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                         <div className="flex items-start justify-between mb-6">
                             <div className="flex items-center gap-3">
                                 <div className={`p-3 rounded-xl ${domain.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
-                                        domain.status === 'failed' ? 'bg-red-50 text-red-600' :
-                                            'bg-amber-50 text-amber-600'
+                                    domain.status === 'failed' ? 'bg-red-50 text-red-600' :
+                                        'bg-amber-50 text-amber-600'
                                     }`}>
                                     <Globe className="w-6 h-6" />
                                 </div>
