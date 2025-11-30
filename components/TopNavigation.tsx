@@ -69,43 +69,56 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
     { id: ViewState.SETTINGS, label: 'Settings', icon: Settings },
   ];
 
+  const checklistItems = [
+    { id: 'signup', label: 'Create your account', completed: true },
+    { id: 'first-link', label: 'Create your first link', completed: totalClicks > 0 || clickChange !== 0 }, // Simplified check
+    { id: 'customize', label: 'Customize your profile', completed: !!user?.user_metadata?.avatar_url },
+    { id: 'share', label: 'Share your link', completed: totalClicks > 5 },
+  ];
+
+  const completedCount = checklistItems.filter(i => i.completed).length;
+  const progress = (completedCount / checklistItems.length) * 100;
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
   return (
     <>
-      <div className="h-16 bg-[#FDFBF7] border-b border-stone-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-10">
+      <div className="h-20 flex items-center justify-between px-6 md:px-8 sticky top-0 z-10 bg-[#FDFBF7]/80 backdrop-blur-md">
         {/* Left: Logo and Tabs */}
         <div className="flex items-center gap-4 md:gap-8">
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="md:hidden p-2 text-stone-500 hover:bg-stone-100 rounded-lg transition-colors"
+            className="md:hidden p-2 text-stone-500 hover:bg-stone-100 rounded-xl transition-colors"
           >
             <Menu className="w-6 h-6" />
           </button>
 
           {/* Logo - Only visible on mobile since Sidebar has it on desktop */}
           <div className="flex items-center gap-2 md:hidden">
-            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-sm">
-              <ShoppingBag className="w-4 h-4 text-slate-900" />
+            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <ShoppingBag className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900 hidden sm:block">Gather<span className="text-yellow-500">.</span></h1>
+            <h1 className="text-xl font-bold text-slate-900 hidden sm:block tracking-tight">Gather<span className="text-yellow-500">.</span></h1>
           </div>
         </div>
 
         {/* Right: Clicks Display, New Link Button, and User Menu */}
-        <div className="flex items-center gap-2 md:gap-4">
-          {/* Total Clicks Display (Hidden on very small screens) */}
-          <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-white rounded-xl border border-stone-200 shadow-sm">
-            <div className={`p-1.5 rounded-lg ${clickChange >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+        <div className="flex items-center gap-4 md:gap-6">
+          {/* Total Clicks Display */}
+          <div className="hidden sm:flex items-center gap-3 px-2">
+            <div className={`p-2 rounded-full ${clickChange >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
               {clickChange >= 0 ? (
                 <TrendingUp className={`w-4 h-4 ${clickChange >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
               ) : (
                 <TrendingDown className="w-4 h-4 text-red-600" />
               )}
             </div>
-            <div>
-              <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider leading-none mb-1">Total Clicks</div>
-              <div className="flex items-center gap-2 leading-none">
-                <span className="text-sm font-bold text-slate-900">{totalClicks.toLocaleString()}</span>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-0.5">Total Clicks</span>
+              <div className="flex items-baseline gap-2 leading-none">
+                <span className="text-lg font-bold text-slate-900">{totalClicks.toLocaleString()}</span>
                 {clickChange !== 0 && (
                   <span className={`text-xs font-bold ${clickChange > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {clickChange > 0 ? '+' : ''}{clickChange}%
@@ -115,10 +128,12 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
             </div>
           </div>
 
+          <div className="h-8 w-px bg-stone-200 hidden sm:block"></div>
+
           {/* New Link Button */}
           <button
             onClick={onNewLinkClick}
-            className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-all shadow-lg shadow-yellow-400/20 active:scale-95"
+            className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full transition-all shadow-lg shadow-slate-900/20 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden md:inline">New Link</span>
@@ -128,24 +143,68 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-2 p-1.5 hover:bg-stone-100 rounded-xl transition-colors border border-transparent hover:border-stone-200"
+              className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-stone-100 transition-colors"
             >
-              <div className="w-8 h-8 bg-stone-200 rounded-lg flex items-center justify-center overflow-hidden border border-stone-300">
+              {/* Progress Ring */}
+              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 40 40">
+                <circle
+                  cx="20"
+                  cy="20"
+                  r={radius}
+                  fill="none"
+                  stroke="#E5E7EB"
+                  strokeWidth="2"
+                />
+                <circle
+                  cx="20"
+                  cy="20"
+                  r={radius}
+                  fill="none"
+                  stroke="#9333EA"
+                  strokeWidth="2"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+
+              <div className="w-8 h-8 bg-stone-200 rounded-full flex items-center justify-center overflow-hidden border border-stone-300 relative z-10">
                 {user?.user_metadata?.avatar_url ? (
                   <img src={user.user_metadata.avatar_url} alt="User" className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-4 h-4 text-stone-500" />
                 )}
               </div>
-              <ChevronDown className={`w-4 h-4 text-stone-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-stone-200 py-1 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+              <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-stone-200 py-1 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
                 <div className="px-4 py-3 border-b border-stone-100">
                   <p className="text-sm font-bold text-slate-900 truncate">{user?.email}</p>
                   <p className="text-xs text-stone-500">Free Plan</p>
                 </div>
+
+                {/* Setup Checklist */}
+                <div className="px-4 py-3 border-b border-stone-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Setup Progress</span>
+                    <span className="text-xs font-bold text-purple-600">{Math.round(progress)}%</span>
+                  </div>
+                  <div className="space-y-2">
+                    {checklistItems.map((item) => (
+                      <div key={item.id} className="flex items-start gap-2">
+                        <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center border ${item.completed ? 'bg-purple-100 border-purple-200' : 'border-stone-200'}`}>
+                          {item.completed && <div className="w-2 h-2 bg-purple-500 rounded-full" />}
+                        </div>
+                        <span className={`text-xs ${item.completed ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   onClick={() => {
                     onChangeView?.(ViewState.SETTINGS);

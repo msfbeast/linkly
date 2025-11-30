@@ -155,7 +155,13 @@ const DashboardLayout: React.FC = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900">
+        <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900 relative overflow-hidden">
+            {/* Aurora Background */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-200/30 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute top-[20%] right-[-10%] w-[30%] h-[30%] bg-yellow-200/30 rounded-full blur-[100px] animate-pulse delay-1000" />
+                <div className="absolute bottom-[-10%] left-[20%] w-[35%] h-[35%] bg-pink-200/20 rounded-full blur-[120px] animate-pulse delay-2000" />
+            </div>
             {/* Sidebar - Hidden on Mobile */}
             <div className="hidden md:block">
                 <Sidebar
@@ -178,7 +184,7 @@ const DashboardLayout: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 md:ml-64 flex flex-col transition-all duration-300">
+            <div className="flex-1 md:ml-[300px] flex flex-col transition-all duration-300">
                 {/* Top Navigation */}
                 <TopNavigation
                     totalClicks={totalClicks}

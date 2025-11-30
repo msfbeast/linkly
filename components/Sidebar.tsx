@@ -20,7 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
   ];
 
   return (
-    <div className="fixed left-0 top-0 h-full w-64 bg-[#FDFBF7] border-r border-stone-200 p-6 flex flex-col z-20 transition-colors duration-200">
+    <div className="fixed left-4 top-4 bottom-4 w-64 bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[2rem] flex flex-col p-6 z-50 transition-all duration-300">
       {/* Team Switcher */}
       <div className="mb-8 px-2">
         <TeamSwitcher />
@@ -36,41 +36,35 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
               onClick={() => onChangeView(item.id)}
               data-tour={item.id === ViewState.BIO_PAGES ? 'bio-nav' : undefined}
               className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group overflow-hidden ${isActive
-                ? 'text-slate-900'
-                : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'
+                ? 'text-white shadow-lg shadow-slate-900/20'
+                : 'text-stone-500 hover:text-slate-900 hover:bg-white/50'
                 }`}
             >
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute inset-0 bg-yellow-100/50 rounded-xl"
+                  className="absolute inset-0 bg-slate-900 rounded-xl"
                   initial={false}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
-              {isActive && (
-                <motion.div
-                  layoutId="activeBar"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-yellow-400 rounded-r-full shadow-[0_0_10px_rgba(250,204,21,0.4)]"
-                />
-              )}
-              <Icon className={`w-5 h-5 relative z-10 transition-colors ${isActive ? 'text-yellow-600' : 'text-stone-400 group-hover:text-stone-600'}`} />
-              <span className="font-medium text-sm tracking-wide relative z-10">{item.label}</span>
+              <Icon className={`w-5 h-5 relative z-10 transition-colors ${isActive ? 'text-white' : 'text-stone-400 group-hover:text-stone-600'}`} />
+              <span className={`font-bold text-sm tracking-wide relative z-10 ${isActive ? 'text-white' : ''}`}>{item.label}</span>
             </button>
           );
         })}
       </nav>
 
       <div className="mt-auto">
-        <div className="bg-white border border-stone-200 rounded-2xl p-4 relative overflow-hidden group shadow-sm">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-100 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
+        <div className="bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl p-4 relative overflow-hidden group shadow-sm">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-100/50 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
 
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-yellow-500 fill-yellow-200" />
             <span className="text-xs font-bold text-slate-700 tracking-wider uppercase">AI Model</span>
           </div>
           <p className="text-xs text-stone-500 mb-2">Gemini 2.5 Flash is active and analyzing your links.</p>
-          <div className="w-full bg-stone-100 h-1 rounded-full overflow-hidden">
+          <div className="w-full bg-stone-100/50 h-1 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-yellow-400 rounded-full"
               animate={{

@@ -91,7 +91,7 @@ const LinkPerformanceCard: React.FC<LinkPerformanceCardProps> = ({
       onClick={onClick}
     >
       <div
-        className={`stack-card-content ${colors.bg} rounded-xl p-5 relative group transition-all min-h-[160px] ${isThemeAware ? 'border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]' : ''}`}
+        className={`stack-card-content ${colors.bg} rounded-[2rem] p-6 relative group transition-all min-h-[180px] ${isThemeAware ? 'border border-stone-200/60 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)]' : ''}`}
         data-testid="link-performance-card"
       >
         {/* Three-dot menu button */}

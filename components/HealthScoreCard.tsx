@@ -11,7 +11,7 @@ interface MetricProps {
 }
 
 const MetricItem: React.FC<MetricProps> = ({ label, value, trend, icon: Icon, color }) => (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-stone-50 hover:bg-stone-100 transition-colors">
+    <div className="flex items-start gap-3 p-2 rounded-xl transition-colors hover:bg-stone-50">
         <div className={`p-2 rounded-lg ${color} bg-opacity-10`}>
             <Icon className={`w-4 h-4 ${color.replace('bg-', 'text-')}`} />
         </div>
@@ -53,46 +53,46 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({ score, metrics
                     <p className="text-stone-500 text-sm">Overall performance score</p>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${score >= 80 ? 'bg-emerald-50 text-emerald-600' :
-                        score >= 50 ? 'bg-amber-50 text-amber-600' :
-                            'bg-red-50 text-red-600'
+                    score >= 50 ? 'bg-amber-50 text-amber-600' :
+                        'bg-red-50 text-red-600'
                     }`}>
                     {score >= 80 ? 'Good' : score >= 50 ? 'Fair' : 'Poor'}
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-8 items-center">
+            <div className="flex flex-col items-center gap-6">
                 {/* Radial Progress Score */}
-                <div className="relative w-32 h-32 flex-shrink-0">
+                <div className="relative w-28 h-28 flex-shrink-0">
                     <svg className="w-full h-full transform -rotate-90">
                         <circle
-                            cx="64"
-                            cy="64"
-                            r="36"
+                            cx="56"
+                            cy="56"
+                            r="32"
                             stroke="#f5f5f4"
-                            strokeWidth="8"
+                            strokeWidth="6"
                             fill="transparent"
                         />
                         <circle
-                            cx="64"
-                            cy="64"
-                            r="36"
+                            cx="56"
+                            cy="56"
+                            r="32"
                             stroke={score >= 80 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444'}
-                            strokeWidth="8"
+                            strokeWidth="6"
                             fill="transparent"
-                            strokeDasharray={circumference}
-                            strokeDashoffset={offset}
+                            strokeDasharray={2 * Math.PI * 32}
+                            strokeDashoffset={(2 * Math.PI * 32) - (score / 100) * (2 * Math.PI * 32)}
                             strokeLinecap="round"
                             className="transition-all duration-1000 ease-out"
                         />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-3xl font-bold text-slate-900">{score}</span>
-                        <span className="text-xs text-stone-400 font-medium uppercase">Score</span>
+                        <span className="text-2xl font-bold text-slate-900">{score}</span>
+                        <span className="text-[10px] text-stone-400 font-medium uppercase">Score</span>
                     </div>
                 </div>
 
                 {/* Metrics Grid */}
-                <div className="grid grid-cols-2 gap-3 w-full">
+                <div className="grid grid-cols-2 gap-2 w-full">
                     <MetricItem
                         label="Avg Clicks"
                         value={`${metrics.avgClicks}`}

@@ -5,21 +5,18 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download, Tag as TagIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import LinkCard from '../components/LinkCard';
-import SmartLinkCard from '../components/SmartLinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
 import { TagManager } from '../components/TagManager';
 import { UpgradeModal } from '../components/UpgradeModal';
-import LinkPerformanceCard from '../components/LinkPerformanceCard';
-import ClickForecastChart from '../components/ClickForecastChart';
-import TrafficSourceChart, { calculateTrafficTotal } from '../components/TrafficSourceChart';
-import { HealthScoreCard } from '../components/HealthScoreCard';
-import { InsightsCard } from '../components/InsightsCard';
-import PriorityLinksList, { PriorityLink } from '../components/PriorityLinksList'; // Keep PriorityLink type if needed, or refactor
-import DateRangeSelector from '../components/DateRangeSelector';
-import SetupChecklist from '../components/SetupChecklist';
 import QuickLinkInput from '../components/QuickLinkInput';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+
+import DashboardHeader from '../components/dashboard/DashboardHeader';
+import AnalyticsOverview from '../components/dashboard/AnalyticsOverview';
+import LinksList from '../components/dashboard/LinksList';
 import { LinkData, categorizeLink, generateLinkHealthData, getTopPerformingLinks } from '../types';
+import { calculateTrafficTotal } from '../components/TrafficSourceChart';
+import { PriorityLink } from '../components/PriorityLinksList';
 import { DateRange, generateClickForecastData, generateTrafficSourceData } from '../services/analyticsService';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { execute as retryExecute } from '../services/retryService';
@@ -404,8 +401,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsModalOpen(true);
   };
 
+  // ... existing imports ...
+
+  // ... inside component ...
+
   return (
-    <div className="min-h-screen bg-[#FDFBF7] transition-all duration-300">
+    <div className="min-h-screen bg-[#FDFBF7] transition-all duration-300 relative overflow-hidden">
+      {/* Aurora Background Effects */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-yellow-200/40 via-purple-200/40 to-transparent blur-3xl -z-10 rounded-full opacity-60 pointer-events-none" />
+
       <TagManager
         isOpen={isTagManagerOpen}
         onClose={() => setIsTagManagerOpen(false)}
@@ -419,240 +423,62 @@ const Dashboard: React.FC<DashboardProps> = ({
         trigger={upgradeTrigger}
       />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="w-full pr-8">
+        <div className="p-6 max-w-7xl mx-auto space-y-8">
 
-        {/* Setup Checklist */}
-        <SetupChecklist links={links} />
+          {/* Header Section */}
+          <DashboardHeader
+            user={user}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            onExport={handleExport}
+            isExporting={isExporting}
+          />
 
-        {/* Quick Link Input */}
-        <QuickLinkInput onCreate={handleQuickCreate} isLoading={isLoading} />
+          {/* Hero Input */}
+          <div className="relative z-10 max-w-3xl mx-auto mb-12">
+            <QuickLinkInput onCreate={handleQuickCreate} isLoading={isLoading} />
+          </div>
 
-        {/* Empty State - Show when no links exist */}
-        {hasNoLinks ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-center py-20"
-          >
-            <div className="w-20 h-20 bg-yellow-100/50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-yellow-500/10">
-              <LinkIcon className="w-10 h-10 text-yellow-600" />
-            </div>
-            <h2 className="text-3xl font-display font-bold text-slate-900 mb-3">
-              Welcome to Gather{user?.user_metadata?.username ? `, @${user.user_metadata.username}` : '!'}
-            </h2>
-            <p className="text-stone-500 mb-8 max-w-md mx-auto text-lg">
-              Create your first shortened link to start tracking clicks and analyzing your traffic.
-            </p>
-            <button
-              onClick={handleCreateClick}
-              data-tour="create-link-button"
-              className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all inline-flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-            >
-              <Plus className="w-5 h-5" />
-              Create Your First Link
-            </button>
-          </motion.div>
-        ) : (
-          <>
-            {/* Link Performance Cards Row - Top 4 Links */}
-            {topLinks.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-                data-testid="link-cards-row"
-              >
-                {topLinks.map((link, index) => (
-                  <motion.div
-                    key={link.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    <SmartLinkCard
-                      link={link}
-                      onDelete={handleDeleteLink}
-                      onEdit={openEditModal}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-
-            {/* Date Range Filter and Export */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-              className="flex justify-end items-center gap-3"
-            >
-              <DateRangeSelector
-                selectedRange={dateRange}
-                onRangeChange={setDateRange}
+          {/* Analytics Overview (Bento Grid) */}
+          {!hasNoLinks && (
+            <ErrorBoundary>
+              <AnalyticsOverview
+                links={links}
+                isLoading={isLoading}
+                clickForecastData={clickForecastData}
+                trafficSourceData={trafficSourceData}
               />
+            </ErrorBoundary>
+          )}
+
+          {/* Links List Section */}
+          <div className="bg-white/60 backdrop-blur-xl border border-white/40 rounded-[2.5rem] p-8 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Your Links</h2>
               <button
-                onClick={handleExport}
-                disabled={isExporting}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 hover:border-slate-300 text-stone-600 hover:text-slate-900 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
-                title="Export all data as CSV"
+                onClick={() => setIsTagManagerOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-xl text-stone-600 hover:text-slate-900 hover:border-stone-300 transition-all shadow-sm"
               >
-                {isExporting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                <span className="text-sm font-medium">
-                  {isExporting ? 'Exporting...' : 'Export'}
-                </span>
+                <TagIcon className="w-4 h-4" />
+                <span>Manage Tags</span>
               </button>
-            </motion.div>
-
-            {/* Charts Row - Click Forecast and Traffic Source */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-            >
-              <div className="lg:col-span-2">
-                <ClickForecastChart data={clickForecastData} />
-              </div>
-              <div>
-                <TrafficSourceChart data={trafficSourceData} total={trafficSourceTotal} />
-              </div>
-            </motion.div>
-
-            {/* Bottom Row - Link Health, Insights, and Priority List */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-            >
-              <HealthScoreCard
-                score={linkHealthData.find(d => d.metric === 'Score')?.value || 0}
-                metrics={{
-                  avgClicks: linkHealthData.find(d => d.metric === 'Avg Clicks')?.value || 0,
-                  growth: linkHealthData.find(d => d.metric === 'Growth')?.value || 0,
-                  engagement: linkHealthData.find(d => d.metric === 'Engagement')?.value || 0,
-                  reach: linkHealthData.find(d => d.metric === 'Reach')?.value || 0,
-                }}
-              />
-              <InsightsCard
-                insights={[
-                  ...priorityLinks.filter(l => l.status === 'expiring').map(l => ({
-                    id: l.id,
-                    type: 'warning' as const,
-                    title: 'Link Expiring Soon',
-                    description: `"${l.title}" expires in less than 7 days.`,
-                    actionLabel: 'Extend',
-                    onAction: () => openEditModal(links.find(link => link.id === l.id)!),
-                  })),
-                  ...priorityLinks.filter(l => l.status === 'low-ctr').map(l => ({
-                    id: l.id,
-                    type: 'info' as const,
-                    title: 'Low Engagement',
-                    description: `"${l.title}" has low click-through rate. Consider updating the title or sharing it more.`,
-                    actionLabel: 'Edit Link',
-                    onAction: () => openEditModal(links.find(link => link.id === l.id)!),
-                  })),
-                  // Add a positive insight if no issues
-                  ...(priorityLinks.length === 0 ? [{
-                    id: 'all-good',
-                    type: 'success' as const,
-                    title: 'All Systems Go',
-                    description: 'Your links are performing well. No immediate actions required.',
-                  }] : [])
-                ].slice(0, 4)}
-              />
-              <PriorityLinksList
-                links={priorityLinks}
-                onLinkToggle={handlePriorityLinkToggle}
-                onViewAll={() => navigate('/links')}
-              />
-            </motion.div>
-
-            {/* Links List Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
-              <h2 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Your Links</h2>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setIsTagManagerOpen(true)}
-                  data-tour="tag-filter"
-                  className="p-3 bg-white border border-stone-200 text-stone-500 hover:text-slate-900 rounded-2xl hover:border-stone-300 transition-all shadow-sm"
-                  title="Manage Tags"
-                >
-                  <TagIcon className="w-5 h-5" />
-                </button>
-
-                <div className="relative group">
-                  <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-slate-900 transition-colors" />
-                  <input
-                    type="text"
-                    placeholder="Search links..."
-                    className="bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 w-full md:w-80 transition-all placeholder:text-stone-400 shadow-sm"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
             </div>
 
-            {/* Links List */}
-            <div className="bg-white border border-stone-200/60 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-slate-900 font-bold text-sm uppercase tracking-wider">All Links</h3>
-                <span className="px-3 py-1 bg-stone-100 rounded-full text-stone-600 text-xs font-medium">{filteredLinks.length} links</span>
-              </div>
-              <div className="space-y-3">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={filteredLinks.map(l => l.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <AnimatePresence mode="popLayout">
-                      {filteredLinks.length > 0 ? (
-                        filteredLinks.map((link) => (
-                          <LinkCard
-                            key={link.id}
-                            link={link}
-                            onDelete={handleDeleteLink}
-                            onEdit={openEditModal}
-                          />
-                        ))
-                      ) : (
-                        <div className="col-span-full text-center py-20 bg-stone-50/50 border border-stone-200 rounded-3xl border-dashed">
-                          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-stone-100">
-                            <Search className="w-6 h-6 text-stone-400" />
-                          </div>
-                          <h3 className="text-lg font-bold text-slate-900 mb-2">No links found</h3>
-                          <p className="text-stone-500 mb-6 max-w-sm mx-auto text-sm">
-                            {searchTerm ? 'Try a different search term.' : 'Get started by creating your first shortened link.'}
-                          </p>
-                          {!searchTerm && (
-                            <button
-                              onClick={() => setIsModalOpen(true)}
-                              className="text-slate-900 hover:text-slate-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm bg-white px-4 py-2 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all"
-                            >
-                              Create your first link <ArrowUpRight className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </AnimatePresence>
-                  </SortableContext>
-                </DndContext>
-              </div>
-            </div>
-          </>
-        )}
+            <ErrorBoundary>
+              <LinksList
+                links={links}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                onDragEnd={handleDragEnd}
+                onEdit={openEditModal}
+                onDelete={handleDeleteLink}
+                onCreateFirstLink={() => setIsModalOpen(true)}
+              />
+            </ErrorBoundary>
+          </div>
+
+        </div>
       </div>
 
       <CreateLinkModal

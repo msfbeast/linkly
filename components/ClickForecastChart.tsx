@@ -33,89 +33,69 @@ const ClickForecastChart: React.FC<ClickForecastChartProps> = ({ data }) => {
   const forecastFill = 'url(#colorForecast)';
 
   return (
-    <div
-      className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm transition-colors duration-200"
-      data-testid="click-forecast-chart"
-    >
-      <div className="mb-4">
-        <h3
-          className="text-slate-900 text-lg font-bold"
-          data-testid="chart-title"
-        >
-          Click Forecast
-        </h3>
-        <p
-          className="text-stone-500 text-sm"
-          data-testid="chart-subtitle"
-        >
-          Predicted vs Actual Performance
-        </p>
-      </div>
-
-      <div className="w-full h-[250px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid
-              vertical={false}
-              stroke={gridStroke}
-              strokeOpacity={gridOpacity}
-            />
-            <XAxis
-              dataKey="date"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tickColor, fontSize: 11, fontWeight: 500 }}
-              dy={10}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tickColor, fontSize: 11 }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: tooltipBg,
-                border: tooltipBorder,
-                borderRadius: '12px',
-                boxShadow: tooltipShadow,
-              }}
-              itemStyle={{ color: tooltipTextColor, fontSize: '12px', fontWeight: 600 }}
-              cursor={{ stroke: '#F59E0B', strokeWidth: 1, strokeDasharray: '4 4' }}
-            />
-            <Legend
-              verticalAlign="top"
-              height={36}
-              iconType="circle"
-              wrapperStyle={{ fontSize: '12px', fontWeight: 500, color: '#78716c' }}
-            />
-            <Area
-              type="monotone"
-              dataKey="actual"
-              name="Actual Clicks"
-              stroke={actualStroke}
-              strokeWidth={3}
-              fill="transparent"
-              activeDot={{ r: 6, fill: '#1F2937', stroke: '#fff', strokeWidth: 2 }}
-            />
-            <Area
-              type="monotone"
-              dataKey="forecast"
-              name="Forecast"
-              stroke={forecastStroke}
-              strokeWidth={3}
-              strokeDasharray="5 5"
-              fill={forecastFill}
-              activeDot={{ r: 6, fill: '#FBBF24', stroke: '#fff', strokeWidth: 2 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            vertical={false}
+            stroke={gridStroke}
+            strokeOpacity={gridOpacity}
+          />
+          <XAxis
+            dataKey="date"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: tickColor, fontSize: 11, fontWeight: 500 }}
+            dy={10}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: tickColor, fontSize: 11 }}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: tooltipBg,
+              border: tooltipBorder,
+              borderRadius: '12px',
+              boxShadow: tooltipShadow,
+            }}
+            itemStyle={{ color: tooltipTextColor, fontSize: '12px', fontWeight: 600 }}
+            cursor={{ stroke: '#F59E0B', strokeWidth: 1, strokeDasharray: '4 4' }}
+          />
+          <Legend
+            verticalAlign="top"
+            height={36}
+            iconType="circle"
+            wrapperStyle={{ fontSize: '12px', fontWeight: 500, color: '#78716c' }}
+          />
+          <Area
+            type="monotone"
+            dataKey="actual"
+            name="Actual Clicks"
+            stroke={actualStroke}
+            strokeWidth={3}
+            fill="transparent"
+            activeDot={{ r: 6, fill: '#1F2937', stroke: '#fff', strokeWidth: 2 }}
+          />
+          <Area
+            type="monotone"
+            dataKey="forecast"
+            name="Forecast"
+            stroke={forecastStroke}
+            strokeWidth={3}
+            strokeDasharray="5 5"
+            fill={forecastFill}
+            activeDot={{ r: 6, fill: '#FBBF24', stroke: '#fff', strokeWidth: 2 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 };

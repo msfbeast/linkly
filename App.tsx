@@ -24,6 +24,8 @@ import BioView from './pages/BioView';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToHashElement from './components/ScrollToHashElement';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 // Lazy Load Non-Critical Pages
 const DashboardLayout = React.lazy(() => import('./components/DashboardLayout'));
 const Storefront = React.lazy(() => import('./pages/Storefront'));
@@ -156,7 +158,9 @@ const App: React.FC = () => {
         <AuthProvider>
           <LegacyHashHandler />
           <ScrollToHashElement />
-          <AnimatedRoutes />
+          <ErrorBoundary>
+            <AnimatedRoutes />
+          </ErrorBoundary>
           <InstallPrompt />
         </AuthProvider>
       </ThemeProvider>

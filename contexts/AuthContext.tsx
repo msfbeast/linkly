@@ -11,7 +11,7 @@ export interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (email: string, password: string, username?: string) => Promise<AuthResult>;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<AuthResult>;
@@ -23,6 +23,7 @@ export interface AuthContextType {
     amazonAssociateTag?: string;
   }) => Promise<AuthResult>;
   regenerateApiKey: () => Promise<AuthResult>;
+  checkUsernameAvailability: (username: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -91,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Sign up a new user
    * Requirements: 1.1, 1.3
    */
-  const signUp = useCallback(async (email: string, password: string): Promise<AuthResult> => {
+  const signUp = useCallback(async (email: string, password: string, username?: string): Promise<AuthResult> => {
     // Validate password before attempting signup
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
@@ -101,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
     }
 
-    const response = await authService.signUp(email, password);
+    const response = await authService.signUp(email, password, username);
     return toAuthResult(response);
   }, []);
 
@@ -192,6 +193,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return toAuthResult(response);
   }, []);
 
+  /**
+   * Check if a username is available
+   */
+  const checkUsernameAvailability = useCallback(async (username: string): Promise<boolean> => {
+    return await authService.checkUsernameAvailability(username);
+  }, []);
+
   const value: AuthContextType = {
     user,
     session,
@@ -203,6 +211,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updatePassword,
     updateProfile,
     regenerateApiKey,
+    checkUsernameAvailability,
   };
 
   return (

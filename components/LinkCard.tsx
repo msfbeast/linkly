@@ -87,7 +87,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
         whileHover={{ scale: 1.01 }}
-        className={`bg-white border ${selected ? 'border-yellow-400 ring-1 ring-yellow-400' : 'border-stone-200/60'} rounded-xl p-1 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] group relative mb-4 ${isDragging ? 'opacity-50 rotate-3 scale-105 shadow-2xl cursor-grabbing' : ''}`}
+        className={`bg-white border ${selected ? 'border-yellow-400 ring-1 ring-yellow-400' : 'border-white/60'} rounded-[2rem] p-1 transition-all shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] group relative mb-6 ${isDragging ? 'opacity-50 rotate-3 scale-105 shadow-2xl cursor-grabbing' : ''}`}
       >
         {/* Health Indicator */}
         <div
