@@ -24,6 +24,7 @@ const Register: React.FC = () => {
     password?: string;
     confirmPassword?: string;
   }>({});
+  const [step, setStep] = useState(1); // Multi-step form state
 
   const { signUp } = useAuth();
   const navigate = useNavigate();
