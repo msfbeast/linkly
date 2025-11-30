@@ -140,7 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     loadLinks();
-  }, [loadLinks]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateLink = async (link: LinkData) => {
     try {
