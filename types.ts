@@ -222,20 +222,32 @@ export interface TeamInvite {
 
 export interface UserProfile {
   id: string;
-  email: string;
+  username: string;
   fullName?: string;
   avatarUrl?: string;
-  createdAt: number;
+  website?: string;
+  updatedAt?: string;
+
   // Settings
-  themePreference: 'light' | 'dark' | 'system';
-  emailNotifications: boolean;
-  marketingEmails: boolean;
-  // Team Context
-  currentTeamId?: string | null;
-  onboarding_completed?: boolean;
-  onboarding_step?: number;
-  onboarding_skipped?: boolean;
-  onboarding_started_at?: string;
+  settingsNotifications: {
+    email: boolean;
+    milestones: boolean;
+    reports: boolean;
+    security: boolean;
+  };
+
+  // Monetization
+  flipkartAffiliateId?: string;
+  amazonAssociateTag?: string;
+
+  // Storefront
+  storefrontTheme?: StorefrontTheme;
+
+  // Onboarding
+  onboardingCompleted?: boolean;
+  onboardingStep?: number;
+  onboardingSkipped?: boolean;
+  onboardingStartedAt?: string;
   subscription_tier?: 'free' | 'starter' | 'pro' | 'premium';
   subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
   trial_ends_at?: string;

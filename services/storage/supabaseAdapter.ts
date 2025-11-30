@@ -325,6 +325,47 @@ function bioProfileToRow(profile: Partial<BioProfile>, userId?: string): Partial
   return row;
 }
 
+function rowToUserProfile(row: any): UserProfile {
+  return {
+    id: row.id,
+    username: row.username,
+    fullName: row.full_name,
+    avatarUrl: row.avatar_url,
+    website: row.website,
+    updatedAt: row.updated_at,
+    settingsNotifications: row.settings_notifications || {
+      email: true,
+      milestones: true,
+      reports: true,
+      security: true
+    },
+    flipkartAffiliateId: row.flipkart_affiliate_id,
+    amazonAssociateTag: row.amazon_associate_tag,
+    storefrontTheme: row.storefront_theme,
+    onboardingCompleted: row.onboarding_completed,
+    onboardingStep: row.onboarding_step,
+    onboardingSkipped: row.onboarding_skipped,
+    onboardingStartedAt: row.onboarding_started_at,
+  };
+}
+
+function userProfileToRow(profile: Partial<UserProfile>): any {
+  const row: any = {};
+  if (profile.username !== undefined) row.username = profile.username;
+  if (profile.fullName !== undefined) row.full_name = profile.fullName;
+  if (profile.avatarUrl !== undefined) row.avatar_url = profile.avatarUrl;
+  if (profile.website !== undefined) row.website = profile.website;
+  if (profile.settingsNotifications !== undefined) row.settings_notifications = profile.settingsNotifications;
+  if (profile.flipkartAffiliateId !== undefined) row.flipkart_affiliate_id = profile.flipkartAffiliateId;
+  if (profile.amazonAssociateTag !== undefined) row.amazon_associate_tag = profile.amazonAssociateTag;
+  if (profile.storefrontTheme !== undefined) row.storefront_theme = profile.storefrontTheme;
+  if (profile.onboardingCompleted !== undefined) row.onboarding_completed = profile.onboardingCompleted;
+  if (profile.onboardingStep !== undefined) row.onboarding_step = profile.onboardingStep;
+  if (profile.onboardingSkipped !== undefined) row.onboarding_skipped = profile.onboardingSkipped;
+  if (profile.onboardingStartedAt !== undefined) row.onboarding_started_at = profile.onboardingStartedAt;
+  return row;
+}
+
 /**
  * Supabase implementation of the StorageAdapter interface
  */
