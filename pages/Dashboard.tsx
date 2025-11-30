@@ -1,3 +1,4 @@
+// Dashboard v2.0 - Fixed infinite loop issue
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
