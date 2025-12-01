@@ -6,7 +6,7 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey } from '../../types';
+import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
@@ -640,37 +640,43 @@ export class SupabaseAdapter implements StorageAdapter {
    * Create a guest link (no authentication required)
    * Links expire after 7 days to drive signup conversion
    */
-  async createGuestLink(url: string, title?: string): Promise<LinkData> {
+  /**
+   * Create a guest link (no authentication required)
+   * Uses RPC for secure creation and rate limiting
+   */
+  async createGuestLink(url: string, sessionId: string): Promise<LinkData> {
     if (!isSupabaseConfigured()) {
       throw new Error('Supabase is not configured');
     }
 
-    // Generate short code and claim token
+    // Generate short code locally (or could be done in RPC)
     const shortCode = this.generateShortCode();
-    const claimToken = uuidv4();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    const { data: row, error } = await supabase!
-      .from(TABLES.LINKS)
-      .insert({
-        original_url: url,
-        short_code: shortCode,
-        title: title || 'Guest Link',
-        is_guest: true,
-        claim_token: claimToken,
-        expires_at: expiresAt.toISOString(),
-        user_id: null,
-        tags: [],
-        clicks: 0,
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase!.rpc('create_guest_link', {
+      p_original_url: url,
+      p_short_code: shortCode,
+      p_guest_session_id: sessionId
+    });
 
     if (error) {
       throw new Error(`Failed to create guest link: ${error.message}`);
     }
 
-    return rowToLinkData(row as LinkRow, []);
+    // Construct LinkData from returned JSON
+    // RPC returns: { id, short_code, claim_token, expires_at }
+    return {
+      id: data.id,
+      originalUrl: url,
+      shortCode: data.short_code,
+      title: 'Guest Link',
+      clicks: 0,
+      createdAt: Date.now(),
+      tags: [],
+      clickHistory: [],
+      isGuest: true,
+      claimToken: data.claim_token,
+      expiresAt: new Date(data.expires_at).getTime(),
+    };
   }
 
   /**
@@ -681,26 +687,44 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error('Supabase is not configured');
     }
 
-    // Update link to transfer ownership
-    const { data: row, error } = await supabase!
-      .from(TABLES.LINKS)
-      .update({
-        user_id: userId,
-        is_guest: false,
-        claim_token: null,
-        expires_at: null,
-      })
-      .eq('claim_token', claimToken)
-      .eq('is_guest', true)
-      .select()
-      .single();
+    const { data, error } = await supabase!.rpc('claim_guest_link', {
+      p_claim_token: claimToken,
+      p_user_id: userId
+    });
 
     if (error) {
-      throw new Error('Link not found or already claimed');
+      throw new Error(`Failed to claim link: ${error.message}`);
     }
 
-    const clickHistory = await this.getClickEvents(row.id);
-    return rowToLinkData(row as LinkRow, clickHistory);
+    // Fetch the full link data after claiming
+    return this.getLink(data.link_id) as Promise<LinkData>;
+  }
+
+  /**
+   * Get guest links for a specific session
+   */
+  async getGuestLinks(sessionId: string): Promise<LinkData[]> {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data: linkRows, error } = await supabase!
+      .from(TABLES.LINKS)
+      .select('*')
+      .eq('guest_session_id', sessionId)
+      .eq('is_guest', true)
+      .gt('expires_at', new Date().toISOString()) // Only show non-expired
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to fetch guest links:', error);
+      return [];
+    }
+
+    return (linkRows || []).map((row: LinkRow) => ({
+      ...rowToLinkData(row, []),
+      isGuest: true,
+      claimToken: row.claim_token || undefined,
+      expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined
+    }));
   }
 
   /**
@@ -723,7 +747,12 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     const clickHistory = await this.getClickEvents(row.id);
-    return rowToLinkData(row as LinkRow, clickHistory);
+    return {
+      ...rowToLinkData(row as LinkRow, clickHistory),
+      isGuest: true,
+      claimToken: row.claim_token,
+      expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined
+    };
   }
 
   /**
@@ -1188,8 +1217,12 @@ export class SupabaseAdapter implements StorageAdapter {
       return newProfile;
     }
 
-    const { data: { session } } = await supabase!.auth.getSession();
-    const userId = session?.user?.id;
+    let userId = profile.userId;
+
+    if (!userId) {
+      const { data: { session } } = await supabase!.auth.getSession();
+      userId = session?.user?.id;
+    }
 
     if (!userId) throw new Error('User not authenticated');
 

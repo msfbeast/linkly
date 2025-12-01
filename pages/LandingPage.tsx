@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, Sparkles, Link2, Loader2, Copy, Check, QrCode } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import BentoGrid from '../components/landing/BentoGrid';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { LinkData } from '../types';
+import { toast } from 'sonner';
+import QRCodeGenerator from '../components/QRCodeGenerator';
 import FeatureShowcaseGrid from '../components/landing/FeatureShowcaseGrid';
 import ProductFeatureGrid from '../components/landing/ProductFeatureGrid';
 import FAQSection from '../components/landing/FAQSection';
@@ -11,14 +14,29 @@ import Footer from '../components/landing/Footer';
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
-    const { user, loading } = useAuth();
-    const [username, setUsername] = useState('');
+    const { user, loading: authLoading } = useAuth();
+
+    const [inputValue, setInputValue] = useState('');
+    const [mode, setMode] = useState<'claim' | 'shorten'>('claim');
+    const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState<LinkData | null>(null);
+    const [copied, setCopied] = useState(false);
+    const [showQR, setShowQR] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
     const [placeholder, setPlaceholder] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const [loopNum, setLoopNum] = useState(0);
     const [typingSpeed, setTypingSpeed] = useState(150);
 
     const placeholders = ["yourname", "artist", "designer", "developer", "startup", "musician", "creator"];
+
+    // Initialize guest session
+    useEffect(() => {
+        if (!localStorage.getItem('linkly_guest_session')) {
+            localStorage.setItem('linkly_guest_session', crypto.randomUUID());
+        }
+    }, []);
 
     useEffect(() => {
         const handleTyping = () => {
@@ -46,19 +64,57 @@ const LandingPage: React.FC = () => {
 
     // Redirect to dashboard if already logged in
     useEffect(() => {
-        if (!loading && user) {
+        if (!authLoading && user) {
             navigate('/dashboard');
         }
-    }, [user, loading, navigate]);
+    }, [user, authLoading, navigate]);
 
-    const handleClaimSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (username.trim()) {
-            navigate('/register', { state: { username } });
+        if (!inputValue.trim()) return;
+        setError(null);
+
+        if (mode === 'shorten') {
+            // Handle Link Shortening
+            let finalUrl = inputValue;
+            if (!inputValue.startsWith('http://') && !inputValue.startsWith('https://')) {
+                finalUrl = 'https://' + inputValue;
+            }
+
+            setLoading(true);
+            try {
+                const sessionId = localStorage.getItem('linkly_guest_session')!;
+                const newLink = await supabaseAdapter.createGuestLink(finalUrl, sessionId);
+                setResult(newLink);
+                setInputValue('');
+                toast.success('Link shortened!');
+            } catch (error: any) {
+                setError(error.message || 'Failed to shorten link');
+                toast.error(error.message || 'Failed to shorten link');
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Handle Username Claim
+            navigate('/register', { state: { username: inputValue } });
         }
     };
 
-    if (loading) return null;
+    const handleCopy = () => {
+        if (!result) return;
+        navigator.clipboard.writeText(`${window.location.origin}/${result.shortCode}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast.success('Copied!');
+    };
+
+    const handleClaimLink = () => {
+        if (result?.claimToken) {
+            navigate(`/register?claim=${result.claimToken}`);
+        }
+    };
+
+    if (authLoading) return null;
 
     return (
         <div className="min-h-screen bg-[#FDFBF7] text-slate-900 font-sans selection:bg-yellow-200 overflow-x-hidden">
@@ -113,29 +169,151 @@ const LandingPage: React.FC = () => {
                             Connect your audience to everything you are. One link for your bio, store, and everything in between.
                         </p>
 
-                        {/* Claim Username Input */}
-                        <form onSubmit={handleClaimSubmit} className="max-w-xl mx-auto relative group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
-                            <div className="relative flex items-center bg-white rounded-2xl p-2 shadow-xl border border-stone-100">
-                                <div className="pl-4 text-lg font-medium text-stone-400 select-none">
-                                    gather.link/
+                        {!result ? (
+                            /* Input Section */
+                            <div className="max-w-xl mx-auto relative group">
+                                {/* Mode Toggle */}
+                                <div className="flex justify-center mb-6">
+                                    <div className="bg-white p-1 rounded-full border border-stone-200 shadow-sm inline-flex">
+                                        <button
+                                            onClick={() => { setMode('claim'); setInputValue(''); setError(null); }}
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${mode === 'claim'
+                                                ? 'bg-slate-900 text-white shadow-md'
+                                                : 'text-stone-500 hover:text-slate-900'
+                                                }`}
+                                        >
+                                            Claim Username
+                                        </button>
+                                        <button
+                                            onClick={() => { setMode('shorten'); setInputValue(''); setError(null); }}
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${mode === 'shorten'
+                                                ? 'bg-yellow-400 text-slate-900 shadow-md'
+                                                : 'text-stone-500 hover:text-slate-900'
+                                                }`}
+                                        >
+                                            Shorten Link
+                                        </button>
+                                    </div>
                                 </div>
-                                <input
-                                    type="text"
-                                    placeholder={placeholder}
-                                    className="flex-1 px-2 py-3 bg-transparent border-none focus:ring-0 outline-none text-lg placeholder:text-stone-300 text-slate-900 font-bold transition-all"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                />
-                                <button
-                                    type="submit"
-                                    className="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center gap-2 whitespace-nowrap"
-                                >
-                                    <span>Claim your link</span>
-                                    <ArrowRight className="w-4 h-4" />
-                                </button>
+
+                                <form onSubmit={handleSubmit} className="relative">
+                                    <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+                                    <div className="relative flex items-center bg-white rounded-2xl p-2 shadow-xl border border-stone-100">
+                                        {mode === 'claim' && (
+                                            <div className="pl-4 text-lg font-medium text-stone-400 select-none">
+                                                gather.link/
+                                            </div>
+                                        )}
+                                        <input
+                                            type="text"
+                                            placeholder={mode === 'shorten' ? "Paste a long link here..." : placeholder}
+                                            className="flex-1 px-2 py-3 bg-transparent border-none focus:ring-0 outline-none text-lg placeholder:text-stone-300 text-slate-900 font-bold transition-all"
+                                            value={inputValue}
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className={`px-6 py-3 font-bold rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${mode === 'shorten'
+                                                ? 'bg-yellow-400 text-slate-900 hover:bg-yellow-300'
+                                                : 'bg-slate-900 text-white hover:bg-slate-800'
+                                                }`}
+                                        >
+                                            {loading ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : mode === 'shorten' ? (
+                                                <>
+                                                    <span>Shorten</span>
+                                                    <Link2 className="w-4 h-4" />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span>Claim Link</span>
+                                                    <ArrowRight className="w-4 h-4" />
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </form>
+                                {error && (
+                                    <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium text-center border border-red-100">
+                                        {error}
+                                    </div>
+                                )}
+                                <div className="absolute -bottom-8 left-0 right-0 text-center">
+                                    <span className="text-xs font-medium text-stone-400">
+                                        {mode === 'shorten' ? "✨ Shorten Mode: Paste a URL to create a guest link." : "Start by claiming your unique username."}
+                                    </span>
+                                </div>
                             </div>
-                        </form>
+                        ) : (
+                            /* Result Card */
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className={`mx-auto bg-white rounded-2xl p-6 shadow-2xl border border-stone-100 transition-all duration-500 ${showQR ? 'max-w-4xl' : 'max-w-xl'}`}
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-green-100 rounded-xl">
+                                            <Check className="w-5 h-5 text-green-600" />
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="font-bold text-slate-900">Link Ready!</h3>
+                                            <p className="text-xs text-stone-500 truncate max-w-[200px]">{result.originalUrl}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => { setResult(null); setInputValue(''); }}
+                                        className="text-stone-400 hover:text-slate-900 text-sm font-medium"
+                                    >
+                                        Create Another
+                                    </button>
+                                </div>
+
+                                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 mb-6 flex items-center justify-between gap-4">
+                                    <span className="font-bold text-xl text-slate-900 truncate">
+                                        {window.location.host}/{result.shortCode}
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleCopy}
+                                            className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-200 shadow-sm"
+                                            title="Copy Link"
+                                        >
+                                            {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-stone-400" />}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowQR(!showQR)}
+                                            className={`p-2 rounded-lg transition-colors border shadow-sm ${showQR ? 'bg-white border-stone-200 text-slate-900' : 'border-transparent hover:bg-white hover:border-stone-200 text-stone-400'}`}
+                                            title="Show QR Code"
+                                        >
+                                            <QrCode className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {showQR && (
+                                    <div className="mb-6 flex justify-center p-4 bg-white rounded-xl border border-stone-100 shadow-inner animate-in fade-in slide-in-from-top-2">
+                                        <QRCodeGenerator
+                                            url={`${window.location.origin}/${result.shortCode}`}
+                                            title="Guest Link"
+                                        />
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleClaimLink}
+                                    className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                                >
+                                    Claim & Track Analytics <ArrowRight className="w-5 h-5" />
+                                </button>
+                                <p className="text-center text-xs text-stone-400 mt-3">
+                                    Guest links expire in 7 days. Claim it to keep it forever.
+                                </p>
+                            </motion.div>
+                        )}
+
                     </motion.div>
                 </div>
             </header>

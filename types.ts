@@ -96,6 +96,11 @@ export interface LinkData {
       weight: number; // Percentage 0-100
     }[];
   };
+
+  // Guest Link Fields
+  isGuest?: boolean;
+  claimToken?: string;
+  expiresAt?: number;
 }
 
 // Category color mapping for consistent styling across components
