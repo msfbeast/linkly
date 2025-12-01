@@ -83,7 +83,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="min-w-0"
+                className="min-w-0 h-[400px]"
             >
                 <TrafficSourceChart
                     data={trafficSourceData}
