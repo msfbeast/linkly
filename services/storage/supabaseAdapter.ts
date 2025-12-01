@@ -1764,6 +1764,11 @@ export class SupabaseAdapter implements StorageAdapter {
     // Update profile with new avatar URL
     await this.updateProfile(userId, { avatar_url: publicUrl });
 
+    // Also update Supabase Auth metadata so it reflects in the UI immediately
+    await supabase!.auth.updateUser({
+      data: { avatar_url: publicUrl }
+    });
+
     return publicUrl;
   }
 

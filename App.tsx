@@ -143,6 +143,14 @@ const AnimatedRoutes: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Catch-all redirect to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />

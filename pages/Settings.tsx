@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StorefrontPreview from '../components/StorefrontPreview';
 import DomainManager from '../components/DomainManager';
@@ -54,6 +54,8 @@ const Settings: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // Debug logging removed
 
   const handleSaveTheme = async (theme: string) => {
     setIsSavingTheme(true);
@@ -225,9 +227,9 @@ const Settings: React.FC = () => {
                   <div className="flex items-center gap-6">
                     <div className="relative group">
                       <div className="w-24 h-24 rounded-full overflow-hidden bg-stone-100 border-4 border-white shadow-lg">
-                        {user?.user_metadata?.avatar_url ? (
+                        {user?.avatar_url ? (
                           <img
-                            src={user.user_metadata.avatar_url}
+                            src={user.avatar_url}
                             alt={displayName}
                             className="w-full h-full object-cover"
                           />
@@ -246,14 +248,31 @@ const Settings: React.FC = () => {
                             const file = e.target.files?.[0];
                             if (!file || !user) return;
 
+                            // Validate file type
+                            if (!file.type.startsWith('image/')) {
+                              toast.error('Please upload an image file');
+                              return;
+                            }
+
+                            // Validate file size (max 5MB)
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error('Image must be less than 5MB');
+                              return;
+                            }
+
                             try {
                               setIsLoading(true);
-                              const url = await supabaseAdapter.uploadAvatar(user.id, file);
-                              // Force refresh user data
+                              const toastId = toast.loading('Uploading photo...');
+
+                              await supabaseAdapter.uploadAvatar(user.id, file);
+
+                              toast.success('Profile photo updated!', { id: toastId });
+
+                              // Force refresh to show new image
                               window.location.reload();
-                            } catch (err) {
-                              console.error(err);
-                              toast.error('Failed to upload photo');
+                            } catch (err: any) {
+                              console.error('Upload failed:', err);
+                              toast.error(err.message || 'Failed to upload photo');
                             } finally {
                               setIsLoading(false);
                             }

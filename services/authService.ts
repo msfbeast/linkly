@@ -74,12 +74,14 @@ function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
     id: supabaseUser.id,
     email: supabaseUser.email || '',
     displayName: supabaseUser.user_metadata?.display_name,
+    avatar_url: supabaseUser.user_metadata?.avatar_url,
     apiKey: supabaseUser.user_metadata?.api_key,
     storefrontTheme: supabaseUser.user_metadata?.storefront_theme,
     flipkartAffiliateId: supabaseUser.user_metadata?.flipkart_affiliate_id,
     amazonAssociateTag: supabaseUser.user_metadata?.amazon_associate_tag,
     emailVerified: supabaseUser.email_confirmed_at !== null,
     createdAt: supabaseUser.created_at,
+    user_metadata: supabaseUser.user_metadata, // Pass through all metadata just in case
   };
 }
 
