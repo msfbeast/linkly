@@ -4,6 +4,8 @@ import StorefrontPreview from '../components/StorefrontPreview';
 import DomainManager from '../components/DomainManager';
 import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink, Globe, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { toast } from 'sonner';
 
 /**
  * Settings Page - User account and app preferences
@@ -146,9 +148,11 @@ const Settings: React.FC = () => {
     const newSettings = { ...notifications, [key]: !notifications[key] };
     setNotifications(newSettings);
     try {
-      await import('../services/storage/supabaseAdapter').then(m => m.supabaseAdapter.updateNotificationSettings(newSettings));
+      await supabaseAdapter.updateNotificationSettings(newSettings);
+      toast.success('Notification settings updated!');
     } catch (error) {
       console.error('Failed to update notifications', error);
+      toast.error('Failed to update notification settings.');
     }
   };
 
@@ -218,14 +222,62 @@ const Settings: React.FC = () => {
                 <h2 className="text-lg font-semibold text-slate-900">Account Information</h2>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-stone-500 mb-2">Email Address</label>
-                    <input
-                      type="email"
-                      value={user?.email || ''}
-                      disabled
-                      className="w-full bg-stone-50 border border-stone-200 text-stone-500 px-4 py-3 rounded-xl opacity-60"
-                    />
+                  <div className="flex items-center gap-6">
+                    <div className="relative group">
+                      <div className="w-24 h-24 rounded-full overflow-hidden bg-stone-100 border-4 border-white shadow-lg">
+                        {user?.user_metadata?.avatar_url ? (
+                          <img
+                            src={user.user_metadata.avatar_url}
+                            alt={displayName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white text-2xl font-bold">
+                            {displayName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <label className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-md cursor-pointer hover:bg-stone-50 transition-colors border border-stone-200">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file || !user) return;
+
+                            try {
+                              setIsLoading(true);
+                              const url = await supabaseAdapter.uploadAvatar(user.id, file);
+                              // Force refresh user data
+                              window.location.reload();
+                            } catch (err) {
+                              console.error(err);
+                              toast.error('Failed to upload photo');
+                            } finally {
+                              setIsLoading(false);
+                            }
+                          }}
+                        />
+                        <div className="w-4 h-4 text-slate-900">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="flex-1">
+                      <label className="block text-sm text-stone-500 mb-2">Email Address</label>
+                      <input
+                        type="email"
+                        value={user?.email || ''}
+                        disabled
+                        className="w-full bg-stone-50 border border-stone-200 text-stone-500 px-4 py-3 rounded-xl opacity-60"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -559,7 +611,7 @@ const Settings: React.FC = () => {
                             if (data.url) window.location.href = data.url;
                           } catch (err) {
                             console.error('Failed to open portal:', err);
-                            alert('Failed to load billing portal.');
+                            toast.error('Failed to load billing portal.');
                           }
                         }}
                         className="px-4 py-2 bg-white border border-stone-300 text-slate-700 hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors"

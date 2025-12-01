@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, UserCircle2, ExternalLink, Trash2, Edit, Layout, Search } from 'lucide-react';
 import { BioProfile, LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import BioPreview from '../components/BioPreview';
@@ -102,7 +103,7 @@ const BioDashboard: React.FC = () => {
     const handleSave = async () => {
         console.log('handleSave called', currentProfile);
         if (!currentProfile.handle || !currentProfile.displayName) {
-            alert('Please fill in the Handle and Display Name fields.');
+            toast.error('Please fill in the Handle and Display Name fields.');
             return;
         }
 
@@ -133,9 +134,9 @@ const BioDashboard: React.FC = () => {
         } catch (error: any) {
             console.error('Error saving profile:', error);
             if (error.message?.includes('duplicate key value violates unique constraint')) {
-                alert('This handle is already taken. Please choose another one.');
+                toast.error('This handle is already taken. Please choose another one.');
             } else {
-                alert(`Failed to save profile: ${error.message || 'Unknown error'}`);
+                toast.error(`Failed to save profile: ${error.message || 'Unknown error'}`);
             }
         }
     };
@@ -147,7 +148,7 @@ const BioDashboard: React.FC = () => {
                 fetchData();
             } catch (error) {
                 console.error('Error deleting profile:', error);
-                alert('Failed to delete profile.');
+                toast.error('Failed to delete profile.');
             }
         }
     };

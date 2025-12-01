@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, ExternalLink, Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Loader2, Zap } from 'lucide-react';
 import { Product } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { toast } from 'sonner';
 import { supabase } from '../services/storage/supabaseClient';
 
 import { extractProductDetails } from '../services/geminiService';
@@ -39,7 +40,7 @@ const ProductManager: React.FC = () => {
             }
         } catch (error: any) {
             console.error('Error auto-filling product:', error);
-            alert('Failed to fetch product details. Please enter them manually.');
+            toast.error('Failed to fetch product details. Please enter them manually.');
         } finally {
             setIsImporting(false);
         }
@@ -75,7 +76,7 @@ const ProductManager: React.FC = () => {
             setShowLinkPicker(true);
         } catch (error) {
             console.error('Error fetching links:', error);
-            alert('Failed to load your links.');
+            toast.error('Failed to load your links.');
         }
     };
 
@@ -101,7 +102,7 @@ const ProductManager: React.FC = () => {
         if (!userId) return;
 
         if (!currentProduct.name || !currentProduct.price) {
-            alert('Please fill in the Product Name and Price.');
+            toast.error('Please fill in the Product Name and Price.');
             return;
         }
 

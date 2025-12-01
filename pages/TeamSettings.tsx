@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Users, UserPlus, Shield, Trash2, Mail, Check, X, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { toast } from 'sonner';
 import { Team, TeamMember, TeamInvite, TeamRole } from '../types';
 
 const TeamSettings: React.FC = () => {
@@ -69,13 +70,15 @@ const TeamSettings: React.FC = () => {
         setInviting(true);
         try {
             await supabaseAdapter.createInvite(team.id, inviteEmail, inviteRole);
-            setInviteEmail('');
+            setInviting(false);
             setShowInviteModal(false);
+            toast.success('Invite sent successfully!');
+
             // Reload data or add to local state
             loadTeamData();
         } catch (error) {
             console.error('Failed to invite member:', JSON.stringify(error, null, 2));
-            alert(`Failed to send invite: ${(error as any).message || 'Unknown error'}`);
+            toast.error(`Failed to send invite: ${(error as any).message || 'Unknown error'}`);
         } finally {
             setInviting(false);
         }
@@ -89,11 +92,11 @@ const TeamSettings: React.FC = () => {
         console.log('Slug:', newTeamSlug);
 
         if (!user) {
-            alert('Error: User not logged in');
+            toast.error('Error: User not logged in');
             return;
         }
         if (!newTeamName || !newTeamSlug) {
-            alert('Error: Team name or slug missing');
+            toast.error('Error: Team name or slug missing');
             return;
         }
 
@@ -106,7 +109,7 @@ const TeamSettings: React.FC = () => {
             loadTeamData();
         } catch (error) {
             console.error('Failed to create team:', error);
-            alert(`Failed to create team: ${(error as Error).message}`);
+            toast.error(`Failed to create team: ${(error as Error).message}`);
         } finally {
             setCreating(false);
         }
@@ -240,23 +243,23 @@ const TeamSettings: React.FC = () => {
                 </div>
                 <div className="divide-y divide-stone-100">
                     {members.map((member) => (
-                        <div key={member.userId} className="flex items-center justify-between p-6 hover:bg-stone-50 transition-colors">
+                        <div key={member.userId} className="flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-stone-50 transition-colors gap-4">
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
+                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0">
                                     <span className="font-bold text-slate-600">
                                         {member.userId.substring(0, 2).toUpperCase()}
                                     </span>
                                 </div>
-                                <div>
-                                    <div className="font-bold text-slate-900">
+                                <div className="min-w-0">
+                                    <div className="font-bold text-slate-900 truncate">
                                         {member.userId === user?.id
                                             ? (user.user_metadata?.full_name || user.email || 'You')
                                             : 'Team Member'}
                                     </div>
-                                    <div className="text-sm text-stone-500">{member.userId}</div>
+                                    <div className="text-sm text-stone-500 truncate">{member.userId}</div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 justify-end">
                                 <div className="flex items-center gap-2 px-3 py-1 bg-stone-100 rounded-lg text-sm font-medium text-stone-600">
                                     <Shield className="w-3 h-3" />
                                     <span className="capitalize">{member.role}</span>

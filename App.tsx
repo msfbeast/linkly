@@ -25,6 +25,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToHashElement from './components/ScrollToHashElement';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Toaster } from 'sonner';
 
 // Lazy Load Non-Critical Pages
 const DashboardLayout = React.lazy(() => import('./components/DashboardLayout'));
@@ -162,6 +163,7 @@ const App: React.FC = () => {
             <AnimatedRoutes />
           </ErrorBoundary>
           <InstallPrompt />
+          <Toaster richColors position="top-center" />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

@@ -1645,9 +1645,9 @@ export class SupabaseAdapter implements StorageAdapter {
 
     // Use RPC for atomic creation to avoid RLS issues
     const { data, error } = await supabase!.rpc('create_team_with_owner', {
-      team_name: name,
-      team_slug: slug,
-      owner_uuid: ownerId
+      p_name: name,
+      p_slug: slug,
+      p_owner_id: ownerId
     });
 
     if (error) {
@@ -1719,6 +1719,52 @@ export class SupabaseAdapter implements StorageAdapter {
       ownerId: row.owner_id,
       createdAt: new Date(row.created_at).getTime(),
     }));
+  }
+
+  async getTeamInvites(teamId: string): Promise<TeamInvite[]> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase!
+      .from('team_invites')
+      .select('*')
+      .eq('team_id', teamId)
+      .gt('expires_at', new Date().toISOString());
+
+    if (error) throw error;
+
+    return data.map(invite => ({
+      id: invite.id,
+      teamId: invite.team_id,
+      email: invite.email,
+      role: invite.role as any,
+      token: invite.token,
+      expiresAt: new Date(invite.expires_at).getTime(),
+      createdAt: new Date(invite.created_at).getTime(),
+      createdBy: invite.created_by
+    }));
+  }
+
+  // Profile Management
+  async uploadAvatar(userId: string, file: File): Promise<string> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase!.storage
+      .from('avatars')
+      .upload(fileName, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase!.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    // Update profile with new avatar URL
+    await this.updateProfile(userId, { avatar_url: publicUrl });
+
+    return publicUrl;
   }
 
   async getTeamMembers(teamId: string): Promise<TeamMember[]> {

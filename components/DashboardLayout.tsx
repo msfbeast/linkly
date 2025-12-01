@@ -201,49 +201,42 @@ const DashboardLayout: React.FC = () => {
                 <div className="absolute top-[20%] right-[-10%] w-[30%] h-[30%] bg-yellow-200/30 rounded-full blur-[100px] animate-pulse delay-1000" />
                 <div className="absolute bottom-[-10%] left-[20%] w-[35%] h-[35%] bg-pink-200/20 rounded-full blur-[120px] animate-pulse delay-2000" />
             </div>
-            {/* Sidebar - Hidden on Mobile */}
-            <div className="hidden md:block">
+            {/* Sidebar - Responsive */}
+            <div>
                 <Sidebar
                     currentView={view}
                     onChangeView={(newView) => {
                         setView(newView);
-                        const itemMap: Record<string, string> = {
-                            [ViewState.DASHBOARD]: 'dashboard',
-                            [ViewState.LINKS]: 'links',
-                            [ViewState.ANALYTICS]: 'analytics',
-                            [ViewState.SETTINGS]: 'settings',
-                            [ViewState.PRODUCTS]: 'products',
-                            [ViewState.API]: 'api',
-                            [ViewState.BIO_PAGES]: 'bio',
+                        // Update URL when view changes
+                        const pathMap: Record<string, string> = {
+                            [ViewState.DASHBOARD]: '/dashboard',
+                            [ViewState.LINKS]: '/links',
+                            [ViewState.ANALYTICS]: '/analytics',
+                            [ViewState.SETTINGS]: '/settings',
+                            [ViewState.PRODUCTS]: '/products',
+                            [ViewState.BIO_PAGES]: '/bio',
+                            [ViewState.API]: '/api-access',
+                            [ViewState.TEAM_SETTINGS]: '/team/settings'
                         };
-                        const key = Object.keys(itemMap).find(k => k === newView);
-                        if (key) setActiveSidebarItem(itemMap[key]);
+                        if (pathMap[newView]) {
+                            window.history.pushState({}, '', pathMap[newView]);
+                        }
                     }}
-                />
-            </div>
+                    isOpen={isSidebarOpen}
+                    onClose={() => setIsSidebarOpen(false)}
+                /></div>
 
             {/* Main Content Area */}
             <div className="flex-1 md:ml-[300px] flex flex-col transition-all duration-300">
                 {/* Top Navigation */}
                 <TopNavigation
-                    totalClicks={totalClicks}
+                    totalClicks={links.reduce((acc, link) => acc + (link.clicks || 0), 0)}
                     clickChange={clickChange}
                     onNewLinkClick={() => setIsModalOpen(true)}
-                    onSettingsClick={() => handleSidebarItemClick('settings')}
+                    onSettingsClick={() => setView(ViewState.SETTINGS)}
                     currentView={view}
-                    onChangeView={(newView) => {
-                        setView(newView);
-                        const itemMap: Record<string, string> = {
-                            [ViewState.DASHBOARD]: 'dashboard',
-                            [ViewState.LINKS]: 'links',
-                            [ViewState.ANALYTICS]: 'analytics',
-                            [ViewState.SETTINGS]: 'settings',
-                            [ViewState.PRODUCTS]: 'products',
-                            [ViewState.API]: 'api',
-                        };
-                        const key = Object.keys(itemMap).find(k => k === newView);
-                        if (key) setActiveSidebarItem(itemMap[key]);
-                    }}
+                    onChangeView={setView}
+                    onMenuClick={() => setIsSidebarOpen(true)}
                 />
 
                 {/* Page Content */}

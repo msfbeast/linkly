@@ -7,9 +7,11 @@ import TeamSwitcher from './TeamSwitcher';
 interface SidebarProps {
   currentView: ViewState;
   onChangeView: (view: ViewState) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, onClose }) => {
   const menuItems = [
     { id: ViewState.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
     { id: ViewState.PRODUCTS, icon: ShoppingBag, label: 'Products' },
@@ -20,45 +22,59 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
   ];
 
   return (
-    <div className="fixed left-4 top-4 bottom-4 w-64 bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[2rem] flex flex-col p-6 z-50 transition-all duration-300">
-      {/* Team Switcher */}
-      <div className="mb-8 px-2">
-        <TeamSwitcher />
-      </div>
+    <>
+      {/* Mobile Overlay */}
+      <div
+        className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        onClick={onClose}
+      />
 
-      <nav className="flex-1 space-y-2">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onChangeView(item.id)}
-              data-tour={item.id === ViewState.BIO_PAGES ? 'bio-nav' : undefined}
-              className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group overflow-hidden ${isActive
-                ? 'text-white shadow-lg shadow-slate-900/20'
-                : 'text-stone-500 hover:text-slate-900 hover:bg-white/50'
-                }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 bg-slate-900 rounded-xl"
-                  initial={false}
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
-              <Icon className={`w-5 h-5 relative z-10 transition-colors ${isActive ? 'text-white' : 'text-stone-400 group-hover:text-stone-600'}`} />
-              <span className={`font-bold text-sm tracking-wide relative z-10 ${isActive ? 'text-white' : ''}`}>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* Sidebar Container */}
+      <div className={`fixed left-4 top-4 bottom-4 w-64 bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[2rem] flex flex-col p-6 z-50 transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-[120%]'
+        }`}>
+        {/* Team Switcher */}
+        <div className="mb-8 px-2">
+          <TeamSwitcher />
+        </div>
 
-      <div className="mt-auto">
-        {/* AI Model card removed */}
+        <nav className="flex-1 space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  onChangeView(item.id);
+                  if (window.innerWidth < 768) onClose();
+                }}
+                data-tour={item.id === ViewState.BIO_PAGES ? 'bio-nav' : undefined}
+                className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group overflow-hidden ${isActive
+                  ? 'text-white shadow-lg shadow-slate-900/20'
+                  : 'text-stone-500 hover:text-slate-900 hover:bg-white/50'
+                  }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-slate-900 rounded-xl"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
+                <Icon className={`w-5 h-5 relative z-10 transition-colors ${isActive ? 'text-white' : 'text-stone-400 group-hover:text-stone-600'}`} />
+                <span className={`font-bold text-sm tracking-wide relative z-10 ${isActive ? 'text-white' : ''}`}>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto">
+          {/* AI Model card removed */}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

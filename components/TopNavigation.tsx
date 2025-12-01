@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Plus, TrendingUp, TrendingDown, LogOut, User, ChevronDown, Menu, ShoppingBag, LayoutDashboard, Link as LinkIcon, BarChart2, Settings, Code2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import MobileMenu from './MobileMenu';
 import { ViewState } from '../types';
 
 export type TabType = 'overview' | 'links' | 'analytics' | 'settings';
@@ -14,6 +13,7 @@ interface TopNavigationProps {
   onSettingsClick?: () => void;
   currentView?: ViewState;
   onChangeView?: (view: ViewState) => void;
+  onMenuClick?: () => void;
 }
 
 /**
@@ -28,6 +28,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   onSettingsClick,
   currentView,
   onChangeView,
+  onMenuClick,
 }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -93,8 +94,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
         <div className="flex items-center gap-4 md:gap-8">
           {/* Mobile Menu Button */}
           <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="md:hidden p-2 text-stone-500 hover:bg-stone-100 rounded-xl transition-colors"
+            className="md:hidden p-2 text-stone-400 hover:text-slate-900 transition-colors"
+            onClick={onMenuClick}
           >
             <Menu className="w-6 h-6" />
           </button>
@@ -235,16 +236,6 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu Drawer */}
-      {currentView && onChangeView && (
-        <MobileMenu
-          isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
-          currentView={currentView}
-          onChangeView={onChangeView}
-        />
-      )}
     </>
   );
 };

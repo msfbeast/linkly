@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronDown, ChevronUp, User, Image as ImageIcon, Link as LinkIcon, Share2, Palette, Globe } from 'lucide-react';
+import { toast } from 'sonner';
 import { LinkData, BioProfile } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { useAuth } from '../contexts/AuthContext';
@@ -100,7 +101,7 @@ const SetupChecklist: React.FC<SetupChecklistProps> = ({ links, onComplete }) =>
             onAction: () => {
                 if (bioProfile?.handle) {
                     navigator.clipboard.writeText(`${window.location.origin}/p/${bioProfile.handle}`);
-                    alert('Link copied to clipboard!');
+                    toast.success('Link copied to clipboard!');
                 } else {
                     navigate('/bio');
                 }

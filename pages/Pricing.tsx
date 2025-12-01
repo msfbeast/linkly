@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import PricingCard from '../components/PricingCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -37,11 +38,11 @@ const Pricing: React.FC = () => {
                 window.location.href = data.url;
             } else {
                 console.error('Failed to create checkout session:', data.error);
-                alert('Failed to start checkout. Please try again.');
+                toast.error('Failed to start checkout. Please try again.');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+            toast.error('An error occurred. Please try again.');
         } finally {
             setLoadingTier(null);
         }
