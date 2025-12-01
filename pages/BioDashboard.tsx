@@ -427,7 +427,7 @@ const BioDashboard: React.FC = () => {
 
                                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-stone-100">
                                     <a
-                                        href={`#/p/${profile.handle}`}
+                                        href={`/p/${profile.handle}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="text-yellow-600 text-sm font-bold flex items-center gap-1 hover:underline"
