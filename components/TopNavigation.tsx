@@ -154,28 +154,31 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
               className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-stone-100 transition-colors"
             >
               {/* Progress Ring */}
-              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 40 40">
-                <circle
-                  cx="20"
-                  cy="20"
-                  r={radius}
-                  fill="none"
-                  stroke="#E5E7EB"
-                  strokeWidth="2"
-                />
-                <circle
-                  cx="20"
-                  cy="20"
-                  r={radius}
-                  fill="none"
-                  stroke="#9333EA"
-                  strokeWidth="2"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  className="transition-all duration-1000 ease-out"
-                />
-              </svg>
+              {/* Progress Ring - Only show if not complete */}
+              {progress < 100 && (
+                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 40 40">
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r={radius}
+                    fill="none"
+                    stroke="#E5E7EB"
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r={radius}
+                    fill="none"
+                    stroke="#9333EA"
+                    strokeWidth="2"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+              )}
 
               <div className="w-8 h-8 bg-stone-200 rounded-full flex items-center justify-center overflow-hidden border border-stone-300 relative z-10">
                 {user?.user_metadata?.avatar_url ? (

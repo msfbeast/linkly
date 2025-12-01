@@ -7,7 +7,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { useTheme } from '../contexts/ThemeContext';
+import { PieChart as PieChartIcon, MoreHorizontal } from 'lucide-react';
 
 export interface TrafficSourceChartProps {
   data: { name: string; value: number; color: string }[];
@@ -19,61 +19,89 @@ export const calculateTrafficTotal = (data: { value: number }[]) => {
 };
 
 const TrafficSourceChart: React.FC<TrafficSourceChartProps> = ({ data, total }) => {
-  // Theme-aware colors for Warm Soft Minimalist
-  const tooltipBg = '#ffffff';
-  const tooltipBorder = '1px solid #e7e5e4';
-  const tooltipTextColor = '#1c1917'; // stone-900
-  const tooltipShadow = '0 4px 20px rgba(0,0,0,0.05)';
+  const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
 
-  // Custom warm palette
-  const COLORS = ['#F59E0B', '#1F2937', '#78716c', '#d6d3d1', '#a8a29e'];
+  // Custom palette for yellow theme - softer darks
+  const COLORS = ['#1F2937', '#374151', '#4B5563', '#6B7280', '#9CA3AF'];
+
+  const onPieEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+
+  const onPieLeave = () => {
+    setActiveIndex(null);
+  };
+
+  const activeItem = activeIndex !== null ? data[activeIndex] : null;
 
   return (
-    <div className="w-full h-full flex items-center justify-center relative">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={80}
-            paddingAngle={5}
-            dataKey="value"
-            stroke="none"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip
-            contentStyle={{
-              backgroundColor: tooltipBg,
-              border: tooltipBorder,
-              borderRadius: '12px',
-              boxShadow: tooltipShadow,
-            }}
-            itemStyle={{ color: tooltipTextColor, fontSize: '12px', fontWeight: 600 }}
-            formatter={(value: number) => [`${value}%`, 'Share']}
-          />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            iconType="circle"
-            wrapperStyle={{ fontSize: '12px', fontWeight: 500, color: '#78716c' }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
-
-      {/* Center total display */}
-      <div
-        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none"
-        style={{ marginTop: '-10px' }}
-      >
-        <div className="text-2xl font-bold text-slate-900">
-          {total ? total.toLocaleString() : '0'}
+    <div className="w-full h-full p-6 bg-[#FDE047] rounded-[20px] font-sans flex flex-col shadow-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="w-[35px] h-[35px] text-[#1F2937]">
+          <PieChartIcon className="w-full h-full fill-[#1F2937]" />
         </div>
-        <div className="text-xs text-stone-500 font-medium">Total</div>
+        <button className="w-[40px] h-[40px] bg-[#FEF08A] rounded-full flex items-center justify-center cursor-pointer hover:bg-[#FDE68A] transition-colors">
+          <MoreHorizontal className="w-5 h-5 text-[#1F2937]" />
+        </button>
+      </div>
+
+      <h3 className="font-black text-2xl text-[#1F2937] mb-4">Traffic Sources</h3>
+
+      <div className="flex-1 relative min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={70}
+              paddingAngle={5}
+              dataKey="value"
+              stroke="none"
+              onMouseEnter={onPieEnter}
+              onMouseLeave={onPieLeave}
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index % COLORS.length]}
+                  opacity={activeIndex === null || activeIndex === index ? 1 : 0.6}
+                />
+              ))}
+            </Pie>
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              wrapperStyle={{ fontSize: '11px', fontWeight: 600, color: '#1F2937' }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+
+        {/* Center Text Display - Absolute positioning to center in the donut hole */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none pb-8">
+          {activeItem ? (
+            <>
+              <div className="text-[10px] text-[#1F2937]/70 font-bold uppercase tracking-wider mb-0.5">
+                {activeItem.name}
+              </div>
+              <div className="text-2xl font-black text-[#1F2937] leading-none">
+                {activeItem.value}%
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-[10px] text-[#1F2937]/70 font-bold uppercase tracking-wider mb-0.5">
+                Total
+              </div>
+              <div className="text-2xl font-black text-[#1F2937] leading-none">
+                {total ? total.toLocaleString() : '0'}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

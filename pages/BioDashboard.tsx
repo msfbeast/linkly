@@ -83,9 +83,9 @@ const BioDashboard: React.FC = () => {
         setCurrentProfile({
             id: uuidv4(),
             handle: '',
-            displayName: '',
+            displayName: user?.displayName || '',
             bio: '',
-            avatarUrl: '',
+            avatarUrl: user?.avatar_url || '',
             theme: 'dark',
             links: [],
             views: 0
@@ -413,8 +413,8 @@ const BioDashboard: React.FC = () => {
                             <div key={profile.id} className="bg-white border border-stone-200 rounded-2xl p-6 hover:border-yellow-400 transition-all group shadow-sm">
                                 <div className="flex items-center gap-4 mb-6">
                                     <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center overflow-hidden border border-stone-200">
-                                        {profile.avatarUrl ? (
-                                            <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                        {profile.avatarUrl || user?.avatar_url ? (
+                                            <img src={profile.avatarUrl || user?.avatar_url} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <UserCircle2 className="w-8 h-8 text-stone-400" />
                                         )}

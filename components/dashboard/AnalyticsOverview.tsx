@@ -85,15 +85,10 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 transition={{ delay: 0.4 }}
                 className="min-w-0"
             >
-                <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm h-full min-h-[320px] min-w-0">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">Traffic Sources</h3>
-                    <div className="h-[250px] w-full min-w-0">
-                        <TrafficSourceChart
-                            data={trafficSourceData}
-                            total={calculateTrafficTotal(trafficSourceData)}
-                        />
-                    </div>
-                </div>
+                <TrafficSourceChart
+                    data={trafficSourceData}
+                    total={calculateTrafficTotal(trafficSourceData)}
+                />
             </motion.div>
 
             {/* Click Forecast - Full width on mobile, 2 cols on desktop */}

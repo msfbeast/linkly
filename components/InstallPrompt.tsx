@@ -52,7 +52,7 @@ const InstallPrompt: React.FC = () => {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8, y: 20 }}
                     onClick={() => setIsMinimized(false)}
-                    className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-full shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-colors group"
+                    className="fixed bottom-6 right-6 md:hidden z-50 flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-full shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-colors group"
                 >
                     <Download className="w-4 h-4 text-yellow-400" />
                     <span className="text-sm font-bold">Install App</span>
@@ -63,7 +63,7 @@ const InstallPrompt: React.FC = () => {
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                    className="fixed bottom-6 right-6 z-50 flex items-center gap-4 bg-slate-900 text-white p-4 rounded-2xl shadow-xl shadow-slate-900/20 max-w-sm cursor-default"
+                    className="fixed bottom-6 right-6 md:hidden z-50 flex items-center gap-4 bg-slate-900 text-white p-4 rounded-2xl shadow-xl shadow-slate-900/20 max-w-sm cursor-default"
                 >
                     <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shrink-0">
                         <img src="/pwa-icon.png" alt="Gather" className="w-8 h-8 object-contain" />

@@ -1,6 +1,5 @@
 import React from 'react';
-import { AlertTriangle, TrendingUp, Clock, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Lightbulb, MoreHorizontal, ArrowRight } from 'lucide-react';
 
 export type InsightType = 'warning' | 'success' | 'info' | 'neutral';
 
@@ -17,72 +16,44 @@ interface InsightsCardProps {
     insights: Insight[];
 }
 
-const InsightItem: React.FC<{ insight: Insight }> = ({ insight }) => {
-    const getIcon = () => {
-        switch (insight.type) {
-            case 'warning': return <AlertTriangle className="w-5 h-5 text-amber-500" />;
-            case 'success': return <TrendingUp className="w-5 h-5 text-emerald-500" />;
-            case 'info': return <Clock className="w-5 h-5 text-blue-500" />;
-            default: return <CheckCircle2 className="w-5 h-5 text-stone-400" />;
-        }
-    };
-
-    const getBgColor = () => {
-        switch (insight.type) {
-            case 'warning': return 'bg-amber-50 border-amber-100';
-            case 'success': return 'bg-emerald-50 border-emerald-100';
-            case 'info': return 'bg-blue-50 border-blue-100';
-            default: return 'bg-stone-50 border-stone-100';
-        }
-    };
-
-    return (
-        <div className={`p-4 rounded-xl border ${getBgColor()} flex items-start gap-4`}>
-            <div className="mt-0.5 flex-shrink-0">
-                {getIcon()}
-            </div>
-            <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-slate-900">{insight.title}</h4>
-                <p className="text-xs text-stone-600 mt-1 leading-relaxed">{insight.description}</p>
-                {insight.actionLabel && (
-                    <button
-                        onClick={insight.onAction}
-                        className="mt-2 text-xs font-bold flex items-center gap-1 hover:underline transition-all"
-                        style={{ color: 'inherit' }}
-                    >
-                        {insight.actionLabel}
-                        <ArrowRight className="w-3 h-3" />
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
-
 export const InsightsCard: React.FC<InsightsCardProps> = ({ insights }) => {
+    // Take only the top 3 insights to fit the card
+    const displayInsights = insights.slice(0, 3);
+
     return (
-        <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm h-full flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h3 className="text-slate-900 font-bold text-lg">Insights</h3>
-                    <p className="text-stone-500 text-sm">Actionable intelligence</p>
+        <div className="w-full h-full p-6 bg-[#FDE047] rounded-[20px] font-sans flex flex-col shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-[35px] h-[35px] text-[#1F2937]">
+                    <Lightbulb className="w-full h-full fill-[#1F2937]" />
                 </div>
-                <div className="flex -space-x-2">
-                    {/* Placeholder for avatars or indicators if needed */}
-                </div>
+                <button className="w-[40px] h-[40px] bg-[#FEF08A] rounded-full flex items-center justify-center cursor-pointer hover:bg-[#FDE68A] transition-colors">
+                    <MoreHorizontal className="w-5 h-5 text-[#1F2937]" />
+                </button>
             </div>
 
-            <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                {insights.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center py-8">
-                        <div className="w-12 h-12 bg-stone-50 rounded-full flex items-center justify-center mb-3">
-                            <CheckCircle2 className="w-6 h-6 text-stone-300" />
-                        </div>
-                        <p className="text-stone-500 text-sm">Everything looks good!</p>
+            <h3 className="font-black text-2xl text-[#1F2937] mb-4">Insights</h3>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                {displayInsights.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
+                        <p className="text-[#1F2937] font-medium">No new insights</p>
                     </div>
                 ) : (
-                    insights.map((insight) => (
-                        <InsightItem key={insight.id} insight={insight} />
+                    displayInsights.map((insight) => (
+                        <div key={insight.id} className="bg-[#1F2937]/5 p-3 rounded-xl border border-[#1F2937]/5">
+                            <h4 className="font-bold text-[#1F2937] text-sm">{insight.title}</h4>
+                            <p className="text-xs text-[#1F2937]/80 mt-1 line-clamp-2">{insight.description}</p>
+                            {insight.actionLabel && (
+                                <button
+                                    onClick={insight.onAction}
+                                    className="mt-2 text-xs font-bold text-[#1F2937] flex items-center gap-1 hover:opacity-70 transition-opacity"
+                                >
+                                    {insight.actionLabel} <ArrowRight className="w-3 h-3" />
+                                </button>
+                            )}
+                        </div>
                     ))
                 )}
             </div>

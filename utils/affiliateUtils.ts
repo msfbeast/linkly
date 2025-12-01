@@ -13,19 +13,58 @@ export const monetizeUrl = (url: string, config: AffiliateConfig): string => {
         const hostname = urlObj.hostname.replace('www.', '');
 
         // Flipkart
-        if (config.flipkartAffiliateId && (hostname === 'flipkart.com' || hostname.endsWith('.flipkart.com'))) {
-            // Remove existing affiliate params to be safe, or just append ours?
-            // Usually affiliate params are 'affid' or 'tag'.
-            // Flipkart uses 'affid' usually.
-            urlObj.searchParams.set('affid', config.flipkartAffiliateId);
-            return urlObj.toString();
+        if (hostname === 'flipkart.com' || hostname.endsWith('.flipkart.com')) {
+            // Prioritize 'itm' identifier (Flipkart Serial Number)
+            // It can be in the path or as a query param (pid=itm...) or just part of the string
+            const itmMatch = url.match(/(itm[a-zA-Z0-9]+)/);
+
+            if (itmMatch) {
+                const pid = itmMatch[1];
+                const cleanUrl = new URL(`https://www.flipkart.com/product/p/${pid}`);
+                if (config.flipkartAffiliateId) {
+                    cleanUrl.searchParams.set('affid', config.flipkartAffiliateId);
+                }
+                return cleanUrl.toString();
+            }
+
+            // Fallback to 'pid' param if no 'itm' found
+            const pid = urlObj.searchParams.get('pid');
+            if (pid) {
+                const cleanUrl = new URL(`https://www.flipkart.com/product/p/${pid}`);
+                if (config.flipkartAffiliateId) {
+                    cleanUrl.searchParams.set('affid', config.flipkartAffiliateId);
+                }
+                return cleanUrl.toString();
+            }
+
+            // Fallback: Just append affid
+            if (config.flipkartAffiliateId) {
+                urlObj.searchParams.set('affid', config.flipkartAffiliateId);
+                return urlObj.toString();
+            }
         }
 
         // Amazon
-        if (config.amazonAssociateTag && (hostname === 'amazon.com' || hostname === 'amazon.in' || hostname.endsWith('.amazon.com') || hostname.endsWith('.amazon.in'))) {
-            // Amazon uses 'tag'
-            urlObj.searchParams.set('tag', config.amazonAssociateTag);
-            return urlObj.toString();
+        if (hostname === 'amazon.com' || hostname === 'amazon.in' || hostname.endsWith('.amazon.com') || hostname.endsWith('.amazon.in')) {
+            // Extract ASIN
+            const asinMatch = url.match(/\/([A-Z0-9]{10})(?:[/?]|$)/);
+
+            if (asinMatch) {
+                const asin = asinMatch[1];
+                // Strip www. for cleaner URL, but keep the TLD (com, in, co.uk)
+                const cleanHostname = urlObj.hostname.replace('www.', '');
+                const cleanUrl = new URL(`https://${cleanHostname}/dp/${asin}`);
+                if (config.amazonAssociateTag) {
+                    cleanUrl.searchParams.set('tag', config.amazonAssociateTag);
+                }
+                return cleanUrl.toString();
+            }
+
+            // Fallback: Just append tag if ASIN not found
+            if (config.amazonAssociateTag) {
+                urlObj.searchParams.set('tag', config.amazonAssociateTag);
+                return urlObj.toString();
+            }
         }
 
         return url;

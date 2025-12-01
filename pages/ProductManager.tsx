@@ -4,24 +4,34 @@ import { Product } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { toast } from 'sonner';
 import { supabase } from '../services/storage/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
+import { monetizeUrl } from '../utils/affiliateUtils';
 
 import { extractProductDetails } from '../services/geminiService';
 
 const ProductManager: React.FC = () => {
+    const { user } = useAuth();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({});
     const [showModal, setShowModal] = useState(false);
-    const [userId, setUserId] = useState<string | null>(null);
     const [importUrl, setImportUrl] = useState('');
     const [destinationUrl, setDestinationUrl] = useState('');
     const [isImporting, setIsImporting] = useState(false);
 
+    const getAffiliateConfig = () => ({
+        flipkartAffiliateId: user?.flipkartAffiliateId,
+        amazonAssociateTag: user?.amazonAssociateTag,
+    });
+
     const handleAutoFill = async () => {
         if (!importUrl) return;
         setIsImporting(true);
-        setDestinationUrl(importUrl); // Auto-set destination URL
+
+        // Monetize the URL immediately
+        const monetizedUrl = monetizeUrl(importUrl, getAffiliateConfig());
+        setDestinationUrl(monetizedUrl);
 
         try {
             const details = await extractProductDetails(importUrl);
@@ -47,17 +57,16 @@ const ProductManager: React.FC = () => {
     };
 
     useEffect(() => {
-        fetchUserAndProducts();
-    }, []);
+        if (user) {
+            fetchProducts();
+        }
+    }, [user]);
 
-    const fetchUserAndProducts = async () => {
+    const fetchProducts = async () => {
+        if (!user) return;
         try {
-            const { data: { session } } = await supabase!.auth.getSession();
-            if (session?.user) {
-                setUserId(session.user.id);
-                const fetchedProducts = await supabaseAdapter.getProducts(session.user.id);
-                setProducts(fetchedProducts);
-            }
+            const fetchedProducts = await supabaseAdapter.getProducts(user.id);
+            setProducts(fetchedProducts);
         } catch (error) {
             console.error('Error fetching products:', error);
         } finally {
@@ -82,24 +91,25 @@ const ProductManager: React.FC = () => {
 
     const handleLinkSelect = (link: any) => {
         setSelectedLinkId(link.id);
-        setDestinationUrl(link.originalUrl);
+
+        // Monetize the selected link's URL if possible
+        const monetizedUrl = monetizeUrl(link.originalUrl, getAffiliateConfig());
+        setDestinationUrl(monetizedUrl);
+
         setCurrentProduct(prev => ({
             ...prev,
             name: link.title || prev.name,
-            // Try to guess price/currency if tags have it? No, just keep it simple.
         }));
 
-        // If the link has a URL, we can try to auto-fill from it too!
         if (link.originalUrl) {
             setImportUrl(link.originalUrl);
-            // Optional: trigger auto-fill automatically? Maybe let user decide.
         }
 
         setShowLinkPicker(false);
     };
 
     const handleSave = async () => {
-        if (!userId) return;
+        if (!user) return;
 
         if (!currentProduct.name || !currentProduct.price) {
             toast.error('Please fill in the Product Name and Price.');
@@ -109,15 +119,26 @@ const ProductManager: React.FC = () => {
         try {
             setLoading(true);
 
+            // Ensure the destination URL is monetized
+            const finalUrl = monetizeUrl(destinationUrl || 'https://example.com', getAffiliateConfig());
+
             if (isEditing && currentProduct.id) {
+                // Update the product
                 await supabaseAdapter.updateProduct(currentProduct.id, currentProduct);
+
+                // Also update the underlying link if we have a linkId and the URL changed
+                if (currentProduct.linkId) {
+                    await supabaseAdapter.updateLink(currentProduct.linkId, {
+                        originalUrl: finalUrl
+                    });
+                }
             } else {
                 let linkId = selectedLinkId;
 
                 if (!linkId) {
                     // Create a new tracked link if one wasn't selected
                     const link = await supabaseAdapter.createLink({
-                        originalUrl: destinationUrl || 'https://example.com',
+                        originalUrl: finalUrl,
                         shortCode: `prod-${Date.now().toString(36)}`,
                         title: currentProduct.name,
                         tags: ['product'],
@@ -129,7 +150,7 @@ const ProductManager: React.FC = () => {
                 }
 
                 await supabaseAdapter.createProduct({
-                    userId,
+                    userId: user.id,
                     name: currentProduct.name,
                     description: currentProduct.description || '',
                     price: Number(currentProduct.price),
@@ -144,7 +165,7 @@ const ProductManager: React.FC = () => {
             setDestinationUrl('');
             setSelectedLinkId(null);
             setIsEditing(false);
-            fetchUserAndProducts();
+            fetchProducts();
         } catch (error) {
             console.error('Error saving product:', error);
         } finally {
@@ -156,7 +177,7 @@ const ProductManager: React.FC = () => {
         if (confirm('Are you sure you want to delete this product?')) {
             try {
                 await supabaseAdapter.deleteProduct(id);
-                fetchUserAndProducts();
+                fetchProducts();
             } catch (error) {
                 console.error('Error deleting product:', error);
             }
@@ -166,9 +187,12 @@ const ProductManager: React.FC = () => {
     const openModal = async (product?: Product) => {
         if (product) {
             setCurrentProduct(product);
+            // Pre-fill destination URL from the product's original URL
+            setDestinationUrl(product.originalUrl || '');
             setIsEditing(true);
         } else {
             setCurrentProduct({ currency: 'USD' });
+            setDestinationUrl('');
             setIsEditing(false);
 
             // Fetch links for the carousel if not already loaded
@@ -236,10 +260,10 @@ const ProductManager: React.FC = () => {
                 </div>
                 <div className="flex gap-3">
                     <a
-                        href={`/store/${userId}`}
+                        href={`/store/${user?.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`bg-white border border-stone-200 hover:border-yellow-400 text-slate-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-sm ${!userId ? 'opacity-50 pointer-events-none' : ''}`}
+                        className={`bg-white border border-stone-200 hover:border-yellow-400 text-slate-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-sm ${!user?.id ? 'opacity-50 pointer-events-none' : ''}`}
                     >
                         <ExternalLink className="w-4 h-4" />
                         View Storefront
