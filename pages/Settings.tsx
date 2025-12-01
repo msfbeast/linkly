@@ -333,7 +333,7 @@ const Settings: React.FC = () => {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-slate-900">Storefront Template</h2>
-                  <a href="/test-storefront" target="_blank" className="text-sm text-yellow-600 hover:text-yellow-700 flex items-center gap-1">
+                  <a href={`/store/${user?.id}`} target="_blank" rel="noopener noreferrer" className="text-sm text-yellow-600 hover:text-yellow-700 flex items-center gap-1">
                     Preview All <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
