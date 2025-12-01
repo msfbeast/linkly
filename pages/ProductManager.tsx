@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ExternalLink, Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Loader2, Zap } from 'lucide-react';
+import { Plus, Edit2, Trash2, ExternalLink, Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Loader2, Zap, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { toast } from 'sonner';
@@ -163,13 +163,23 @@ const ProductManager: React.FC = () => {
         }
     };
 
-    const openModal = (product?: Product) => {
+    const openModal = async (product?: Product) => {
         if (product) {
             setCurrentProduct(product);
             setIsEditing(true);
         } else {
             setCurrentProduct({ currency: 'USD' });
             setIsEditing(false);
+
+            // Fetch links for the carousel if not already loaded
+            if (existingLinks.length === 0) {
+                try {
+                    const links = await supabaseAdapter.getLinks();
+                    setExistingLinks(links);
+                } catch (error) {
+                    console.error('Error fetching links for carousel:', error);
+                }
+            }
         }
         setShowModal(true);
     };
@@ -317,159 +327,203 @@ const ProductManager: React.FC = () => {
             {/* Edit/Create Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white border border-stone-200 rounded-[2rem] w-full max-w-lg p-8 shadow-2xl">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                            {isEditing ? 'Edit Product' : 'New Product'}
-                        </h2>
-
-                        <div className="space-y-5">
-                            {/* Auto-fill Section */}
-                            <div className="bg-yellow-50/50 p-5 rounded-2xl border border-yellow-100 mb-6">
-                                <div className="flex justify-between items-center mb-3">
-                                    <label className="text-sm font-bold text-yellow-700 flex items-center gap-2">
-                                        <Zap className="w-4 h-4" />
-                                        Auto-fill
-                                    </label>
-                                    {!isEditing && (
-                                        <button
-                                            onClick={fetchLinks}
-                                            className="text-xs text-stone-500 hover:text-slate-900 flex items-center gap-1 bg-white border border-stone-200 px-2 py-1 rounded-lg transition-colors shadow-sm"
-                                        >
-                                            <LinkIcon className="w-3 h-3" />
-                                            Import from Link
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="url"
-                                        value={importUrl}
-                                        onChange={e => setImportUrl(e.target.value)}
-                                        className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400/50 placeholder-stone-400"
-                                        placeholder="Paste product link here..."
-                                    />
-                                    <button
-                                        onClick={handleAutoFill}
-                                        disabled={isImporting || !importUrl}
-                                        className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm shadow-yellow-400/20"
-                                    >
-                                        {isImporting ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                AI Agent working...
-                                            </>
-                                        ) : (
-                                            'Auto-fill with AI'
-                                        )}
-                                    </button>
-                                </div>
-                                <p className="text-xs text-stone-500 mt-2">
-                                    We'll try to fetch the name, image, and description automatically.
-                                </p>
-                                {selectedLinkId && (
-                                    <div className="mt-2 text-xs text-emerald-600 flex items-center gap-1 font-medium">
-                                        <LinkIcon className="w-3 h-3" />
-                                        Linked to existing tracking link
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="border-t border-stone-100 pt-4 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Destination URL</label>
-                                    <div className="relative">
-                                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                        <input
-                                            type="url"
-                                            value={destinationUrl}
-                                            onChange={e => setDestinationUrl(e.target.value)}
-                                            className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                            placeholder="https://amazon.com/..."
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Product Name</label>
-                                    <input
-                                        type="text"
-                                        value={currentProduct.name || ''}
-                                        onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })}
-                                        className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                        placeholder="e.g. Premium T-Shirt"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Price</label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                        <input
-                                            type="number"
-                                            value={currentProduct.price || ''}
-                                            onChange={e => setCurrentProduct({ ...currentProduct, price: Number(e.target.value) })}
-                                            className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                            placeholder="0.00"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Currency</label>
-                                    <select
-                                        value={currentProduct.currency || 'USD'}
-                                        onChange={e => setCurrentProduct({ ...currentProduct, currency: e.target.value })}
-                                        className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all appearance-none"
-                                    >
-                                        <option value="USD">USD ($)</option>
-                                        <option value="INR">INR (₹)</option>
-                                        <option value="EUR">EUR (€)</option>
-                                        <option value="GBP">GBP (£)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Description</label>
-                                <textarea
-                                    value={currentProduct.description || ''}
-                                    onChange={e => setCurrentProduct({ ...currentProduct, description: e.target.value })}
-                                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 h-24 resize-none transition-all"
-                                    placeholder="Describe your product..."
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Image URL</label>
-                                <div className="relative">
-                                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                    <input
-                                        type="text"
-                                        value={currentProduct.imageUrl || ''}
-                                        onChange={e => setCurrentProduct({ ...currentProduct, imageUrl: e.target.value })}
-                                        className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-3 mt-8">
+                    <div className="bg-white border border-stone-200 rounded-[2rem] w-full max-w-5xl p-8 shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-slate-900">
+                                {isEditing ? 'Edit Product' : 'New Product'}
+                            </h2>
                             <button
                                 onClick={() => setShowModal(false)}
-                                className="px-4 py-2 text-stone-500 hover:text-slate-900 transition-colors font-medium"
+                                className="p-2 hover:bg-stone-100 rounded-full transition-colors text-stone-400 hover:text-slate-900"
                             >
-                                Cancel
+                                <ExternalLink className="w-5 h-5 rotate-45" />
                             </button>
-                            <button
-                                onClick={handleSave}
-                                disabled={loading}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-slate-900/20"
-                            >
-                                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                                {isEditing ? 'Save Changes' : 'Create Product'}
-                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            {/* Left Column: Auto-fill & Recent Links */}
+                            <div className="lg:col-span-5 space-y-6">
+                                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-3xl border border-yellow-100 shadow-sm relative overflow-hidden h-full">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-200/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+
+                                    <div className="relative z-10">
+                                        <label className="text-base font-bold text-slate-900 flex items-center gap-2 mb-4">
+                                            <div className="p-1.5 bg-yellow-400 rounded-lg text-slate-900 shadow-sm">
+                                                <Zap className="w-4 h-4" />
+                                            </div>
+                                            Magic Auto-fill
+                                        </label>
+
+                                        <div className="relative group mb-4">
+                                            <input
+                                                type="url"
+                                                value={importUrl}
+                                                onChange={e => setImportUrl(e.target.value)}
+                                                className="w-full bg-white border-2 border-yellow-400/30 group-hover:border-yellow-400/50 focus:border-yellow-400 rounded-2xl pl-4 pr-32 py-3 text-slate-900 text-base placeholder:text-stone-300 focus:outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all shadow-sm"
+                                                placeholder="Paste product link..."
+                                            />
+                                            <div className="absolute right-1.5 top-1.5 bottom-1.5">
+                                                <button
+                                                    onClick={handleAutoFill}
+                                                    disabled={isImporting || !importUrl}
+                                                    className="h-full bg-slate-900 hover:bg-slate-800 text-white px-4 rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md"
+                                                >
+                                                    {isImporting ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <>
+                                                            <span>Auto-fill</span>
+                                                            <Zap className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-xs font-medium text-stone-500 mb-6 flex items-center gap-2">
+                                            <Sparkles className="w-3 h-3 text-yellow-500" />
+                                            AI fetches name, price, and image.
+                                        </p>
+
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
+                                                Recent Links
+                                            </label>
+
+                                            <div className="space-y-2 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
+                                                {existingLinks.length > 0 ? (
+                                                    existingLinks.slice(0, 4).map(link => (
+                                                        <button
+                                                            key={link.id}
+                                                            onClick={() => handleLinkSelect(link)}
+                                                            className="w-full bg-white/60 hover:bg-white border border-stone-200 hover:border-yellow-400 rounded-xl p-3 text-left transition-all group shadow-sm hover:shadow-md flex items-center gap-3"
+                                                        >
+                                                            <div className="p-2 bg-stone-100 rounded-lg group-hover:bg-yellow-100 transition-colors shrink-0">
+                                                                <LinkIcon className="w-4 h-4 text-stone-500 group-hover:text-yellow-600" />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <h4 className="font-bold text-slate-900 text-sm truncate group-hover:text-yellow-700 transition-colors">
+                                                                    {link.title}
+                                                                </h4>
+                                                                <p className="text-[10px] text-stone-400 truncate">
+                                                                    {link.originalUrl}
+                                                                </p>
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-stone-400 bg-stone-50 px-2 py-1 rounded-md border border-stone-100 shrink-0">
+                                                                {link.clicks}
+                                                            </span>
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-center py-4 text-xs text-stone-400 italic">
+                                                        No recent links found.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right Column: Form */}
+                            <div className="lg:col-span-7 flex flex-col h-full">
+                                <div className="space-y-4 flex-1">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Destination URL</label>
+                                        <div className="relative">
+                                            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                                            <input
+                                                type="url"
+                                                value={destinationUrl}
+                                                onChange={e => setDestinationUrl(e.target.value)}
+                                                className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
+                                                placeholder="https://amazon.com/..."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Product Name</label>
+                                        <input
+                                            type="text"
+                                            value={currentProduct.name || ''}
+                                            onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })}
+                                            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
+                                            placeholder="e.g. Premium T-Shirt"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Price</label>
+                                            <div className="relative">
+                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                                                <input
+                                                    type="number"
+                                                    value={currentProduct.price || ''}
+                                                    onChange={e => setCurrentProduct({ ...currentProduct, price: Number(e.target.value) })}
+                                                    className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Currency</label>
+                                            <select
+                                                value={currentProduct.currency || 'USD'}
+                                                onChange={e => setCurrentProduct({ ...currentProduct, currency: e.target.value })}
+                                                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all appearance-none"
+                                            >
+                                                <option value="USD">USD ($)</option>
+                                                <option value="INR">INR (₹)</option>
+                                                <option value="EUR">EUR (€)</option>
+                                                <option value="GBP">GBP (£)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Description</label>
+                                        <textarea
+                                            value={currentProduct.description || ''}
+                                            onChange={e => setCurrentProduct({ ...currentProduct, description: e.target.value })}
+                                            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 h-20 resize-none transition-all"
+                                            placeholder="Describe your product..."
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Image URL</label>
+                                        <div className="relative">
+                                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                                            <input
+                                                type="text"
+                                                value={currentProduct.imageUrl || ''}
+                                                onChange={e => setCurrentProduct({ ...currentProduct, imageUrl: e.target.value })}
+                                                className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
+                                                placeholder="https://..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-stone-100">
+                                    <button
+                                        onClick={() => setShowModal(false)}
+                                        className="px-4 py-2 text-stone-500 hover:text-slate-900 transition-colors font-medium"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={loading}
+                                        className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-slate-900/20"
+                                    >
+                                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        {isEditing ? 'Save Changes' : 'Create Product'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
