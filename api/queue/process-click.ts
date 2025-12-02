@@ -26,12 +26,12 @@ export default async function handler(request: Request) {
     try {
         const body = await request.text();
 
-        if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
-            await receiver.verify({
-                signature,
-                body,
-            });
-        }
+        // if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
+        //     await receiver.verify({
+        //         signature,
+        //         body,
+        //     });
+        // }
 
         const event = JSON.parse(body);
 
