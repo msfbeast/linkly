@@ -5,7 +5,7 @@
             "destination": "/api/r/:code"
         },
         {
-            "source": "/(.*)",
+            "source": "/((?!api/|assets/|favicon.ico).*)",
             "destination": "/index.html"
         }
     ],
