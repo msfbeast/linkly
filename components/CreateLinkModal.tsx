@@ -369,7 +369,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                   <div className="mb-8">
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Short Link (Slug)</label>
                     <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-4 py-1 focus-within:ring-2 focus-within:ring-amber-500/20 focus:border-amber-500 transition-all">
-                      <span className="text-stone-500 font-mono text-sm mr-2 border-r border-stone-200 pr-2 py-2.5">link.ly/</span>
+                      <span className="text-stone-500 font-mono text-sm mr-2 border-r border-stone-200 pr-2 py-2.5">links.trak.in/</span>
                       <input
                         type="text"
                         placeholder="custom-slug"

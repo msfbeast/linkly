@@ -205,7 +205,7 @@ const BioDashboard: React.FC = () => {
                                 <div>
                                     <label className="text-xs text-stone-500 block mb-1">Handle (URL slug)</label>
                                     <div className="flex bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
-                                        <span className="px-3 py-2 text-stone-400 text-sm bg-stone-100">link.ly/p/</span>
+                                        <span className="px-3 py-2 text-stone-400 text-sm bg-stone-100">links.trak.in/p/</span>
                                         <input
                                             type="text"
                                             value={currentProfile.handle}

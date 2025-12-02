@@ -225,7 +225,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
               {/* Short Link Action Bar */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4">
                 <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl pl-3 pr-1 py-1 group/bar transition-colors hover:border-yellow-400/50 hover:bg-yellow-50/50 max-w-full">
-                  <span className="text-stone-400 text-xs sm:text-sm flex-shrink-0">link.ly/</span>
+                  <span className="text-stone-400 text-xs sm:text-sm flex-shrink-0">links.trak.in/</span>
                   <span className="text-slate-900 font-mono text-xs sm:text-sm font-bold ml-0.5 truncate">{link.shortCode}</span>
                   <div className="w-px h-4 bg-stone-200 mx-2 sm:mx-3 flex-shrink-0"></div>
                   <button onClick={handleCopy} className="p-1.5 rounded-lg text-stone-400 hover:text-slate-900 hover:bg-stone-200 transition-all active:scale-95 flex-shrink-0" title="Copy">
