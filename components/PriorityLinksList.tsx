@@ -96,7 +96,7 @@ const PriorityLinkItem: React.FC<{
           className="text-xs text-stone-500 mt-0.5 truncate"
           data-testid="link-short-code"
         >
-          link.ly/{link.shortCode}
+          links.trak.in/{link.shortCode}
         </p>
       </div>
 
