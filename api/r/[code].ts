@@ -37,21 +37,26 @@ export default async function handler(request: Request) {
         if (linkData && linkData.url) {
             // Async Analytics: Publish to QStash
             if (process.env.QSTASH_TOKEN) {
-                const clickEvent = {
-                    linkId: linkData.id,
-                    timestamp: Date.now(),
-                    userAgent: request.headers.get('user-agent'),
-                    ip: request.headers.get('x-forwarded-for') || 'unknown',
-                    referrer: request.headers.get('referer'),
-                    country: request.headers.get('x-vercel-ip-country'),
-                    city: request.headers.get('x-vercel-ip-city'),
-                    region: request.headers.get('x-vercel-ip-region'),
-                };
+                try {
+                    const clickEvent = {
+                        linkId: linkData.id,
+                        timestamp: Date.now(),
+                        userAgent: request.headers.get('user-agent'),
+                        ip: request.headers.get('x-forwarded-for') || 'unknown',
+                        referrer: request.headers.get('referer'),
+                        country: request.headers.get('x-vercel-ip-country'),
+                        city: request.headers.get('x-vercel-ip-city'),
+                        region: request.headers.get('x-vercel-ip-region'),
+                    };
 
-                await qstash.publishJSON({
-                    url: `${url.origin}/api/queue/process-click`,
-                    body: clickEvent,
-                });
+                    await qstash.publishJSON({
+                        url: `${url.origin}/api/queue/process-click`,
+                        body: clickEvent,
+                    });
+                } catch (qError) {
+                    console.error('[Edge API] QStash Error:', qError);
+                    // Don't fail the redirect if analytics fails
+                }
             }
 
             return Response.redirect(linkData.url, 307);
