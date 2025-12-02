@@ -534,7 +534,16 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error(`Failed to create link: ${error.message}`);
     }
 
-    return rowToLinkData(row as LinkRow, link.clickHistory || []);
+    const newLink = rowToLinkData(row as LinkRow, link.clickHistory || []);
+
+    // Sync to Edge Cache (Fire and forget)
+    if (newLink.shortCode && newLink.originalUrl) {
+      this.syncToEdge(newLink.shortCode, newLink.originalUrl, newLink.id).catch(err => {
+        console.warn('[SupabaseAdapter] Failed to sync to edge:', err);
+      });
+    }
+
+    return newLink;
   }
 
   /**
@@ -598,7 +607,34 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     const clickHistory = await this.getClickEvents(id);
-    return rowToLinkData(row as LinkRow, clickHistory);
+    const updatedLink = rowToLinkData(row as LinkRow, clickHistory);
+
+    // Sync to Edge Cache (Fire and forget)
+    if (updatedLink.shortCode && updatedLink.originalUrl) {
+      this.syncToEdge(updatedLink.shortCode, updatedLink.originalUrl, updatedLink.id).catch(err => {
+        console.warn('[SupabaseAdapter] Failed to sync to edge:', err);
+      });
+    }
+
+    return updatedLink;
+  }
+
+  /**
+   * Sync link to Edge Cache (Redis)
+   */
+  private async syncToEdge(shortCode: string, originalUrl: string, id: string): Promise<void> {
+    try {
+      await fetch('/api/link/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ shortCode, originalUrl, id }),
+      });
+    } catch (error) {
+      console.error('[SupabaseAdapter] Sync error:', error);
+      throw error;
+    }
   }
 
   /**

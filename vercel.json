@@ -1,6 +1,10 @@
 {
     "rewrites": [
         {
+            "source": "/r/:code",
+            "destination": "/api/edge/redirect?code=:code"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
