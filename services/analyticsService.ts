@@ -139,7 +139,7 @@ export function generateClickForecastData(
  * @returns The traffic source category
  */
 export function categorizeReferrer(referrer: string): TrafficSource {
-  const normalizedReferrer = referrer.toLowerCase().trim();
+  const normalizedReferrer = (referrer || '').toLowerCase().trim();
 
   // Direct traffic: empty, null, or explicitly "direct"
   if (!normalizedReferrer || normalizedReferrer === 'direct') {
