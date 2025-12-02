@@ -1,6 +1,16 @@
 {
     "rewrites": [
         {
+            "source": "/:code",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "links.trak.in"
+                }
+            ],
+            "destination": "/api/r/:code"
+        },
+        {
             "source": "/r/:code",
             "destination": "/api/r/:code"
         },
