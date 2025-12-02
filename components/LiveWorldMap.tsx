@@ -73,7 +73,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
             if (event.click.longitude && event.click.latitude) {
                 coordinates = [event.click.longitude, event.click.latitude];
             } else {
-                // Fallback: Random placement
+                // Fallback: Random placement (only for demo/testing if no lat/long)
                 coordinates = [
                     (Math.random() * 360) - 180,
                     (Math.random() * 160) - 80
