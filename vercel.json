@@ -9,11 +9,6 @@
             "destination": "/index.html"
         }
     ],
-    "functions": {
-        "api/redirect.ts": {
-            "runtime": "edge"
-        }
-    },
     "crons": [
         {
             "path": "/api/cron/cleanup",
