@@ -19,7 +19,7 @@ async function debugInsert() {
     console.log('🐞 Debugging DB Insert...');
 
     const testPayload = {
-        link_id: '34eea755-e564-4716-94fe-ceaedfe0f233', // Known link ID
+        link_id: '1149373a-16c5-4783-9556-fbb4b57d1b64', // sammon22
         timestamp: new Date().toISOString(),
         raw_user_agent: 'Debug Script',
         ip_hash: '127.0.0.1',

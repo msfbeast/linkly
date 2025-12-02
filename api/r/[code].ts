@@ -47,6 +47,8 @@ export default async function handler(request: Request) {
                     country: request.headers.get('x-vercel-ip-country'),
                     city: request.headers.get('x-vercel-ip-city'),
                     region: request.headers.get('x-vercel-ip-region'),
+                    latitude: request.headers.get('x-vercel-ip-latitude'),
+                    longitude: request.headers.get('x-vercel-ip-longitude'),
                 };
 
                 console.log('[Edge API] Sending to QStash via fetch...');

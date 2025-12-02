@@ -57,6 +57,8 @@ export default async function handler(request: Request) {
                 country: event.country,
                 city: event.city,
                 region: event.region,
+                latitude: event.latitude,
+                longitude: event.longitude,
                 referrer: event.referrer
             })
         });
