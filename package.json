@@ -21,6 +21,7 @@
     "@types/d3-scale": "^4.0.9",
     "@types/react-simple-maps": "^3.0.6",
     "@upstash/qstash": "^2.8.4",
+    "@vercel/analytics": "^1.6.1",
     "@vercel/edge": "^1.2.2",
     "@vercel/kv": "^3.0.0",
     "canvas-confetti": "^1.9.4",
