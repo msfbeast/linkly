@@ -2,7 +2,7 @@ import { Receiver } from '@upstash/qstash';
 import { createClient } from '@supabase/supabase-js';
 
 export const config = {
-    runtime: 'nodejs', // Use Node.js runtime for full Supabase compatibility
+    runtime: 'edge',
 };
 
 // Initialize Supabase Client (Server-side)
