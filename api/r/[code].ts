@@ -50,7 +50,7 @@ export default async function handler(request: Request) {
                     };
 
                     await qstash.publishJSON({
-                        url: `${url.origin}/api/queue/process-click`,
+                        url: `https://linkly-ai.vercel.app/api/queue/process-click`,
                         body: clickEvent,
                     });
                 } catch (qError) {
