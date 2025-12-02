@@ -1,7 +1,7 @@
 {
     "rewrites": [
         {
-            "source": "/((?!dashboard|login|register|auth|p/|assets/|favicon.ico)[^/]+)",
+            "source": "/((?!dashboard|login|register|auth|p/|assets/|favicon.ico|api)[^/]+)",
             "has": [
                 {
                     "type": "host",
