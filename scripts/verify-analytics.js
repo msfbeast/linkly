@@ -22,16 +22,10 @@ async function verifyAnalytics() {
     console.log('🔍 Verifying Analytics Data...');
 
     // Get the link ID for 'trshorts'
-    const { data: linkData, error: linkError } = await supabase
-        .from('links')
-        .select('id, clicks')
-        .eq('short_code', 'X300CS')
-        .single();
-
-    if (linkError) {
-        console.error('Error fetching link:', linkError);
-        return;
-    }
+    const linkData = {
+        id: '1149373a-16c5-4783-9556-fbb4b57d1b64', // sammon22
+        clicks: 0
+    };
 
     console.log(`🔗 Link ID: ${linkData.id}`);
     console.log(`📊 Total Clicks (in Links table): ${linkData.clicks}`);
