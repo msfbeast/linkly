@@ -48,7 +48,32 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
     const linkHealthData = generateLinkHealthData(links);
     const cityData = generateCityData(links);
 
-    // ... (existing insights logic)
+    // Generate insights
+    const insights: Insight[] = links
+        .filter(link => {
+            // Links with low clicks
+            if (link.clicks < 5 && Date.now() - link.createdAt > 3 * 24 * 60 * 60 * 1000) {
+                return true;
+            }
+            return false;
+        })
+        .slice(0, 3)
+        .map(link => ({
+            id: link.id,
+            type: 'info',
+            title: 'Low Engagement',
+            description: `"${link.title}" has low click - through rate.`,
+        }));
+
+    // Add a positive insight if no issues
+    if (insights.length === 0) {
+        insights.push({
+            id: 'all-good',
+            type: 'success' as const,
+            title: 'All Systems Go',
+            description: 'Your links are performing well.',
+        });
+    }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
