@@ -9,9 +9,12 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
+    console.log('Service Role Key Present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
     console.error('Missing Supabase credentials');
     process.exit(1);
 }
+
+console.log('Service Role Key Present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -36,11 +39,13 @@ async function verifyAnalytics() {
     // Check click_events for the last hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-    const { count, error: countError } = await supabase
+    const { data, count, error: countError } = await supabase
         .from('click_events')
-        .select('*', { count: 'exact', head: true })
+        .select('country, city, timestamp', { count: 'exact', head: false })
         .eq('link_id', linkData.id)
-        .gte('timestamp', oneHourAgo);
+        .gte('timestamp', oneHourAgo)
+        .order('timestamp', { ascending: false })
+        .limit(1);
 
     if (countError) {
         console.error('Error fetching click events:', countError);
@@ -48,6 +53,10 @@ async function verifyAnalytics() {
     }
 
     console.log(`⏱️  Recent Clicks (Last 1 Hour): ${count}`);
+
+    if (data && data.length > 0) {
+        console.log('📍 Latest Click Location:', data[0].country, data[0].city);
+    }
 
     if (count > 0) {
         console.log('✅ SUCCESS: Analytics pipeline is working!');

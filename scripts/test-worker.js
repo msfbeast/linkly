@@ -8,14 +8,15 @@ async function testWorker() {
     console.log(`🧪 Testing Worker: ${workerUrl}`);
 
     // Mock event data
-    const eventData = {
-        linkId: '14011e4d-29fe-4eb1-87d7-d6a13232ff04', // Use the ID from previous verification
+    const payload = {
+        linkId: '34eea755-e564-4716-94fe-ceaedfe0f233', // Use the known link ID
         timestamp: Date.now(),
-        userAgent: 'Test Script',
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         ip: '127.0.0.1',
+        referrer: 'https://google.com',
         country: 'US',
-        city: 'Test City',
-        region: 'Test Region'
+        city: 'New York',
+        region: 'NY'
     };
 
     try {
@@ -27,7 +28,7 @@ async function testWorker() {
                 // If we get 404, the route is wrong.
                 // If we get 500, the worker crashed early.
             },
-            body: JSON.stringify(eventData)
+            body: JSON.stringify(payload)
         });
 
         console.log(`Status: ${response.status} ${response.statusText}`);
