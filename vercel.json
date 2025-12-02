@@ -1,14 +1,14 @@
 {
     "rewrites": [
         {
-            "source": "/:code",
+            "source": "/((?!dashboard|login|register|auth|p/|assets/|favicon.ico)[^/]+)",
             "has": [
                 {
                     "type": "host",
                     "value": "links.trak.in"
                 }
             ],
-            "destination": "/api/r/:code"
+            "destination": "/api/r/$1"
         },
         {
             "source": "/r/:code",
