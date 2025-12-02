@@ -37,27 +37,37 @@ export default async function handler(request: Request) {
 
         if (linkData && linkData.url) {
             // Async Analytics: Publish to QStash
-            if (process.env.QSTASH_TOKEN) {
-                try {
-                    const clickEvent = {
-                        linkId: linkData.id,
-                        timestamp: Date.now(),
-                        userAgent: request.headers.get('user-agent'),
-                        ip: request.headers.get('x-forwarded-for') || 'unknown',
-                        referrer: request.headers.get('referer'),
-                        country: request.headers.get('x-vercel-ip-country'),
-                        city: request.headers.get('x-vercel-ip-city'),
-                        region: request.headers.get('x-vercel-ip-region'),
-                    };
+            try {
+                const clickEvent = {
+                    linkId: linkData.id,
+                    timestamp: Date.now(),
+                    userAgent: request.headers.get('user-agent'),
+                    ip: request.headers.get('x-forwarded-for') || 'unknown',
+                    referrer: request.headers.get('referer'),
+                    country: request.headers.get('x-vercel-ip-country'),
+                    city: request.headers.get('x-vercel-ip-city'),
+                    region: request.headers.get('x-vercel-ip-region'),
+                };
 
-                    await qstash.publishJSON({
-                        url: `https://linkly-ai.vercel.app/api/queue/process-click`,
-                        body: clickEvent,
-                    });
-                } catch (qError) {
-                    console.error('[Edge API] QStash Error:', qError);
-                    // Don't fail the redirect if analytics fails
+                console.log('[Edge API] Sending to QStash via fetch...');
+
+                const qstashRes = await fetch(`${process.env.QSTASH_URL}/v2/publish/https://linkly-ai.vercel.app/api/queue/process-click`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(clickEvent),
+                });
+
+                if (!qstashRes.ok) {
+                    console.error(`[Edge API] QStash failed: ${qstashRes.status} ${await qstashRes.text()}`);
+                } else {
+                    console.log(`[Edge API] QStash success: ${await qstashRes.text()}`);
                 }
+            } catch (qError) {
+                console.error('[Edge API] QStash Error:', qError);
+                // Don't fail the redirect if analytics fails
             }
 
             return Response.redirect(linkData.url, 307);
