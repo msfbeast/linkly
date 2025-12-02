@@ -34,7 +34,7 @@ export const TagInput: React.FC<TagInputProps> = ({ userId, selectedTags, onChan
 
         if (value.trim()) {
             const filtered = allTags.filter(tag =>
-                tag.name.toLowerCase().includes(value.toLowerCase()) &&
+                (tag.name || '').toLowerCase().includes(value.toLowerCase()) &&
                 !selectedTags.includes(tag.name)
             );
             setSuggestions(filtered);

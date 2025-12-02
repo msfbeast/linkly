@@ -169,8 +169,8 @@ const BioDashboard: React.FC = () => {
     const inactiveLinksList = availableLinks.filter(l => !(currentProfile.links || []).includes(l.id));
 
     const filteredProfiles = profiles.filter(profile =>
-        profile.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        profile.handle.toLowerCase().includes(searchQuery.toLowerCase())
+        (profile.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (profile.handle || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (isEditing) {

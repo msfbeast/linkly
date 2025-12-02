@@ -45,8 +45,8 @@ const LinksList: React.FC<LinksListProps> = ({
     );
 
     const filteredLinks = links.filter(link =>
-        link.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        link.originalUrl.toLowerCase().includes(searchTerm.toLowerCase())
+        (link.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (link.originalUrl || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
