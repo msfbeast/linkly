@@ -100,6 +100,6 @@ export default async function handler(request: Request) {
 
     } catch (error) {
         console.error('Worker Error:', error);
-        return new Response('Invalid Request', { status: 400 });
+        return new Response(`Invalid Request: ${error.message}`, { status: 400 });
     }
 }
