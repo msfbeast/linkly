@@ -303,9 +303,9 @@ const Links: React.FC<LinksProps> = ({
   };
 
   const filteredLinks = links.filter(link => {
-    const matchesSearch = link.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      link.shortCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      link.originalUrl.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (link.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (link.shortCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (link.originalUrl || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFolder = selectedFolderId === null
       ? true

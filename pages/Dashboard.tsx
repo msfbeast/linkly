@@ -239,8 +239,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const filteredLinks = links.filter(link =>
-    link.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    link.shortCode.toLowerCase().includes(searchTerm.toLowerCase())
+    (link.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (link.shortCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (link.originalUrl || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Get top 4 performing links for performance cards

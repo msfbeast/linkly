@@ -118,9 +118,9 @@ export function categorizeLink(link: LinkData): LinkCategory {
     return link.category;
   }
 
-  const url = link.originalUrl.toLowerCase();
-  const tags = link.tags.map(t => t.toLowerCase());
-  const title = link.title.toLowerCase();
+  const url = (link.originalUrl || '').toLowerCase();
+  const tags = (link.tags || []).map(t => t.toLowerCase());
+  const title = (link.title || '').toLowerCase();
 
   // Social media patterns
   const socialPatterns = ['twitter', 'facebook', 'instagram', 'linkedin', 'tiktok', 'youtube', 'social'];
