@@ -30,6 +30,7 @@ export default async function handler(request: Request) {
 
     try {
         console.log(`[Edge API] Checking link: ${code}`);
+        console.error(`[Edge API] QSTASH_TOKEN present: ${!!process.env.QSTASH_TOKEN}`);
 
         // Check Vercel KV for the link
         const linkData = await kv.get<{ url: string; id: string }>(`linkly:link:${code}`);

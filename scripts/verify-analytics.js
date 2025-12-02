@@ -22,7 +22,7 @@ async function verifyAnalytics() {
     const { data: linkData, error: linkError } = await supabase
         .from('links')
         .select('id, clicks')
-        .eq('short_code', 'trshorts')
+        .eq('short_code', 'X300CS')
         .single();
 
     if (linkError) {
