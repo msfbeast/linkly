@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, UserCircle2, ExternalLink, Trash2, Edit, Layout, Search } from 'lucide-react';
+import {
+    Plus, Trash2, GripVertical, Save, X,
+    Layout, Palette, Camera, Mail, Smartphone,
+    UserCircle2, ExternalLink, Edit, Search
+} from 'lucide-react';
 import { BioProfile, LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { toast } from 'sonner';
@@ -184,37 +188,42 @@ const BioDashboard: React.FC = () => {
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
+                    <div className="flex flex-col gap-6">
                         {/* Tabs */}
-                        <div className="flex bg-stone-100 p-1 rounded-xl mb-4">
+                        <div className="flex p-1 bg-stone-100 rounded-xl overflow-x-auto no-scrollbar">
                             <button
                                 onClick={() => setActiveTab('details')}
-                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'details' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'details' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
                             >
+                                <Layout className="w-4 h-4" />
                                 Details
                             </button>
                             <button
                                 onClick={() => setActiveTab('appearance')}
-                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'appearance' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'appearance' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
                             >
+                                <Palette className="w-4 h-4" />
                                 Appearance
                             </button>
                             <button
                                 onClick={() => setActiveTab('gallery')}
-                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'gallery' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'gallery' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
                             >
+                                <Camera className="w-4 h-4" />
                                 Tech Vault
                             </button>
                             <button
                                 onClick={() => setActiveTab('newsletter')}
-                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'newsletter' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'newsletter' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
                             >
+                                <Mail className="w-4 h-4" />
                                 Newsletter
                             </button>
                             <button
                                 onClick={() => setActiveTab('apps')}
-                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'apps' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'apps' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
                             >
+                                <Smartphone className="w-4 h-4" />
                                 App Stack
                             </button>
                         </div>
