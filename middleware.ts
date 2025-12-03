@@ -57,7 +57,7 @@ export default async function middleware(request: Request) {
 
     // Define allowed domains (localhost and main domain)
     // In production, this should be your actual domain, e.g., 'app.linkly.ai'
-    const allowedDomains = ['localhost', 'linkly.ai', 'app.linkly.ai', 'linkly-ai.vercel.app'];
+    const allowedDomains = ['localhost', 'linkly.ai', 'app.linkly.ai', 'linkly-ai.vercel.app', 'links.trak.in'];
 
     // Check if the current hostname is in the allowed list
     // We use .some() to check if the hostname ends with any of the allowed domains
