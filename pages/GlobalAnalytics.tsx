@@ -14,6 +14,7 @@ interface AnalyticsSummary {
   topBrowsers: { browser: string; clicks: number }[];
   clicksByDay: { date: string; clicks: number }[];
   recentClicks: ClickEvent[];
+  filteredClicks: ClickEvent[]; // Full dataset for map visualization
   // Advanced Analytics
   topSources: { source: string; clicks: number }[];
   topCampaigns: { campaign: string; clicks: number }[];
@@ -170,6 +171,7 @@ const GlobalAnalytics: React.FC = () => {
       topCampaigns,
       triggerSource,
       heatmapData,
+      filteredClicks, // Pass the full dataset
     };
   };
 
@@ -210,7 +212,7 @@ const GlobalAnalytics: React.FC = () => {
 
         {/* Live Global Map */}
         <div className="w-full">
-          <LiveWorldMap clickHistory={analytics?.recentClicks || []} />
+          <LiveWorldMap clickHistory={analytics?.filteredClicks || []} />
         </div>
 
 
