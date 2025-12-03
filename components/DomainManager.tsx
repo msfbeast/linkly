@@ -136,6 +136,36 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                 </button>
             </div>
 
+            {/* Quick Tip Section */}
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
+                <h3 className="text-indigo-900 font-bold flex items-center gap-2 mb-3">
+                    <div className="p-1 bg-indigo-100 rounded-lg">
+                        <Globe className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    How Custom Domains Work
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <p className="text-indigo-900 font-semibold text-sm mb-1">1. The Root Domain</p>
+                        <p className="text-indigo-700 text-xs leading-relaxed">
+                            Visitors to <code>links.yourbrand.com</code> will see your <strong>Bio Page</strong> automatically.
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-indigo-900 font-semibold text-sm mb-1">2. Short Links</p>
+                        <p className="text-indigo-700 text-xs leading-relaxed">
+                            Links like <code>links.yourbrand.com/sale</code> will redirect to your destination instantly.
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-indigo-900 font-semibold text-sm mb-1">3. The Setup</p>
+                        <p className="text-indigo-700 text-xs leading-relaxed">
+                            Just add a <strong>CNAME</strong> record pointing to <code>cname.linkly.ai</code> in your DNS provider.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             {error && (
                 <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
