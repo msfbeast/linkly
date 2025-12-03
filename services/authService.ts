@@ -90,7 +90,8 @@ function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
     amazonAssociateTag: supabaseUser.user_metadata?.amazon_associate_tag,
     emailVerified: supabaseUser.email_confirmed_at !== null,
     createdAt: supabaseUser.created_at,
-    user_metadata: supabaseUser.user_metadata, // Pass through all metadata just in case
+    user_metadata: supabaseUser.user_metadata,
+    role: (supabaseUser as any).role, // Mapped from profile fetch
   };
 }
 
@@ -466,7 +467,7 @@ export const authService = {
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, role')
         .eq('id', data.user.id)
         .single();
 
@@ -482,6 +483,10 @@ export const authService = {
         stripe_customer_id: profile?.stripe_customer_id,
         stripe_subscription_id: profile?.stripe_subscription_id,
       };
+      // Map role directly to user object later
+      if (profile?.role) {
+        (data.user as any).role = profile.role;
+      }
     }
 
     const user = mapSupabaseUser(data.user);
