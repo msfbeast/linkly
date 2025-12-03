@@ -154,10 +154,10 @@ export default async function middleware(request: Request) {
     // Case B: Short Link '/xyz' -> Rewrite to /r/xyz
     // The existing /r/ page logic handles the lookup by code
     // We just need to ensure the short code exists for this USER (optional security check)
-    // For now, we'll just rewrite to /r/path
+    // We rewrite to /api/r/path to leverage the Edge API and Vercel KV for fast redirects
     if (path.length > 1) {
-        console.log(`[Middleware] Rewriting ${hostname}${path} to /r${path}`);
-        url.pathname = `/r${path}`;
+        console.log(`[Middleware] Rewriting ${hostname}${path} to /api/r${path}`);
+        url.pathname = `/api/r${path}`;
         const response = next();
         response.headers.set('x-middleware-rewrite', url.toString());
         return response;

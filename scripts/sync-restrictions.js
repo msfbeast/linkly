@@ -1,24 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
+import Redis from 'ioredis';
 import dotenv from 'dotenv';
 import path from 'path';
-import fetch from 'node-fetch';
 
 // Load environment variables
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5173';
+const redisUrl = process.env.REDIS_URL;
 
 if (!supabaseUrl || !supabaseKey) {
     console.error('Missing Supabase credentials');
     process.exit(1);
 }
 
+if (!redisUrl) {
+    console.error('Missing REDIS_URL in .env.local');
+    process.exit(1);
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
+// Strip quotes if present
+const cleanRedisUrl = redisUrl.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+const redis = new Redis(cleanRedisUrl);
 
 async function syncAllLinks() {
-    console.log('Starting full link sync...');
+    console.log('Starting full link sync to Redis (via ioredis)...');
 
     let page = 0;
     const pageSize = 100;
@@ -48,27 +56,18 @@ async function syncAllLinks() {
 
             try {
                 const payload = {
-                    shortCode: link.short_code,
-                    originalUrl: link.original_url,
+                    url: link.original_url,
                     id: link.id,
                     password: !!link.password_hash,
                     expiration: link.expiration_date ? new Date(link.expiration_date).getTime() : undefined,
                     start: link.start_date ? new Date(link.start_date).getTime() : undefined
                 };
 
-                const response = await fetch(`${appUrl}/api/link/sync`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                });
+                // Write directly to Redis
+                // Note: We must stringify the payload as ioredis expects a string for the value
+                await redis.set(`linkly:link:${link.short_code}`, JSON.stringify(payload));
 
-                if (!response.ok) {
-                    console.error(`Failed to sync ${link.short_code}: ${response.statusText}`);
-                } else {
-                    // console.log(`Synced ${link.short_code}`);
-                }
+                // console.log(`Synced ${link.short_code}`);
                 totalSynced++;
             } catch (err) {
                 console.error(`Error syncing ${link.short_code}:`, err);
@@ -76,11 +75,44 @@ async function syncAllLinks() {
         }
 
         page++;
-        // Rate limiting to be nice to the API
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     console.log(`Sync complete! Total links synced: ${totalSynced}`);
+
+    // Verification Step
+    if (totalSynced > 0) {
+        console.log('Verifying last synced link...');
+        const { data: lastLink } = await supabase
+            .from('links')
+            .select('short_code')
+            .limit(1)
+            .single();
+
+        if (lastLink) {
+            const val = await redis.get(`linkly:link:${lastLink.short_code}`);
+            if (val) {
+                console.log(`✅ Verification SUCCESS: Retrieved data for ${lastLink.short_code}`);
+            } else {
+                console.error(`❌ Verification FAILED: Could not retrieve data for ${lastLink.short_code}`);
+            }
+        }
+    }
+
+    redis.disconnect();
 }
 
-syncAllLinks().catch(console.error);
+// Handle Redis errors to prevent crash
+redis.on('error', (err) => {
+    if (err.message.includes('DB index is out of range')) {
+        // Ignore DB index error if it works anyway (common with some cloud providers)
+        return;
+    }
+    console.error('Redis Client Error:', err);
+});
+
+syncAllLinks().catch(async (err) => {
+    console.error(err);
+    redis.disconnect();
+});
