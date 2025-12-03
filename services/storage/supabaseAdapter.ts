@@ -1129,7 +1129,7 @@ export class SupabaseAdapter implements StorageAdapter {
     return (data || []).map((row: DomainRow) => rowToDomain(row));
   }
 
-  async addDomain(userId: string, domainName: string): Promise<Domain> {
+  async addDomain(userId: string, domainName: string, targetType: 'bio' | 'store' = 'bio'): Promise<Domain> {
     if (!isSupabaseConfigured()) {
       const newDomain: Domain = {
         id: uuidv4(),
@@ -1137,6 +1137,7 @@ export class SupabaseAdapter implements StorageAdapter {
         domain: domainName,
         status: 'pending',
         verificationToken: `verify_${uuidv4().substring(0, 8)}`,
+        targetType,
         createdAt: Date.now(),
       };
       const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
@@ -1153,6 +1154,7 @@ export class SupabaseAdapter implements StorageAdapter {
         domain: domainName,
         status: 'pending',
         verification_token: `verify_${uuidv4().substring(0, 8)}`,
+        target_type: targetType,
       })
       .select()
       .single();
@@ -2140,6 +2142,7 @@ interface DomainRow {
   domain: string;
   status: string;
   verification_token: string;
+  target_type: string;
   created_at: string;
   verified_at: string | null;
 }
@@ -2151,6 +2154,7 @@ function rowToDomain(row: DomainRow): Domain {
     domain: row.domain,
     status: row.status as Domain['status'],
     verificationToken: row.verification_token,
+    targetType: (row.target_type as Domain['targetType']) || 'bio',
     createdAt: new Date(row.created_at).getTime(),
     verifiedAt: row.verified_at ? new Date(row.verified_at).getTime() : undefined,
   };

@@ -16,6 +16,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [newDomain, setNewDomain] = useState('');
+    const [targetType, setTargetType] = useState<'bio' | 'store'>('bio');
     const [verifyingId, setVerifyingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -62,8 +63,9 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
 
         try {
             setLoading(true);
-            await supabaseAdapter.addDomain(userId, newDomain);
+            await supabaseAdapter.addDomain(userId, newDomain, targetType);
             setNewDomain('');
+            setTargetType('bio');
             setIsAdding(false);
             setError(null);
             fetchDomains();
@@ -148,7 +150,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                     <div>
                         <p className="text-indigo-900 font-semibold text-sm mb-1">1. The Root Domain</p>
                         <p className="text-indigo-700 text-xs leading-relaxed">
-                            Visitors to <code>links.yourbrand.com</code> will see your <strong>Bio Page</strong> automatically.
+                            Visitors to <code>links.yourbrand.com</code> will see your <strong>Bio Page</strong> or <strong>Storefront</strong>.
                         </p>
                     </div>
                     <div>
@@ -196,6 +198,44 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                                     className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
                                     autoFocus
                                 />
+                            </div>
+                            <p className="text-xs text-stone-500 mt-2 mb-4">
+                                We recommend using a subdomain like <code>links.yourdomain.com</code> or <code>go.yourdomain.com</code>.
+                            </p>
+
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Link Destination</label>
+                            <div className="flex gap-4 mb-4">
+                                <label className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all flex-1 ${targetType === 'bio' ? 'bg-white border-yellow-400 shadow-sm' : 'bg-transparent border-stone-200 hover:bg-white'}`}>
+                                    <input
+                                        type="radio"
+                                        name="targetType"
+                                        value="bio"
+                                        checked={targetType === 'bio'}
+                                        onChange={() => setTargetType('bio')}
+                                        className="text-yellow-400 focus:ring-yellow-400"
+                                    />
+                                    <div>
+                                        <span className="block font-bold text-slate-900 text-sm">Bio Page</span>
+                                        <span className="block text-xs text-stone-500">Show your profile & links</span>
+                                    </div>
+                                </label>
+                                <label className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all flex-1 ${targetType === 'store' ? 'bg-white border-yellow-400 shadow-sm' : 'bg-transparent border-stone-200 hover:bg-white'}`}>
+                                    <input
+                                        type="radio"
+                                        name="targetType"
+                                        value="store"
+                                        checked={targetType === 'store'}
+                                        onChange={() => setTargetType('store')}
+                                        className="text-yellow-400 focus:ring-yellow-400"
+                                    />
+                                    <div>
+                                        <span className="block font-bold text-slate-900 text-sm">Storefront</span>
+                                        <span className="block text-xs text-stone-500">Show your products</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="flex gap-2 justify-end">
                                 <button
                                     type="button"
                                     onClick={() => setIsAdding(false)}
@@ -208,12 +248,9 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                                     disabled={loading || !newDomain}
                                     className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-6 py-2 rounded-xl font-bold transition-colors disabled:opacity-50"
                                 >
-                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
+                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Domain'}
                                 </button>
                             </div>
-                            <p className="text-xs text-stone-500 mt-2">
-                                We recommend using a subdomain like <code>links.yourdomain.com</code> or <code>go.yourdomain.com</code>.
-                            </p>
                         </div>
                     </motion.form>
                 )}
@@ -250,7 +287,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                                             </span>
                                         )}
                                         <span className="text-xs text-stone-400">
-                                            Added {new Date(domain.createdAt).toLocaleDateString()}
+                                            • {domain.targetType === 'store' ? 'Storefront' : 'Bio Page'}
                                         </span>
                                     </div>
                                 </div>

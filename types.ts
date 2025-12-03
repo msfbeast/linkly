@@ -323,6 +323,7 @@ export interface Domain {
   domain: string;
   status: DomainStatus;
   verificationToken: string;
+  targetType: 'bio' | 'store';
   createdAt: number;
   verifiedAt?: number;
 }

@@ -115,39 +115,48 @@ export default async function middleware(request: Request) {
     // 1. Verify if the domain exists in our database
     const { data: domainData, error } = await supabase
         .from('domains')
-        .select('user_id, status')
+        .select('user_id, status, target_type')
         .eq('domain', hostname)
         .single();
 
     if (error || !domainData || domainData.status !== 'active') {
         console.warn(`[Middleware] Domain ${hostname} not found or not active`);
-        // Rewrite to a 404 page or a generic "Domain not configured" page
-        // For now, we'll rewrite to the main index to show the app, but the app should handle the 404
-        // effectively by checking window.location.hostname
         return next();
     }
 
     // 2. Determine the route type
     const path = url.pathname;
 
-    // Case A: Root path '/' -> Show Bio Page or Main Redirect
+    // Case A: Root path '/' -> Show Bio Page or Storefront
     if (path === '/') {
-        // Fetch the user's primary bio profile or redirect
-        // For this MVP, let's assume we rewrite to the bio page of the user
-        // We need to find the username first.
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', domainData.user_id)
-            .single();
+        // Check target type (default to 'bio' if not set)
+        const targetType = domainData.target_type || 'bio';
 
-        if (profile?.username) {
-            console.log(`[Middleware] Rewriting ${hostname}/ to /p/${profile.username}`);
-            // Rewrite the URL to the internal path for the bio page
-            url.pathname = `/p/${profile.username}`;
+        if (targetType === 'store') {
+            console.log(`[Middleware] Rewriting ${hostname}/ to /store/${domainData.user_id}`);
+            // Rewrite to the storefront page
+            // Note: Storefront route is /store/:userId
+            url.pathname = `/store/${domainData.user_id}`;
             const response = next();
             response.headers.set('x-middleware-rewrite', url.toString());
             return response;
+        } else {
+            // Default: Bio Page
+            // We need to find the username first.
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', domainData.user_id)
+                .single();
+
+            if (profile?.username) {
+                console.log(`[Middleware] Rewriting ${hostname}/ to /p/${profile.username}`);
+                // Rewrite the URL to the internal path for the bio page
+                url.pathname = `/p/${profile.username}`;
+                const response = next();
+                response.headers.set('x-middleware-rewrite', url.toString());
+                return response;
+            }
         }
     }
 
