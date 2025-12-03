@@ -66,20 +66,31 @@ export default async function middleware(request: Request) {
 
     // If it's a main domain, let the request pass through
     if (isMainDomain) {
+        // SPECIAL CASE: links.trak.in is a hybrid domain (App + Short Links)
+        // If it's links.trak.in, we need to check if it's a system route or a short link
+        if (hostname === 'links.trak.in') {
+            const systemRoutes = [
+                '/admin', '/dashboard', '/login', '/register',
+                '/api', '/assets', '/p/', '/r/', '/store',
+                '/open', '/reset-password', '/update-password',
+                '/claim', '/team', '/pricing', '/about', '/privacy', '/terms', '/cookies'
+            ];
+
+            const isSystemRoute = systemRoutes.some(route => url.pathname.startsWith(route)) || url.pathname === '/';
+
+            if (!isSystemRoute) {
+                // It's a short link! Rewrite to /r/path
+                console.log(`[Middleware] Hybrid Rewrite: ${hostname}${url.pathname} to /r${url.pathname}`);
+                url.pathname = `/r${url.pathname}`;
+                const response = next();
+                response.headers.set('x-middleware-rewrite', url.toString());
+                return response;
+            }
+        }
+
         // Protect /admin routes
         if (url.pathname.startsWith('/admin')) {
-            const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-            const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
-            const supabase = createClient(supabaseUrl, supabaseKey);
-
-            // Get session from cookies (Edge Middleware way)
-            // Note: This is tricky in Edge Middleware without @supabase/auth-helpers-nextjs
-            // For now, we'll rely on client-side protection + RLS, but let's try a basic check if possible.
-            // Actually, for a SPA, client-side protection (AdminRoute) + RLS is often sufficient and faster.
-            // But let's add a basic check if we can.
-
-            // If we can't easily check auth in Edge without helpers, we'll rely on the client-side AdminRoute.
-            // Let's stick to client-side protection for now to avoid complexity with cookies in Edge.
+            // ... existing admin logic (which just returns next() currently)
             return next();
         }
         return next();
