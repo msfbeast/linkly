@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import { Analytics } from "@vercel/analytics/react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Sidebar';
@@ -185,6 +186,7 @@ const App: React.FC = () => {
           </ErrorBoundary>
           <InstallPrompt />
           <Toaster richColors position="top-center" />
+          <Analytics />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
