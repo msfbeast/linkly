@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FFF4E0] flex items-center justify-center">
@@ -19,25 +20,28 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
         );
     }
 
+    const storeName = storeProfile?.storeName || 'Neu.Store';
+    const storeLogo = storeProfile?.storeLogoUrl;
+
     return (
         <div className="min-h-screen bg-[#FFF4E0] font-sans text-black selection:bg-[#FF6B6B] selection:text-white">
             {/* Header */}
             <header className="fixed top-0 w-full z-50 p-4">
                 <div className="bg-white border-4 border-black p-4 flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                     <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 bg-[#FF6B6B] border-2 border-black flex items-center justify-center">
-                            <span className="font-black text-xl text-white">N</span>
+                        <div className="w-10 h-10 bg-[#FF6B6B] border-2 border-black flex items-center justify-center overflow-hidden">
+                            {storeLogo ? (
+                                <img src={storeLogo} alt={storeName} className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="font-black text-xl text-white">{storeName.charAt(0)}</span>
+                            )}
                         </div>
-                        <span className="font-black text-2xl tracking-tighter uppercase">Neu.Store</span>
+                        <span className="font-black text-2xl tracking-tighter uppercase">{storeName}</span>
                     </div>
 
                     <div className="flex items-center gap-4">
                         <button className="bg-[#4ECDC4] border-2 border-black p-2 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
                             <Search className="w-6 h-6" />
-                        </button>
-                        <button className="bg-[#FFE66D] border-2 border-black p-2 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2">
-                            <ShoppingBag className="w-6 h-6" />
-                            <span className="font-bold">CART (0)</span>
                         </button>
                     </div>
                 </div>
@@ -52,7 +56,7 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                 New Collection Drop
                             </div>
                             <h1 className="text-5xl md:text-6xl font-black mb-8 uppercase leading-none text-white drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
-                                Bold.<br />Loud.<br />Yours.
+                                {storeName} <br /> Collection
                             </h1>
                             <p className="text-xl font-bold mb-8 max-w-xl bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                                 Stop blending in. Start standing out. Grab the gear that screams personality.

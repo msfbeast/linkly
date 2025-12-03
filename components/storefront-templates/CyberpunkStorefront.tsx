@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center font-mono">
@@ -16,6 +17,10 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
             </div>
         );
     }
+
+    const storeName = storeProfile?.storeName || 'CYBER.MARKET_V2';
+    const storeLogo = storeProfile?.storeLogoUrl;
+    const storeBanner = storeProfile?.storeBannerUrl;
 
     return (
         <div className="min-h-screen bg-[#050505] text-[#00ff00] font-mono selection:bg-[#00ff00] selection:text-black overflow-x-hidden">
@@ -31,8 +36,12 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
             <header className="fixed top-0 w-full z-50 border-b border-[#00ff00]/30 bg-black/90 backdrop-blur-sm">
                 <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Terminal className="w-5 h-5" />
-                        <span className="font-bold tracking-widest">CYBER.MARKET_V2</span>
+                        {storeLogo ? (
+                            <img src={storeLogo} alt={storeName} className="w-8 h-8 rounded-none border border-[#00ff00] object-cover" />
+                        ) : (
+                            <Terminal className="w-5 h-5" />
+                        )}
+                        <span className="font-bold tracking-widest uppercase">{storeName}</span>
                     </div>
 
                     <div className="flex items-center gap-6 text-xs">
@@ -41,7 +50,7 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
                             <span>NET_CONNECTED</span>
                         </div>
                         <div className="border border-[#00ff00] px-3 py-1 hover:bg-[#00ff00] hover:text-black cursor-pointer transition-colors">
-                            CART [0]
+                            STATUS: ONLINE
                         </div>
                     </div>
                 </div>
@@ -50,24 +59,31 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
             {/* Hero Section */}
             <section className="pt-24 pb-20 px-6 relative z-10">
                 <div className="max-w-7xl mx-auto">
-                    <div className="border border-[#00ff00] p-8 md:p-10 relative overflow-hidden group">
+                    <div className="border border-[#00ff00] p-8 md:p-10 relative overflow-hidden group min-h-[300px] flex flex-col justify-center">
+                        {storeBanner && (
+                            <div className="absolute inset-0 z-0">
+                                <img src={storeBanner} alt="Banner" className="w-full h-full object-cover opacity-30 grayscale mix-blend-screen" />
+                                <div className="absolute inset-0 bg-[#050505]/80"></div>
+                            </div>
+                        )}
+
                         <div className="absolute top-0 left-0 w-2 h-2 bg-[#00ff00]"></div>
                         <div className="absolute top-0 right-0 w-2 h-2 bg-[#00ff00]"></div>
                         <div className="absolute bottom-0 left-0 w-2 h-2 bg-[#00ff00]"></div>
                         <div className="absolute bottom-0 right-0 w-2 h-2 bg-[#00ff00]"></div>
 
-                        <div className="absolute inset-0 bg-[#00ff00]/5 group-hover:bg-[#00ff00]/10 transition-colors"></div>
+                        <div className="absolute inset-0 bg-[#00ff00]/5 group-hover:bg-[#00ff00]/10 transition-colors pointer-events-none"></div>
 
                         <div className="relative z-10">
                             <div className="text-xs mb-4 text-[#ff00ff] animate-pulse">&gt;&gt; INCOMING_TRANSMISSION</div>
                             <h1 className="text-4xl md:text-5xl font-bold mb-6 uppercase tracking-tighter glitch-effect">
-                                Upgrade Your <br />
-                                <span className="text-white bg-[#00ff00]/20 px-2">Reality</span>
+                                {storeName} <br />
+                                <span className="text-white bg-[#00ff00]/20 px-2">System</span>
                             </h1>
                             <p className="text-[#00ff00]/70 max-w-xl mb-8 text-sm md:text-base">
                                 Access high-grade tech components and enhancements. Authorized personnel only.
                             </p>
-                            <button className="bg-[#00ff00] text-black px-8 py-3 font-bold uppercase hover:bg-[#ff00ff] hover:text-white transition-colors clip-path-polygon">
+                            <button className="bg-[#00ff00] text-black px-8 py-3 font-bold uppercase hover:bg-[#ff00ff] hover:text-white transition-colors clip-path-polygon w-fit">
                                 Initialize Access
                             </button>
                         </div>

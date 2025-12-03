@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#F7F2E8] flex items-center justify-center">
@@ -20,16 +21,23 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }
         );
     }
 
+    const storeName = storeProfile?.storeName || 'lofi.shop';
+    const storeLogo = storeProfile?.storeLogoUrl;
+
     return (
         <div className="min-h-screen bg-[#F7F2E8] font-mono text-[#5C4B51] selection:bg-[#F0A6CA] selection:text-white">
             {/* Header */}
             <header className="fixed top-0 w-full z-50 px-6 py-6">
                 <div className="max-w-5xl mx-auto bg-white/80 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-[4px_4px_0px_#E2C2C6] border-2 border-[#5C4B51] flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#F0A6CA] rounded-full border-2 border-[#5C4B51] flex items-center justify-center">
-                            <Music className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 bg-[#F0A6CA] rounded-full border-2 border-[#5C4B51] flex items-center justify-center overflow-hidden">
+                            {storeLogo ? (
+                                <img src={storeLogo} alt={storeName} className="w-full h-full object-cover" />
+                            ) : (
+                                <Music className="w-5 h-5 text-white" />
+                            )}
                         </div>
-                        <span className="font-bold text-lg tracking-tight">lofi.shop</span>
+                        <span className="font-bold text-lg tracking-tight">{storeName}</span>
                     </div>
 
                     <nav className="hidden md:flex gap-8 text-sm font-medium">
@@ -39,9 +47,7 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }
                     </nav>
 
                     <div className="flex items-center gap-4">
-                        <button className="bg-[#99C1B9] p-2 rounded-lg border-2 border-[#5C4B51] shadow-[2px_2px_0px_#5C4B51] hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-[1px_1px_0px_#5C4B51] transition-all">
-                            <ShoppingBag className="w-5 h-5 text-white" />
-                        </button>
+                        {/* Cart removed for curated mode */}
                     </div>
                 </div>
             </header>
@@ -55,8 +61,8 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }
                                 chill vibes only
                             </div>
                             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-                                Cozy Essentials <br />
-                                <span className="text-[#99C1B9]">For Your Space</span>
+                                {storeName} <br />
+                                <span className="text-[#99C1B9]">Collection</span>
                             </h1>
                             <p className="text-lg mb-8 leading-relaxed opacity-80">
                                 A curated collection of things that make you feel at home.

@@ -25,16 +25,17 @@ const Storefront: React.FC = () => {
     const theme = searchParams.get('theme') || (user?.id === userId ? user?.storefrontTheme : 'vibrant') || 'vibrant';
 
     const [products, setProducts] = useState<Product[]>([]);
+    const [storeProfile, setStoreProfile] = useState<any>(null); // Use any or UserProfile if imported
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (userId) {
-            fetchProducts();
+            fetchStoreData();
         }
     }, [userId]);
 
-    const fetchProducts = async () => {
+    const fetchStoreData = async () => {
         try {
             if (!userId) return;
 
@@ -54,11 +55,16 @@ const Storefront: React.FC = () => {
                 }
             }
 
-            const fetchedProducts = await supabaseAdapter.getProducts(targetUserId);
+            const [fetchedProducts, fetchedProfile] = await Promise.all([
+                supabaseAdapter.getProducts(targetUserId),
+                supabaseAdapter.getUserProfile(targetUserId)
+            ]);
+
             setProducts(fetchedProducts);
+            setStoreProfile(fetchedProfile);
         } catch (err) {
-            console.error('Error fetching products:', err);
-            setError('Failed to load store products.');
+            console.error('Error fetching store data:', err);
+            setError('Failed to load store.');
         } finally {
             setLoading(false);
         }
@@ -74,32 +80,34 @@ const Storefront: React.FC = () => {
     }
 
     // Render the selected template
+    const templateProps = { products, loading, storeProfile };
+
     switch (theme) {
         case 'vibrant':
-            return <VibrantStorefront products={products} loading={loading} />;
+            return <VibrantStorefront {...templateProps} />;
         case 'glass':
-            return <GlassMorphismStorefront products={products} loading={loading} />;
+            return <GlassMorphismStorefront {...templateProps} />;
         case 'cyberpunk':
-            return <CyberpunkStorefront products={products} loading={loading} />;
+            return <CyberpunkStorefront {...templateProps} />;
         case 'retro':
-            return <RetroPopStorefront products={products} loading={loading} />;
+            return <RetroPopStorefront {...templateProps} />;
         case 'neubrutalism':
-            return <NeubrutalismStorefront products={products} loading={loading} />;
+            return <NeubrutalismStorefront {...templateProps} />;
         case 'lofi':
-            return <LofiStorefront products={products} loading={loading} />;
+            return <LofiStorefront {...templateProps} />;
         case 'clay':
-            return <ClaymorphismStorefront products={products} loading={loading} />;
+            return <ClaymorphismStorefront {...templateProps} />;
         case 'bauhaus':
-            return <BauhausStorefront products={products} loading={loading} />;
+            return <BauhausStorefront {...templateProps} />;
         case 'industrial':
-            return <IndustrialStorefront products={products} loading={loading} />;
+            return <IndustrialStorefront {...templateProps} />;
         case 'lab':
-            return <LabStorefront products={products} loading={loading} />;
+            return <LabStorefront {...templateProps} />;
         case 'archive':
-            return <ArchiveStorefront products={products} loading={loading} />;
+            return <ArchiveStorefront {...templateProps} />;
         default:
             // Default fallback to Vibrant
-            return <VibrantStorefront products={products} loading={loading} />;
+            return <VibrantStorefront {...templateProps} />;
     }
 };
 

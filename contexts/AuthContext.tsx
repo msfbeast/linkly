@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { Session } from '@supabase/supabase-js';
 import { authService, User, AuthResult, toAuthResult } from '../services/authService';
 import { validatePassword } from '../services/passwordValidation';
+import { supabase } from '../services/storage/supabaseClient';
 
 /**
  * Auth Context Type
@@ -19,6 +20,9 @@ export interface AuthContextType {
   updateProfile: (data: {
     displayName?: string;
     storefrontTheme?: string;
+    storeName?: string;
+    storeLogoUrl?: string;
+    storeBannerUrl?: string;
     flipkartAffiliateId?: string;
     amazonAssociateTag?: string;
   }) => Promise<AuthResult>;
@@ -28,135 +32,69 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-/**
- * Auth Provider Component
- * Provides authentication state and methods throughout the app
- * Requirements: 2.1, 3.1, 3.2
- */
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize auth state and set up listener
   useEffect(() => {
-    let mounted = true;
-
-    const initializeAuth = async () => {
-      try {
-        // Get initial session
-        const initialSession = await authService.getSession();
-        if (mounted) {
-          setSession(initialSession);
-          if (initialSession) {
-            const currentUser = await authService.getUser();
-            setUser(currentUser);
-          }
+    // Get initial session
+    authService.getSession().then((session) => {
+      setSession(session);
+      if (session?.user) {
+        authService.getUser().then((user) => {
+          setUser(user);
           setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeAuth();
-
-    // Set up auth state change listener for session sync
-    const unsubscribe = authService.onAuthStateChange(async (newSession) => {
-      if (mounted) {
-        setSession(newSession);
-        if (newSession) {
-          const currentUser = await authService.getUser();
-          setUser(currentUser);
-        } else {
-          setUser(null);
-        }
+        });
+      } else {
+        setLoading(false);
       }
     });
 
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        const user = await authService.getUser();
+        setUser(user);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
     return () => {
-      mounted = false;
-      unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
-
-  /**
-   * Sign up a new user
-   * Requirements: 1.1, 1.3
-   */
-  const signUp = useCallback(async (email: string, password: string, username?: string): Promise<AuthResult> => {
-    // Validate password before attempting signup
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.isValid) {
-      return {
-        success: false,
-        error: passwordValidation.errors[0] || 'Invalid password',
-      };
-    }
-
-    const response = await authService.signUp(email, password, username);
-    return toAuthResult(response);
+  const signUp = useCallback(async (email: string, password: string, username?: string) => {
+    const result = await authService.signUp(email, password, username);
+    if (result.user) setUser(result.user);
+    return toAuthResult(result);
   }, []);
 
-  /**
-   * Sign in an existing user
-   * Requirements: 2.1, 2.3, 2.4
-   */
-  const signIn = useCallback(async (
-    email: string,
-    password: string,
-    rememberMe: boolean = false
-  ): Promise<AuthResult> => {
-    const response = await authService.signIn(email, password, rememberMe);
-    return toAuthResult(response);
+  const signIn = useCallback(async (email: string, password: string, rememberMe?: boolean) => {
+    const result = await authService.signIn(email, password, rememberMe);
+    if (result.user) setUser(result.user);
+    return toAuthResult(result);
   }, []);
 
-  /**
-   * Sign out the current user
-   * Clears session and all local authentication tokens
-   * Requirements: 3.1, 3.2
-   */
-  const signOut = useCallback(async (): Promise<void> => {
+  const signOut = useCallback(async () => {
     await authService.signOut();
-    // State will be updated via onAuthStateChange listener
-    // But we also explicitly clear to ensure immediate UI update
     setUser(null);
     setSession(null);
   }, []);
 
-  /**
-   * Request a password reset email
-   * Requirements: 6.1, 6.2
-   */
-  const resetPassword = useCallback(async (email: string): Promise<AuthResult> => {
-    const response = await authService.resetPassword(email);
-    return toAuthResult(response);
+  const resetPassword = useCallback(async (email: string) => {
+    const result = await authService.resetPassword(email);
+    return toAuthResult(result);
   }, []);
 
-  /**
-   * Update the user's password
-   * Requirements: 6.3, 6.4
-   */
-  const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
-    // Validate new password
-    const passwordValidation = validatePassword(newPassword);
-    if (!passwordValidation.isValid) {
-      return {
-        success: false,
-        error: passwordValidation.errors[0] || 'Invalid password',
-      };
-    }
-
-    const response = await authService.updatePassword(newPassword);
-    return toAuthResult(response);
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const result = await authService.updatePassword(newPassword);
+    if (result.user) setUser(result.user);
+    return toAuthResult(result);
   }, []);
 
   /**
@@ -165,6 +103,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateProfile = useCallback(async (data: {
     displayName?: string;
     storefrontTheme?: string;
+    storeName?: string;
+    storeLogoUrl?: string;
+    storeBannerUrl?: string;
+    upiId?: string;
     flipkartAffiliateId?: string;
     amazonAssociateTag?: string;
   }): Promise<AuthResult> => {

@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#E2E2E2] flex items-center justify-center">
@@ -16,6 +17,9 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
             </div>
         );
     }
+
+    const storeName = storeProfile?.storeName || 'IND.SUPPLY';
+    const storeLogo = storeProfile?.storeLogoUrl;
 
     return (
         <div className="min-h-screen bg-[#E2E2E2] font-mono text-slate-800 selection:bg-slate-800 selection:text-white">
@@ -32,11 +36,15 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
                 <div className="flex items-center justify-between px-6 py-4">
                     <div className="flex items-center gap-4">
                         <div className="border border-slate-800 p-1">
-                            <Box className="w-6 h-6" />
+                            {storeLogo ? (
+                                <img src={storeLogo} alt={storeName} className="w-6 h-6 object-cover grayscale" />
+                            ) : (
+                                <Box className="w-6 h-6" />
+                            )}
                         </div>
                         <div>
-                            <h1 className="text-sm font-bold uppercase tracking-wider">IND.SUPPLY</h1>
-                            <p className="text-[10px] text-slate-500">EST. 2025 // SECTOR 7</p>
+                            <h1 className="text-sm font-bold uppercase tracking-wider">{storeName}</h1>
+                            <p className="text-[10px] text-slate-500">EST. {new Date().getFullYear()} // SECTOR 7</p>
                         </div>
                     </div>
 
@@ -45,10 +53,6 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
                             <p>SYS.STATUS: ONLINE</p>
                             <p>LAT: 40.7128 N / LON: 74.0060 W</p>
                         </div>
-                        <button className="bg-slate-800 text-white px-4 py-2 text-xs font-bold uppercase hover:bg-slate-700 transition-colors flex items-center gap-2">
-                            <ShoppingBag className="w-4 h-4" />
-                            <span>Cart [0]</span>
-                        </button>
                     </div>
                 </div>
             </header>

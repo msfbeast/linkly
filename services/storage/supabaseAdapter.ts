@@ -326,6 +326,7 @@ function bioProfileToRow(profile: Partial<BioProfile>, userId?: string): Partial
 }
 
 function rowToUserProfile(row: any): UserProfile {
+  // ... (existing code)
   return {
     id: row.id,
     username: row.username,
@@ -342,6 +343,10 @@ function rowToUserProfile(row: any): UserProfile {
     flipkartAffiliateId: row.flipkart_affiliate_id,
     amazonAssociateTag: row.amazon_associate_tag,
     storefrontTheme: row.storefront_theme,
+    storeName: row.store_name,
+    storeLogoUrl: row.store_logo_url,
+    storeBannerUrl: row.store_banner_url,
+    upiId: row.upi_id,
     onboardingCompleted: row.onboarding_completed,
     onboardingStep: row.onboarding_step,
     onboardingSkipped: row.onboarding_skipped,
@@ -350,6 +355,7 @@ function rowToUserProfile(row: any): UserProfile {
 }
 
 function userProfileToRow(profile: Partial<UserProfile>): any {
+  // ... (existing code)
   const row: any = {};
   if (profile.username !== undefined) row.username = profile.username;
   if (profile.fullName !== undefined) row.full_name = profile.fullName;
@@ -359,12 +365,18 @@ function userProfileToRow(profile: Partial<UserProfile>): any {
   if (profile.flipkartAffiliateId !== undefined) row.flipkart_affiliate_id = profile.flipkartAffiliateId;
   if (profile.amazonAssociateTag !== undefined) row.amazon_associate_tag = profile.amazonAssociateTag;
   if (profile.storefrontTheme !== undefined) row.storefront_theme = profile.storefrontTheme;
+  if (profile.storeName !== undefined) row.store_name = profile.storeName;
+  if (profile.storeLogoUrl !== undefined) row.store_logo_url = profile.storeLogoUrl;
+  if (profile.storeBannerUrl !== undefined) row.store_banner_url = profile.storeBannerUrl;
+  if (profile.upiId !== undefined) row.upi_id = profile.upiId;
   if (profile.onboardingCompleted !== undefined) row.onboarding_completed = profile.onboardingCompleted;
   if (profile.onboardingStep !== undefined) row.onboarding_step = profile.onboardingStep;
   if (profile.onboardingSkipped !== undefined) row.onboarding_skipped = profile.onboardingSkipped;
   if (profile.onboardingStartedAt !== undefined) row.onboarding_started_at = profile.onboardingStartedAt;
   return row;
 }
+
+
 
 /**
  * Supabase implementation of the StorageAdapter interface
@@ -382,6 +394,11 @@ export class SupabaseAdapter implements StorageAdapter {
     }
     return code;
   }
+
+  /**
+   * Get products for a user
+   */
+
 
   /**
    * Get all links from the database
@@ -1081,37 +1098,53 @@ export class SupabaseAdapter implements StorageAdapter {
       return domains.filter(d => d.userId === userId);
     }
 
-    // Supabase implementation would go here
-    // For now, mocking with local storage even in "supabase" mode for this demo
-    const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
-    const domains: Domain[] = stored ? JSON.parse(stored) : [];
-    return domains.filter(d => d.userId === userId);
+    const { data, error } = await supabase!
+      .from(TABLES.DOMAINS)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching domains:', error);
+      return [];
+    }
+
+    return (data || []).map((row: DomainRow) => rowToDomain(row));
   }
 
   async addDomain(userId: string, domainName: string): Promise<Domain> {
-    const newDomain: Domain = {
-      id: uuidv4(),
-      userId,
-      domain: domainName,
-      status: 'pending',
-      verificationToken: `verify_${uuidv4().substring(0, 8)}`,
-      createdAt: Date.now(),
-    };
-
     if (!isSupabaseConfigured()) {
+      const newDomain: Domain = {
+        id: uuidv4(),
+        userId,
+        domain: domainName,
+        status: 'pending',
+        verificationToken: `verify_${uuidv4().substring(0, 8)}`,
+        createdAt: Date.now(),
+      };
       const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
       const domains: Domain[] = stored ? JSON.parse(stored) : [];
       domains.push(newDomain);
       localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(domains));
-    } else {
-      // Mocking Supabase for now
-      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
-      const domains: Domain[] = stored ? JSON.parse(stored) : [];
-      domains.push(newDomain);
-      localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(domains));
+      return newDomain;
     }
 
-    return newDomain;
+    const { data, error } = await supabase!
+      .from(TABLES.DOMAINS)
+      .insert({
+        user_id: userId,
+        domain: domainName,
+        status: 'pending',
+        verification_token: `verify_${uuidv4().substring(0, 8)}`,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to add domain: ${error.message}`);
+    }
+
+    return rowToDomain(data as DomainRow);
   }
 
   async removeDomain(id: string): Promise<void> {
@@ -1122,14 +1155,16 @@ export class SupabaseAdapter implements StorageAdapter {
         const filtered = domains.filter(d => d.id !== id);
         localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(filtered));
       }
-    } else {
-      // Mocking Supabase
-      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
-      if (stored) {
-        const domains: Domain[] = JSON.parse(stored);
-        const filtered = domains.filter(d => d.id !== id);
-        localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(filtered));
-      }
+      return;
+    }
+
+    const { error } = await supabase!
+      .from(TABLES.DOMAINS)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to remove domain: ${error.message}`);
     }
   }
 
@@ -1149,21 +1184,28 @@ export class SupabaseAdapter implements StorageAdapter {
           return domains[index];
         }
       }
-    } else {
-      // Mocking Supabase
-      const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
-      if (stored) {
-        const domains: Domain[] = JSON.parse(stored);
-        const index = domains.findIndex(d => d.id === id);
-        if (index !== -1) {
-          domains[index].status = 'active';
-          domains[index].verifiedAt = Date.now();
-          localStorage.setItem(STORAGE_KEYS.DOMAINS, JSON.stringify(domains));
-          return domains[index];
-        }
-      }
+      return null;
     }
-    return null;
+
+    // In a real scenario, we would check DNS records here.
+    // For now, we'll assume it's valid and update the DB.
+
+    const { data, error } = await supabase!
+      .from(TABLES.DOMAINS)
+      .update({
+        status: 'active',
+        verified_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error verifying domain:', error);
+      return null;
+    }
+
+    return rowToDomain(data as DomainRow);
   }
 
   /**
@@ -1209,6 +1251,28 @@ export class SupabaseAdapter implements StorageAdapter {
 
   /**
    * Get a bio profile by handle (public access)
+   */
+  /**
+   * Get user profile by ID (public info)
+   */
+  async getUserProfile(userId: string): Promise<UserProfile | null> {
+    if (!isSupabaseConfigured()) return null;
+
+    const { data, error } = await supabase!
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return rowToUserProfile(data);
+  }
+
+  /**
+   * Get bio profile by handle
    */
   async getBioProfileByHandle(handle: string): Promise<BioProfile | null> {
     if (!isSupabaseConfigured()) {
@@ -2030,6 +2094,28 @@ function rowToProduct(row: ProductRow): Product {
     linkId: row.link_id,
     slug: row.slug ?? undefined,
     createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+interface DomainRow {
+  id: string;
+  user_id: string;
+  domain: string;
+  status: string;
+  verification_token: string;
+  created_at: string;
+  verified_at: string | null;
+}
+
+function rowToDomain(row: DomainRow): Domain {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    domain: row.domain,
+    status: row.status as Domain['status'],
+    verificationToken: row.verification_token,
+    createdAt: new Date(row.created_at).getTime(),
+    verifiedAt: row.verified_at ? new Date(row.verified_at).getTime() : undefined,
   };
 }
 

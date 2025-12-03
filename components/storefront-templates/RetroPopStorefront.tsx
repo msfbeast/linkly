@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#000080] flex items-center justify-center">
@@ -28,6 +29,9 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
         );
     }
 
+    const storeName = storeProfile?.storeName || 'RetroStore';
+    const storeLogo = storeProfile?.storeLogoUrl;
+
     return (
         <div className="min-h-screen bg-[#FFCC00] font-mono text-black selection:bg-[#FF00FF] selection:text-white overflow-x-hidden"
             style={{
@@ -39,10 +43,14 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
             <header className="fixed top-0 w-full z-50 bg-[#C0C0C0] border-b-2 border-black p-1 shadow-md">
                 <div className="flex items-center justify-between px-2">
                     <div className="flex items-center gap-2">
-                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 w-6 h-6 flex items-center justify-center text-white font-bold text-xs border border-black shadow-[1px_1px_0px_0px_rgba(255,255,255,1)]">
-                            W
+                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 w-6 h-6 flex items-center justify-center text-white font-bold text-xs border border-black shadow-[1px_1px_0px_0px_rgba(255,255,255,1)] overflow-hidden">
+                            {storeLogo ? (
+                                <img src={storeLogo} alt="Logo" className="w-full h-full object-cover" />
+                            ) : (
+                                <span>W</span>
+                            )}
                         </div>
-                        <span className="font-bold">RetroStore.exe</span>
+                        <span className="font-bold">{storeName}.exe</span>
                     </div>
 
                     <div className="flex gap-1">
@@ -65,7 +73,7 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
                 <div className="max-w-5xl mx-auto">
                     <div className="bg-[#C0C0C0] border-t-2 border-l-2 border-white border-b-2 border-r-2 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
                         <div className="bg-gradient-to-r from-[#000080] to-[#1084d0] text-white px-2 py-1 font-bold text-sm flex justify-between items-center">
-                            <span>Welcome to the 90s</span>
+                            <span>Welcome to {storeName}</span>
                             <span className="cursor-pointer">?</span>
                         </div>
                         <div className="p-8 bg-white border-2 border-gray-400 inset-shadow">

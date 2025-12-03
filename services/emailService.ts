@@ -15,24 +15,16 @@ class ConsoleEmailProvider implements EmailProvider {
     }
 }
 
-// Resend Provider (for Production)
-class ResendEmailProvider implements EmailProvider {
-    private apiKey: string;
-
-    constructor(apiKey: string) {
-        this.apiKey = apiKey;
-    }
-
+// API Provider (Calls Backend)
+class ApiEmailProvider implements EmailProvider {
     async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
         try {
-            const response = await fetch('https://api.resend.com/emails', {
+            const response = await fetch('/api/send-email', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`,
                 },
                 body: JSON.stringify({
-                    from: 'Gather <notifications@gather.link>', // Update with verified domain
                     to,
                     subject,
                     html,
@@ -41,7 +33,7 @@ class ResendEmailProvider implements EmailProvider {
 
             if (!response.ok) {
                 const error = await response.json();
-                console.error('Resend Error:', error);
+                console.error('Email API Error:', error);
                 return false;
             }
 
@@ -58,13 +50,13 @@ class EmailService {
     private provider: EmailProvider;
 
     constructor() {
-        const resendApiKey = import.meta.env.VITE_RESEND_API_KEY;
+        // Use API provider in production, or Console in dev if preferred
+        // For now, we'll use API provider if not in strictly offline mode
+        // But to be safe and allow testing the API flow, we default to ApiEmailProvider
+        // unless we want to force console for local dev without backend.
+        // Let's use ApiEmailProvider as default for "Resend" replacement.
 
-        if (resendApiKey) {
-            this.provider = new ResendEmailProvider(resendApiKey);
-        } else {
-            this.provider = new ConsoleEmailProvider();
-        }
+        this.provider = new ApiEmailProvider();
     }
 
     async sendWelcomeEmail(email: string, username: string) {

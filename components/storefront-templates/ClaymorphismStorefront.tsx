@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center">
@@ -23,6 +24,9 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
         );
     }
 
+    const storeName = storeProfile?.storeName || 'Clay.io';
+    const storeLogo = storeProfile?.storeLogoUrl;
+
     return (
         <div className="min-h-screen bg-[#f0f4f8] font-sans text-slate-700 selection:bg-[#7b61ff] selection:text-white">
             {/* Header */}
@@ -33,10 +37,14 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                             boxShadow: '8px 8px 16px #cdd5e0, -8px -8px 16px #ffffff'
                         }}
                     >
-                        <div className="w-10 h-10 bg-[#7b61ff] rounded-2xl flex items-center justify-center text-white font-black text-xl transform rotate-3">
-                            C
+                        <div className="w-10 h-10 bg-[#7b61ff] rounded-2xl flex items-center justify-center text-white font-black text-xl transform rotate-3 overflow-hidden">
+                            {storeLogo ? (
+                                <img src={storeLogo} alt={storeName} className="w-full h-full object-cover" />
+                            ) : (
+                                <span>{storeName.charAt(0)}</span>
+                            )}
                         </div>
-                        <span className="font-bold text-xl text-slate-700">Clay.io</span>
+                        <span className="font-bold text-xl text-slate-700">{storeName}</span>
                     </div>
 
                     <div className="flex items-center gap-6">
@@ -46,14 +54,6 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                             }}
                         >
                             <Search className="w-5 h-5" />
-                        </button>
-                        <button className="w-12 h-12 bg-[#f0f4f8] rounded-2xl flex items-center justify-center text-slate-500 hover:text-[#7b61ff] transition-colors active:scale-95 relative"
-                            style={{
-                                boxShadow: '8px 8px 16px #cdd5e0, -8px -8px 16px #ffffff'
-                            }}
-                        >
-                            <ShoppingBag className="w-5 h-5" />
-                            <span className="absolute top-3 right-3 w-2 h-2 bg-[#ff6b6b] rounded-full"></span>
                         </button>
                     </div>
                 </div>
@@ -76,7 +76,7 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                 SOFT & SQUISHY
                             </span>
                             <h1 className="text-5xl md:text-7xl font-black mb-8 text-slate-800 leading-tight">
-                                Tactile Design <br />
+                                {storeName} <br />
                                 <span className="text-[#7b61ff]">Real Comfort</span>
                             </h1>
                             <p className="text-xl text-slate-500 mb-10 leading-relaxed">

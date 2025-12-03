@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
@@ -18,6 +19,9 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
             </div>
         );
     }
+
+    const storeName = storeProfile?.storeName || 'Glass.BW';
+    const storeLogo = storeProfile?.storeLogoUrl;
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] font-sans text-white selection:bg-white/30">
@@ -32,10 +36,14 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
             <header className="fixed top-0 w-full z-50 px-6 py-4">
                 <div className="max-w-7xl mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-3 flex items-center justify-between shadow-2xl shadow-black/20">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10">
-                            <span className="font-bold text-lg">G</span>
+                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10 overflow-hidden">
+                            {storeLogo ? (
+                                <img src={storeLogo} alt={storeName} className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="font-bold text-lg">{storeName.charAt(0)}</span>
+                            )}
                         </div>
-                        <span className="font-bold text-lg tracking-wide">Glass.BW</span>
+                        <span className="font-bold text-lg tracking-wide">{storeName}</span>
                     </div>
 
                     <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
@@ -66,8 +74,8 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                         Pure Monochrome Aesthetics
                     </div>
                     <h1 className="text-5xl md:text-6xl font-bold mb-8 tracking-tight drop-shadow-2xl">
-                        Crystal Clear <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Simplicity</span>
+                        {storeName} <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Collection</span>
                     </h1>
                     <p className="text-lg text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
                         Minimalist design meets depth. A storefront that puts your products in focus without the noise.

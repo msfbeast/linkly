@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const session = await stripe.checkout.sessions.create({
             mode: 'subscription',
-            payment_method_types: ['card'],
+            payment_method_types: ['card', 'upi'],
             customer_email: email, // Pre-fill email
             client_reference_id: userId, // Track which user this is for
             line_items: [

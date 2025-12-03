@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api
+Disallow: /team
+Disallow: /analytics
+Disallow: /claim
+
+Sitemap: https://gather.link/sitemap.xml

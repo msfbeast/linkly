@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center">
@@ -16,6 +17,9 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading })
             </div>
         );
     }
+
+    const storeName = storeProfile?.storeName || 'LAB.SYS';
+    const storeLogo = storeProfile?.storeLogoUrl;
 
     return (
         <div className="min-h-screen bg-white font-mono text-black selection:bg-black selection:text-white">
@@ -27,9 +31,13 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading })
             {/* Header */}
             <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur border-b border-black">
                 <div className="flex justify-between items-stretch h-14">
-                    <div className="flex items-center px-6 border-r border-black bg-black text-white">
-                        <Beaker className="w-5 h-5 mr-2" />
-                        <span className="font-bold tracking-tighter">LAB.SYS</span>
+                    <div className="flex items-center px-6 border-r border-black bg-black text-white gap-2">
+                        {storeLogo ? (
+                            <img src={storeLogo} alt={storeName} className="w-5 h-5 object-cover grayscale" />
+                        ) : (
+                            <Beaker className="w-5 h-5" />
+                        )}
+                        <span className="font-bold tracking-tighter">{storeName}</span>
                     </div>
 
                     <div className="flex-1 flex items-center px-6 text-xs overflow-hidden whitespace-nowrap">
@@ -38,11 +46,6 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading })
                         <span className="mr-8">HUMIDITY: 45%</span>
                         <span className="animate-pulse text-green-600">● LIVE</span>
                     </div>
-
-                    <button className="flex items-center px-6 border-l border-black hover:bg-gray-100 transition-colors">
-                        <ShoppingBag className="w-4 h-4 mr-2" />
-                        <span className="text-xs font-bold">CART [0]</span>
-                    </button>
                 </div>
             </header>
 

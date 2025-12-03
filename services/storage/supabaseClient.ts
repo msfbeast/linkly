@@ -54,8 +54,9 @@ export function isSupabaseConfigured(): boolean {
 export const TABLES = {
   LINKS: 'links',
   CLICK_EVENTS: 'click_events',
+  BIO_PROFILES: 'bio_profiles',
   PRODUCTS: 'products',
+  DOMAINS: 'domains',
   TAGS: 'tags',
   FOLDERS: 'folders',
-  BIO_PROFILES: 'bio_profiles',
 } as const;

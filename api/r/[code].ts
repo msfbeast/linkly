@@ -53,7 +53,8 @@ export default async function handler(request: Request) {
 
                 console.log('[Edge API] Sending to QStash via fetch...');
 
-                const qstashRes = await fetch(`${process.env.QSTASH_URL}/v2/publish/https://linkly-ai.vercel.app/api/queue/process-click`, {
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://linkly-ai.vercel.app';
+                const qstashRes = await fetch(`${process.env.QSTASH_URL}/v2/publish/${appUrl}/api/queue/process-click`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,

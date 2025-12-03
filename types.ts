@@ -250,6 +250,10 @@ export interface UserProfile {
 
   // Storefront
   storefrontTheme?: StorefrontTheme;
+  storeName?: string;
+  storeLogoUrl?: string;
+  storeBannerUrl?: string;
+  upiId?: string;
 
 
   // Onboarding
@@ -257,9 +261,11 @@ export interface UserProfile {
   onboardingStep?: number;
   onboardingSkipped?: boolean;
   onboardingStartedAt?: string;
-  subscription_tier?: 'free' | 'starter' | 'pro' | 'premium';
+  subscription_tier?: 'free' | 'starter' | 'pro' | 'premium' | 'business';
   subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
   trial_ends_at?: string;
+  razorpay_customer_id?: string;
+  razorpay_subscription_id?: string;
 }
 
 export interface ApiKey {

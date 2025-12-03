@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#F0F0F0] flex items-center justify-center">
@@ -17,23 +18,26 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
         );
     }
 
+    const storeName = storeProfile?.storeName || 'ARCHIVE_DB_V2';
+    const storeLogo = storeProfile?.storeLogoUrl;
+
     return (
         <div className="min-h-screen bg-[#F0F0F0] font-mono text-[#333] selection:bg-[#333] selection:text-[#F0F0F0]">
             {/* Header */}
             <header className="fixed top-0 w-full z-50 bg-[#F0F0F0] border-b border-[#CCC] h-12 flex items-center px-4 justify-between text-xs">
                 <div className="flex items-center gap-2">
-                    <Database className="w-3 h-3" />
-                    <span className="font-bold">ARCHIVE_DB_V2</span>
+                    {storeLogo ? (
+                        <img src={storeLogo} alt={storeName} className="w-3 h-3 object-cover grayscale" />
+                    ) : (
+                        <Database className="w-3 h-3" />
+                    )}
+                    <span className="font-bold uppercase">{storeName}</span>
                 </div>
                 <div className="hidden md:block text-[#666]">
-                    / ROOT / COLLECTION / 2025
+                    / ROOT / COLLECTION / {new Date().getFullYear()}
                 </div>
                 <div className="flex items-center gap-4">
                     <button className="hover:underline">[ LOGIN ]</button>
-                    <button className="hover:underline flex items-center gap-1">
-                        <ShoppingBag className="w-3 h-3" />
-                        CART(0)
-                    </button>
                 </div>
             </header>
 

@@ -6,9 +6,10 @@ import { Product } from '@/types';
 interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
+    storeProfile?: any;
 }
 
-const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading }) => {
+const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#f4f1ea] flex items-center justify-center">
@@ -21,6 +22,9 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
         );
     }
 
+    const storeName = storeProfile?.storeName || 'Bau Haus';
+    const storeLogo = storeProfile?.storeLogoUrl;
+
     return (
         <div className="min-h-screen bg-[#f4f1ea] font-sans text-[#1d1d1d] selection:bg-[#e63946] selection:text-white">
             {/* Geometric Sidebar / Border */}
@@ -30,15 +34,14 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
             {/* Header */}
             <header className="fixed top-0 w-full z-40 px-8 py-8 pointer-events-none">
                 <div className="max-w-7xl mx-auto flex justify-between items-start pointer-events-auto">
-                    <div className="bg-[#1d1d1d] text-[#f4f1ea] p-6 shadow-[-10px_10px_0px_#e63946]">
+                    <div className="bg-[#1d1d1d] text-[#f4f1ea] p-6 shadow-[-10px_10px_0px_#e63946] flex items-center gap-4">
+                        {storeLogo && (
+                            <img src={storeLogo} alt={storeName} className="w-12 h-12 object-cover border-2 border-[#f4f1ea]" />
+                        )}
                         <h1 className="text-4xl font-black uppercase tracking-tighter leading-none">
-                            Bau<br />Haus
+                            {storeName}
                         </h1>
                     </div>
-
-                    <button className="bg-[#f1faee] border-4 border-[#1d1d1d] p-4 rounded-full hover:bg-[#1d3557] hover:text-white hover:border-[#1d3557] transition-colors">
-                        <ShoppingBag className="w-6 h-6" />
-                    </button>
                 </div>
             </header>
 

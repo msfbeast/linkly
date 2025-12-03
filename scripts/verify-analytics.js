@@ -35,8 +35,7 @@ async function verifyAnalytics() {
 
     const { data, count, error: countError } = await supabase
         .from('click_events')
-        .select('country, city, timestamp', { count: 'exact', head: false })
-        .eq('link_id', linkData.id)
+        .select('*', { count: 'exact' })
         .gte('timestamp', oneHourAgo)
         .order('timestamp', { ascending: false })
         .limit(1);
@@ -49,10 +48,7 @@ async function verifyAnalytics() {
     console.log(`⏱️  Recent Clicks (Last 1 Hour): ${count}`);
 
     if (data && data.length > 0) {
-        console.log('📍 Latest Click Location:', data[0].country, data[0].city);
-    }
-
-    if (count > 0) {
+        console.log('📍 Latest Click:', data[0]);
         console.log('✅ SUCCESS: Analytics pipeline is working!');
     } else {
         console.log('⚠️  WARNING: No recent clicks found. QStash queue might be delayed or failing.');

@@ -1,16 +1,6 @@
 {
     "rewrites": [
         {
-            "source": "/((?!dashboard|login|register|auth|p/|assets/|favicon.ico|api)[^/]+)",
-            "has": [
-                {
-                    "type": "host",
-                    "value": "links.trak.in"
-                }
-            ],
-            "destination": "/api/r/$1"
-        },
-        {
             "source": "/r/:code",
             "destination": "/api/r/:code"
         },

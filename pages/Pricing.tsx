@@ -1,14 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import PricingCard from '../components/PricingCard';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Check, Zap, Shield, BarChart3, Globe, Users } from 'lucide-react';
+
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
 
 const Pricing: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loadingTier, setLoadingTier] = useState<string | null>(null);
+    const [currency, setCurrency] = useState<'USD' | 'INR'>('USD');
+
+    useEffect(() => {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (timeZone === 'Asia/Kolkata') {
+            setCurrency('INR');
+        }
+    }, []);
+
+    const prices = {
+        USD: { free: '$0', pro: '$12', business: '$49' },
+        INR: { free: '₹0', pro: '₹999', business: '₹3,999' }
+    };
+
+    const priceIds = {
+        USD: { pro: 'price_pro_usd_test', business: 'price_business_usd_test' },
+        INR: { pro: 'price_pro_inr_test', business: 'price_business_inr_test' }
+    };
 
     const handleSubscribe = async (priceId: string, tierName: string) => {
         if (!user) {
@@ -19,31 +44,87 @@ const Pricing: React.FC = () => {
         setLoadingTier(tierName);
 
         try {
-            const response = await fetch('/api/create-checkout-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    priceId,
-                    userId: user.id,
-                    email: user.email,
-                    returnUrl: window.location.origin + '/dashboard',
-                }),
-            });
+            if (currency === 'INR') {
+                // Razorpay Flow
+                const amount = tierName === 'pro' ? 99900 : 399900; // Amount in paisa
 
-            const data = await response.json();
+                const response = await fetch('/api/create-razorpay-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount,
+                        currency: 'INR',
+                        receipt: `receipt_${Date.now()}`,
+                        notes: {
+                            userId: user.id,
+                            tier: tierName
+                        }
+                    }),
+                });
 
-            if (data.url) {
-                window.location.href = data.url;
+                const order = await response.json();
+
+                if (!response.ok) throw new Error(order.error || 'Failed to create order');
+
+                const options = {
+                    key: "rzp_test_placeholder", // Replace with your Key ID
+                    amount: order.amount,
+                    currency: order.currency,
+                    name: "Gather",
+                    description: `${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Subscription`,
+                    image: "https://linkly.ai/logo.png", // Update with real logo
+                    order_id: order.id,
+                    handler: function (response: any) {
+                        toast.success(`Payment Successful! Welcome to ${tierName} plan.`);
+                        // Here you would typically verify the payment on backend
+                        // and update the UI
+                        setLoadingTier(null);
+                    },
+                    prefill: {
+                        name: user.full_name || '',
+                        email: user.email,
+                        contact: ""
+                    },
+                    theme: {
+                        color: "#F59E0B"
+                    }
+                };
+
+                const rzp1 = new window.Razorpay(options);
+                rzp1.on('payment.failed', function (response: any) {
+                    toast.error(response.error.description || "Payment Failed");
+                    setLoadingTier(null);
+                });
+                rzp1.open();
+
             } else {
-                console.error('Failed to create checkout session:', data.error);
-                toast.error('Failed to start checkout. Please try again.');
+                // Stripe Flow (Existing)
+                const response = await fetch('/api/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        priceId,
+                        userId: user.id,
+                        email: user.email,
+                        returnUrl: window.location.origin + '/dashboard',
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    console.error('Failed to create checkout session:', data.error);
+                    toast.error('Failed to start checkout. Please try again.');
+                    setLoadingTier(null);
+                }
             }
         } catch (error) {
             console.error('Error:', error);
             toast.error('An error occurred. Please try again.');
-        } finally {
             setLoadingTier(null);
         }
     };
@@ -56,15 +137,27 @@ const Pricing: React.FC = () => {
                     <p className="mt-2 text-4xl font-extrabold text-gray-900 sm:text-5xl sm:tracking-tight lg:text-6xl">
                         Plans for every stage of growth
                     </p>
-                    <p className="max-w-xl mt-5 mx-auto text-xl text-gray-500">
+                    <p className="max-w-xl mt-5 mx-auto text-xl text-gray-500 mb-8">
                         Start free, upgrade as you grow. No hidden fees. Cancel anytime.
                     </p>
+
+                    {/* Currency Toggle */}
+                    <div className="flex justify-center items-center gap-4">
+                        <span className={`text-sm font-bold ${currency === 'USD' ? 'text-slate-900' : 'text-slate-400'}`}>USD</span>
+                        <button
+                            onClick={() => setCurrency(prev => prev === 'USD' ? 'INR' : 'USD')}
+                            className={`w-14 h-8 rounded-full p-1 transition-colors duration-200 ease-in-out ${currency === 'INR' ? 'bg-blue-600' : 'bg-slate-200'}`}
+                        >
+                            <div className={`w-6 h-6 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${currency === 'INR' ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                        <span className={`text-sm font-bold ${currency === 'INR' ? 'text-slate-900' : 'text-slate-400'}`}>INR (UPI)</span>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-8">
                     <PricingCard
                         title="Free"
-                        price="$0"
+                        price={prices[currency].free}
                         period="mo"
                         description="Perfect for getting started"
                         features={[
@@ -79,7 +172,7 @@ const Pricing: React.FC = () => {
 
                     <PricingCard
                         title="Pro"
-                        price="$12"
+                        price={prices[currency].pro}
                         period="mo"
                         description="For creators and professionals"
                         isPopular={true}
@@ -93,12 +186,12 @@ const Pricing: React.FC = () => {
                             "Remove Branding"
                         ]}
                         buttonText={user?.preferences?.subscription_tier === 'pro' ? "Current Plan" : "Upgrade to Pro"}
-                        onSelect={() => handleSubscribe('price_1Q...', 'pro')} // Replace with real Price ID
+                        onSelect={() => handleSubscribe(priceIds[currency].pro, 'pro')}
                     />
 
                     <PricingCard
                         title="Business"
-                        price="$49"
+                        price={prices[currency].business}
                         period="mo"
                         description="For agencies and large teams"
                         isLoading={loadingTier === 'business'}
@@ -111,7 +204,7 @@ const Pricing: React.FC = () => {
                             "Audit Logs"
                         ]}
                         buttonText={user?.preferences?.subscription_tier === 'business' ? "Current Plan" : "Upgrade to Business"}
-                        onSelect={() => handleSubscribe('price_1Q...', 'business')} // Replace with real Price ID
+                        onSelect={() => handleSubscribe(priceIds[currency].business, 'business')}
                     />
                 </div>
             </div>

@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './storage/supabaseClient';
 import { Session, User as SupabaseUser, AuthError } from '@supabase/supabase-js';
 import { supabaseAdapter } from './storage/supabaseAdapter';
+import { emailService } from './emailService';
 
 /**
  * User interface for the application
@@ -35,8 +36,12 @@ export interface User {
   displayName?: string;
   apiKey?: string;
   storefrontTheme?: string;
+  storeName?: string;
+  storeLogoUrl?: string;
+  storeBannerUrl?: string;
   flipkartAffiliateId?: string;
   amazonAssociateTag?: string;
+  upiId?: string;
   emailVerified: boolean;
   createdAt: string;
   settingsNotifications?: {
@@ -77,6 +82,10 @@ function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
     avatar_url: supabaseUser.user_metadata?.avatar_url,
     apiKey: supabaseUser.user_metadata?.api_key,
     storefrontTheme: supabaseUser.user_metadata?.storefront_theme,
+    storeName: supabaseUser.user_metadata?.store_name,
+    storeLogoUrl: supabaseUser.user_metadata?.store_logo_url,
+    storeBannerUrl: supabaseUser.user_metadata?.store_banner_url,
+    upiId: supabaseUser.user_metadata?.upi_id,
     flipkartAffiliateId: supabaseUser.user_metadata?.flipkart_affiliate_id,
     amazonAssociateTag: supabaseUser.user_metadata?.amazon_associate_tag,
     emailVerified: supabaseUser.email_confirmed_at !== null,
@@ -100,7 +109,6 @@ function normalizeAuthError(error: AuthError | null): string | undefined {
 
   return errorMap[error.message] || error.message;
 }
-
 
 /**
  * Auth Service - Wraps Supabase Auth methods with error handling
@@ -166,6 +174,16 @@ export const authService = {
       } catch (err) {
         console.error('Failed to create bio profile:', err);
         // Don't fail signup if bio profile creation fails, but log it
+      }
+    }
+
+    // Send welcome email
+    if (data.user && data.user.email) {
+      try {
+        await emailService.sendWelcomeEmail(data.user.email, username || data.user.email.split('@')[0]);
+      } catch (emailErr) {
+        console.error('Failed to send welcome email:', emailErr);
+        // Don't fail signup
       }
     }
 
@@ -361,6 +379,9 @@ export const authService = {
   async updateProfile(updates: {
     displayName?: string;
     storefrontTheme?: string;
+    storeName?: string;
+    storeLogoUrl?: string;
+    storeBannerUrl?: string;
     flipkartAffiliateId?: string;
     amazonAssociateTag?: string;
   }): Promise<AuthResponse> {
@@ -376,6 +397,9 @@ export const authService = {
       data: {
         display_name: updates.displayName,
         storefront_theme: updates.storefrontTheme,
+        store_name: updates.storeName,
+        store_logo_url: updates.storeLogoUrl,
+        store_banner_url: updates.storeBannerUrl,
         flipkart_affiliate_id: updates.flipkartAffiliateId,
         amazon_associate_tag: updates.amazonAssociateTag,
       },
