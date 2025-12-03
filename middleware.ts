@@ -79,9 +79,10 @@ export default async function middleware(request: Request) {
             const isSystemRoute = systemRoutes.some(route => url.pathname.startsWith(route)) || url.pathname === '/';
 
             if (!isSystemRoute) {
-                // It's a short link! Rewrite to /r/path
-                console.log(`[Middleware] Hybrid Rewrite: ${hostname}${url.pathname} to /r${url.pathname}`);
-                url.pathname = `/r${url.pathname}`;
+                // It's a short link! Rewrite to /api/r/path (Edge API)
+                // This uses Vercel KV and bypasses client-side RLS issues
+                console.log(`[Middleware] Hybrid Rewrite: ${hostname}${url.pathname} to /api/r${url.pathname}`);
+                url.pathname = `/api/r${url.pathname}`;
                 const response = next();
                 response.headers.set('x-middleware-rewrite', url.toString());
                 return response;
