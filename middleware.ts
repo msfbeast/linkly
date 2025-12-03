@@ -20,7 +20,7 @@ export const config = {
 // We use a sliding window of 20 requests per 10 seconds per IP
 const ratelimit = new Ratelimit({
     redis: Redis.fromEnv(),
-    limiter: Ratelimit.slidingWindow(100, "10 s"),
+    limiter: Ratelimit.slidingWindow(100, "10 s"), // Increased to 100 to prevent 429s
     analytics: true,
     prefix: "@upstash/ratelimit",
 });
