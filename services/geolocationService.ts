@@ -33,7 +33,7 @@ interface IpApiResponse {
   message?: string;
 }
 
-const IP_API_BASE_URL = 'http://ip-api.com/json';
+const IP_API_BASE_URL = 'https://ipwho.is';
 const DEFAULT_TIMEOUT_MS = 5000;
 
 /**
@@ -89,7 +89,7 @@ async function fetchGeolocation(ipAddress: string): Promise<GeolocationResult> {
 
   try {
     const response = await fetch(
-      `${IP_API_BASE_URL}/${encodeURIComponent(ipAddress)}?fields=status,country,countryCode,city,region,regionName,lat,lon,isp,timezone,query,message`,
+      `${IP_API_BASE_URL}/${encodeURIComponent(ipAddress)}`,
       { signal: controller.signal }
     );
 
@@ -97,23 +97,23 @@ async function fetchGeolocation(ipAddress: string): Promise<GeolocationResult> {
       throw new Error(`HTTP error: ${response.status}`);
     }
 
-    const data: IpApiResponse = await response.json();
+    const data = await response.json();
 
-    if (data.status === 'fail') {
+    if (data.success === false) {
       throw new Error(data.message || 'Geolocation lookup failed');
     }
 
     return {
       country: data.country || 'Unknown',
-      countryCode: data.countryCode || 'XX',
+      countryCode: data.country_code || 'XX',
       city: data.city,
-      region: data.region,
-      regionName: data.regionName,
-      lat: data.lat,
-      lon: data.lon,
-      isp: data.isp,
-      timezone: data.timezone,
-      ip: data.query,
+      region: data.region_code,
+      regionName: data.region,
+      lat: data.latitude,
+      lon: data.longitude,
+      isp: data.connection?.isp || data.isp,
+      timezone: data.timezone?.id,
+      ip: data.ip,
     };
   } finally {
     clearTimeout(timeoutId);
