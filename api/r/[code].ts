@@ -73,6 +73,16 @@ export default async function handler(request: Request) {
                 // Don't fail the redirect if analytics fails
             }
 
+            // Smart Redirect for Mobile Users (to break out of in-app browsers)
+            const userAgent = request.headers.get('user-agent') || '';
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
+
+            if (isMobile) {
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://linkly-ai.vercel.app';
+                const encodedTarget = encodeURIComponent(linkData.url);
+                return Response.redirect(`${appUrl}/open/${encodedTarget}`, 307);
+            }
+
             return Response.redirect(linkData.url, 307);
         } else {
             return new Response('Link not found', { status: 404 });

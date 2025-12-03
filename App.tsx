@@ -41,6 +41,7 @@ const LinkAnalytics = React.lazy(() => import('./pages/LinkAnalytics'));
 const LegalPage = React.lazy(() => import('./pages/LegalPage'));
 const AboutPage = React.lazy(() => import('./pages/AboutPage'));
 const ComingSoonPage = React.lazy(() => import('./pages/ComingSoonPage'));
+const SmartRedirect = React.lazy(() => import('./pages/SmartRedirect'));
 
 /**
  * Main App Component
@@ -100,6 +101,7 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/team/invite/:token" element={<TeamInviteHandler />} />
           <Route path="/api-access" element={<ApiPage />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/open/:url" element={<SmartRedirect />} />
 
           {/* Footer Pages */}
           <Route path="/about" element={<AboutPage />} />
