@@ -6,7 +6,7 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile, GalleryItem, NewsletterSubscriber } from '../../types';
+import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile, GalleryItem, NewsletterSubscriber, AppRecommendation } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
@@ -407,6 +407,8 @@ function userProfileToRow(profile: Partial<UserProfile>): any {
  * Supabase implementation of the StorageAdapter interface
  */
 export class SupabaseAdapter implements StorageAdapter {
+  private static instance: SupabaseAdapter;
+
   /**
    * Generate a random short code for links
    * Uses base62 encoding (alphanumeric) for URL-safe codes
@@ -2321,18 +2323,144 @@ export class SupabaseAdapter implements StorageAdapter {
   }
 
   async deleteSubscriber(id: string): Promise<void> {
-    if (!isSupabaseConfigured() || !supabase) return;
-
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
     const { error } = await supabase
       .from('newsletter_subscribers')
       .delete()
       .eq('id', id);
 
-    if (error) {
-      console.error('Error deleting subscriber:', error);
-      throw error;
-    }
+    if (error) throw error;
   }
+
+  // ==========================================
+  // App Stack (What's On My Phone)
+  // ==========================================
+
+  async getApps(userId: string): Promise<AppRecommendation[]> {
+    if (!isSupabaseConfigured() || !supabase) return [];
+    const { data, error } = await supabase
+      .from('app_recommendations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    return (data || []).map(rowToAppRecommendation);
+  }
+
+  async addApp(userId: string, app: Omit<AppRecommendation, 'id' | 'userId' | 'createdAt' | 'sortOrder'>): Promise<AppRecommendation> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+    // Get max sort order
+    const { data: maxOrderData } = await supabase
+      .from('app_recommendations')
+      .select('sort_order')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: false })
+      .limit(1);
+
+    const nextOrder = (maxOrderData?.[0]?.sort_order || 0) + 1;
+
+    const { data, error } = await supabase
+      .from('app_recommendations')
+      .insert({
+        user_id: userId,
+        name: app.name,
+        icon_url: app.iconUrl,
+        developer: app.developer,
+        category: app.category,
+        description: app.description,
+        link_url: app.linkUrl,
+        is_paid: app.isPaid,
+        sort_order: nextOrder
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return rowToAppRecommendation(data);
+  }
+
+  async deleteApp(id: string): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+    // Delete icon if exists
+    const { data: app } = await supabase
+      .from('app_recommendations')
+      .select('icon_url')
+      .eq('id', id)
+      .single();
+
+    if (app?.icon_url) {
+      const path = app.icon_url.split('/').pop();
+      if (path) {
+        await supabase.storage.from('app-icons').remove([path]);
+      }
+    }
+
+    const { error } = await supabase
+      .from('app_recommendations')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  async uploadAppIcon(file: File, userId: string): Promise<string> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('app-icons')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('app-icons')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  }
+
+  async updateAppOrder(items: AppRecommendation[]): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+    const updates = items.map((item, index) => ({
+      id: item.id,
+      user_id: item.userId,
+      sort_order: index,
+      name: item.name, // Required for update
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error } = await supabase
+      .from('app_recommendations')
+      .upsert(updates, { onConflict: 'id' });
+
+    if (error) throw error;
+  }
+
+  static getInstance(): SupabaseAdapter {
+    if (!SupabaseAdapter.instance) {
+      SupabaseAdapter.instance = new SupabaseAdapter();
+    }
+    return SupabaseAdapter.instance;
+  }
+}
+
+function rowToAppRecommendation(row: any): AppRecommendation {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    iconUrl: row.icon_url,
+    developer: row.developer,
+    category: row.category,
+    description: row.description,
+    linkUrl: row.link_url,
+    isPaid: row.is_paid,
+    sortOrder: row.sort_order,
+    createdAt: new Date(row.created_at).getTime()
+  };
 }
 
 function rowToNewsletterSubscriber(row: NewsletterSubscriberRow): NewsletterSubscriber {

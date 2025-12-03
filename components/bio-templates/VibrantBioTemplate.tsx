@@ -3,6 +3,7 @@ import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Zap, Star } from 'lucide-react';
 import { GalleryBlock } from '../blocks/GalleryBlock';
 import { NewsletterBlock } from '../blocks/NewsletterBlock';
+import { AppStackBlock } from '../blocks/AppStackBlock';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -84,6 +85,11 @@ const VibrantBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 {/* Newsletter */}
                 <div className="mt-4">
                     <NewsletterBlock userId={profile.userId} />
+                </div>
+
+                {/* App Stack */}
+                <div className="mt-8">
+                    <AppStackBlock userId={profile.userId} />
                 </div>
 
                 {/* Footer */}

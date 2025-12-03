@@ -10,6 +10,7 @@ import BioAppearanceEditor from '../components/BioAppearanceEditor';
 import { SortableBioLinkItem } from '../components/SortableBioLinkItem';
 import { GalleryManager } from '../components/GalleryManager';
 import { NewsletterManager } from '../components/NewsletterManager';
+import { AppStackManager } from '../components/AppStackManager';
 import {
     DndContext,
     closestCenter,
@@ -31,7 +32,7 @@ const BioDashboard: React.FC = () => {
     const [profiles, setProfiles] = useState<BioProfile[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentProfile, setCurrentProfile] = useState<Partial<BioProfile>>({});
-    const [activeTab, setActiveTab] = useState<'details' | 'appearance' | 'gallery' | 'newsletter'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'appearance' | 'gallery' | 'newsletter' | 'apps'>('details');
     const [availableLinks, setAvailableLinks] = useState<LinkData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -210,6 +211,12 @@ const BioDashboard: React.FC = () => {
                             >
                                 Newsletter
                             </button>
+                            <button
+                                onClick={() => setActiveTab('apps')}
+                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'apps' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
+                            >
+                                App Stack
+                            </button>
                         </div>
 
                         {/* Details Tab Content */}
@@ -299,6 +306,11 @@ const BioDashboard: React.FC = () => {
                         {/* Newsletter Tab Content */}
                         <div className={`bg-white border border-stone-200 rounded-xl p-6 shadow-sm ${activeTab === 'newsletter' ? 'block' : 'hidden'}`}>
                             <NewsletterManager />
+                        </div>
+
+                        {/* App Stack Tab Content */}
+                        <div className={`bg-white border border-stone-200 rounded-xl p-6 shadow-sm ${activeTab === 'apps' ? 'block' : 'hidden'}`}>
+                            <AppStackManager />
                         </div>
                     </div>
 

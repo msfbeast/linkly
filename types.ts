@@ -356,6 +356,20 @@ export interface NewsletterSubscriber {
   createdAt: number;
 }
 
+export interface AppRecommendation {
+  id: string;
+  userId: string;
+  name: string;
+  iconUrl?: string;
+  developer?: string;
+  category?: string;
+  description?: string;
+  linkUrl?: string;
+  isPaid: boolean;
+  sortOrder: number;
+  createdAt: number;
+}
+
 
 // ============================================
 // Chart Data Types for Dashboard UI Redesign

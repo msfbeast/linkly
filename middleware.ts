@@ -32,8 +32,8 @@ export default async function middleware(request: Request) {
 
     // 0. Rate Limiting
     // Only rate limit public routes or specific paths if needed
-    // For now, we rate limit everything to be safe, but exclude localhost for dev
-    if (hostname !== 'localhost') {
+    // Skip rate limiting in development to avoid Upstash latency
+    if (process.env.NODE_ENV !== 'development' && hostname !== 'localhost') {
         const { success, pending, limit, reset, remaining } = await ratelimit.limit(ip);
 
         // Pending promises should be awaited to ensure analytics are sent
