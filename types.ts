@@ -266,6 +266,7 @@ export interface UserProfile {
   trial_ends_at?: string;
   razorpay_customer_id?: string;
   razorpay_subscription_id?: string;
+  role?: 'user' | 'admin' | 'super_admin';
 }
 
 export interface ApiKey {
@@ -295,6 +296,7 @@ export interface User {
     subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
     trial_ends_at?: string;
   };
+  role?: 'user' | 'admin' | 'super_admin';
 }
 
 export interface Product {

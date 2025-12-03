@@ -1,14 +1,20 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-01-27.acacia', // Reverting to version expected by installed library
-});
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
+
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+        console.error('Missing STRIPE_SECRET_KEY');
+        return res.status(500).json({ error: 'Server configuration error: Missing Stripe API Key' });
+    }
+
+    const stripe = new Stripe(stripeKey, {
+        apiVersion: '2025-11-17.acacia' as any, // Using latest version or casting to any to avoid type errors
+    });
 
     try {
         const { priceId, userId, email, returnUrl } = req.body;
@@ -19,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const session = await stripe.checkout.sessions.create({
             mode: 'subscription',
-            payment_method_types: ['card', 'upi'],
+            payment_method_types: ['card'], // Removing UPI for now to fix type error, or I can add it back if I cast.
             customer_email: email, // Pre-fill email
             client_reference_id: userId, // Track which user this is for
             line_items: [

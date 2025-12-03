@@ -351,6 +351,7 @@ function rowToUserProfile(row: any): UserProfile {
     onboardingStep: row.onboarding_step,
     onboardingSkipped: row.onboarding_skipped,
     onboardingStartedAt: row.onboarding_started_at,
+    role: row.role,
   };
 }
 
@@ -373,6 +374,7 @@ function userProfileToRow(profile: Partial<UserProfile>): any {
   if (profile.onboardingStep !== undefined) row.onboarding_step = profile.onboardingStep;
   if (profile.onboardingSkipped !== undefined) row.onboarding_skipped = profile.onboardingSkipped;
   if (profile.onboardingStartedAt !== undefined) row.onboarding_started_at = profile.onboardingStartedAt;
+  if (profile.role !== undefined) row.role = profile.role;
   return row;
 }
 
@@ -2075,6 +2077,26 @@ export class SupabaseAdapter implements StorageAdapter {
       .eq('id', id);
 
     if (error) throw error;
+  }
+  /**
+   * Get all user profiles (Admin only)
+   */
+  async getAllProfiles(limit: number = 50, offset: number = 0): Promise<UserProfile[]> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data: rows, error } = await supabase!
+      .from(TABLES.PROFILES)
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new Error(`Failed to fetch profiles: ${error.message}`);
+    }
+
+    return (rows || []).map(rowToUserProfile);
   }
 }
 

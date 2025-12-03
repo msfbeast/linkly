@@ -59,4 +59,5 @@ export const TABLES = {
   DOMAINS: 'domains',
   TAGS: 'tags',
   FOLDERS: 'folders',
+  PROFILES: 'profiles',
 } as const;

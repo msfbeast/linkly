@@ -10,6 +10,8 @@ import { ViewState, LinkData } from './types';
 import { supabaseAdapter } from './services/storage/supabaseAdapter';
 import { Copy, Terminal } from 'lucide-react';
 import LandingPage from './pages/LandingPage';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminRoute from './components/AdminRoute';
 import Pricing from './pages/Pricing';
 import OnboardingTour from './components/OnboardingTour';
 import { TrialCountdown } from './components/TrialCountdown';
@@ -102,6 +104,17 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/privacy" element={<LegalPage />} />
           <Route path="/terms" element={<LegalPage />} />
           <Route path="/cookies" element={<LegalPage />} />
+
+          {/* Admin Route */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+
           <Route path="/blog" element={<ComingSoonPage />} />
           <Route path="/careers" element={<ComingSoonPage />} />
           <Route path="/community" element={<ComingSoonPage />} />
