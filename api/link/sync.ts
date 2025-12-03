@@ -10,7 +10,7 @@ export default async function handler(request: Request) {
     }
 
     try {
-        const { shortCode, originalUrl, id } = await request.json();
+        const { shortCode, originalUrl, id, password, expiration, start } = await request.json();
 
         if (!shortCode || !originalUrl) {
             return new Response('Missing required fields', { status: 400 });
@@ -18,8 +18,14 @@ export default async function handler(request: Request) {
 
         // Write to KV
         // Key: linkly:link:{shortCode}
-        // We store id as well for future use (analytics)
-        await kv.set(`linkly:link:${shortCode}`, { url: originalUrl, id });
+        // We store id and restrictions for Edge API checks
+        await kv.set(`linkly:link:${shortCode}`, {
+            url: originalUrl,
+            id,
+            password,
+            expiration,
+            start
+        });
 
         return new Response(JSON.stringify({ success: true }), {
             status: 200,

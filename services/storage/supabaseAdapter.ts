@@ -557,7 +557,11 @@ export class SupabaseAdapter implements StorageAdapter {
 
     // Sync to Edge Cache (Fire and forget)
     if (newLink.shortCode && newLink.originalUrl) {
-      this.syncToEdge(newLink.shortCode, newLink.originalUrl, newLink.id).catch(err => {
+      this.syncToEdge(newLink.shortCode, newLink.originalUrl, newLink.id, {
+        password: !!newLink.password,
+        expiration: newLink.expirationDate,
+        start: newLink.startDate
+      }).catch(err => {
         console.warn('[SupabaseAdapter] Failed to sync to edge:', err);
       });
     }
@@ -630,7 +634,11 @@ export class SupabaseAdapter implements StorageAdapter {
 
     // Sync to Edge Cache (Fire and forget)
     if (updatedLink.shortCode && updatedLink.originalUrl) {
-      this.syncToEdge(updatedLink.shortCode, updatedLink.originalUrl, updatedLink.id).catch(err => {
+      this.syncToEdge(updatedLink.shortCode, updatedLink.originalUrl, updatedLink.id, {
+        password: !!updatedLink.password,
+        expiration: updatedLink.expirationDate,
+        start: updatedLink.startDate
+      }).catch(err => {
         console.warn('[SupabaseAdapter] Failed to sync to edge:', err);
       });
     }
@@ -641,14 +649,21 @@ export class SupabaseAdapter implements StorageAdapter {
   /**
    * Sync link to Edge Cache (Redis)
    */
-  private async syncToEdge(shortCode: string, originalUrl: string, id: string): Promise<void> {
+  private async syncToEdge(shortCode: string, originalUrl: string, id: string, options: { password?: boolean; expiration?: number | null; start?: number | null } = {}): Promise<void> {
     try {
       await fetch('/api/link/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ shortCode, originalUrl, id }),
+        body: JSON.stringify({
+          shortCode,
+          originalUrl,
+          id,
+          password: options.password,
+          expiration: options.expiration,
+          start: options.start
+        }),
       });
     } catch (error) {
       console.error('[SupabaseAdapter] Sync error:', error);

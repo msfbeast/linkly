@@ -33,7 +33,13 @@ export default async function handler(request: Request) {
         console.error(`[Edge API] QSTASH_TOKEN present: ${!!process.env.QSTASH_TOKEN}`);
 
         // Check Vercel KV for the link
-        const linkData = await kv.get<{ url: string; id: string }>(`linkly:link:${code}`);
+        const linkData = await kv.get<{
+            url: string;
+            id: string;
+            password?: boolean;
+            expiration?: number;
+            start?: number;
+        }>(`linkly:link:${code}`);
 
         if (linkData && linkData.url) {
             // Async Analytics: Publish to QStash
@@ -71,6 +77,26 @@ export default async function handler(request: Request) {
             } catch (qError) {
                 console.error('[Edge API] QStash Error:', qError);
                 // Don't fail the redirect if analytics fails
+            }
+
+            // 1. Check Restrictions (Password, Expiration, Start Date)
+            const now = Date.now();
+            if (linkData.password ||
+                (linkData.expiration && now > linkData.expiration) ||
+                (linkData.start && now < linkData.start)) {
+                console.log(`[Edge API] Link has restrictions, delegating to React Page: ${code}`);
+                // Redirect to the React Page which handles UI for passwords/errors
+                // We use the same path /r/[code] but without the /api prefix
+                // The middleware rewrites /r/[code] to /api/r/[code], so we need to be careful not to loop.
+                // Wait, if we redirect to /r/[code], the middleware sees it.
+                // If it's a custom domain, middleware rewrites /r/[code] to /api/r/[code].
+                // LOOP DANGER!
+
+                // SOLUTION: We need to tell the middleware NOT to rewrite this request.
+                // Or, we redirect to the main domain?
+                // If we redirect to app.linkly.ai/r/[code], it works.
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://linkly-ai.vercel.app';
+                return Response.redirect(`${appUrl}/r/${code}`, 307);
             }
 
             // Smart Redirect for Mobile Users (to break out of in-app browsers)
