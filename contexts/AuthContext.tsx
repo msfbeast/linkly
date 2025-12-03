@@ -39,27 +39,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     // Get initial session
-    authService.getSession().then((session) => {
-      setSession(session);
-      if (session?.user) {
-        authService.getUser()
-          .then((user) => {
-            setUser(user);
-          })
-          .catch((err) => {
-            console.error('Failed to get user:', err);
-            // Even if getting user details fails, we have a session, so stop loading
-          })
-          .finally(() => {
-            setLoading(false);
-          });
-      } else {
+    // Get initial session with timeout safety
+    const initAuth = async () => {
+      try {
+        const sessionPromise = authService.getSession();
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 5000)
+        );
+
+        const session = await Promise.race([sessionPromise, timeoutPromise]);
+
+        if (session) {
+          setSession(session);
+          if (session.user) {
+            try {
+              const user = await authService.getUser();
+              setUser(user);
+            } catch (err) {
+              console.error('Failed to get user details:', err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to get session:', err);
+      } finally {
         setLoading(false);
       }
-    }).catch(err => {
-      console.error('Failed to get session:', err);
-      setLoading(false);
-    });
+    };
+
+    initAuth();
 
     // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
