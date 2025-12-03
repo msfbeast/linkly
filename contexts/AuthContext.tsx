@@ -42,13 +42,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     authService.getSession().then((session) => {
       setSession(session);
       if (session?.user) {
-        authService.getUser().then((user) => {
-          setUser(user);
-          setLoading(false);
-        });
+        authService.getUser()
+          .then((user) => {
+            setUser(user);
+          })
+          .catch((err) => {
+            console.error('Failed to get user:', err);
+            // Even if getting user details fails, we have a session, so stop loading
+          })
+          .finally(() => {
+            setLoading(false);
+          });
       } else {
         setLoading(false);
       }
+    }).catch(err => {
+      console.error('Failed to get session:', err);
+      setLoading(false);
     });
 
     // Listen for changes

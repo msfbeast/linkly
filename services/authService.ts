@@ -465,27 +465,34 @@ export const authService = {
     let settingsNotifications;
     let preferences;
     if (data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, role')
-        .eq('id', data.user.id)
-        .single();
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, role')
+          .eq('id', data.user.id)
+          .single();
 
-      settingsNotifications = profile?.settings_notifications;
-      preferences = {
-        onboarding_completed: profile?.onboarding_completed,
-        onboarding_step: profile?.onboarding_step,
-        onboarding_skipped: profile?.onboarding_skipped,
-        onboarding_started_at: profile?.onboarding_started_at,
-        subscription_tier: profile?.subscription_tier,
-        subscription_status: profile?.subscription_status,
-        trial_ends_at: profile?.trial_ends_at,
-        stripe_customer_id: profile?.stripe_customer_id,
-        stripe_subscription_id: profile?.stripe_subscription_id,
-      };
-      // Map role directly to user object later
-      if (profile?.role) {
-        (data.user as any).role = profile.role;
+        if (!profileError && profile) {
+          settingsNotifications = profile.settings_notifications;
+          preferences = {
+            onboarding_completed: profile.onboarding_completed,
+            onboarding_step: profile.onboarding_step,
+            onboarding_skipped: profile.onboarding_skipped,
+            onboarding_started_at: profile.onboarding_started_at,
+            subscription_tier: profile.subscription_tier,
+            subscription_status: profile.subscription_status,
+            trial_ends_at: profile.trial_ends_at,
+            stripe_customer_id: profile.stripe_customer_id,
+            stripe_subscription_id: profile.stripe_subscription_id,
+          };
+          // Map role directly to user object later
+          if (profile.role) {
+            (data.user as any).role = profile.role;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+        // Continue without profile data
       }
     }
 
