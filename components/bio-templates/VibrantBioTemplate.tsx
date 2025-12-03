@@ -1,6 +1,8 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Zap, Star } from 'lucide-react';
+import { GalleryBlock } from '../blocks/GalleryBlock';
+import { NewsletterBlock } from '../blocks/NewsletterBlock';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -72,6 +74,16 @@ const VibrantBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                             <div className="absolute inset-0 bg-stone-50 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0"></div>
                         </a>
                     ))}
+                </div>
+
+                {/* Tech Vault (Gallery) */}
+                <div className="mt-8">
+                    <GalleryBlock userId={profile.userId} />
+                </div>
+
+                {/* Newsletter */}
+                <div className="mt-4">
+                    <NewsletterBlock userId={profile.userId} />
                 </div>
 
                 {/* Footer */}

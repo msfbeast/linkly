@@ -328,6 +328,34 @@ export interface Domain {
   verifiedAt?: number;
 }
 
+export interface GalleryItem {
+  id: string;
+  userId: string;
+  url: string;
+  caption?: string;
+  exifData?: {
+    make?: string;
+    model?: string;
+    iso?: number;
+    fNumber?: number;
+    exposureTime?: number;
+    focalLength?: number;
+    lensModel?: string;
+    createDate?: string;
+  };
+  width?: number;
+  height?: number;
+  sortOrder: number;
+  createdAt: number;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  userId: string;
+  email: string;
+  createdAt: number;
+}
+
 
 // ============================================
 // Chart Data Types for Dashboard UI Redesign

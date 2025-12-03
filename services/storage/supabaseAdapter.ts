@@ -6,7 +6,7 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile } from '../../types';
+import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile, GalleryItem, NewsletterSubscriber } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
@@ -102,9 +102,32 @@ interface ProductRow {
   currency: string;
   image_url: string | null;
   link_id: string;
-  created_at: string;
+  short_code: string | null;
+  original_url: string | null;
+  category: string | null;
   slug: string | null;
+  created_at: string;
 }
+
+interface GalleryItemRow {
+  id: string;
+  user_id: string;
+  url: string;
+  caption: string | null;
+  exif_data: Record<string, any> | null;
+  width: number | null;
+  height: number | null;
+  sort_order: number;
+  created_at: string;
+}
+
+interface NewsletterSubscriberRow {
+  id: string;
+  user_id: string;
+  email: string;
+  created_at: string;
+}
+
 
 interface TagRow {
   id: string;
@@ -2115,6 +2138,225 @@ export class SupabaseAdapter implements StorageAdapter {
 
     return (rows || []).map(rowToUserProfile);
   }
+  // ============================================
+  // Gallery Methods
+  // ============================================
+
+  async getGalleryItems(userId: string): Promise<GalleryItem[]> {
+    if (!isSupabaseConfigured() || !supabase) return [];
+
+    const { data, error } = await supabase
+      .from('gallery_items')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching gallery items:', error);
+      throw error;
+    }
+
+    return (data || []).map(rowToGalleryItem);
+  }
+
+  async addGalleryItem(
+    userId: string,
+    url: string,
+    caption?: string,
+    exifData?: any,
+    width?: number,
+    height?: number
+  ): Promise<GalleryItem> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+
+    const newItem = {
+      user_id: userId,
+      url,
+      caption,
+      exif_data: exifData,
+      width,
+      height,
+      sort_order: 0 // Default to top? Or bottom?
+    };
+
+    const { data, error } = await supabase
+      .from('gallery_items')
+      .insert(newItem)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding gallery item:', error);
+      throw error;
+    }
+
+    return rowToGalleryItem(data);
+  }
+
+  async deleteGalleryItem(id: string): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    // First get the item to find the file URL
+    const { data: item } = await supabase
+      .from('gallery_items')
+      .select('url')
+      .eq('id', id)
+      .single();
+
+    if (item?.url) {
+      // Extract filename from URL
+      // URL format: .../gallery-images/filename
+      const parts = item.url.split('/');
+      const filename = parts[parts.length - 1];
+
+      // Delete from storage
+      // Note: We need the full path including user_id folder if applicable
+      // The upload function uses `${userId}/${uuidv4()}.${fileExt}`
+      // So filename here might just be the uuid part if we split by /
+      // Let's rely on the fact that we store the full public URL.
+      // We need to parse the path relative to the bucket.
+      // URL: https://.../storage/v1/object/public/gallery-images/USER_ID/FILENAME
+
+      const urlObj = new URL(item.url);
+      const pathParts = urlObj.pathname.split('/gallery-images/');
+      if (pathParts.length > 1) {
+        const storagePath = pathParts[1]; // USER_ID/FILENAME
+        await supabase.storage
+          .from('gallery-images')
+          .remove([storagePath]);
+      }
+    }
+
+    // Delete from DB
+    const { error } = await supabase
+      .from('gallery_items')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting gallery item:', error);
+      throw error;
+    }
+  }
+
+  async uploadGalleryImage(file: File, userId: string): Promise<string> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${uuidv4()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('gallery-images')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error('Error uploading gallery image:', uploadError);
+      throw uploadError;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('gallery-images')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  }
+
+  async updateGalleryOrder(items: GalleryItem[]): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    const updates = items.map((item, index) => ({
+      id: item.id,
+      sort_order: index,
+      user_id: item.userId, // Required for RLS usually, though update by ID works if policy allows
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error } = await supabase
+      .from('gallery_items')
+      .upsert(updates);
+
+    if (error) {
+      console.error('Error updating gallery order:', error);
+      throw error;
+    }
+  }
+  // ============================================
+  // Newsletter Methods
+  // ============================================
+
+  async addSubscriber(userId: string, email: string): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+
+    const { error } = await supabase
+      .from('newsletter_subscribers')
+      .insert({
+        user_id: userId,
+        email: email
+      });
+
+    if (error) {
+      // Ignore unique violation (already subscribed)
+      if (error.code === '23505') return;
+      console.error('Error adding subscriber:', error);
+      throw error;
+    }
+  }
+
+  async getSubscribers(userId: string): Promise<NewsletterSubscriber[]> {
+    if (!isSupabaseConfigured() || !supabase) return [];
+
+    const { data, error } = await supabase
+      .from('newsletter_subscribers')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching subscribers:', error);
+      throw error;
+    }
+
+    return (data || []).map(rowToNewsletterSubscriber);
+  }
+
+  async deleteSubscriber(id: string): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    const { error } = await supabase
+      .from('newsletter_subscribers')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting subscriber:', error);
+      throw error;
+    }
+  }
+}
+
+function rowToNewsletterSubscriber(row: NewsletterSubscriberRow): NewsletterSubscriber {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    email: row.email,
+    createdAt: new Date(row.created_at).getTime()
+  };
+}
+
+// Helper functions
+function rowToGalleryItem(row: GalleryItemRow): GalleryItem {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    url: row.url,
+    caption: row.caption || undefined,
+    exifData: row.exif_data || undefined,
+    width: row.width || undefined,
+    height: row.height || undefined,
+    sortOrder: row.sort_order,
+    createdAt: new Date(row.created_at).getTime(),
+  };
 }
 
 
