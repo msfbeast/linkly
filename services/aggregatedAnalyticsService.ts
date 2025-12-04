@@ -191,28 +191,45 @@ class AggregatedAnalyticsService {
      * Get stats for a specific link
      */
     async getLinkStats(linkId: string): Promise<LinkStats | null> {
-        if (!isSupabaseConfigured() || !supabase) return null;
+        console.log('[AggregatedAnalytics] getLinkStats called for linkId:', linkId);
 
-        const { data, error } = await supabase.rpc('get_link_stats', {
-            p_link_id: linkId
-        });
-
-        if (error) {
-            console.error('[AggregatedAnalytics] getLinkStats error:', error);
+        if (!isSupabaseConfigured() || !supabase) {
+            console.error('[AggregatedAnalytics] Supabase not configured');
             return null;
         }
 
-        if (!data || !data[0]) return null;
+        try {
+            const { data, error } = await supabase.rpc('get_link_stats', {
+                p_link_id: linkId
+            });
 
-        const row = data[0];
-        return {
-            totalClicks: row.total_clicks || 0,
-            uniqueVisitors: row.unique_visitors || 0,
-            topCountry: row.top_country,
-            topCity: row.top_city ? decodeURIComponent(row.top_city) : null,
-            topReferrer: row.top_referrer,
-            clicksByDay: row.clicks_by_day || [],
-        };
+            console.log('[AggregatedAnalytics] getLinkStats RPC response:', { data, error });
+
+            if (error) {
+                console.error('[AggregatedAnalytics] getLinkStats error:', error);
+                return null;
+            }
+
+            if (!data || !data[0]) {
+                console.warn('[AggregatedAnalytics] getLinkStats: No data returned');
+                return null;
+            }
+
+            const row = data[0];
+            const stats = {
+                totalClicks: row.total_clicks || 0,
+                uniqueVisitors: row.unique_visitors || 0,
+                topCountry: row.top_country,
+                topCity: row.top_city ? decodeURIComponent(row.top_city) : null,
+                topReferrer: row.top_referrer,
+                clicksByDay: row.clicks_by_day || [],
+            };
+            console.log('[AggregatedAnalytics] getLinkStats returning:', stats);
+            return stats;
+        } catch (err) {
+            console.error('[AggregatedAnalytics] getLinkStats exception:', err);
+            return null;
+        }
     }
 }
 
