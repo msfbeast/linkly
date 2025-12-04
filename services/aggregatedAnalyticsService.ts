@@ -56,27 +56,44 @@ class AggregatedAnalyticsService {
      * Get aggregated click statistics for a user
      */
     async getUserClickStats(userId: string): Promise<UserClickStats | null> {
-        if (!isSupabaseConfigured() || !supabase) return null;
+        console.log('[AggregatedAnalytics] getUserClickStats called for userId:', userId);
 
-        const { data, error } = await supabase.rpc('get_user_click_stats', {
-            p_user_id: userId
-        });
-
-        if (error) {
-            console.error('[AggregatedAnalytics] getUserClickStats error:', error);
+        if (!isSupabaseConfigured() || !supabase) {
+            console.error('[AggregatedAnalytics] Supabase not configured');
             return null;
         }
 
-        if (!data || !data[0]) return null;
+        try {
+            const { data, error } = await supabase.rpc('get_user_click_stats', {
+                p_user_id: userId
+            });
 
-        const row = data[0];
-        return {
-            totalClicks: row.total_clicks || 0,
-            uniqueVisitors: row.unique_visitors || 0,
-            clicksToday: row.clicks_today || 0,
-            clicksThisWeek: row.clicks_this_week || 0,
-            clicksThisMonth: row.clicks_this_month || 0,
-        };
+            console.log('[AggregatedAnalytics] RPC response:', { data, error });
+
+            if (error) {
+                console.error('[AggregatedAnalytics] getUserClickStats error:', error);
+                return null;
+            }
+
+            if (!data || !data[0]) {
+                console.warn('[AggregatedAnalytics] No data returned from RPC');
+                return null;
+            }
+
+            const row = data[0];
+            const stats = {
+                totalClicks: row.total_clicks || 0,
+                uniqueVisitors: row.unique_visitors || 0,
+                clicksToday: row.clicks_today || 0,
+                clicksThisWeek: row.clicks_this_week || 0,
+                clicksThisMonth: row.clicks_this_month || 0,
+            };
+            console.log('[AggregatedAnalytics] Returning stats:', stats);
+            return stats;
+        } catch (err) {
+            console.error('[AggregatedAnalytics] Exception calling RPC:', err);
+            return null;
+        }
     }
 
     /**
