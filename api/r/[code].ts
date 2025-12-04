@@ -44,6 +44,9 @@ export default async function handler(request: Request) {
         if (linkData && linkData.url) {
             // Async Analytics: Publish to QStash
             try {
+                const rawCity = request.headers.get('x-vercel-ip-city');
+                const decodedCity = rawCity ? decodeURIComponent(rawCity) : null;
+
                 const clickEvent = {
                     linkId: linkData.id,
                     timestamp: Date.now(),
@@ -51,7 +54,7 @@ export default async function handler(request: Request) {
                     ip: request.headers.get('x-forwarded-for') || 'unknown',
                     referrer: request.headers.get('referer'),
                     country: request.headers.get('x-vercel-ip-country'),
-                    city: request.headers.get('x-vercel-ip-city'),
+                    city: decodedCity,
                     region: request.headers.get('x-vercel-ip-region'),
                     latitude: request.headers.get('x-vercel-ip-latitude'),
                     longitude: request.headers.get('x-vercel-ip-longitude'),

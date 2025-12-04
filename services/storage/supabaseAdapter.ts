@@ -454,13 +454,36 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error(`Failed to fetch links: ${error.message}`);
     }
 
-    // Fetch click history for each link
-    const links = await Promise.all(
-      (linkRows || []).map(async (row: LinkRow) => {
-        const clickHistory = await this.getClickEvents(row.id);
-        return rowToLinkData(row, clickHistory);
-      })
-    );
+    if (!linkRows || linkRows.length === 0) {
+      return [];
+    }
+
+    // Fetch all click events for all links in a single query (N+1 optimization)
+    const linkIds = linkRows.map((row: LinkRow) => row.id);
+    const { data: allClickEvents, error: clickError } = await supabase!
+      .from(TABLES.CLICK_EVENTS)
+      .select('*')
+      .in('link_id', linkIds)
+      .order('timestamp', { ascending: false });
+
+    if (clickError) {
+      console.warn(`Failed to fetch click events: ${clickError.message}`);
+    }
+
+    // Group click events by link_id
+    const clickEventsByLinkId: Record<string, ClickEvent[]> = {};
+    (allClickEvents || []).forEach((row: ClickEventRow) => {
+      if (!clickEventsByLinkId[row.link_id]) {
+        clickEventsByLinkId[row.link_id] = [];
+      }
+      clickEventsByLinkId[row.link_id].push(rowToClickEvent(row));
+    });
+
+    // Map links with their click history
+    const links = linkRows.map((row: LinkRow) => {
+      const clickHistory = clickEventsByLinkId[row.id] || [];
+      return rowToLinkData(row, clickHistory);
+    });
 
     return links;
   }
