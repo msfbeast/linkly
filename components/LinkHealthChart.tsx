@@ -54,8 +54,8 @@ const LinkHealthChart: React.FC<LinkHealthChartProps> = ({ data }) => {
             </div>
           </div>
           <div className={`px-2.5 py-1 rounded-full text-xs font-bold border ${overallScore >= 80 ? 'bg-lime-400/10 text-lime-400 border-lime-400/20' :
-              overallScore >= 50 ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20' :
-                'bg-red-400/10 text-red-400 border-red-400/20'
+            overallScore >= 50 ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20' :
+              'bg-red-400/10 text-red-400 border-red-400/20'
             }`}>
             {overallScore >= 80 ? 'EXCELLENT' : overallScore >= 50 ? 'FAIR' : 'POOR'}
           </div>
@@ -84,8 +84,8 @@ const LinkHealthChart: React.FC<LinkHealthChartProps> = ({ data }) => {
         </div>
 
         {/* Chart Area */}
-        <div className="relative h-32 w-full mt-2">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="relative h-32 w-full mt-2 min-h-[128px]">
+          <ResponsiveContainer width="100%" height="100%" debounce={50}>
             <AreaChart data={trendData}>
               <defs>
                 <linearGradient id="healthGradient" x1="0" y1="0" x2="0" y2="1">

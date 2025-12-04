@@ -48,8 +48,8 @@ const TrafficSourceChart: React.FC<TrafficSourceChartProps> = ({ data, total }) 
 
       <h3 className="font-black text-2xl text-[#1F2937] mb-4">Traffic Sources</h3>
 
-      <div className="flex-1 relative min-h-0">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+      <div className="flex-1 relative min-h-[200px]">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
           <PieChart>
             <Pie
               data={data}
