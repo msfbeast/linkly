@@ -14,6 +14,7 @@ interface AnalyticsOverviewProps {
     isLoading: boolean;
     clickForecastData: { date: string; actual: number; forecast: number }[];
     trafficSourceData: { name: string; value: number; color: string }[];
+    totalClicks?: number;
 }
 
 // Helper to generate city data
@@ -74,7 +75,8 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
     links,
     isLoading,
     clickForecastData,
-    trafficSourceData
+    trafficSourceData,
+    totalClicks
 }) => {
     // Generate health data
     const linkHealthData = generateLinkHealthData(links);
@@ -144,7 +146,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
             >
                 <TrafficSourceChart
                     data={trafficSourceData}
-                    total={calculateTrafficTotal(trafficSourceData)}
+                    total={totalClicks ?? calculateTrafficTotal(trafficSourceData)}
                 />
             </motion.div>
 

@@ -20,6 +20,7 @@ import { calculateTrafficTotal } from '../components/TrafficSourceChart';
 import { PriorityLink } from '../components/PriorityLinksList';
 import { DateRange, generateClickForecastData, generateTrafficSourceData } from '../services/analyticsService';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { aggregatedAnalytics, UserClickStats } from '../services/aggregatedAnalyticsService';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
 import {
@@ -50,6 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onLinksUpdate,
 }) => {
   const [links, setLinks] = useState<LinkData[]>([]);
+  const [userClickStats, setUserClickStats] = useState<UserClickStats | null>(null);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -131,6 +133,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
       }
 
+      // Fetch aggregated click stats (for real totals, not capped at 1000)
+      if (user?.id) {
+        const stats = await aggregatedAnalytics.getUserClickStats(user.id);
+        setUserClickStats(stats);
+      }
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load links';
       setError(errorMessage);
@@ -138,7 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -250,7 +258,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Generate chart data with date range filtering
   const clickForecastData = generateClickForecastData(links, dateRange);
   const trafficSourceData = generateTrafficSourceData(links, dateRange);
-  const trafficSourceTotal = calculateTrafficTotal(trafficSourceData);
+  // Use aggregated total if available (not capped), otherwise fall back to calculated total
+  const trafficSourceTotal = userClickStats?.totalClicks ?? calculateTrafficTotal(trafficSourceData);
   const linkHealthData = generateLinkHealthData(links);
 
   // Generate priority links from links that need attention
@@ -450,6 +459,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 isLoading={isLoading}
                 clickForecastData={clickForecastData}
                 trafficSourceData={trafficSourceData}
+                totalClicks={trafficSourceTotal}
               />
             </ErrorBoundary>
           )}
