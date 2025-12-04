@@ -30,17 +30,23 @@ export default async function middleware(request: Request) {
     const hostname = url.hostname;
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
-    // 0. Rate Limiting
-    // Only rate limit public routes or specific paths if needed
-    // Skip rate limiting in development to avoid Upstash latency
-    if (process.env.NODE_ENV !== 'development' && hostname !== 'localhost') {
-        const { success, pending, limit, reset, remaining } = await ratelimit.limit(ip);
+    // Define allowed domains (localhost and main domain)
+    const allowedDomains = ['localhost', 'linkly.ai', 'app.linkly.ai', 'linkly-ai.vercel.app', 'links.trak.in'];
+    const isMainDomain = allowedDomains.some(domain => hostname.includes(domain));
 
-        // Pending promises should be awaited to ensure analytics are sent
-        // But we don't want to block the response
-        // context.waitUntil(pending); // Vercel Edge Middleware supports waitUntil but it's on the event object which we don't have here in this signature
-        // In standard Request handler, we just await or fire-and-forget if possible. 
-        // For critical path, we await 'success'.
+    // 0. Rate Limiting - ONLY for custom domains and public redirect routes
+    // Skip rate limiting for:
+    // - Development environment
+    // - Main app domain routes (dashboard, login, etc.) to avoid latency
+    // - Only apply to custom domain redirects
+    const shouldRateLimit = (
+        process.env.NODE_ENV !== 'development' &&
+        hostname !== 'localhost' &&
+        !isMainDomain // Skip rate limiting for main app - only rate limit custom domains
+    );
+
+    if (shouldRateLimit) {
+        const { success, limit, reset, remaining } = await ratelimit.limit(ip);
 
         if (!success) {
             console.warn(`[Middleware] Rate limit exceeded for IP: ${ip}`);
@@ -54,15 +60,6 @@ export default async function middleware(request: Request) {
             });
         }
     }
-
-    // Define allowed domains (localhost and main domain)
-    // In production, this should be your actual domain, e.g., 'app.linkly.ai'
-    const allowedDomains = ['localhost', 'linkly.ai', 'app.linkly.ai', 'linkly-ai.vercel.app', 'links.trak.in'];
-
-    // Check if the current hostname is in the allowed list
-    // We use .some() to check if the hostname ends with any of the allowed domains
-    // to support subdomains like www.linkly.ai
-    const isMainDomain = allowedDomains.some(domain => hostname.includes(domain));
 
     // If it's a main domain, let the request pass through
     if (isMainDomain) {
