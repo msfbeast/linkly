@@ -9,14 +9,28 @@ import { HealthScoreCard } from '../HealthScoreCard';
 import { InsightsCard, Insight } from '../InsightsCard';
 import { LinkData, generateLinkHealthData } from '../../types';
 
+interface AnalyticsOverviewProps {
+    links: LinkData[];
+    isLoading: boolean;
+    clickForecastData: { date: string; actual: number; forecast: number }[];
+    trafficSourceData: { name: string; value: number; color: string }[];
+}
+
 // Helper to generate city data
 function generateCityData(links: LinkData[]) {
     const cityCounts: Record<string, { count: number; country: string }> = {};
     let totalClicks = 0;
 
+    // Debug logging
+    console.log('[CityData] Processing links:', links.length);
+    let totalClickHistory = 0;
+    let clicksWithCity = 0;
+
     links.forEach(link => {
-        link.clickHistory.forEach(click => {
+        totalClickHistory += link.clickHistory?.length || 0;
+        link.clickHistory?.forEach(click => {
             if (click.city) {
+                clicksWithCity++;
                 const key = `${click.city}-${click.country || 'Unknown'}`;
                 if (!cityCounts[key]) {
                     cityCounts[key] = { count: 0, country: click.country || 'Unknown' };
@@ -26,6 +40,10 @@ function generateCityData(links: LinkData[]) {
             }
         });
     });
+
+    console.log('[CityData] Total click history entries:', totalClickHistory);
+    console.log('[CityData] Clicks with city:', clicksWithCity);
+    console.log('[CityData] City counts:', cityCounts);
 
     return Object.entries(cityCounts)
         .map(([key, data]) => ({
