@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check, Split, Download, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { LinkData, ClickEvent, getCategoryColor } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { aggregatedAnalytics, LinkStats } from '../services/aggregatedAnalyticsService';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie, Legend
@@ -13,6 +14,7 @@ const LinkAnalytics: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [link, setLink] = useState<LinkData | null>(null);
+    const [linkStats, setLinkStats] = useState<LinkStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
@@ -22,9 +24,15 @@ const LinkAnalytics: React.FC = () => {
         const fetchLink = async () => {
             if (!id) return;
             try {
-                const data = await supabaseAdapter.getLink(id);
+                // Fetch link data and aggregated stats in parallel
+                const [data, stats] = await Promise.all([
+                    supabaseAdapter.getLink(id),
+                    aggregatedAnalytics.getLinkStats(id)
+                ]);
+
                 if (data) {
                     setLink(data);
+                    setLinkStats(stats);
                 } else {
                     // Handle not found
                     navigate('/links');
@@ -284,7 +292,9 @@ const LinkAnalytics: React.FC = () => {
                             </div>
                             <span className="text-stone-500 text-sm font-medium">Total Clicks</span>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900 mb-1">{filteredClicks.length.toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-slate-900 mb-1">
+                            {(linkStats?.totalClicks ?? filteredClicks.length).toLocaleString()}
+                        </p>
                         <div className={`flex items-center text-xs font-medium ${clickGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {clickGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
                             {Math.abs(clickGrowth)}% vs previous
@@ -298,7 +308,9 @@ const LinkAnalytics: React.FC = () => {
                             </div>
                             <span className="text-stone-500 text-sm font-medium">Unique Visitors</span>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900 mb-1">{uniqueClicks.toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-slate-900 mb-1">
+                            {(linkStats?.uniqueVisitors ?? uniqueClicks).toLocaleString()}
+                        </p>
                         <div className={`flex items-center text-xs font-medium ${uniqueGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {uniqueGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
                             {Math.abs(uniqueGrowth)}% vs previous
