@@ -64,6 +64,9 @@ const LinkAnalytics: React.FC = () => {
 
     if (!link) return null;
 
+    // Debug: log linkStats to verify it's being used
+    console.log('[LinkAnalytics] Rendering with linkStats:', linkStats, 'filteredClicksLength will be from clickHistory');
+
     // --- Data Processing ---
 
     // Filter clicks by time range
