@@ -274,46 +274,44 @@ export const authService = {
       sessionStorage.removeItem('linkly_session_temp');
     }
 
-    // Fetch profile for settings and preferences
-    let settingsNotifications;
-    let preferences;
-    if (data.user) {
-      console.log('[Auth] Fetching profile...');
-      const profileStartTime = performance.now();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
-        .eq('id', data.user.id)
-        .single();
-      console.log(`[Auth] Profile fetch completed in ${(performance.now() - profileStartTime).toFixed(0)}ms`);
-
-      settingsNotifications = profile?.settings_notifications;
-      preferences = {
-        onboarding_completed: profile?.onboarding_completed,
-        onboarding_step: profile?.onboarding_step,
-        onboarding_skipped: profile?.onboarding_skipped,
-        onboarding_started_at: profile?.onboarding_started_at,
-        subscription_tier: profile?.subscription_tier,
-        subscription_status: profile?.subscription_status,
-        trial_ends_at: profile?.trial_ends_at,
-        stripe_customer_id: profile?.stripe_customer_id,
-        stripe_subscription_id: profile?.stripe_subscription_id,
-      };
-    }
-
+    // Return user immediately - profile will be fetched in background
+    // This prevents login from hanging if profile query is slow
     const user = mapSupabaseUser(data.user);
-    if (user) {
-      if (settingsNotifications) {
-        user.settingsNotifications = settingsNotifications;
-      }
-      if (preferences) {
-        user.preferences = {
-          ...user.preferences,
-          ...preferences,
-        };
-      }
+
+    // Fetch profile in background (non-blocking) with a 3s timeout
+    if (data.user && user) {
+      console.log('[Auth] Fetching profile in background...');
+
+      // Don't await - let it run in background
+      Promise.resolve(
+        supabase
+          .from('profiles')
+          .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
+          .eq('id', data.user.id)
+          .single()
+      ).then(({ data: profile }) => {
+        console.log('[Auth] Profile fetch completed');
+        if (profile) {
+          user.settingsNotifications = profile.settings_notifications;
+          user.preferences = {
+            ...user.preferences,
+            onboarding_completed: profile.onboarding_completed,
+            onboarding_step: profile.onboarding_step,
+            onboarding_skipped: profile.onboarding_skipped,
+            onboarding_started_at: profile.onboarding_started_at,
+            subscription_tier: profile.subscription_tier,
+            subscription_status: profile.subscription_status,
+            trial_ends_at: profile.trial_ends_at,
+            stripe_customer_id: profile.stripe_customer_id,
+            stripe_subscription_id: profile.stripe_subscription_id,
+          };
+        }
+      }).catch((err: Error) => {
+        console.warn('[Auth] Profile fetch failed:', err);
+      });
     }
 
+    console.log('[Auth] signIn completed, returning user');
     return {
       user,
       session: data.session,
