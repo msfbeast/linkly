@@ -459,12 +459,14 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     // Fetch all click events for all links in a single query (N+1 optimization)
+    // Use range(0, 9999) to override Supabase's default 1000 row limit
     const linkIds = linkRows.map((row: LinkRow) => row.id);
     const { data: allClickEvents, error: clickError } = await supabase!
       .from(TABLES.CLICK_EVENTS)
       .select('*')
       .in('link_id', linkIds)
-      .order('timestamp', { ascending: false });
+      .order('timestamp', { ascending: false })
+      .range(0, 9999); // Fetch up to 10,000 rows
 
     if (clickError) {
       console.warn(`Failed to fetch click events: ${clickError.message}`);
