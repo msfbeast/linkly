@@ -237,6 +237,9 @@ export const authService = {
    * Requirements: 2.1
    */
   async signIn(email: string, password: string, rememberMe: boolean = false): Promise<AuthResponse> {
+    console.log('[Auth] signIn started');
+    const startTime = performance.now();
+
     if (!isSupabaseConfigured() || !supabase) {
       return {
         user: null,
@@ -245,10 +248,13 @@ export const authService = {
       };
     }
 
+    console.log('[Auth] Calling signInWithPassword...');
+    const authStartTime = performance.now();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    console.log(`[Auth] signInWithPassword completed in ${(performance.now() - authStartTime).toFixed(0)}ms`);
 
     if (error) {
       return {
@@ -272,11 +278,14 @@ export const authService = {
     let settingsNotifications;
     let preferences;
     if (data.user) {
+      console.log('[Auth] Fetching profile...');
+      const profileStartTime = performance.now();
       const { data: profile } = await supabase
         .from('profiles')
         .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
         .eq('id', data.user.id)
         .single();
+      console.log(`[Auth] Profile fetch completed in ${(performance.now() - profileStartTime).toFixed(0)}ms`);
 
       settingsNotifications = profile?.settings_notifications;
       preferences = {
