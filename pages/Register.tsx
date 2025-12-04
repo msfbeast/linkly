@@ -56,11 +56,13 @@ const Register: React.FC = () => {
         throw new Error("Please choose a valid, available username.");
       }
       await signUp(email, password, username);
-      navigate('/dashboard');
+      // Navigation is handled by the useEffect watching 'user' state
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
-    } finally {
       setIsSubmitting(false);
+    } finally {
+      // Don't set submitting to false on success to prevent UI flicker before redirect
+      if (error) setIsSubmitting(false);
     }
   };
 

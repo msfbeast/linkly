@@ -18,12 +18,19 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Get redirect destination from location state or default to dashboard
-  const from = (location.state as { from?: string })?.from || '/';
+  const from = (location.state as { from?: string })?.from || '/dashboard';
+
+  // Redirect if user is already logged in
+  React.useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
 
   /**
    * Validate form fields
@@ -63,16 +70,14 @@ const Login: React.FC = () => {
     try {
       const result = await signIn(email, password, rememberMe);
 
-      if (result.success) {
-        // Redirect to intended destination or dashboard
-        navigate(from, { replace: true });
-      } else {
+      if (!result.success) {
         // Requirement 2.2: Display error without revealing which field is incorrect
         setError(result.error || 'Invalid email or password');
+        setIsLoading(false);
       }
+      // If success, the useEffect will handle the redirect once 'user' is updated
     } catch (err) {
       setError('Unable to connect. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
