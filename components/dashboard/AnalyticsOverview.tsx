@@ -46,12 +46,23 @@ function generateCityData(links: LinkData[]) {
     console.log('[CityData] City counts:', JSON.stringify(cityCounts, null, 2));
 
     const result = Object.entries(cityCounts)
-        .map(([key, data]) => ({
-            city: key.split('-')[0],
-            country: data.country,
-            count: data.count,
-            percentage: totalClicks > 0 ? Math.round((data.count / totalClicks) * 100) : 0
-        }))
+        .map(([key, data]) => {
+            // Decode URL-encoded city names (e.g., "New%20Delhi" → "New Delhi")
+            const rawCity = key.split('-')[0];
+            let decodedCity = rawCity;
+            try {
+                decodedCity = decodeURIComponent(rawCity);
+            } catch (e) {
+                // If decoding fails, use the raw city name
+                decodedCity = rawCity;
+            }
+            return {
+                city: decodedCity,
+                country: data.country,
+                count: data.count,
+                percentage: totalClicks > 0 ? Math.round((data.count / totalClicks) * 100) : 0
+            };
+        })
         .sort((a, b) => b.count - a.count)
         .slice(0, 5); // Top 5 cities
 
