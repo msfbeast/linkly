@@ -43,9 +43,9 @@ function generateCityData(links: LinkData[]) {
 
     console.log('[CityData] Total click history entries:', totalClickHistory);
     console.log('[CityData] Clicks with city:', clicksWithCity);
-    console.log('[CityData] City counts:', cityCounts);
+    console.log('[CityData] City counts:', JSON.stringify(cityCounts, null, 2));
 
-    return Object.entries(cityCounts)
+    const result = Object.entries(cityCounts)
         .map(([key, data]) => ({
             city: key.split('-')[0],
             country: data.country,
@@ -54,6 +54,9 @@ function generateCityData(links: LinkData[]) {
         }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5); // Top 5 cities
+
+    console.log('[CityData] Final result:', JSON.stringify(result, null, 2));
+    return result;
 }
 
 const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
