@@ -106,10 +106,10 @@ export const getAppDeepLink = (webUrl: string): string | null => {
         // Flipkart
         if (hostname.includes('flipkart.com')) {
             // Special Case: dl.flipkart.com (Flipkart's own Short Links / Universal Links)
-            // These handles deep linking themselves. Wrapping them breaks the redirection.
-            // Returning null allows standard redirection to occurs, triggering the OS Universal Link handler.
+            // returning the URL itself as the "deep link" forces Redirect.tsx to use 
+            // window.location.href instead of window.location.replace, which handles Universal Links better.
             if (hostname === 'dl.flipkart.com') {
-                return null;
+                return webUrl;
             }
 
             // Try 1: Direct Product ID (Standard Scheme)
