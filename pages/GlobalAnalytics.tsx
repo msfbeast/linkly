@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Globe, MousePointer2, TrendingUp, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { aggregatedAnalytics, UserClickStats } from '../services/aggregatedAnalyticsService';
+import { useAuth } from '../contexts/AuthContext';
 import { LinkData, ClickEvent } from '../types';
 import LiveWorldMap from '../components/LiveWorldMap';
 
@@ -25,18 +27,28 @@ interface AnalyticsSummary {
 const GlobalAnalytics: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [userClickStats, setUserClickStats] = useState<UserClickStats | null>(null);
   const [dateRange, setDateRange] = useState('7d');
+  const { user } = useAuth();
 
   useEffect(() => {
     loadAnalytics();
-  }, [dateRange]);
+  }, [dateRange, user?.id]);
 
   const loadAnalytics = async () => {
     setIsLoading(true);
     try {
-      const links = await supabaseAdapter.getLinks();
+      // Fetch both links and aggregated stats in parallel
+      const [links, stats] = await Promise.all([
+        supabaseAdapter.getLinks(),
+        user?.id ? aggregatedAnalytics.getUserClickStats(user.id) : null
+      ]);
+
       const summary = processAnalytics(links);
       setAnalytics(summary);
+      setUserClickStats(stats);
+
+      console.log('[GlobalAnalytics] Loaded stats:', stats);
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
@@ -224,7 +236,7 @@ const GlobalAnalytics: React.FC = () => {
               </div>
               <span className="text-stone-500 text-sm">Total Clicks</span>
             </div>
-            <p className="text-3xl font-bold text-slate-900">{analytics?.totalClicks.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-slate-900">{(userClickStats?.totalClicks ?? analytics?.totalClicks ?? 0).toLocaleString()}</p>
           </div>
           <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
