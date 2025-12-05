@@ -43,7 +43,7 @@ const LegalPage = React.lazy(() => import('./pages/LegalPage'));
 const AboutPage = React.lazy(() => import('./pages/AboutPage'));
 const ComingSoonPage = React.lazy(() => import('./pages/ComingSoonPage'));
 const SmartRedirect = React.lazy(() => import('./pages/SmartRedirect'));
-const DebugPage = React.lazy(() => import('./pages/DebugShare'));
+
 
 /**
  * Main App Component
@@ -107,7 +107,6 @@ const AnimatedRoutes: React.FC = () => {
 
           {/* Public Shared Analytics */}
           <Route path="/share/:shareToken" element={<SharedAnalytics />} />
-          <Route path="/debug-share" element={<DebugPage />} />
 
           {/* Footer Pages */}
           <Route path="/about" element={<AboutPage />} />
