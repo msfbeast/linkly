@@ -14,7 +14,11 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // YouTube
         if (hostname === 'youtube.com' || hostname === 'm.youtube.com' || hostname === 'youtu.be') {
-            // iOS/Android usually handle http links as Universal Links, but forcing scheme can help
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.google.android.youtube;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
+            // iOS/Others usually handle http links as Universal Links, but forcing scheme can help
             // youtube://watch?v=VIDEO_ID
             if (path === '/watch') {
                 const v = url.searchParams.get('v');
@@ -29,6 +33,12 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Instagram
         if (hostname === 'instagram.com') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.instagram.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
+
+            // iOS/Others
             // instagram://user?username=USERNAME
             // instagram://media?id=MEDIA_ID (Hard to get ID from shortcode without API)
             // Fallback to generic scheme which might open app
@@ -50,6 +60,11 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Twitter / X
         if (hostname === 'twitter.com' || hostname === 'x.com') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.twitter.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
+
             // twitter://user?screen_name=USERNAME
             // twitter://status?id=TWEET_ID
             if (path.includes('/status/')) {
@@ -66,6 +81,10 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // LinkedIn
         if (hostname === 'linkedin.com') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.linkedin.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
             // linkedin://profile/ID
             // linkedin://company/ID
             // Hard to map vanity URLs to IDs without API.
@@ -74,6 +93,10 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Facebook
         if (hostname === 'facebook.com') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.facebook.katana;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
             // fb://profile/ID
             // fb://page/ID
             // Hard to map vanity URLs.
@@ -82,6 +105,11 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Spotify
         if (hostname === 'open.spotify.com') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.spotify.music;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
+
             // spotify:track:ID
             // spotify:album:ID
             // spotify:playlist:ID
@@ -95,12 +123,20 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Telegram
         if (hostname === 't.me') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=org.telegram.messenger;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
             const username = path.substring(1);
             return `tg://resolve?domain=${username}`;
         }
 
         // WhatsApp
         if (hostname === 'wa.me' || hostname === 'api.whatsapp.com') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
             // whatsapp://send?phone=...
             return `whatsapp://send?text=${encodeURIComponent(webUrl)}`;
         }
@@ -148,6 +184,12 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Amazon
         if (hostname.includes('amazon.com') || hostname.includes('amazon.in')) {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                // Amazon package name can vary (com.amazon.mShop.android.shopping is global/common)
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.amazon.mShop.android.shopping;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
+
             // Try 1: Extract ASIN for direct product deep link
             // Patterns: /dp/ASIN, /gp/product/ASIN
             const asinMatch = path.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
@@ -156,7 +198,7 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
                 return `com.amazon.mobile.shopping://www.amazon.${domain}/products/${asinMatch[1]}`;
             }
 
-            // Try 2: Universal Intent (Works well on Android)
+            // Fallback for iOS/Others
             return `com.amazon.mobile.shopping.web://content/view?currentUrl=${encodeURIComponent(webUrl)}`;
         }
 
