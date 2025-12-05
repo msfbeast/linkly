@@ -57,6 +57,56 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
         return counts;
     }, [clickHistory, viewMode]);
 
+    // City coordinates for markers
+    const CITY_COORDS: Record<string, [number, number]> = {
+        'Mumbai': [72.8777, 19.0760],
+        'Pune': [73.8567, 18.5204],
+        'Kolkata': [88.3639, 22.5726],
+        'Bengaluru': [77.5946, 12.9716],
+        'Delhi': [77.1025, 28.7041],
+        'New Delhi': [77.2090, 28.6139],
+        'Chennai': [80.2707, 13.0827],
+        'Hyderabad': [78.4867, 17.3850],
+        'Ahmedabad': [72.5714, 23.0225],
+        'Jaipur': [75.7873, 26.9124],
+        'Bhubaneswar': [85.8245, 20.2961],
+        'Rajkot': [70.8022, 22.3039],
+        'Lucknow': [80.9462, 26.8467],
+        'Chandigarh': [76.7794, 30.7333],
+        'Patna': [85.1376, 25.5941],
+        'Indore': [75.8577, 22.7196],
+        'Bhopal': [77.4126, 23.2599],
+        'Nagpur': [79.0882, 21.1458],
+        'Coimbatore': [76.9558, 11.0168],
+        'Kochi': [76.2673, 9.9312],
+        'Visakhapatnam': [83.2185, 17.6868],
+        'Thiruvananthapuram': [76.9366, 8.5241],
+        'Surat': [72.8311, 21.1702],
+        'Vadodara': [73.1812, 22.3072],
+    };
+
+    // Process city counts for markers (India view only)
+    const cityMarkers = useMemo(() => {
+        if (viewMode !== 'india') return [];
+
+        const counts: Record<string, number> = {};
+        clickHistory.forEach(click => {
+            if (click.country === 'India' && click.city) {
+                counts[click.city] = (counts[click.city] || 0) + 1;
+            }
+        });
+
+        return Object.entries(counts)
+            .map(([city, count]) => ({
+                city,
+                count,
+                coordinates: CITY_COORDS[city] || null
+            }))
+            .filter(c => c.coordinates !== null)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10); // Top 10 cities
+    }, [clickHistory, viewMode]);
+
     const maxClicks = Math.max(...Object.values(locationCounts), 1);
 
     // Color scale for heatmap - Modern Light Theme
@@ -215,6 +265,42 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
                             </Marker>
                         ))}
                     </AnimatePresence>
+
+                    {/* City Markers (India view) */}
+                    {viewMode === 'india' && cityMarkers.map((city, i) => {
+                        const maxCount = cityMarkers[0]?.count || 1;
+                        const sizeScale = 6 + (city.count / maxCount) * 10; // 6-16px based on count
+                        return (
+                            <Marker key={city.city} coordinates={city.coordinates as [number, number]}>
+                                <g
+                                    data-tooltip-id="map-tooltip"
+                                    data-tooltip-content={`${city.city}: ${city.count.toLocaleString()} clicks`}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <circle
+                                        r={sizeScale}
+                                        fill="#EF4444"
+                                        fillOpacity={0.7}
+                                        stroke="#DC2626"
+                                        strokeWidth={1.5}
+                                    />
+                                    <circle r={3} fill="#FEF2F2" />
+                                    <text
+                                        textAnchor="middle"
+                                        y={sizeScale + 12}
+                                        style={{
+                                            fontFamily: 'system-ui',
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                            fill: '#1F2937',
+                                        }}
+                                    >
+                                        {city.city}
+                                    </text>
+                                </g>
+                            </Marker>
+                        );
+                    })}
                 </ZoomableGroup>
             </ComposableMap>
 
