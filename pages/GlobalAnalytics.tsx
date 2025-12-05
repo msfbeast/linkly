@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, Globe, MousePointer2, TrendingUp, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
+import { BarChart3, Globe, MousePointer2, TrendingUp, TrendingDown, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, BrowserBreakdown, DeviceModelBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
@@ -55,6 +55,27 @@ const getCountryName = (code: string): string => {
   // Already a full name
   if (code.length > 3) return code;
   return COUNTRY_NAMES[code.toUpperCase()] || code;
+};
+
+// Calculate week-over-week growth percentage
+const calculateGrowth = (current: number, previous: number): { percentage: number; isPositive: boolean } => {
+  if (previous === 0) return { percentage: current > 0 ? 100 : 0, isPositive: current > 0 };
+  const percentage = ((current - previous) / previous) * 100;
+  return { percentage: Math.abs(Math.round(percentage)), isPositive: percentage >= 0 };
+};
+
+// Growth badge component
+const GrowthBadge: React.FC<{ current: number; previous: number }> = ({ current, previous }) => {
+  const { percentage, isPositive } = calculateGrowth(current, previous);
+  if (previous === 0 && current === 0) return null;
+
+  return (
+    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+      }`}>
+      {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      <span>{percentage}%</span>
+    </div>
+  );
 };
 
 const GlobalAnalytics: React.FC = () => {
@@ -273,13 +294,22 @@ const GlobalAnalytics: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <MousePointer2 className="w-5 h-5 text-yellow-600" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <MousePointer2 className="w-5 h-5 text-yellow-600" />
+                </div>
+                <span className="text-stone-500 text-sm">This Week</span>
               </div>
-              <span className="text-stone-500 text-sm">Total Clicks</span>
+              <GrowthBadge
+                current={serverData?.stats?.clicksThisWeek ?? 0}
+                previous={serverData?.stats?.clicksLastWeek ?? 0}
+              />
             </div>
-            <p className="text-3xl font-bold text-slate-900">{(serverData?.stats?.totalClicks ?? analytics?.totalClicks ?? 0).toLocaleString()}</p>
+            <p className="text-3xl font-bold text-slate-900">
+              {(serverData?.stats?.clicksThisWeek ?? 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-stone-400 mt-1">vs {(serverData?.stats?.clicksLastWeek ?? 0).toLocaleString()} last week</p>
           </div>
           <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">

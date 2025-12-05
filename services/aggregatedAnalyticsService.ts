@@ -14,6 +14,7 @@ export interface UserClickStats {
     uniqueVisitors: number;
     clicksToday: number;
     clicksThisWeek: number;
+    clicksLastWeek: number;
     clicksThisMonth: number;
 }
 
@@ -87,6 +88,7 @@ class AggregatedAnalyticsService {
                 uniqueVisitors: row.unique_visitors || 0,
                 clicksToday: row.clicks_today || 0,
                 clicksThisWeek: row.clicks_this_week || 0,
+                clicksLastWeek: row.clicks_last_week || 0,
                 clicksThisMonth: row.clicks_this_month || 0,
             };
         } catch {
