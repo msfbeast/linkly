@@ -48,51 +48,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setSession(session);
 
       if (session?.user) {
-        console.log('[Auth] Session found, fetching user details...');
-        try {
-          // Add timeout to prevent hanging
-          const userPromise = authService.getUser();
-          const timeoutPromise = new Promise<null>((resolve) =>
-            setTimeout(() => {
-              console.warn('[Auth] User fetch timed out after 5s');
-              resolve(null);
-            }, 5000)
-          );
+        // Set user from session immediately (for fast page load)
+        const sessionUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          emailVerified: session.user.email_confirmed_at != null,
+          createdAt: session.user.created_at || new Date().toISOString(),
+          user_metadata: session.user.user_metadata,
+          displayName: session.user.user_metadata?.display_name,
+          storeName: session.user.user_metadata?.store_name,
+          apiKey: session.user.user_metadata?.api_key,
+        } as any;
 
-          const user = await Promise.race([userPromise, timeoutPromise]);
-          if (user) {
-            setUser(user);
-            console.log('[Auth] User loaded:', user?.email);
-          } else {
-            // Still have session, just couldn't get extended user details
-            console.log('[Auth] Using session user as fallback');
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              emailVerified: session.user.email_confirmed_at != null,
-              createdAt: session.user.created_at || new Date().toISOString(),
-              user_metadata: session.user.user_metadata,
-            } as any);
+        setUser(sessionUser);
+        setLoading(false); // Page loads immediately!
+        console.log('[Auth] Quick load with session user:', session.user.email);
+
+        // Fetch full user details in background (non-blocking)
+        authService.getUser().then(fullUser => {
+          if (fullUser) {
+            setUser(fullUser);
+            console.log('[Auth] Full user details loaded');
           }
-        } catch (error) {
-          console.error('[Auth] Error fetching user:', error);
-          // Still have session, create minimal user from session
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            emailVerified: session.user.email_confirmed_at != null,
-            createdAt: session.user.created_at || new Date().toISOString(),
-            user_metadata: session.user.user_metadata,
-          } as any);
-        }
+        }).catch(err => {
+          console.warn('[Auth] Background user fetch failed:', err);
+          // Keep using session user, no problem
+        });
       } else {
         console.log('[Auth] No session, clearing user');
         setUser(null);
+        setLoading(false);
       }
-
-      // Always set loading to false after processing
-      setLoading(false);
-      console.log('[Auth] Loading set to false');
     });
 
     // Fallback: If onAuthStateChange doesn't fire within 3 seconds, check manually
