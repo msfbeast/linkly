@@ -105,13 +105,16 @@ export const getAppDeepLink = (webUrl: string): string | null => {
 
         // Flipkart
         if (hostname.includes('flipkart.com')) {
-            // Try 1: Direct Product ID (Best for opening product page)
+            // Try 1: Direct Product ID (Standard Scheme)
             const pid = url.searchParams.get('pid');
             if (pid) {
-                return `flipkart://prd?pid=${pid}`;
+                // flipkart://product?pid= is the most reliable scheme
+                return `flipkart://product?pid=${pid}&ot=SCH&otr=TRACKER`;
             }
 
-            // Try 2: Pass full URL (Fallback)
+            // Try 2: Universal Link style (often more reliable than dl/url)
+            // But usually needs `flipkart://dl/name?pid=...` logic
+            // Fallback to simply opening the web URL if we can't find PID
             return `flipkart://dl/url?url=${encodeURIComponent(webUrl)}`;
         }
 
