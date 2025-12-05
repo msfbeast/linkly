@@ -41,6 +41,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Get initial session
     // Get initial session with timeout safety
     const initAuth = async () => {
+      console.log('[Auth] Initializing auth...');
       try {
         const sessionPromise = authService.getSession();
         const timeoutPromise = new Promise<null>((resolve) =>
@@ -48,29 +49,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         );
 
         const session = await Promise.race([sessionPromise, timeoutPromise]);
+        console.log('[Auth] Session restored:', session ? 'yes' : 'no');
 
         if (session) {
           setSession(session);
           if (session.user) {
+            console.log('[Auth] Fetching user details...');
             try {
               const user = await authService.getUser();
               setUser(user);
+              console.log('[Auth] User loaded:', user?.email);
             } catch (err) {
-              console.error('Failed to get user details:', err);
+              console.error('[Auth] Failed to get user details:', err);
             }
           }
+        } else {
+          console.log('[Auth] No session found on init');
         }
       } catch (err) {
-        console.error('Failed to get session:', err);
+        console.error('[Auth] Failed to get session:', err);
       } finally {
         setLoading(false);
+        console.log('[Auth] Init complete, loading = false');
       }
     };
 
     initAuth();
 
     // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Auth] Auth state changed:', event, session ? 'has session' : 'no session');
       try {
         setSession(session);
         if (session?.user) {
