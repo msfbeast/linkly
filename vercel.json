@@ -5,7 +5,15 @@
             "destination": "/api/r/:code"
         },
         {
-            "source": "/((?!api/.*).*)",
+            "source": "/api/cron/cleanup",
+            "destination": "/api/cron/cleanup"
+        },
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/$1"
+        },
+        {
+            "source": "/(.*)",
             "destination": "/index.html"
         }
     ],
