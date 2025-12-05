@@ -1,8 +1,16 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
+import { createClient } from '@supabase/supabase-js';
 
 // Initialize Gemini on the server side
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+
+// Initialize Supabase for Auth check
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const supabase = (supabaseUrl && supabaseAnonKey)
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 // Define the interface for the response
 interface GeminiAnalysisResult {
@@ -16,8 +24,26 @@ interface GeminiAnalysisResult {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // 1. method check
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // 2. Auth Check
+    if (!supabase) {
+        console.warn('Supabase not configured on server, skipping auth check (RISKY)');
+    } else {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'Missing Authorization header' });
+        }
+
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+
+        if (error || !user) {
+            return res.status(401).json({ error: 'Unauthorized', details: error?.message });
+        }
     }
 
     try {
