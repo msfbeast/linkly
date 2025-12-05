@@ -152,6 +152,7 @@ export const authService = {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
         data: {
           display_name: username || email.split('@')[0],
           username: username,

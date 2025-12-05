@@ -104,17 +104,28 @@ export const getAppDeepLink = (webUrl: string): string | null => {
         }
 
         // Flipkart
-        if (hostname === 'flipkart.com' || hostname === 'www.flipkart.com') {
-            // flipkart://dl/name?pid=...
-            // Web: https://www.flipkart.com/product-name/p/itm...?pid=...
-            // We can try opening the web URL with flipkart scheme, but it's tricky.
-            // Common format: flipkart://dl/url?url=ENCODED_URL
+        if (hostname.includes('flipkart.com')) {
+            // Try 1: Direct Product ID (Best for opening product page)
+            const pid = url.searchParams.get('pid');
+            if (pid) {
+                return `flipkart://prd?pid=${pid}`;
+            }
+
+            // Try 2: Pass full URL (Fallback)
             return `flipkart://dl/url?url=${encodeURIComponent(webUrl)}`;
         }
 
         // Amazon
-        if (hostname === 'amazon.com' || hostname === 'www.amazon.com' || hostname === 'amazon.in' || hostname === 'www.amazon.in') {
-            // com.amazon.mobile.shopping.web://content/view?currentUrl=URL
+        if (hostname.includes('amazon.com') || hostname.includes('amazon.in')) {
+            // Try 1: Extract ASIN for direct product deep link
+            // Patterns: /dp/ASIN, /gp/product/ASIN
+            const asinMatch = path.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
+            if (asinMatch && asinMatch[1]) {
+                const domain = hostname.includes('amazon.in') ? 'in' : 'com';
+                return `com.amazon.mobile.shopping://www.amazon.${domain}/products/${asinMatch[1]}`;
+            }
+
+            // Try 2: Universal Intent (Works well on Android)
             return `com.amazon.mobile.shopping.web://content/view?currentUrl=${encodeURIComponent(webUrl)}`;
         }
 
