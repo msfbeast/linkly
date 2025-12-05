@@ -471,8 +471,10 @@ const LinkAnalytics: React.FC = () => {
                                     cy="50%"
                                     innerRadius={60}
                                     outerRadius={80}
-                                    paddingAngle={5}
+                                    paddingAngle={2}
                                     dataKey="value"
+                                    startAngle={90}
+                                    endAngle={-270}
                                 >
                                     {browserData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
