@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Globe, MousePointer2, TrendingUp, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, BrowserBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, BrowserBreakdown, DeviceModelBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
 import { LinkData, ClickEvent } from '../types';
 import LiveWorldMap from '../components/LiveWorldMap';
@@ -13,6 +13,7 @@ interface ServerAnalytics {
   devices: DeviceBreakdown[];
   referrers: ReferrerBreakdown[];
   browsers: BrowserBreakdown[];
+  deviceModels: DeviceModelBreakdown[];
   clicksOverTime: DailyClicks[];
 }
 
@@ -239,6 +240,7 @@ const GlobalAnalytics: React.FC = () => {
   const topDevices = serverData?.devices || [];
   const topReferrers = serverData?.referrers || [];
   const topBrowsers = serverData?.browsers || [];
+  const topDeviceModels = serverData?.deviceModels || [];
   const maxClicks = Math.max(...(topCountries.map(c => c.clickCount) || [1]));
 
   return (
@@ -526,6 +528,26 @@ const GlobalAnalytics: React.FC = () => {
                 <div key={i} className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
                   <p className="text-slate-900 font-bold text-lg">{item.clickCount.toLocaleString()}</p>
                   <p className="text-stone-500 text-sm">{item.browser}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Device Models Breakdown */}
+        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <Smartphone className="w-5 h-5 text-purple-500" />
+            <h3 className="text-slate-900 font-bold">Device Models</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {topDeviceModels.length === 0 ? (
+              <p className="text-stone-500 text-sm col-span-5">No data yet (run SQL migration)</p>
+            ) : (
+              topDeviceModels.slice(0, 10).map((item, i) => (
+                <div key={i} className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
+                  <p className="text-slate-900 font-bold text-lg">{item.clickCount.toLocaleString()}</p>
+                  <p className="text-stone-500 text-sm truncate" title={item.deviceModel}>{item.deviceModel}</p>
                 </div>
               ))
             )}

@@ -1557,6 +1557,9 @@ export class SupabaseAdapter implements StorageAdapter {
       currency: product.currency,
       image_url: product.imageUrl ?? null,
       link_id: product.linkId,
+      short_code: null,
+      original_url: null,
+      category: null,
       created_at: now,
       slug: product.slug ?? null,
     };

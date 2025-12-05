@@ -48,6 +48,11 @@ export interface BrowserBreakdown {
     clickCount: number;
 }
 
+export interface DeviceModelBreakdown {
+    deviceModel: string;
+    clickCount: number;
+}
+
 export interface DailyClicks {
     date: string;
     clickCount: number;
@@ -223,6 +228,28 @@ class AggregatedAnalyticsService {
     }
 
     /**
+     * Get device model breakdown
+     */
+    async getDeviceModelBreakdown(userId: string): Promise<DeviceModelBreakdown[]> {
+        if (!isSupabaseConfigured() || !supabase) return [];
+
+        try {
+            const { data, error } = await supabase.rpc('get_user_device_model_breakdown', {
+                p_user_id: userId
+            });
+
+            if (error) return [];
+
+            return (data || []).map((row: any) => ({
+                deviceModel: row.device_model || 'Unknown',
+                clickCount: Number(row.click_count) || 0,
+            }));
+        } catch {
+            return [];
+        }
+    }
+
+    /**
      * Get clicks over time
      */
     async getClicksOverTime(userId: string, days: number = 30): Promise<DailyClicks[]> {
@@ -283,6 +310,7 @@ class AggregatedAnalyticsService {
             devices,
             referrers,
             browsers,
+            deviceModels,
             clicksOverTime
         ] = await Promise.all([
             this.getUserClickStats(userId),
@@ -291,6 +319,7 @@ class AggregatedAnalyticsService {
             this.getDeviceBreakdown(userId),
             this.getReferrerBreakdown(userId),
             this.getBrowserBreakdown(userId),
+            this.getDeviceModelBreakdown(userId),
             this.getClicksOverTime(userId, 30)
         ]);
 
@@ -301,6 +330,7 @@ class AggregatedAnalyticsService {
             devices,
             referrers,
             browsers,
+            deviceModels,
             clicksOverTime
         };
     }

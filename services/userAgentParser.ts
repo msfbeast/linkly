@@ -240,3 +240,108 @@ export function detectOSVersion(ua: string): string {
 
   return 'Unknown';
 }
+
+/**
+ * Detects the specific device model from user agent string.
+ * Returns device name like "iPhone 15 Pro", "Samsung Galaxy S24", etc.
+ */
+export function detectDeviceModel(userAgent: string): string {
+  const ua = userAgent;
+  const uaLower = ua.toLowerCase();
+
+  // iPhone models
+  if (uaLower.includes('iphone')) {
+    // Try to extract iPhone model from UA
+    // Format: iPhone14,2 = iPhone 13 Pro, iPhone15,2 = iPhone 14 Pro, etc.
+    const modelMatch = ua.match(/iPhone(\d+),(\d+)/i);
+    if (modelMatch) {
+      const major = parseInt(modelMatch[1]);
+      const minor = parseInt(modelMatch[2]);
+      return getIPhoneModel(major, minor);
+    }
+    return 'iPhone';
+  }
+
+  // iPad models
+  if (uaLower.includes('ipad')) {
+    return 'iPad';
+  }
+
+  // Samsung Galaxy devices
+  const samsungMatch = ua.match(/SM-([A-Z]\d+[A-Z]?)/i);
+  if (samsungMatch) {
+    const model = samsungMatch[1].toUpperCase();
+    return getSamsungModel(model);
+  }
+
+  // OnePlus
+  if (uaLower.includes('oneplus')) {
+    const opMatch = ua.match(/oneplus\s*([^\s;)]+)/i);
+    return opMatch ? `OnePlus ${opMatch[1]}` : 'OnePlus';
+  }
+
+  // Xiaomi/Redmi
+  if (uaLower.includes('redmi') || uaLower.includes('xiaomi')) {
+    const xiMatch = ua.match(/(redmi|xiaomi)\s*([^\s;)]+)/i);
+    return xiMatch ? `${xiMatch[1]} ${xiMatch[2]}` : 'Xiaomi';
+  }
+
+  // Pixel
+  if (uaLower.includes('pixel')) {
+    const pixelMatch = ua.match(/pixel\s*(\d+[a-z]*)/i);
+    return pixelMatch ? `Pixel ${pixelMatch[1]}` : 'Pixel';
+  }
+
+  // Generic Android
+  if (uaLower.includes('android')) {
+    return 'Android Device';
+  }
+
+  // Desktop
+  if (uaLower.includes('windows')) return 'Windows PC';
+  if (uaLower.includes('macintosh') || uaLower.includes('mac os')) return 'Mac';
+  if (uaLower.includes('linux')) return 'Linux PC';
+
+  return 'Other';
+}
+
+function getIPhoneModel(major: number, minor: number): string {
+  const models: Record<string, string> = {
+    '17,1': 'iPhone 15 Pro', '17,2': 'iPhone 15 Pro Max', '17,3': 'iPhone 15', '17,4': 'iPhone 15 Plus',
+    '16,1': 'iPhone 14 Pro', '16,2': 'iPhone 14 Pro Max', '15,4': 'iPhone 14', '15,5': 'iPhone 14 Plus',
+    '15,2': 'iPhone 14 Pro', '15,3': 'iPhone 14 Pro Max',
+    '14,2': 'iPhone 13 Pro', '14,3': 'iPhone 13 Pro Max', '14,4': 'iPhone 13 mini', '14,5': 'iPhone 13',
+    '13,1': 'iPhone 12 mini', '13,2': 'iPhone 12', '13,3': 'iPhone 12 Pro', '13,4': 'iPhone 12 Pro Max',
+    '12,1': 'iPhone 11', '12,3': 'iPhone 11 Pro', '12,5': 'iPhone 11 Pro Max',
+  };
+  const key = `${major},${minor}`;
+  return models[key] || `iPhone (${key})`;
+}
+
+function getSamsungModel(model: string): string {
+  // S series
+  if (model.startsWith('S928')) return 'Galaxy S24 Ultra';
+  if (model.startsWith('S926')) return 'Galaxy S24+';
+  if (model.startsWith('S921')) return 'Galaxy S24';
+  if (model.startsWith('S918')) return 'Galaxy S23 Ultra';
+  if (model.startsWith('S916')) return 'Galaxy S23+';
+  if (model.startsWith('S911')) return 'Galaxy S23';
+  if (model.startsWith('S908')) return 'Galaxy S22 Ultra';
+  if (model.startsWith('S906')) return 'Galaxy S22+';
+  if (model.startsWith('S901')) return 'Galaxy S22';
+  // A series
+  if (model.startsWith('A55')) return 'Galaxy A55';
+  if (model.startsWith('A54')) return 'Galaxy A54';
+  if (model.startsWith('A53')) return 'Galaxy A53';
+  if (model.startsWith('A52')) return 'Galaxy A52';
+  if (model.startsWith('A34')) return 'Galaxy A34';
+  if (model.startsWith('A14')) return 'Galaxy A14';
+  // M series
+  if (model.startsWith('M34')) return 'Galaxy M34';
+  if (model.startsWith('M14')) return 'Galaxy M14';
+  // Note/Fold/Flip
+  if (model.startsWith('F946')) return 'Galaxy Z Fold5';
+  if (model.startsWith('F731')) return 'Galaxy Z Flip5';
+
+  return `Samsung ${model}`;
+}
