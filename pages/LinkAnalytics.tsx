@@ -24,22 +24,27 @@ const LinkAnalytics: React.FC = () => {
         const fetchLink = async () => {
             if (!id) return;
             try {
-                // Fetch link data and aggregated stats in parallel
-                const [data, stats] = await Promise.all([
-                    supabaseAdapter.getLink(id),
-                    aggregatedAnalytics.getLinkStats(id)
-                ]);
+                // Fetch link data first
+                const data = await supabaseAdapter.getLink(id);
 
                 if (data) {
                     setLink(data);
-                    setLinkStats(stats);
+                    setLoading(false);
+
+                    // Fetch stats in background (don't block page load)
+                    try {
+                        const stats = await aggregatedAnalytics.getLinkStats(id);
+                        setLinkStats(stats);
+                        console.log('[LinkAnalytics] Stats loaded:', stats);
+                    } catch (statsError) {
+                        console.error('[LinkAnalytics] Failed to load stats (non-blocking):', statsError);
+                    }
                 } else {
                     // Handle not found
                     navigate('/links');
                 }
             } catch (error) {
                 console.error('Failed to load link:', error);
-            } finally {
                 setLoading(false);
             }
         };
