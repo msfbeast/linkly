@@ -317,7 +317,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
     // Smart App Redirect
     // Try to detect if we can open an app directly
-    const deepLink = getAppDeepLink(finalUrl);
+    const deepLink = getAppDeepLink(finalUrl, navigator.userAgent);
 
     if (deepLink) {
       console.log('Attempting deep link:', deepLink);

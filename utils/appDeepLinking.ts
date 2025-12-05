@@ -3,12 +3,14 @@
  * This helps force mobile devices to open the content in the native app.
  */
 
-export const getAppDeepLink = (webUrl: string): string | null => {
+export const getAppDeepLink = (webUrl: string, userAgent?: string): string | null => {
     try {
         const url = new URL(webUrl);
         const hostname = url.hostname.replace('www.', '');
         const path = url.pathname;
         const search = url.search;
+        const ua = userAgent || '';
+        const isAndroid = /android/i.test(ua);
 
         // YouTube
         if (hostname === 'youtube.com' || hostname === 'm.youtube.com' || hostname === 'youtu.be') {
@@ -105,13 +107,19 @@ export const getAppDeepLink = (webUrl: string): string | null => {
 
         // Flipkart
         if (hostname.includes('flipkart.com')) {
-            // Special Case: dl.flipkart.com (Flipkart's own Short Links / Universal Links)
-            // returning the URL itself as the "deep link" forces Redirect.tsx to use 
-            // window.location.href instead of window.location.replace, which handles Universal Links better.
+            // Android: Use the `flipkart://dl/url?url=` scheme which forces the app to resolve the URL.
+            // This works for both short links (dl.flipkart.com) and long product links.
+            if (isAndroid) {
+                return `flipkart://dl/url?url=${encodeURIComponent(webUrl)}`;
+            }
+
+            // iOS/Others: Universal Links usually handle dl.flipkart.com naturally.
+            // Returning the webUrl forces window.location.href which triggers Universal Link.
             if (hostname === 'dl.flipkart.com') {
                 return webUrl;
             }
 
+            // Standard Product URLs (Non-Android fallback or specific iOS scheme if needed)
             // Try 1: Direct Product ID (Standard Scheme)
             let pid = url.searchParams.get('pid');
 
@@ -124,13 +132,11 @@ export const getAppDeepLink = (webUrl: string): string | null => {
             }
 
             if (pid) {
-                // flipkart://product?pid= is the most reliable scheme
+                // flipkart://product?pid= is reliable on iOS/Generic
                 return `flipkart://product?pid=${pid}&ot=SCH&otr=TRACKER`;
             }
 
-            // Try 3: Universal Link style (often more reliable than dl/url)
-            // But usually needs `flipkart://dl/name?pid=...` logic
-            // Fallback to simply opening the web URL if we can't find PID
+            // Fallback
             return `flipkart://dl/url?url=${encodeURIComponent(webUrl)}`;
         }
 
