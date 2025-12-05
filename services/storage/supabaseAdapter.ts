@@ -1059,6 +1059,11 @@ export class SupabaseAdapter implements StorageAdapter {
       query = query.range(options.offset, options.offset + (options.limit || 100) - 1);
     }
 
+    // Override Supabase's default 1000 row limit when no explicit limit is set
+    if (!options?.limit && !options?.offset) {
+      query = query.range(0, 9999); // Fetch up to 10,000 rows
+    }
+
     const { data: rows, error } = await query;
 
     if (error) {
