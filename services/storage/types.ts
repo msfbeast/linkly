@@ -24,14 +24,18 @@ export interface ClickEventInput {
   utm_term?: string;
   utm_content?: string;
   trigger_source?: string;
+  destinationUrl?: string; // For A/B testing
+
   // Advanced Analytics
+  browser?: string;
+  os?: string;
+  device?: string; // 'mobile', 'desktop', 'tablet'
+  deviceModel?: string; // e.g. 'iPhone 15'
   language?: string;
   timezone?: string;
   screenWidth?: number;
   screenHeight?: number;
   visitorId?: string;
-  destinationUrl?: string; // For A/B testing
-  deviceModel?: string;    // Specific device model (e.g. iPhone 15)
 }
 
 /**

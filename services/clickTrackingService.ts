@@ -205,6 +205,7 @@ export function createClickEventInput(
   timestamp: number = Date.now()
 ): ClickEventInput {
   // Enhanced detail detection
+  const { device, os, browser } = parseUserAgent(request.userAgent || '');
   const deviceModel = request.deviceModel || detectDeviceModel(request.userAgent || '');
 
   return {
@@ -212,6 +213,13 @@ export function createClickEventInput(
     referrer: request.referrer || '',
     userAgent: request.userAgent || '',
     ipAddress: request.ipAddress || '',
+
+    // Extracted Analytics
+    browser,
+    os,
+    device,
+    deviceModel,
+
     utm_source: request.utm_source,
     utm_medium: request.utm_medium,
     utm_campaign: request.utm_campaign,
@@ -224,7 +232,6 @@ export function createClickEventInput(
     screenHeight: request.screenHeight,
     visitorId: request.visitorId,
     destinationUrl: request.destinationUrl,
-    deviceModel: deviceModel, // Pass to storage
   };
 }
 

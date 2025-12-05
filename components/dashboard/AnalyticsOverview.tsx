@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import TopCitiesTable from './TopCitiesTable';
+import { BrowserStats } from './BrowserStats';
+import { OSStats } from './OSStats';
 
 import ClickForecastChart from '../ClickForecastChart';
 import TrafficSourceChart, { calculateTrafficTotal } from '../TrafficSourceChart';
@@ -38,6 +40,50 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
         count: city.clickCount,
         percentage: totalCityClicks > 0 ? Math.round((city.clickCount / totalCityClicks) * 100) : 0
     }));
+
+    // Aggregate Browser and OS Data
+    const { browserStats, osStats } = useMemo(() => {
+        const browsers: Record<string, number> = {};
+        const oss: Record<string, number> = {};
+
+        links.forEach(link => {
+            link.clickHistory.forEach(click => {
+                const browser = click.browser || 'Unknown';
+                const os = click.os || 'Unknown';
+                browsers[browser] = (browsers[browser] || 0) + 1;
+                // Capitalize OS for display
+                const osDisplay = os === 'ios' ? 'iOS' :
+                    os === 'macos' ? 'macOS' :
+                        os.charAt(0).toUpperCase() + os.slice(1);
+                oss[osDisplay] = (oss[osDisplay] || 0) + 1;
+            });
+        });
+
+        const browserData = Object.entries(browsers)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 5);
+
+        const osColors: Record<string, string> = {
+            'iOS': '#000000',
+            'Android': '#3DDC84',
+            'Windows': '#00A4EF',
+            'macOS': '#666666',
+            'Linux': '#FCC624',
+            'Unknown': '#d6d3d1'
+        };
+
+        const osData = Object.entries(oss)
+            .map(([name, value]) => ({
+                name,
+                value,
+                color: osColors[name] || '#d6d3d1'
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        return { browserStats: browserData, osStats: osData };
+    }, [links]);
+
 
     // Generate insights
     const insights: Insight[] = links
@@ -175,7 +221,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 </div>
             </motion.div>
 
-            {/* Top Cities - New Component */}
+            {/* Top Cities */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -183,6 +229,26 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 className="min-w-0 h-[400px]"
             >
                 <TopCitiesTable data={cityData} />
+            </motion.div>
+
+            {/* Browser Stats */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="min-w-0 h-[400px]"
+            >
+                <BrowserStats data={browserStats} />
+            </motion.div>
+
+            {/* OS Stats */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="min-w-0 h-[400px]"
+            >
+                <OSStats data={osStats} />
             </motion.div>
         </div>
     );

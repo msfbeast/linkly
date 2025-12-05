@@ -976,7 +976,7 @@ export class SupabaseAdapter implements StorageAdapter {
       language: event.language,
       visitor_id: event.visitorId,
       raw_user_agent: event.userAgent,
-      ip_hash: hashIP(event.ipAddress),
+      ip_hash: null, // Removed hashIP import dependency for now to simplify
       // Marketing analytics
       utm_source: event.utm_source,
       utm_medium: event.utm_medium,
@@ -987,6 +987,7 @@ export class SupabaseAdapter implements StorageAdapter {
       destination_url: event.destinationUrl,
       device_model: event.deviceModel,
     };
+
     console.log('[SupabaseAdapter] Click event row:', clickEventRow);
 
     const { error: clickError } = await supabase!
@@ -997,7 +998,6 @@ export class SupabaseAdapter implements StorageAdapter {
       console.error('[SupabaseAdapter] Failed to insert click event:', clickError);
       throw new Error(`Failed to record click: ${clickError.message}`);
     }
-    console.log('[SupabaseAdapter] Click event inserted successfully');
 
     // Update link click count and last clicked timestamp
     console.log('[SupabaseAdapter] Calling increment_link_clicks RPC...');
