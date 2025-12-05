@@ -45,23 +45,54 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, session) => {
       console.log('[Auth] Auth state changed:', event, session ? 'has session' : 'no session');
 
-      try {
-        setSession(session);
-        if (session?.user) {
-          console.log('[Auth] Session found, fetching user details...');
-          const user = await authService.getUser();
-          setUser(user);
-          console.log('[Auth] User loaded:', user?.email);
-        } else {
-          console.log('[Auth] No session, clearing user');
-          setUser(null);
+      setSession(session);
+
+      if (session?.user) {
+        console.log('[Auth] Session found, fetching user details...');
+        try {
+          // Add timeout to prevent hanging
+          const userPromise = authService.getUser();
+          const timeoutPromise = new Promise<null>((resolve) =>
+            setTimeout(() => {
+              console.warn('[Auth] User fetch timed out after 5s');
+              resolve(null);
+            }, 5000)
+          );
+
+          const user = await Promise.race([userPromise, timeoutPromise]);
+          if (user) {
+            setUser(user);
+            console.log('[Auth] User loaded:', user?.email);
+          } else {
+            // Still have session, just couldn't get extended user details
+            console.log('[Auth] Using session user as fallback');
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              emailVerified: session.user.email_confirmed_at != null,
+              createdAt: session.user.created_at || new Date().toISOString(),
+              user_metadata: session.user.user_metadata,
+            } as any);
+          }
+        } catch (error) {
+          console.error('[Auth] Error fetching user:', error);
+          // Still have session, create minimal user from session
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            emailVerified: session.user.email_confirmed_at != null,
+            createdAt: session.user.created_at || new Date().toISOString(),
+            user_metadata: session.user.user_metadata,
+          } as any);
         }
-      } catch (error) {
-        console.error('[Auth] Error in auth state change:', error);
-      } finally {
-        // Set loading to false after first auth state check
-        setLoading(false);
+      } else {
+        console.log('[Auth] No session, clearing user');
+        setUser(null);
       }
+
+      // Always set loading to false after processing
+      setLoading(false);
+      console.log('[Auth] Loading set to false');
     });
 
     // Fallback: If onAuthStateChange doesn't fire within 3 seconds, check manually
