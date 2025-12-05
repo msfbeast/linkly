@@ -38,12 +38,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('[Auth] Setting up auth listener...');
 
     // Listen for auth state changes - this is the PRIMARY source of session state
     // onAuthStateChange will fire immediately with the current session if one exists
     const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] Auth state changed:', event, session ? 'has session' : 'no session');
 
       setSession(session);
 
@@ -61,45 +59,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } as any;
 
         setUser(sessionUser);
-        setLoading(false); // Page loads immediately!
-        console.log('[Auth] Quick load with session user:', session.user.email);
+        setLoading(false);
 
         // Fetch full user details in background (non-blocking)
         authService.getUser().then(fullUser => {
-          if (fullUser) {
-            setUser(fullUser);
-            console.log('[Auth] Full user details loaded');
-          }
-        }).catch(err => {
-          console.warn('[Auth] Background user fetch failed:', err);
-          // Keep using session user, no problem
-        });
+          if (fullUser) setUser(fullUser);
+        }).catch(() => { });
       } else {
-        console.log('[Auth] No session, clearing user');
         setUser(null);
         setLoading(false);
       }
     });
 
-    // Fallback: If onAuthStateChange doesn't fire within 3 seconds, check manually
-    const fallbackTimeout = setTimeout(async () => {
-      console.log('[Auth] Fallback timeout triggered, checking session manually...');
-      try {
-        const session = await authService.getSession();
-        if (session && !user) {
-          console.log('[Auth] Fallback found session');
-          setSession(session);
-          if (session.user) {
-            const user = await authService.getUser();
-            setUser(user);
-          }
-        }
-      } catch (err) {
-        console.error('[Auth] Fallback session check failed:', err);
-      } finally {
-        setLoading(false);
-      }
-    }, 3000);
+    // Fallback: If onAuthStateChange doesn't fire within 2 seconds, set loading false
+    const fallbackTimeout = setTimeout(() => setLoading(false), 2000);
 
     return () => {
       clearTimeout(fallbackTimeout);
