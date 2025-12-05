@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, Globe, MousePointer2, TrendingUp, TrendingDown, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
+import { BarChart3, Globe, MousePointer2, TrendingUp, TrendingDown, Loader2, MapPin, Monitor, Smartphone, Share2, Check, Copy } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, BrowserBreakdown, DeviceModelBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
@@ -83,6 +83,9 @@ const GlobalAnalytics: React.FC = () => {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [serverData, setServerData] = useState<ServerAnalytics | null>(null);
   const [dateRange, setDateRange] = useState('7d');
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -244,6 +247,33 @@ const GlobalAnalytics: React.FC = () => {
     };
   };
 
+  const generateShareLink = async () => {
+    if (!user?.id) return;
+    setIsGeneratingShare(true);
+    try {
+      const { supabase } = await import('../services/storage/supabaseClient');
+      if (!supabase) throw new Error('Supabase not configured');
+
+      const { data, error } = await supabase.rpc('create_analytics_share_token', {
+        p_expires_in_days: 30 // Expires in 30 days
+      });
+
+      if (error) throw error;
+
+      const url = `${window.location.origin}/share/${data}`;
+      setShareUrl(url);
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to generate share link:', err);
+    } finally {
+      setIsGeneratingShare(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -272,17 +302,33 @@ const GlobalAnalytics: React.FC = () => {
             <h1 className="text-2xl font-bold text-slate-900">Global Analytics</h1>
             <p className="text-stone-500 text-sm mt-1">Aggregated insights across all your links</p>
           </div>
-          <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl p-1 shadow-sm">
-            {['7d', '30d', '90d'].map((range) => (
-              <button
-                key={range}
-                onClick={() => setDateRange(range)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === range ? 'bg-yellow-100 text-slate-900' : 'text-stone-500 hover:text-slate-900'
-                  }`}
-              >
-                {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl p-1 shadow-sm">
+              {['7d', '30d', '90d'].map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setDateRange(range)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === range ? 'bg-yellow-100 text-slate-900' : 'text-stone-500 hover:text-slate-900'
+                    }`}
+                >
+                  {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={generateShareLink}
+              disabled={isGeneratingShare}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            >
+              {isGeneratingShare ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : copied ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Share2 className="w-4 h-4" />
+              )}
+              {copied ? 'Link Copied!' : 'Share'}
+            </button>
           </div>
         </div>
 

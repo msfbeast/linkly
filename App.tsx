@@ -38,6 +38,7 @@ const ProductPage = React.lazy(() => import('./pages/ProductPage'));
 const TeamInviteHandler = React.lazy(() => import('./pages/TeamInviteHandler'));
 const ApiPage = React.lazy(() => import('./pages/ApiPage'));
 const LinkAnalytics = React.lazy(() => import('./pages/LinkAnalytics'));
+const SharedAnalytics = React.lazy(() => import('./pages/SharedAnalytics'));
 const LegalPage = React.lazy(() => import('./pages/LegalPage'));
 const AboutPage = React.lazy(() => import('./pages/AboutPage'));
 const ComingSoonPage = React.lazy(() => import('./pages/ComingSoonPage'));
@@ -102,6 +103,9 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/api-access" element={<ApiPage />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/open/:url" element={<SmartRedirect />} />
+
+          {/* Public Shared Analytics */}
+          <Route path="/share/:shareToken" element={<SharedAnalytics />} />
 
           {/* Footer Pages */}
           <Route path="/about" element={<AboutPage />} />
