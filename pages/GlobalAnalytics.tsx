@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Globe, MousePointer2, TrendingUp, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, BrowserBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
 import { LinkData, ClickEvent } from '../types';
 import LiveWorldMap from '../components/LiveWorldMap';
@@ -12,6 +12,7 @@ interface ServerAnalytics {
   cities: CityBreakdown[];
   devices: DeviceBreakdown[];
   referrers: ReferrerBreakdown[];
+  browsers: BrowserBreakdown[];
   clicksOverTime: DailyClicks[];
 }
 
@@ -215,6 +216,7 @@ const GlobalAnalytics: React.FC = () => {
   const topCities = serverData?.cities || [];
   const topDevices = serverData?.devices || [];
   const topReferrers = serverData?.referrers || [];
+  const topBrowsers = serverData?.browsers || [];
   const maxClicks = Math.max(...(topCountries.map(c => c.clickCount) || [1]));
 
   return (
@@ -241,7 +243,7 @@ const GlobalAnalytics: React.FC = () => {
 
         {/* Live Global Map */}
         <div className="w-full">
-          <LiveWorldMap clickHistory={analytics?.filteredClicks || []} />
+          <LiveWorldMap clickHistory={analytics?.filteredClicks || []} serverCityData={topCities} />
         </div>
 
 
@@ -495,12 +497,12 @@ const GlobalAnalytics: React.FC = () => {
             <h3 className="text-slate-900 font-bold">Top Browsers</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {analytics?.topBrowsers.length === 0 ? (
+            {topBrowsers.length === 0 ? (
               <p className="text-stone-500 text-sm col-span-5">No data yet</p>
             ) : (
-              analytics?.topBrowsers.map((item, i) => (
+              topBrowsers.slice(0, 5).map((item, i) => (
                 <div key={i} className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
-                  <p className="text-slate-900 font-bold text-lg">{item.clicks}</p>
+                  <p className="text-slate-900 font-bold text-lg">{item.clickCount.toLocaleString()}</p>
                   <p className="text-stone-500 text-sm">{item.browser}</p>
                 </div>
               ))

@@ -14,8 +14,15 @@ const GEO_URL_INDIA = "/india-states.json";
 // URL to a valid TopoJSON file for the US map
 const GEO_URL_US = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
+interface CityData {
+    city: string;
+    country: string;
+    clickCount: number;
+}
+
 interface LiveWorldMapProps {
     clickHistory: ClickEvent[];
+    serverCityData?: CityData[];
     className?: string;
 }
 
@@ -29,7 +36,7 @@ interface MapClick {
 
 type ViewMode = 'world' | 'usa' | 'india';
 
-const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '' }) => {
+const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, serverCityData = [], className = '' }) => {
     const [recentClicks, setRecentClicks] = useState<MapClick[]>([]);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('world');
@@ -86,9 +93,24 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
     };
 
     // Process city counts for markers (India view only)
+    // Use server-side data if available, fallback to client-side
     const cityMarkers = useMemo(() => {
         if (viewMode !== 'india') return [];
 
+        // Prefer server-side data if available
+        if (serverCityData.length > 0) {
+            return serverCityData
+                .filter(c => c.country === 'India')
+                .map(city => ({
+                    city: city.city,
+                    count: city.clickCount,
+                    coordinates: CITY_COORDS[city.city] || null
+                }))
+                .filter(c => c.coordinates !== null)
+                .slice(0, 10);
+        }
+
+        // Fallback to client-side data
         const counts: Record<string, number> = {};
         clickHistory.forEach(click => {
             if (click.country === 'India' && click.city) {
@@ -104,8 +126,8 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, className = '
             }))
             .filter(c => c.coordinates !== null)
             .sort((a, b) => b.count - a.count)
-            .slice(0, 10); // Top 10 cities
-    }, [clickHistory, viewMode]);
+            .slice(0, 10);
+    }, [clickHistory, viewMode, serverCityData]);
 
     const maxClicks = Math.max(...Object.values(locationCounts), 1);
 

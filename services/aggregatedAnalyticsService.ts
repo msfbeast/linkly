@@ -282,6 +282,7 @@ class AggregatedAnalyticsService {
             cities,
             devices,
             referrers,
+            browsers,
             clicksOverTime
         ] = await Promise.all([
             this.getUserClickStats(userId),
@@ -289,6 +290,7 @@ class AggregatedAnalyticsService {
             this.getCityBreakdown(userId),
             this.getDeviceBreakdown(userId),
             this.getReferrerBreakdown(userId),
+            this.getBrowserBreakdown(userId),
             this.getClicksOverTime(userId, 30)
         ]);
 
@@ -298,6 +300,7 @@ class AggregatedAnalyticsService {
             cities,
             devices,
             referrers,
+            browsers,
             clicksOverTime
         };
     }
