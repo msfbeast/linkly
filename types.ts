@@ -169,6 +169,12 @@ export interface BioProfile {
   links: string[]; // Array of LinkData IDs
   views: number;
   customTheme?: BioThemeConfig;
+  // Block visibility settings
+  blockVisibility?: {
+    gallery?: boolean;
+    newsletter?: boolean;
+    appStack?: boolean;
+  };
 }
 
 export interface AnalyticsData {

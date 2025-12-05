@@ -77,20 +77,26 @@ const VibrantBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     ))}
                 </div>
 
-                {/* Tech Vault (Gallery) */}
-                <div className="mt-8">
-                    <GalleryBlock userId={profile.userId} />
-                </div>
+                {/* Tech Vault (Gallery) - conditionally rendered */}
+                {(profile.blockVisibility?.gallery !== false) && (
+                    <div className="mt-8">
+                        <GalleryBlock userId={profile.userId} />
+                    </div>
+                )}
 
-                {/* Newsletter */}
-                <div className="mt-4">
-                    <NewsletterBlock userId={profile.userId} />
-                </div>
+                {/* Newsletter - conditionally rendered */}
+                {(profile.blockVisibility?.newsletter !== false) && (
+                    <div className="mt-4">
+                        <NewsletterBlock userId={profile.userId} />
+                    </div>
+                )}
 
-                {/* App Stack */}
-                <div className="mt-8">
-                    <AppStackBlock userId={profile.userId} />
-                </div>
+                {/* App Stack - conditionally rendered */}
+                {(profile.blockVisibility?.appStack !== false) && (
+                    <div className="mt-8">
+                        <AppStackBlock userId={profile.userId} />
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="mt-12 text-center">

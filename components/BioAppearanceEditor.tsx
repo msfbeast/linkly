@@ -288,6 +288,86 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                 </div>
             </div>
 
+            {/* Block Visibility Section */}
+            <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-green-50 rounded-lg text-green-500">
+                        <Layout className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Content Blocks</h3>
+                </div>
+
+                <p className="text-sm text-stone-500 mb-4">Choose which blocks to show on your bio page.</p>
+
+                <div className="space-y-4">
+                    {/* Gallery Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl">
+                        <div>
+                            <p className="font-medium text-slate-900">📸 Gallery</p>
+                            <p className="text-xs text-stone-500">Show your photo gallery section</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={profile.blockVisibility?.gallery !== false}
+                                onChange={e => onChange({
+                                    blockVisibility: {
+                                        ...profile.blockVisibility,
+                                        gallery: e.target.checked
+                                    }
+                                })}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                    </div>
+
+                    {/* Newsletter Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl">
+                        <div>
+                            <p className="font-medium text-slate-900">📧 Newsletter</p>
+                            <p className="text-xs text-stone-500">Show email subscription form</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={profile.blockVisibility?.newsletter !== false}
+                                onChange={e => onChange({
+                                    blockVisibility: {
+                                        ...profile.blockVisibility,
+                                        newsletter: e.target.checked
+                                    }
+                                })}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                    </div>
+
+                    {/* App Stack Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl">
+                        <div>
+                            <p className="font-medium text-slate-900">📱 App Stack</p>
+                            <p className="text-xs text-stone-500">Show your favorite apps section</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={profile.blockVisibility?.appStack !== false}
+                                onChange={e => onChange({
+                                    blockVisibility: {
+                                        ...profile.blockVisibility,
+                                        appStack: e.target.checked
+                                    }
+                                })}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
         </div>
     );
 };
