@@ -20,7 +20,7 @@ import { calculateTrafficTotal } from '../components/TrafficSourceChart';
 import { PriorityLink } from '../components/PriorityLinksList';
 import { DateRange, generateClickForecastData, generateTrafficSourceData } from '../services/analyticsService';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics, UserClickStats } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics, UserClickStats, CityBreakdown } from '../services/aggregatedAnalyticsService';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
 import {
@@ -52,6 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [userClickStats, setUserClickStats] = useState<UserClickStats | null>(null);
+  const [serverCityData, setServerCityData] = useState<CityBreakdown[]>([]);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,10 +134,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
       }
 
-      // Fetch aggregated click stats (for real totals, not capped at 1000)
+      // Fetch aggregated stats (for real totals, not capped at 1000)
       if (user?.id) {
-        const stats = await aggregatedAnalytics.getUserClickStats(user.id);
+        const [stats, cities] = await Promise.all([
+          aggregatedAnalytics.getUserClickStats(user.id),
+          aggregatedAnalytics.getCityBreakdown(user.id)
+        ]);
         setUserClickStats(stats);
+        setServerCityData(cities);
       }
 
     } catch (err) {
@@ -460,6 +465,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 clickForecastData={clickForecastData}
                 trafficSourceData={trafficSourceData}
                 totalClicks={trafficSourceTotal}
+                serverCityData={serverCityData}
               />
             </ErrorBoundary>
           )}
