@@ -38,63 +38,54 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    // Get initial session with timeout safety
-    const initAuth = async () => {
-      console.log('[Auth] Initializing auth...');
-      try {
-        const sessionPromise = authService.getSession();
-        const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 5000)
-        );
+    console.log('[Auth] Setting up auth listener...');
 
-        const session = await Promise.race([sessionPromise, timeoutPromise]);
-        console.log('[Auth] Session restored:', session ? 'yes' : 'no');
-
-        if (session) {
-          setSession(session);
-          if (session.user) {
-            console.log('[Auth] Fetching user details...');
-            try {
-              const user = await authService.getUser();
-              setUser(user);
-              console.log('[Auth] User loaded:', user?.email);
-            } catch (err) {
-              console.error('[Auth] Failed to get user details:', err);
-            }
-          }
-        } else {
-          console.log('[Auth] No session found on init');
-        }
-      } catch (err) {
-        console.error('[Auth] Failed to get session:', err);
-      } finally {
-        setLoading(false);
-        console.log('[Auth] Init complete, loading = false');
-      }
-    };
-
-    initAuth();
-
-    // Listen for changes
+    // Listen for auth state changes - this is the PRIMARY source of session state
+    // onAuthStateChange will fire immediately with the current session if one exists
     const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, session) => {
       console.log('[Auth] Auth state changed:', event, session ? 'has session' : 'no session');
+
       try {
         setSession(session);
         if (session?.user) {
+          console.log('[Auth] Session found, fetching user details...');
           const user = await authService.getUser();
           setUser(user);
+          console.log('[Auth] User loaded:', user?.email);
         } else {
+          console.log('[Auth] No session, clearing user');
           setUser(null);
         }
       } catch (error) {
-        console.error('Error in auth state change:', error);
+        console.error('[Auth] Error in auth state change:', error);
       } finally {
+        // Set loading to false after first auth state check
         setLoading(false);
       }
     });
 
+    // Fallback: If onAuthStateChange doesn't fire within 3 seconds, check manually
+    const fallbackTimeout = setTimeout(async () => {
+      console.log('[Auth] Fallback timeout triggered, checking session manually...');
+      try {
+        const session = await authService.getSession();
+        if (session && !user) {
+          console.log('[Auth] Fallback found session');
+          setSession(session);
+          if (session.user) {
+            const user = await authService.getUser();
+            setUser(user);
+          }
+        }
+      } catch (err) {
+        console.error('[Auth] Fallback session check failed:', err);
+      } finally {
+        setLoading(false);
+      }
+    }, 3000);
+
     return () => {
+      clearTimeout(fallbackTimeout);
       subscription.unsubscribe();
     };
   }, []);
