@@ -8,14 +8,17 @@
 import { ClickEvent, LinkData, ClickForecastDataPoint, TrafficSourceDataPoint, LinkHealthDataPoint, TRAFFIC_SOURCE_COLORS, TrafficSource, DeviceData } from '../types';
 
 // Date range type for filtering
-export type DateRange = '7d' | '30d' | '90d' | 'all';
+export type DateRange = '24h' | '7d' | '30d' | '90d' | 'all';
 
 /**
  * Converts a DateRange to milliseconds offset from now
  */
 export function dateRangeToMs(range: DateRange): number | null {
-  const day = 24 * 60 * 60 * 1000;
+  const hour = 60 * 60 * 1000;
+  const day = 24 * hour;
   switch (range) {
+    case '24h':
+      return 24 * hour;
     case '7d':
       return 7 * day;
     case '30d':

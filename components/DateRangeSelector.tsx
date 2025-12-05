@@ -8,6 +8,7 @@ interface DateRangeSelectorProps {
 }
 
 const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: '24h', label: '24hr' },
   { value: '7d', label: '7 Days' },
   { value: '30d', label: '30 Days' },
   { value: '90d', label: '90 Days' },
@@ -29,8 +30,8 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
               key={option.value}
               onClick={() => onRangeChange(option.value)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${isActive
-                  ? 'bg-yellow-100 text-yellow-700'
-                  : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'
+                ? 'bg-yellow-100 text-yellow-700'
+                : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'
                 }`}
               aria-pressed={isActive}
               aria-label={`Filter by ${option.label}`}
