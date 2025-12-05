@@ -107,17 +107,14 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Flipkart
         if (hostname.includes('flipkart.com')) {
-            // Android: Use Intent URI for dl.flipkart.com (Shared Links)
-            // This tells Android to explicitly open the Flipkart app to handle this HTTPS URL.
-            // This is often more reliable than a custom scheme for App Links.
-            if (isAndroid && hostname === 'dl.flipkart.com') {
+            // Android: Universal "Intent with HTTPS scheme" strategy.
+            // This is what competitors (OpenInApp) use. It tells Android:
+            // "Open this HTTPS URL using the com.flipkart.android app".
+            // It works for short links (dl.flipkart.com) AND product links (www.flipkart.com)
+            // provided the app has an Intent Filter for these domains (which it does).
+            if (isAndroid) {
                 const cleanPath = webUrl.replace(/^https?:\/\//, '');
                 return `intent://${cleanPath}#Intent;scheme=https;package=com.flipkart.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
-            }
-
-            // Android: Fallback wrapper for other Flipkart links
-            if (isAndroid) {
-                return `flipkart://dl/url?url=${encodeURIComponent(webUrl)}`;
             }
 
             // iOS/Others: Universal Links usually handle dl.flipkart.com naturally.
@@ -139,7 +136,9 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
             }
 
             if (pid) {
-                // flipkart://product?pid= is reliable on iOS/Generic
+                // flipkart://product?pid= is reliable on iOS?
+                // Actually, for iOS, standard Universal Links (https) are best.
+                // But if we want to force it, we can try the scheme.
                 return `flipkart://product?pid=${pid}&ot=SCH&otr=TRACKER`;
             }
 

@@ -324,7 +324,12 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       setRedirectMsg("Opening App...");
 
       // Try to open the app
-      window.location.href = deepLink;
+      // For Intent URIs (Android), replace() is often cleaner and matches competitor logic
+      if (deepLink.startsWith('intent://')) {
+        window.location.replace(deepLink);
+      } else {
+        window.location.href = deepLink;
+      }
 
       // Fallback to web URL if app doesn't open within 2.5s
       // Note: If app opens, this timeout might still fire when user returns, 
