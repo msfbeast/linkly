@@ -107,8 +107,15 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
 
         // Flipkart
         if (hostname.includes('flipkart.com')) {
-            // Android: Use the `flipkart://dl/url?url=` scheme which forces the app to resolve the URL.
-            // This works for both short links (dl.flipkart.com) and long product links.
+            // Android: Use Intent URI for dl.flipkart.com (Shared Links)
+            // This tells Android to explicitly open the Flipkart app to handle this HTTPS URL.
+            // This is often more reliable than a custom scheme for App Links.
+            if (isAndroid && hostname === 'dl.flipkart.com') {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.flipkart.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
+
+            // Android: Fallback wrapper for other Flipkart links
             if (isAndroid) {
                 return `flipkart://dl/url?url=${encodeURIComponent(webUrl)}`;
             }
