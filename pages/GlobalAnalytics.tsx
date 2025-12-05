@@ -618,7 +618,7 @@ const GlobalAnalytics: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {topDeviceModels.length === 0 ? (
-              <p className="text-stone-500 text-sm col-span-5">No data yet (run SQL migration)</p>
+              <p className="text-stone-500 text-sm col-span-5">No data yet</p>
             ) : (
               topDeviceModels.slice(0, 10).map((item, i) => (
                 <div key={i} className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">

@@ -91,6 +91,7 @@ interface ClickEventRow {
   utm_content?: string;
   trigger_source?: string;
   destination_url?: string;
+  device_model?: string; // New field
 }
 
 interface ProductRow {
@@ -297,6 +298,7 @@ function rowToClickEvent(row: ClickEventRow): ClickEvent {
     browser: row.browser,
     fingerprint: undefined,
     destinationUrl: row.destination_url,
+    deviceModel: row.device_model,
   };
 }
 
@@ -983,6 +985,7 @@ export class SupabaseAdapter implements StorageAdapter {
       utm_content: event.utm_content,
       trigger_source: event.trigger_source,
       destination_url: event.destinationUrl,
+      device_model: event.deviceModel,
     };
     console.log('[SupabaseAdapter] Click event row:', clickEventRow);
 

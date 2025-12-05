@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from '../services/storage/supabaseClient';
 import { createClickEventInput, validateClickEvent } from '../services/clickTrackingService';
 import { getLinkByCode as getLocalLinkByCode, incrementClicks } from '../services/storageService';
 import { getAppDeepLink } from '../utils/appDeepLinking';
+import { detectDeviceModel } from '../services/userAgentParser';
 
 import { useParams } from 'react-router-dom';
 
@@ -143,6 +144,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       doNotTrack: navigator.doNotTrack === '1',
       visitorId,
       ipAddress: ip, // Passed for geolocation lookup, but not stored raw
+      deviceModel: detectDeviceModel(ua), // Detailed device model (e.g. iPhone 15)
     };
   };
 

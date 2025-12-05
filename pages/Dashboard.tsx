@@ -335,17 +335,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-amber-500 animate-spin mx-auto mb-4" />
-          <p className="text-stone-500">Loading your links...</p>
-        </div>
-      </div>
-    );
-  }
+  // Loading state handled within components now
+  // if (isLoading) { ... }
 
   // Error state
   if (error) {
@@ -492,6 +483,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onEdit={openEditModal}
                 onDelete={handleDeleteLink}
                 onCreateFirstLink={() => setIsModalOpen(true)}
+                isLoading={isLoading}
               />
             </ErrorBoundary>
           </div>

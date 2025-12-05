@@ -337,7 +337,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4" />
-                          <span>AI Analyze</span>
+                          <span>Auto-Fill with AI</span>
                         </>
                       )}
                     </button>

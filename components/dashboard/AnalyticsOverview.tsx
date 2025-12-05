@@ -66,6 +66,56 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
         });
     }
 
+    if (isLoading) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                {/* Health Score Skeleton */}
+                <div className="h-[200px] bg-white rounded-[2rem] p-6 border border-stone-100 shadow-sm animate-pulse">
+                    <div className="h-4 w-24 bg-stone-200 rounded-full mb-8" />
+                    <div className="h-16 w-16 bg-stone-200 rounded-full mb-4" />
+                    <div className="space-y-3">
+                        <div className="h-3 w-full bg-stone-100 rounded-full" />
+                        <div className="h-3 w-2/3 bg-stone-100 rounded-full" />
+                    </div>
+                </div>
+
+                {/* Insights Skeleton */}
+                <div className="h-[200px] bg-white rounded-[2rem] p-6 border border-stone-100 shadow-sm animate-pulse">
+                    <div className="h-4 w-32 bg-stone-200 rounded-full mb-6" />
+                    <div className="space-y-4">
+                        <div className="h-12 w-full bg-stone-100 rounded-xl" />
+                        <div className="h-12 w-full bg-stone-100 rounded-xl" />
+                    </div>
+                </div>
+
+                {/* Traffic Chart Skeleton */}
+                <div className="h-[400px] bg-white rounded-[2rem] p-6 border border-stone-100 shadow-sm animate-pulse md:col-span-1 lg:col-span-1">
+                    <div className="h-4 w-40 bg-stone-200 rounded-full mb-8" />
+                    <div className="h-64 w-64 mx-auto bg-stone-100 rounded-full" />
+                </div>
+
+                {/* Forecast Chart Skeleton */}
+                <div className="md:col-span-2 lg:col-span-2 h-[320px] bg-white rounded-[2rem] p-6 border border-stone-100 shadow-sm animate-pulse">
+                    <div className="h-4 w-32 bg-stone-200 rounded-full mb-8" />
+                    <div className="h-full w-full bg-stone-100 rounded-xl mt-4" />
+                </div>
+
+                {/* Top Cities Skeleton */}
+                <div className="h-[400px] bg-white rounded-[2rem] p-6 border border-stone-100 shadow-sm animate-pulse">
+                    <div className="h-4 w-28 bg-stone-200 rounded-full mb-8" />
+                    <div className="space-y-4">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="flex justify-between items-center">
+                                <div className="h-3 w-24 bg-stone-100 rounded-full" />
+                                <div className="h-3 w-12 bg-stone-100 rounded-full" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
             {/* Health Score */}

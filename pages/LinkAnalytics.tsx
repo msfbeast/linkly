@@ -6,7 +6,7 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics, LinkStats } from '../services/aggregatedAnalyticsService';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Cell, PieChart, Pie, Legend
+    BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import LiveWorldMap from '../components/LiveWorldMap';
 
@@ -184,6 +184,8 @@ const LinkAnalytics: React.FC = () => {
     const osData = getDistribution('os');
     const countryData = getDistribution('country').slice(0, 5);
     const referrerData = getDistribution('referrer').slice(0, 5);
+    // @ts-ignore - deviceModel is optional in interface but valid for runtime access if present
+    const deviceModelData = getDistribution('deviceModel').slice(0, 5);
 
     const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#6b7280'];
 
@@ -481,9 +483,19 @@ const LinkAnalytics: React.FC = () => {
                                     ))}
                                 </Pie>
                                 <Tooltip contentStyle={{ borderRadius: '8px' }} />
-                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
                             </PieChart>
                         </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 flex flex-wrap justify-center gap-4">
+                        {browserData.map((entry, index) => (
+                            <div key={`legend-${index}`} className="flex items-center gap-2">
+                                <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                />
+                                <span className="text-sm text-stone-600">{entry.name}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
@@ -544,6 +556,24 @@ const LinkAnalytics: React.FC = () => {
                                         <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                        <div className="h-px bg-stone-100" />
+                        <div>
+                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Device Models</h4>
+                            <div className="space-y-2">
+                                {deviceModelData.map((item) => (
+                                    <div key={item.name} className="flex items-center justify-between text-sm">
+                                        <span className="text-slate-700 truncate max-w-[150px]" title={item.name}>
+                                            {item.name === 'Unknown' ? 'Generic / Unknown' : item.name}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-stone-400 text-xs">{item.value}</span>
+                                            <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                        </div>
+                                    </div>
+                                ))}
+                                {deviceModelData.length === 0 && <p className="text-stone-400 text-xs">No model data available</p>}
                             </div>
                         </div>
                     </div>
@@ -736,7 +766,7 @@ const LinkAnalytics: React.FC = () => {
                 </div>
 
             </div>
-        </div>
+        </div >
     );
 };
 

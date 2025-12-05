@@ -92,41 +92,73 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, serverCityDat
         'Vadodara': [73.1812, 22.3072],
     };
 
-    // Process city counts for markers (India view only)
+    // US City coordinates
+    const US_CITY_COORDS: Record<string, [number, number]> = {
+        'New York': [-74.0060, 40.7128],
+        'Los Angeles': [-118.2437, 34.0522],
+        'Chicago': [-87.6298, 41.8781],
+        'Houston': [-95.3698, 29.7604],
+        'Phoenix': [-112.0740, 33.4484],
+        'Philadelphia': [-75.1652, 39.9526],
+        'San Antonio': [-98.4936, 29.4241],
+        'San Diego': [-117.1611, 32.7157],
+        'Dallas': [-96.7970, 32.7767],
+        'San Jose': [-121.8863, 37.3382],
+        'Austin': [-97.7431, 30.2672],
+        'San Francisco': [-122.4194, 37.7749],
+        'Seattle': [-122.3321, 47.6062],
+        'Miami': [-80.1918, 25.7617],
+        'Boston': [-71.0589, 42.3601],
+        'Denver': [-104.9903, 39.7392],
+        'Las Vegas': [-115.1398, 36.1699],
+        'Atlanta': [-84.3879, 33.7490],
+        'Washington D.C.': [-77.0369, 38.9072],
+        'Orlando': [-81.3792, 28.5383]
+    };
+
+    // Process city counts for markers (India and USA views)
     // Use server-side data if available, fallback to client-side
     const cityMarkers = useMemo(() => {
-        if (viewMode !== 'india') return [];
+        if (viewMode === 'world') return [];
+
+        const targetCoords = viewMode === 'india' ? CITY_COORDS : US_CITY_COORDS;
+        const targetCountry = viewMode === 'india' ? 'India' : 'United States';
 
         // Prefer server-side data if available
         if (serverCityData.length > 0) {
             return serverCityData
-                .filter(c => c.country === 'India')
+                .filter(c => c.country === targetCountry)
                 .map(city => ({
                     city: city.city,
                     count: city.clickCount,
-                    coordinates: CITY_COORDS[city.city] || null
+                    coordinates: targetCoords[city.city] || null
                 }))
                 .filter(c => c.coordinates !== null)
-                .slice(0, 10);
+                .slice(0, 15);
         }
 
         // Fallback to client-side data
         const counts: Record<string, number> = {};
         clickHistory.forEach(click => {
-            if (click.country === 'India' && click.city) {
+            if (click.country === targetCountry && click.city) {
                 counts[click.city] = (counts[click.city] || 0) + 1;
             }
         });
+
+        // If no data, show some default major cities with 0 clicks just for visuals?
+        // No, only show if we have data or if it's strictly requested to "show markers".
+        // Let's seed some "major cities" if empty so the map isn't barren? 
+        // No, that's misleading. Only real data.
 
         return Object.entries(counts)
             .map(([city, count]) => ({
                 city,
                 count,
-                coordinates: CITY_COORDS[city] || null
+                coordinates: targetCoords[city] || null
             }))
             .filter(c => c.coordinates !== null)
             .sort((a, b) => b.count - a.count)
-            .slice(0, 10);
+            .slice(0, 15);
     }, [clickHistory, viewMode, serverCityData]);
 
     const maxClicks = Math.max(...Object.values(locationCounts), 1);
@@ -288,10 +320,10 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, serverCityDat
                         ))}
                     </AnimatePresence>
 
-                    {/* City Markers (India view) */}
-                    {viewMode === 'india' && cityMarkers.map((city, i) => {
+                    {/* City Markers (India & USA views) */}
+                    {(viewMode === 'india' || viewMode === 'usa') && cityMarkers.map((city, i) => {
                         const maxCount = cityMarkers[0]?.count || 1;
-                        const sizeScale = 6 + (city.count / maxCount) * 10; // 6-16px based on count
+                        const sizeScale = 4 + (city.count / maxCount) * 8; // Slightly smaller scale (4-12px)
                         return (
                             <Marker key={city.city} coordinates={city.coordinates as [number, number]}>
                                 <g
@@ -306,15 +338,16 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, serverCityDat
                                         stroke="#DC2626"
                                         strokeWidth={1.5}
                                     />
-                                    <circle r={3} fill="#FEF2F2" />
+                                    <circle r={2} fill="#FEF2F2" />
                                     <text
                                         textAnchor="middle"
-                                        y={sizeScale + 12}
+                                        y={sizeScale + 10}
                                         style={{
                                             fontFamily: 'system-ui',
-                                            fontSize: 10,
+                                            fontSize: 8,
                                             fontWeight: 600,
                                             fill: '#1F2937',
+                                            pointerEvents: 'none'
                                         }}
                                     >
                                         {city.city}

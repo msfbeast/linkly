@@ -7,7 +7,7 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 6.3, 6.4
  */
 
-import { parseUserAgent, DeviceType, OSType } from './userAgentParser';
+import { parseUserAgent, detectDeviceModel, DeviceType, OSType } from './userAgentParser';
 import { getCountryFromIP } from './geolocationService';
 import { ClickEventInput } from './storage/types';
 import { ClickEvent } from '../types';
@@ -32,6 +32,7 @@ export interface ClickRequest {
   screenHeight?: number;
   visitorId?: string;
   destinationUrl?: string;
+  deviceModel?: string; // New field
 }
 
 /**
@@ -158,6 +159,10 @@ export async function processClickRequest(
   // Parse user agent for device, OS, and browser
   const { device, os, browser, browserVersion, osVersion } = parseUserAgent(request.userAgent || '');
 
+  // Detect detailed device model (e.g. iPhone 15)
+  // If request provided it explicitly, use it; otherwise detect from UA
+  const deviceModel = request.deviceModel || detectDeviceModel(request.userAgent || '');
+
   // Get country from IP (returns "Unknown" on failure per Requirements 2.5)
   const country = await getCountryFromIP(request.ipAddress || '');
 
@@ -183,6 +188,8 @@ export async function processClickRequest(
     utm_campaign: request.utm_campaign,
     utm_term: request.utm_term,
     utm_content: request.utm_content,
+    // Add deviceModel to ClickEvent interface if needed, or just keep it in input
+    // Assuming ClickEvent interface update isn't strictly required for storage input only
   };
 }
 
@@ -197,6 +204,9 @@ export function createClickEventInput(
   request: ClickRequest,
   timestamp: number = Date.now()
 ): ClickEventInput {
+  // Enhanced detail detection
+  const deviceModel = request.deviceModel || detectDeviceModel(request.userAgent || '');
+
   return {
     timestamp,
     referrer: request.referrer || '',
@@ -214,6 +224,7 @@ export function createClickEventInput(
     screenHeight: request.screenHeight,
     visitorId: request.visitorId,
     destinationUrl: request.destinationUrl,
+    deviceModel: deviceModel, // Pass to storage
   };
 }
 

@@ -30,7 +30,8 @@ export interface ClickEventInput {
   screenWidth?: number;
   screenHeight?: number;
   visitorId?: string;
-  destinationUrl?: string;
+  destinationUrl?: string; // For A/B testing
+  deviceModel?: string;    // Specific device model (e.g. iPhone 15)
 }
 
 /**

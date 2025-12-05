@@ -29,6 +29,7 @@ export interface ClickEvent {
   visitorId?: string;
   fingerprint?: string;
   destinationUrl?: string; // For A/B testing tracking
+  deviceModel?: string;    // Specific device model (e.g. iPhone 15)
 }
 
 export interface SmartRedirects {
