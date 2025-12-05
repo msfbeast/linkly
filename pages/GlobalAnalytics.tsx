@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Globe, MousePointer2, TrendingUp, Loader2, MapPin, Monitor, Smartphone } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics, UserClickStats } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
 import { LinkData, ClickEvent } from '../types';
 import LiveWorldMap from '../components/LiveWorldMap';
+
+interface ServerAnalytics {
+  stats: UserClickStats | null;
+  countries: CountryBreakdown[];
+  cities: CityBreakdown[];
+  devices: DeviceBreakdown[];
+  referrers: ReferrerBreakdown[];
+  clicksOverTime: DailyClicks[];
+}
 
 interface AnalyticsSummary {
   totalClicks: number;
@@ -27,7 +36,7 @@ interface AnalyticsSummary {
 const GlobalAnalytics: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [userClickStats, setUserClickStats] = useState<UserClickStats | null>(null);
+  const [serverData, setServerData] = useState<ServerAnalytics | null>(null);
   const [dateRange, setDateRange] = useState('7d');
   const { user } = useAuth();
 
@@ -38,17 +47,20 @@ const GlobalAnalytics: React.FC = () => {
   const loadAnalytics = async () => {
     setIsLoading(true);
     try {
-      // Fetch both links and aggregated stats in parallel
-      const [links, stats] = await Promise.all([
+      // Fetch both links data and server-side aggregations in parallel
+      const [links, fullAnalytics] = await Promise.all([
         supabaseAdapter.getLinks(),
-        user?.id ? aggregatedAnalytics.getUserClickStats(user.id) : null
+        user?.id ? aggregatedAnalytics.getFullAnalytics(user.id) : null
       ]);
 
+      // Process client-side data (for map visualization)
       const summary = processAnalytics(links);
       setAnalytics(summary);
-      setUserClickStats(stats);
 
-      console.log('[GlobalAnalytics] Loaded stats:', stats);
+      // Store server-side accurate data
+      if (fullAnalytics) {
+        setServerData(fullAnalytics);
+      }
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
@@ -198,7 +210,12 @@ const GlobalAnalytics: React.FC = () => {
     );
   }
 
-  const maxClicks = Math.max(...(analytics?.topCountries.map(c => c.clicks) || [1]));
+  // Use server data for accurate counts, client data for max bar width calculations
+  const topCountries = serverData?.countries || [];
+  const topCities = serverData?.cities || [];
+  const topDevices = serverData?.devices || [];
+  const topReferrers = serverData?.referrers || [];
+  const maxClicks = Math.max(...(topCountries.map(c => c.clickCount) || [1]));
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-6">
@@ -236,7 +253,7 @@ const GlobalAnalytics: React.FC = () => {
               </div>
               <span className="text-stone-500 text-sm">Total Clicks</span>
             </div>
-            <p className="text-3xl font-bold text-slate-900">{(userClickStats?.totalClicks ?? analytics?.totalClicks ?? 0).toLocaleString()}</p>
+            <p className="text-3xl font-bold text-slate-900">{(serverData?.stats?.totalClicks ?? analytics?.totalClicks ?? 0).toLocaleString()}</p>
           </div>
           <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -254,7 +271,7 @@ const GlobalAnalytics: React.FC = () => {
               </div>
               <span className="text-stone-500 text-sm">Countries</span>
             </div>
-            <p className="text-3xl font-bold text-slate-900">{analytics?.uniqueCountries}</p>
+            <p className="text-3xl font-bold text-slate-900">{topCountries.length || analytics?.uniqueCountries}</p>
           </div>
           <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -264,7 +281,7 @@ const GlobalAnalytics: React.FC = () => {
               <span className="text-stone-500 text-sm">Avg/Day</span>
             </div>
             <p className="text-3xl font-bold text-slate-900">
-              {analytics?.clicksByDay.length ? Math.round(analytics.totalClicks / analytics.clicksByDay.length) : 0}
+              {serverData?.stats?.clicksThisWeek ? Math.round(serverData.stats.clicksThisWeek / 7) : (analytics?.clicksByDay.length ? Math.round(analytics.totalClicks / analytics.clicksByDay.length) : 0)}
             </p>
           </div>
         </div>
@@ -276,19 +293,19 @@ const GlobalAnalytics: React.FC = () => {
               <h3 className="text-slate-900 font-bold">Top Countries</h3>
             </div>
             <div className="space-y-4">
-              {analytics?.topCountries.length === 0 ? (
+              {topCountries.length === 0 ? (
                 <p className="text-stone-500 text-sm">No data yet</p>
               ) : (
-                analytics?.topCountries.map((item, i) => (
+                topCountries.slice(0, 5).map((item, i) => (
                   <div key={i} className="flex items-center gap-4">
                     <span className="text-stone-400 text-sm w-6">{i + 1}</span>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-slate-900 text-sm font-medium">{item.country}</span>
-                        <span className="text-stone-500 text-sm">{item.clicks}</span>
+                        <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()}</span>
                       </div>
                       <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(item.clicks / maxClicks) * 100}%` }} />
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(item.clickCount / maxClicks) * 100}%` }} />
                       </div>
                     </div>
                   </div>
@@ -303,10 +320,10 @@ const GlobalAnalytics: React.FC = () => {
               <h3 className="text-slate-900 font-bold">Top Cities</h3>
             </div>
             <div className="space-y-4">
-              {analytics?.topCities.length === 0 ? (
+              {topCities.length === 0 ? (
                 <p className="text-stone-500 text-sm">No data yet</p>
               ) : (
-                analytics?.topCities.map((item, i) => (
+                topCities.slice(0, 5).map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
                     <div className="flex items-center gap-3">
                       <span className="text-stone-400 text-sm w-4">{i + 1}</span>
@@ -315,7 +332,7 @@ const GlobalAnalytics: React.FC = () => {
                         <p className="text-stone-500 text-xs">{item.country}</p>
                       </div>
                     </div>
-                    <span className="text-stone-500 text-sm">{item.clicks}</span>
+                    <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()}</span>
                   </div>
                 ))
               )}
@@ -329,10 +346,10 @@ const GlobalAnalytics: React.FC = () => {
               <h3 className="text-slate-900 font-bold">Devices</h3>
             </div>
             <div className="space-y-4">
-              {analytics?.topDevices.length === 0 ? (
+              {topDevices.length === 0 ? (
                 <p className="text-stone-500 text-sm">No data yet</p>
               ) : (
-                analytics?.topDevices.map((item, i) => (
+                topDevices.map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
                     <div className="flex items-center gap-3">
                       {item.device.toLowerCase().includes('mobile') ? (
@@ -342,7 +359,7 @@ const GlobalAnalytics: React.FC = () => {
                       )}
                       <span className="text-slate-900 text-sm">{item.device}</span>
                     </div>
-                    <span className="text-stone-500 text-sm">{item.clicks} clicks</span>
+                    <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()} clicks</span>
                   </div>
                 ))
               )}
@@ -392,30 +409,34 @@ const GlobalAnalytics: React.FC = () => {
             </div>
           </div>
 
-          {/* QR vs Link */}
+          {/* Traffic Sources */}
           <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-6">
               <Smartphone className="w-5 h-5 text-purple-500" />
               <h3 className="text-slate-900 font-bold">Traffic Type</h3>
             </div>
             <div className="space-y-4">
-              {analytics?.triggerSource.length === 0 ? (
+              {topReferrers.length === 0 ? (
                 <p className="text-stone-500 text-sm">No data yet</p>
               ) : (
-                analytics?.triggerSource.map((item, i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-900 text-sm">{item.source}</span>
-                      <span className="text-stone-500 text-sm">{item.clicks} ({Math.round((item.clicks / (analytics?.totalClicks || 1)) * 100)}%)</span>
+                topReferrers.map((item, i) => {
+                  const total = topReferrers.reduce((sum, r) => sum + r.clickCount, 0);
+                  const percentage = Math.round((item.clickCount / total) * 100);
+                  return (
+                    <div key={i} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-900 text-sm">{item.referrer}</span>
+                        <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()} ({percentage}%)</span>
+                      </div>
+                      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-blue-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${item.source === 'QR Code' ? 'bg-purple-500' : 'bg-blue-500'}`}
-                        style={{ width: `${(item.clicks / (analytics?.totalClicks || 1)) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
