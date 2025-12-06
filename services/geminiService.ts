@@ -10,13 +10,23 @@ export interface GeminiAnalysisResult {
 
 // Client-side fallback for local development
 import { GoogleGenAI, Type } from "@google/genai";
+import { supabase } from './storage/supabaseClient';
 
 export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisResult> => {
   try {
+    // 0. Get Session Token
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
     // 1. Try Server-Side API (Preferred - avoids CORS and hides key)
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch('/api/ai/analyze', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ url }),
     });
 
