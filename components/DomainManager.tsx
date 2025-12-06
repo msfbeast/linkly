@@ -46,11 +46,14 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
         e.preventDefault();
 
         // Feature Gate: Custom domains require Starter plan or higher
+        // TEMPORARY: Disabled for Admin/Owner usage
+        /*
         const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
         if (isFreePlan) {
             setIsUpgradeModalOpen(true);
             return;
         }
+        */
 
         if (!newDomain) return;
 
@@ -162,7 +165,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                     <div>
                         <p className="text-indigo-900 font-semibold text-sm mb-1">3. The Setup</p>
                         <p className="text-indigo-700 text-xs leading-relaxed">
-                            Just add a <strong>CNAME</strong> record pointing to <code>cname.linkly.ai</code> in your DNS provider.
+                            Just add a <strong>CNAME</strong> record pointing to <code>cname.vercel-dns.com</code> in your DNS provider.
                         </p>
                     </div>
                 </div>
@@ -329,8 +332,8 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                                         <div className="bg-white p-3 rounded-lg border border-stone-200">
                                             <div className="text-xs text-stone-400 font-bold mb-1">VALUE</div>
                                             <div className="font-mono text-sm text-slate-900 flex items-center justify-between group">
-                                                <span>cname.linkly.ai</span>
-                                                <button onClick={() => copyToClipboard('cname.linkly.ai')} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span>cname.vercel-dns.com</span>
+                                                <button onClick={() => copyToClipboard('cname.vercel-dns.com')} className="opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <Copy className="w-3 h-3 text-stone-400 hover:text-slate-900" />
                                                 </button>
                                             </div>
