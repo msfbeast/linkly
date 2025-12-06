@@ -12,41 +12,86 @@ interface OSStatsProps {
     data: OSData[];
 }
 
-const COLORS = {
-    'iOS': '#000000',      // Black
-    'Android': '#3DDC84',  // Android Green
-    'Windows': '#00A4EF',  // Windows Blue
-    'macOS': '#666666',    // Grey
-    'Linux': '#FCC624',    // Yellow
-    'Other': '#d6d3d1'     // Stone-300
+const COLORS: Record<string, string> = {
+    'iOS': '#000000',
+    'Android': '#10B981', // Emerald 500
+    'Windows': '#3B82F6', // Blue 500
+    'macOS': '#64748B',   // Slate 500
+    'Linux': '#F59E0B',   // Amber 500
+    'Other': '#E2E8F0',   // Slate 200
+    'Unknown': '#E2E8F0'
 };
 
 export const OSStats: React.FC<OSStatsProps> = ({ data }) => {
+    // Merge data with refined colors
+    const chartData = data.map(d => ({
+        ...d,
+        color: COLORS[d.name] || d.color || COLORS['Other']
+    })).sort((a, b) => b.value - a.value); // Sort by value
+
+    const totalClicks = chartData.reduce((acc, curr) => acc + curr.value, 0);
+
     return (
-        <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm h-full flex flex-col">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Operating Systems</h3>
-            <div className="flex-1 w-full min-h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={data}
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {data.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-                        <Tooltip
-                            formatter={(value: number) => [value.toLocaleString(), 'Clicks']}
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                    </PieChart>
-                </ResponsiveContainer>
+        <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm flex flex-col h-full card-hover relative overflow-hidden">
+            <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2 z-10">
+                Operating Systems
+            </h3>
+
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+                <div className="relative w-full aspect-square max-h-[220px]">
+                    {/* Centered Total - Rendered FIRST (Behind Chart) */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-3xl font-extrabold text-slate-900 leading-none">
+                            {totalClicks.toLocaleString()}
+                        </span>
+                        <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest mt-1">Clicks</span>
+                    </div>
+
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={chartData}
+                                innerRadius="60%"
+                                outerRadius="85%"
+                                paddingAngle={4}
+                                dataKey="value"
+                                stroke="none"
+                                cornerRadius={6}
+                            >
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                content={({ active, payload }) => {
+                                    if (active && payload && payload.length) {
+                                        const data = payload[0].payload;
+                                        return (
+                                            <div className="bg-slate-900 text-white text-xs p-2 rounded-lg shadow-xl border border-slate-700 z-50">
+                                                <span className="font-bold">{data.name}</span>
+                                                <div className="text-slate-300">{data.value.toLocaleString()} clicks</div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                }}
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+
+                {/* Legend - Tighter Grid */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-4 w-full px-4">
+                    {chartData.map((item) => (
+                        <div key={item.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                                <span className="text-sm font-medium text-stone-600 truncate">{item.name}</span>
+                            </div>
+                            <span className="text-xs font-bold text-slate-500">{item.value.toLocaleString()}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );

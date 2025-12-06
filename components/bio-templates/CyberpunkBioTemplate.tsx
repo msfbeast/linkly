@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Terminal, Cpu } from 'lucide-react';
+import { GalleryBlock } from '../blocks/GalleryBlock';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -80,6 +81,22 @@ const CyberpunkBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) =>
                         </a>
                     ))}
                 </div>
+
+                {/* Tech Vault (Gallery) */}
+                {(profile.blockVisibility?.gallery !== false) && (
+                    <div className="mb-12 border border-[#00ff41]/20 rounded p-4 bg-black/40 backdrop-blur relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#00ff41]"></div>
+                        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#00ff41]"></div>
+                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#00ff41]"></div>
+                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#00ff41]"></div>
+
+                        <h3 className="text-[#00ff41] text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <Cpu className="w-4 h-4" />
+                            Tech_Vault.exe
+                        </h3>
+                        <GalleryBlock userId={profile.userId} />
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="mt-16 text-center">

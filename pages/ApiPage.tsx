@@ -176,7 +176,7 @@ const ApiPage: React.FC = () => {
                         </p>
                         <div className="bg-slate-800 rounded-xl p-4 font-mono text-xs overflow-x-auto">
                             <div className="text-slate-500 mb-2"># Example Request</div>
-                            <div className="text-green-400">curl -X POST https://api.gather.link/v1/links \</div>
+                            <div className="text-green-400">curl -X POST {window.location.origin}/api/v1/links \</div>
                             <div className="text-white pl-4">-H "Authorization: Bearer <span className="text-yellow-400">pk_live_...</span>" \</div>
                             <div className="text-white pl-4">-H "Content-Type: application/json" \</div>
                             <div className="text-white pl-4">-d '{"{"}"url": "https://google.com"{"}"}'</div>

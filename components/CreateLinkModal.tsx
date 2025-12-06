@@ -108,7 +108,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     try {
       const result = await analyzeUrlWithGemini(url);
       setAnalysis(result);
-      if (!slug && !editingLink) setSlug(result.suggestedSlug);
+      if (!slug && !editingLink) setSlug(result.suggestedSlug || '');
     } catch (error) {
       console.error(error);
     } finally {
@@ -358,7 +358,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                     <p className="text-stone-600 text-sm leading-relaxed relative z-10">{analysis.description}</p>
 
                     <div className="flex gap-2 mt-4 relative z-10">
-                      {analysis.tags.slice(0, 3).map(tag => (
+                      {(analysis.tags || []).slice(0, 3).map(tag => (
                         <span key={tag} className="text-[10px] uppercase font-bold bg-white text-amber-700 px-2 py-1 rounded border border-amber-200">#{tag}</span>
                       ))}
                     </div>

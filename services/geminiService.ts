@@ -8,24 +8,98 @@ export interface GeminiAnalysisResult {
   predictedEngagement: 'High' | 'Medium' | 'Low';
 }
 
+// Client-side fallback for local development
+import { GoogleGenAI, Type } from "@google/genai";
+
 export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisResult> => {
   try {
+    // 1. Try Server-Side API (Preferred - avoids CORS and hides key)
     const response = await fetch('/api/ai/analyze', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to analyze URL');
+    if (response.ok) {
+      return await response.json();
     }
 
-    return await response.json();
-  } catch (error) {
-    console.error("Gemini analysis failed:", error);
+    console.warn('Backend API failed, falling back to client-side Gemini:', response.status);
+    throw new Error('API_FAILED');
+
+  } catch (error: any) {
+    // 2. Client-Side Fallback (for local dev without Vercel CLI)
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+
+    if (apiKey && (error.message === 'API_FAILED' || error.name === 'SyntaxError')) {
+      try {
+        console.log("Attempting Client-Side Analysis...");
+        const ai = new GoogleGenAI({ apiKey });
+
+        const prompt = `
+             Analyze URL: "${url}"
+             
+             Return JSON with:
+             1. title: Page title (max 50 chars).
+             2. description: Summary (max 20 words).
+             3. suggestedSlug: Short alphanumeric slug (max 10 chars).
+             4. tags: Array of 3 short tags.
+             
+             Example:
+             {"title": "Prod Name", "description": "Short summary.", "suggestedSlug": "prod-1", "tags": ["shop", "tech"]}
+           `;
+
+        const result = await ai.models.generateContent({
+          model: "gemini-2.0-flash-exp",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            maxOutputTokens: 1024,
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                description: { type: Type.STRING },
+                suggestedSlug: { type: Type.STRING },
+                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+              }
+            }
+          }
+        });
+
+        if (result.text) {
+          let cleanText = result.text.replace(/```json\n?|\n?```/g, '').trim();
+          let parsed: GeminiAnalysisResult | null = null;
+
+          try {
+            parsed = JSON.parse(cleanText) as GeminiAnalysisResult;
+          } catch (e) {
+            console.warn("JSON Parse failed, using fallback.");
+          }
+
+          if (!parsed) parsed = {} as any;
+
+          // Robust Fallbacks
+          if (!parsed!.suggestedSlug) {
+            parsed!.suggestedSlug = Math.random().toString(36).substring(2, 8);
+          }
+          if (!parsed!.tags || parsed!.tags.length === 0) {
+            parsed!.tags = ['general'];
+          }
+          if (!parsed!.predictedEngagement) {
+            parsed!.predictedEngagement = 'Medium';
+          }
+          if (!parsed!.category) parsed!.category = 'General';
+          if (!parsed!.sentiment) parsed!.sentiment = 'Neutral';
+
+          return parsed as GeminiAnalysisResult;
+        }
+      } catch (clientError) {
+        console.error("Client-side Gemini failed:", clientError);
+      }
+    }
+
+    console.error("Gemini analysis totally failed:", error);
     return {
       title: "New Link",
       description: "Analysis failed, please enter manually.",
