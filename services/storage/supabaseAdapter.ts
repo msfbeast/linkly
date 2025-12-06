@@ -45,7 +45,9 @@ interface LinkRow {
   qr_code_data: string | null;
   ai_analysis: Record<string, unknown> | null;
   user_id: string | null;
+  team_id?: string | null;
   folder_id: string | null;
+  domain?: string | null; // Added domain column
   is_guest?: boolean;
   claim_token?: string | null;
   expires_at?: string | null;
@@ -211,6 +213,8 @@ function rowToLinkData(row: LinkRow, clickHistory: ClickEvent[] = []): LinkData 
     qrCodeData: row.qr_code_data ?? undefined,
     aiAnalysis: row.ai_analysis as LinkData['aiAnalysis'] ?? undefined,
     folderId: row.folder_id ?? undefined,
+    teamId: row.team_id ?? undefined,
+    domain: row.domain ?? undefined,
     abTestConfig: row.ab_test_config as LinkData['abTestConfig'] ?? undefined,
   };
 }
@@ -231,35 +235,6 @@ function rowToFolder(row: FolderRow): Folder {
     name: row.name,
     parentId: row.parent_id,
     createdAt: new Date(row.created_at).getTime(),
-  };
-}
-
-/**
- * Convert LinkData to database row format
- */
-function linkDataToRow(link: Omit<LinkData, 'id'> & { id?: string }, userId?: string | null): Partial<LinkRow> {
-  return {
-    id: link.id,
-    original_url: link.originalUrl,
-    short_code: link.shortCode,
-    title: link.title,
-    description: link.description ?? null,
-    tags: link.tags,
-    category: link.category ?? null,
-    created_at: new Date(link.createdAt).toISOString(),
-    clicks: link.clicks,
-    last_clicked_at: link.lastClickedAt !== undefined ? new Date(link.lastClickedAt).toISOString() : null,
-    smart_redirects: link.smartRedirects ?? null,
-    geo_redirects: link.geoRedirects ?? null,
-    start_date: link.startDate ?? null,
-    expiration_date: link.expirationDate ?? null,
-    max_clicks: link.maxClicks ?? null,
-    password_hash: link.password ?? null,
-    qr_code_data: link.qrCodeData ?? null,
-    ai_analysis: link.aiAnalysis ?? null,
-    user_id: userId ?? null,
-    folder_id: link.folderId ?? null,
-    ab_test_config: link.abTestConfig ?? null,
   };
 }
 
@@ -2489,6 +2464,40 @@ export class SupabaseAdapter implements StorageAdapter {
     }
     return SupabaseAdapter.instance;
   }
+}
+
+/**
+ * Convert LinkData to database row format
+ */
+function linkDataToRow(link: Omit<LinkData, 'id'> & { id?: string }, userId?: string | null): Partial<LinkRow> {
+  return {
+    id: link.id,
+    original_url: link.originalUrl,
+    short_code: link.shortCode,
+    title: link.title,
+    description: link.description ?? null,
+    tags: link.tags,
+    category: link.category ?? null,
+    created_at: new Date(link.createdAt).toISOString(),
+    clicks: link.clicks,
+    last_clicked_at: link.lastClickedAt !== undefined ? new Date(link.lastClickedAt).toISOString() : null,
+    smart_redirects: link.smartRedirects ?? null,
+    geo_redirects: link.geoRedirects ?? null,
+    start_date: link.startDate ?? null,
+    expiration_date: link.expirationDate ?? null,
+    max_clicks: link.maxClicks ?? null,
+    password_hash: link.password ?? null,
+    qr_code_data: link.qrCodeData ?? null,
+    ai_analysis: link.aiAnalysis ?? null,
+    user_id: userId ?? null,
+    team_id: link.teamId ?? null,
+    folder_id: link.folderId ?? null,
+    domain: link.domain || null,
+    ab_test_config: link.abTestConfig ?? null,
+    is_guest: !!link.isGuest,
+    claim_token: link.claimToken ?? null,
+    expires_at: link.expiresAt ? new Date(link.expiresAt).toISOString() : null
+  };
 }
 
 function rowToAppRecommendation(row: any): AppRecommendation {

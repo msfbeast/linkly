@@ -65,6 +65,7 @@ export interface LinkData {
   tags: string[];
   folderId?: string | null;
   teamId?: string | null;
+  domain?: string;
   createdAt: number;
 
   // Category for dashboard display

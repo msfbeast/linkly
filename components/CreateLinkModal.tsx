@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag } from 'lucide-react';
 import UTMBuilderModal from './UTMBuilderModal';
 import { analyzeUrlWithGemini, GeminiAnalysisResult } from '../services/geminiService';
-import { LinkData, SmartRedirects, Folder } from '../types';
+import { LinkData, SmartRedirects, Folder, Domain } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { TagInput } from './TagInput';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +31,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const [tags, setTags] = useState<string[]>([]);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [selectedDomain, setSelectedDomain] = useState('links.trak.in');
 
   // Bulk Mode States
   const [bulkUrls, setBulkUrls] = useState('');
@@ -75,6 +77,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       }
       setTags(editingLink.tags || []);
       setFolderId(editingLink.folderId || null);
+      setSelectedDomain(editingLink.domain || 'links.trak.in');
 
       if (editingLink.abTestConfig) {
         setAbTestEnabled(editingLink.abTestConfig.enabled);
@@ -86,17 +89,21 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
   useEffect(() => {
     if (isOpen && user) {
-      loadFolders();
+      loadData();
     }
   }, [isOpen, user]);
 
-  const loadFolders = async () => {
+  const loadData = async () => {
     if (!user) return;
     try {
-      const loadedFolders = await supabaseAdapter.getFolders(user.id);
+      const [loadedFolders, loadedDomains] = await Promise.all([
+        supabaseAdapter.getFolders(user.id),
+        supabaseAdapter.getDomains(user.id)
+      ]);
       setFolders(loadedFolders);
+      setDomains(loadedDomains.filter(d => d.status === 'active'));
     } catch (error) {
-      console.error('Failed to load folders:', error);
+      console.error('Failed to load data:', error);
     }
   };
 
@@ -159,7 +166,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       abTestConfig: abTestEnabled ? {
         enabled: true,
         variants: variants
-      } : undefined
+      } : undefined,
+      domain: selectedDomain !== 'links.trak.in' ? selectedDomain : undefined
     };
 
     if (editingLink) {
@@ -231,6 +239,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       setPassword('');
       setTags([]);
       setFolderId(null);
+      setSelectedDomain('links.trak.in');
       setAbTestEnabled(false);
       setVariants([]);
       setMode('single');
@@ -239,7 +248,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto" >
       <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4 text-center">
         <motion.div
           initial={{ opacity: 0 }}
@@ -368,8 +377,29 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                 <form onSubmit={handleSingleSubmit}>
                   <div className="mb-8">
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Short Link (Slug)</label>
-                    <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-4 py-1 focus-within:ring-2 focus-within:ring-amber-500/20 focus:border-amber-500 transition-all">
-                      <span className="text-stone-500 font-mono text-sm mr-2 border-r border-stone-200 pr-2 py-2.5">links.trak.in/</span>
+                    <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-0 py-0 focus-within:ring-2 focus-within:ring-amber-500/20 focus:border-amber-500 transition-all overflow-hidden relative">
+                      {domains.length > 0 ? (
+                        <div className="relative border-r border-stone-200 bg-stone-100/50 h-full flex items-center">
+                          <select
+                            value={selectedDomain}
+                            onChange={(e) => setSelectedDomain(e.target.value)}
+                            className="appearance-none bg-transparent pl-3 pr-8 py-3 text-stone-600 font-mono text-sm font-medium focus:outline-none cursor-pointer hover:bg-stone-200/50 transition-colors h-full"
+                          >
+                            <option value="links.trak.in">links.trak.in</option>
+                            {domains.map(d => (
+                              <option key={d.id} value={d.domain}>{d.domain}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-stone-400 pointer-events-none" />
+                        </div>
+                      ) : (
+                        <span className="text-stone-500 font-mono text-sm pl-4 pr-3 py-3 border-r border-stone-200 bg-stone-100/50">links.trak.in/</span>
+                      )}
+
+                      {selectedDomain !== 'links.trak.in' && (
+                        <span className="text-stone-400 font-mono text-sm pl-2 py-3 select-none">/</span>
+                      )}
+
                       <input
                         type="text"
                         placeholder="custom-slug"
@@ -646,7 +676,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           onApply={(newUrl) => setUrl(newUrl)}
         />
       </div>
-    </div>
+    </div >
   );
 };
 

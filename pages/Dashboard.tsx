@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download, Tag as TagIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTeam } from '../contexts/TeamContext'; // Added in Step 2, ensuring it's here
 import CreateLinkModal from '../components/CreateLinkModal';
 import { TagManager } from '../components/TagManager';
 import { UpgradeModal } from '../components/UpgradeModal';
@@ -66,7 +67,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
 
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
   const navigate = useNavigate();
+
+  // Use external modal state if provided, otherwise use internal
+  const isModalOpen = externalModalOpen !== undefined ? externalModalOpen : internalModalOpen;
+  const setIsModalOpen = setExternalModalOpen || setInternalModalOpen;
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -93,17 +99,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  // Use external modal state if provided, otherwise use internal
-  const isModalOpen = externalModalOpen !== undefined ? externalModalOpen : internalModalOpen;
-  const setIsModalOpen = setExternalModalOpen || setInternalModalOpen;
-
   // Load links from storage adapter with retry
   const loadLinks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const storedLinks = await retryExecute(
-        () => supabaseAdapter.getLinks(),
+        () => supabaseAdapter.getLinks(currentTeam?.id), // Pass team ID
         { maxRetries: 3, baseDelayMs: 1000 }
       );
       setLinks(storedLinks);
@@ -120,6 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             clicks: 0,
             tags: [],
             clickHistory: [],
+            teamId: currentTeam?.id
           };
           await retryExecute(
             () => supabaseAdapter.createLink(newLink),
@@ -127,15 +130,56 @@ const Dashboard: React.FC<DashboardProps> = ({
           );
           sessionStorage.removeItem('pending_link_url');
           // Reload links to show the new one
-          const updatedLinks = await supabaseAdapter.getLinks();
+          const updatedLinks = await retryExecute(
+            () => supabaseAdapter.getLinks(currentTeam?.id),
+            { maxRetries: 3, baseDelayMs: 1000 }
+          );
           setLinks(updatedLinks);
         } catch (err) {
           console.error('Failed to create pending link:', err);
         }
       }
 
-      // Fetch aggregated stats (for real totals, not capped at 1000)
-      if (user?.id) {
+      // Fetch aggregated stats
+      // If in Team Mode, calculate client-side to ensure team isolation (Server RPC is User-bound)
+      if (currentTeam?.id) {
+        // Client-side aggregation
+        const totalClicks = storedLinks.reduce((sum, link) => sum + link.clicks, 0);
+
+        // Calculate unique visitors (approx based on click history if available, else 0)
+        const visitorSet = new Set<string>();
+        storedLinks.forEach(l => l.clickHistory.forEach(c => {
+          if (c.visitorId) visitorSet.add(c.visitorId);
+        }));
+
+        // Mock UserClickStats
+        setUserClickStats({
+          totalClicks,
+          uniqueVisitors: visitorSet.size,
+          clicksToday: 0, // Not calculated for now
+          clicksThisWeek: 0,
+          clicksLastWeek: 0,
+          clicksThisMonth: 0
+        });
+
+        // Aggregate City Data
+        const cityMap: Record<string, number> = {};
+        storedLinks.forEach(l => l.clickHistory.forEach(c => {
+          if (c.city) {
+            const key = `${c.city}, ${c.country}`;
+            cityMap[key] = (cityMap[key] || 0) + 1;
+          }
+        }));
+
+        const clientCities: CityBreakdown[] = Object.entries(cityMap).map(([key, count]) => {
+          const [city, country] = key.split(', ');
+          return { city, country, clickCount: count };
+        }).sort((a, b) => b.clickCount - a.clickCount).slice(0, 5);
+
+        setServerCityData(clientCities);
+
+      } else if (user?.id) {
+        // Personal Mode - Use precise Server RPC
         const [stats, cities] = await Promise.all([
           aggregatedAnalytics.getUserClickStats(user.id),
           aggregatedAnalytics.getCityBreakdown(user.id)
@@ -151,7 +195,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, currentTeam?.id]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -163,7 +207,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleCreateLink = async (link: LinkData) => {
     try {
       await retryExecute(
-        () => supabaseAdapter.createLink(link),
+        () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
       await loadLinks();
@@ -180,7 +224,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       await Promise.all(
         newLinks.map((link) =>
           retryExecute(
-            () => supabaseAdapter.createLink(link),
+            () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
             { maxRetries: 3, baseDelayMs: 1000 }
           )
         )
@@ -371,6 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         clicks: 0,
         tags: [],
         clickHistory: [],
+        teamId: currentTeam?.id,
       };
 
       await retryExecute(
