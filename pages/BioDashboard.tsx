@@ -36,7 +36,6 @@ const BioDashboard: React.FC = () => {
     const [profiles, setProfiles] = useState<BioProfile[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentProfile, setCurrentProfile] = useState<Partial<BioProfile>>({});
-    const [activeTab, setActiveTab] = useState<'details' | 'appearance' | 'gallery' | 'newsletter' | 'apps'>('details');
     const [availableLinks, setAvailableLinks] = useState<LinkData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -97,13 +96,11 @@ const BioDashboard: React.FC = () => {
             links: [],
             views: 0
         });
-        setActiveTab('details');
         setIsEditing(true);
     };
 
     const handleEdit = (profile: BioProfile) => {
         setCurrentProfile({ ...profile });
-        setActiveTab('details');
         setIsEditing(true);
     };
 
@@ -182,104 +179,161 @@ const BioDashboard: React.FC = () => {
 
     if (isEditing) {
         return (
-            <div className="p-8 max-w-4xl mx-auto">
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                    {currentProfile.id ? 'Edit Profile' : 'Create Bio Profile'}
-                </h2>
+            <div className="p-4 md:p-8 max-w-[1600px] mx-auto">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-bold text-slate-900">
+                        {currentProfile.id ? 'Edit Profile' : 'Create Bio Profile'}
+                    </h2>
+                    <div className="flex gap-3">
+                        <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-stone-500 hover:text-slate-900">Cancel</button>
+                        <button onClick={handleSave} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-900/20">Save Profile</button>
+                    </div>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="flex flex-col gap-6">
-                        {/* Tabs */}
-                        <div className="flex p-1 bg-stone-100 rounded-xl overflow-x-auto no-scrollbar">
-                            <button
-                                onClick={() => setActiveTab('details')}
-                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'details' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
-                            >
-                                <Layout className="w-4 h-4" />
-                                Details
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('appearance')}
-                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'appearance' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
-                            >
-                                <Palette className="w-4 h-4" />
-                                Appearance
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('gallery')}
-                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'gallery' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
-                            >
-                                <Camera className="w-4 h-4" />
-                                Tech Vault
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('newsletter')}
-                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'newsletter' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
-                            >
-                                <Mail className="w-4 h-4" />
-                                Newsletter
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('apps')}
-                                className={`flex-1 min-w-[100px] py-2.5 px-4 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'apps' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-700'}`}
-                            >
-                                <Smartphone className="w-4 h-4" />
-                                App Stack
-                            </button>
-                        </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    {/* Left & Center Columns (Edit Widgets) */}
+                    <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                        {/* Details Tab Content */}
-                        <div className={`bg-white border border-stone-200 rounded-xl p-6 shadow-sm ${activeTab === 'details' ? 'block' : 'hidden'}`}>
-                            <h3 className="text-slate-900 font-bold mb-4">Profile Details</h3>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-xs text-stone-500 block mb-1">Handle (URL slug)</label>
-                                    <div className="flex bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
-                                        <span className="px-3 py-2 text-stone-400 text-sm bg-stone-100">links.trak.in/p/</span>
+                        {/* 1. Identity Card (Full Width) */}
+                        <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <UserCircle2 className="w-5 h-5 text-indigo-500" />
+                                <h3 className="text-slate-900 font-bold">Identity</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Handle</label>
+                                        <div className="flex bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
+                                            <span className="px-3 py-2 text-stone-400 text-sm bg-stone-100 border-r border-stone-200">links.trak.in/p/</span>
+                                            <input
+                                                type="text"
+                                                value={currentProfile.handle}
+                                                onChange={e => setCurrentProfile({ ...currentProfile, handle: e.target.value })}
+                                                className="flex-1 bg-transparent border-none text-slate-900 focus:ring-0 p-2 font-medium"
+                                                placeholder="alex"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Display Name</label>
                                         <input
                                             type="text"
-                                            value={currentProfile.handle}
-                                            onChange={e => setCurrentProfile({ ...currentProfile, handle: e.target.value })}
-                                            className="flex-1 bg-transparent border-none text-slate-900 focus:ring-0 p-2"
-                                            placeholder="alex"
+                                            value={currentProfile.displayName}
+                                            onChange={e => setCurrentProfile({ ...currentProfile, displayName: e.target.value })}
+                                            className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Alex Chen"
                                         />
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="text-xs text-stone-500 block mb-1">Display Name</label>
-                                    <input
-                                        type="text"
-                                        value={currentProfile.displayName}
-                                        onChange={e => setCurrentProfile({ ...currentProfile, displayName: e.target.value })}
-                                        className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900"
-                                        placeholder="Alex Chen"
-                                    />
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Bio</label>
+                                        <textarea
+                                            value={currentProfile.bio}
+                                            onChange={e => setCurrentProfile({ ...currentProfile, bio: e.target.value })}
+                                            className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900 h-[108px] resize-none focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Tech enthusiast & content creator."
+                                        />
+                                    </div>
+                                    <div className="hidden">
+                                        <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Avatar URL</label>
+                                        <input
+                                            type="text"
+                                            value={currentProfile.avatarUrl}
+                                            onChange={e => setCurrentProfile({ ...currentProfile, avatarUrl: e.target.value })}
+                                            className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-xs text-stone-500 block mb-1">Bio</label>
-                                    <textarea
-                                        value={currentProfile.bio}
-                                        onChange={e => setCurrentProfile({ ...currentProfile, bio: e.target.value })}
-                                        className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900 h-20"
-                                        placeholder="Tech enthusiast & content creator."
-                                    />
+                            </div>
+                        </div>
+
+                        {/* 2. Content Card (Link Management) - Full Width */}
+                        <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm min-h-[500px] flex flex-col">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Layout className="w-5 h-5 text-indigo-500" />
+                                <h3 className="text-slate-900 font-bold">Content</h3>
+                            </div>
+
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                                {/* Active Links */}
+                                <div className="flex flex-col h-full">
+                                    <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
+                                        Active Links ({activeLinksList.length})
+                                    </h4>
+                                    <div className="flex-1 bg-stone-50 rounded-xl p-4 border border-stone-100 overflow-y-auto max-h-[400px] custom-scrollbar">
+                                        {activeLinksList.length === 0 ? (
+                                            <div className="text-center py-12">
+                                                <p className="text-stone-400 text-sm">No links added yet.</p>
+                                                <p className="text-stone-400 text-xs mt-1">Select from available links.</p>
+                                            </div>
+                                        ) : (
+                                            <DndContext
+                                                sensors={sensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={handleDragEnd}
+                                            >
+                                                <SortableContext
+                                                    items={activeLinksList.map(l => l.id)}
+                                                    strategy={verticalListSortingStrategy}
+                                                >
+                                                    <div className="space-y-2">
+                                                        {activeLinksList.map(link => (
+                                                            <SortableBioLinkItem
+                                                                key={link.id}
+                                                                link={link}
+                                                                onRemove={() => toggleLinkSelection(link.id)}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </SortableContext>
+                                            </DndContext>
+                                        )}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-xs text-stone-500 block mb-1">Avatar URL</label>
-                                    <input
-                                        type="text"
-                                        value={currentProfile.avatarUrl}
-                                        onChange={e => setCurrentProfile({ ...currentProfile, avatarUrl: e.target.value })}
-                                        className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900"
-                                        placeholder="https://..."
-                                    />
+
+                                {/* Available Links */}
+                                <div className="flex flex-col h-full">
+                                    <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
+                                        Available Links ({inactiveLinksList.length})
+                                    </h4>
+                                    <div className="flex-1 overflow-y-auto max-h-[400px] custom-scrollbar space-y-2 pr-2">
+                                        {inactiveLinksList.length === 0 && <p className="text-stone-400 text-sm italic">No more links available.</p>}
+                                        {inactiveLinksList.map(link => (
+                                            <button
+                                                key={link.id}
+                                                onClick={() => toggleLinkSelection(link.id)}
+                                                className="w-full flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 hover:border-indigo-400/50 transition-all group text-left bg-white"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                                                    <Plus className="w-4 h-4" />
+                                                </div>
+                                                <div className="overflow-hidden">
+                                                    <p className="text-slate-900 text-sm font-medium truncate group-hover:text-indigo-700 transition-colors">{link.title}</p>
+                                                    <p className="text-stone-500 text-xs truncate">{link.shortCode}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Appearance Card */}
+                        <div className="md:row-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Palette className="w-5 h-5 text-indigo-500" />
+                                <h3 className="text-slate-900 font-bold">Appearance</h3>
+                            </div>
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="text-xs text-stone-500 block mb-1">Theme</label>
+                                    <label className="text-xs font-bold text-stone-500 block mb-2 uppercase">Theme Preset</label>
                                     <select
                                         value={currentProfile.theme}
                                         onChange={e => setCurrentProfile({ ...currentProfile, theme: e.target.value as any })}
-                                        className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900"
+                                        className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
                                     >
                                         <option value="vibrant">Vibrant (Pop!)</option>
                                         <option value="glass">Glass (Modern Dark)</option>
@@ -294,115 +348,67 @@ const BioDashboard: React.FC = () => {
                                         <option value="archive">Archive (Vintage)</option>
                                     </select>
                                 </div>
+                                <div className="pt-2">
+                                    {currentProfile.id && (
+                                        <BioAppearanceEditor
+                                            profile={currentProfile as BioProfile}
+                                            onChange={(updates) => setCurrentProfile(prev => ({ ...prev, ...updates }))}
+                                        />
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Appearance Tab Content */}
-                        <div className={activeTab === 'appearance' ? 'block' : 'hidden'}>
-                            {currentProfile.id && (
-                                <BioAppearanceEditor
-                                    profile={currentProfile as BioProfile}
-                                    onChange={(updates) => setCurrentProfile(prev => ({ ...prev, ...updates }))}
-                                />
-                            )}
-                        </div>
-
-                        {/* Gallery Tab Content */}
-                        <div className={`bg-white border border-stone-200 rounded-xl p-6 shadow-sm ${activeTab === 'gallery' ? 'block' : 'hidden'}`}>
+                        {/* 4. Tech Vault Card */}
+                        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Camera className="w-5 h-5 text-indigo-500" />
+                                <h3 className="text-slate-900 font-bold">Tech Vault</h3>
+                            </div>
                             <GalleryManager />
                         </div>
 
-                        {/* Newsletter Tab Content */}
-                        <div className={`bg-white border border-stone-200 rounded-xl p-6 shadow-sm ${activeTab === 'newsletter' ? 'block' : 'hidden'}`}>
+                        {/* 5. Apps Card */}
+                        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Smartphone className="w-5 h-5 text-indigo-500" />
+                                <h3 className="text-slate-900 font-bold">App Stack</h3>
+                            </div>
+                            <AppStackManager />
+                        </div>
+
+                        {/* 6. Newsletter Card */}
+                        <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Mail className="w-5 h-5 text-indigo-500" />
+                                <h3 className="text-slate-900 font-bold">Newsletter</h3>
+                            </div>
                             <NewsletterManager />
                         </div>
 
-                        {/* App Stack Tab Content */}
-                        <div className={`bg-white border border-stone-200 rounded-xl p-6 shadow-sm ${activeTab === 'apps' ? 'block' : 'hidden'}`}>
-                            <AppStackManager />
-                        </div>
                     </div>
 
-                    <div className="space-y-4">
-                        <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
-                            <h3 className="text-slate-900 font-bold mb-4">Live Preview</h3>
-                            <div className="flex justify-center bg-stone-50 rounded-xl p-4 border border-stone-100">
-                                <div className="w-48 shadow-2xl rounded-2xl overflow-hidden border-4 border-slate-900 bg-white">
+                    {/* Right Column (Sticky Preview) */}
+                    <div className="lg:col-span-4 sticky top-8">
+                        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-lg shadow-stone-100">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-slate-900 font-bold">Live Preview</h3>
+                                <div className="flex gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-red-400" />
+                                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                                    <div className="w-2 h-2 rounded-full bg-green-400" />
+                                </div>
+                            </div>
+                            <div className="flex justify-center bg-stone-50 rounded-xl p-6 border border-stone-100">
+                                <div className="w-64 shadow-2xl rounded-[2.5rem] overflow-hidden border-8 border-slate-900 bg-white ring-1 ring-black/5">
                                     <BioPreview profile={currentProfile} links={availableLinks.filter(l => currentProfile.links?.includes(l.id))} />
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="bg-white border border-stone-200 rounded-xl p-6 flex flex-col shadow-sm h-[600px]">
-                            <h3 className="text-slate-900 font-bold mb-4">Manage Links</h3>
-
-                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-2">
-                                {/* Active Links Section */}
-                                <div>
-                                    <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
-                                        Active Links ({activeLinksList.length})
-                                    </h4>
-                                    {activeLinksList.length === 0 ? (
-                                        <div className="text-center py-8 bg-stone-50 rounded-xl border border-dashed border-stone-200">
-                                            <p className="text-stone-400 text-sm">No links added yet.</p>
-                                            <p className="text-stone-400 text-xs mt-1">Select links below to add them.</p>
-                                        </div>
-                                    ) : (
-                                        <DndContext
-                                            sensors={sensors}
-                                            collisionDetection={closestCenter}
-                                            onDragEnd={handleDragEnd}
-                                        >
-                                            <SortableContext
-                                                items={activeLinksList.map(l => l.id)}
-                                                strategy={verticalListSortingStrategy}
-                                            >
-                                                <div className="space-y-2">
-                                                    {activeLinksList.map(link => (
-                                                        <SortableBioLinkItem
-                                                            key={link.id}
-                                                            link={link}
-                                                            onRemove={() => toggleLinkSelection(link.id)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </SortableContext>
-                                        </DndContext>
-                                    )}
-                                </div>
-
-                                {/* Available Links Section */}
-                                <div>
-                                    <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3 pt-4 border-t border-stone-100">
-                                        Available Links ({inactiveLinksList.length})
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {inactiveLinksList.length === 0 && <p className="text-stone-400 text-sm italic">No more links available.</p>}
-                                        {inactiveLinksList.map(link => (
-                                            <button
-                                                key={link.id}
-                                                onClick={() => toggleLinkSelection(link.id)}
-                                                className="w-full flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 hover:border-yellow-400/50 transition-all group text-left"
-                                            >
-                                                <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
-                                                    <Plus className="w-4 h-4" />
-                                                </div>
-                                                <div className="overflow-hidden">
-                                                    <p className="text-slate-900 text-sm font-medium truncate group-hover:text-yellow-700 transition-colors">{link.title}</p>
-                                                    <p className="text-stone-500 text-xs truncate">{link.shortCode}</p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                            <div className="mt-4 text-center">
+                                <p className="text-xs text-stone-400">Updates automatically as you edit</p>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-stone-500 hover:text-slate-900">Cancel</button>
-                    <button onClick={handleSave} className="px-6 py-2 bg-yellow-400 text-slate-900 rounded-xl font-bold hover:bg-yellow-500 shadow-sm shadow-yellow-400/20">Save Profile</button>
                 </div>
             </div>
         );

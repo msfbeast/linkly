@@ -432,7 +432,7 @@ export class SupabaseAdapter implements StorageAdapter {
   /**
    * Get all links from the database
    */
-  async getLinks(): Promise<LinkData[]> {
+  async getLinks(teamId?: string | null): Promise<LinkData[]> {
     if (!isSupabaseConfigured()) {
       throw new Error('Supabase is not configured');
     }
@@ -446,11 +446,19 @@ export class SupabaseAdapter implements StorageAdapter {
       return [];
     }
 
-    const { data: linkRows, error } = await supabase!
+    let query = supabase!
       .from(TABLES.LINKS)
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    if (teamId) {
+      query = query.eq('team_id', teamId);
+    } else {
+      // Personal workspace: links where user_id matches and team_id is null
+      query = query.eq('user_id', userId).is('team_id', null);
+    }
+
+    const { data: linkRows, error } = await query;
 
     if (error) {
       throw new Error(`Failed to fetch links: ${error.message}`);

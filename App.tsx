@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import TopNavigation from './components/TopNavigation';
 import LoadingFallback from './components/LoadingFallback';
 import { AuthProvider } from './contexts/AuthContext';
+import { TeamProvider } from './contexts/TeamContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ViewState, LinkData } from './types';
 import { supabaseAdapter } from './services/storage/supabaseAdapter';
@@ -187,15 +188,17 @@ const App: React.FC = () => {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <LegacyHashHandler />
-          <ScrollToHashElement />
-          <ErrorBoundary>
-            <AnimatedRoutes />
-          </ErrorBoundary>
-          <InstallPrompt />
-          <Toaster richColors position="top-center" />
-          <Analytics />
-          <SpeedInsights />
+          <TeamProvider>
+            <LegacyHashHandler />
+            <ScrollToHashElement />
+            <ErrorBoundary>
+              <AnimatedRoutes />
+            </ErrorBoundary>
+            <InstallPrompt />
+            <Toaster richColors position="top-center" />
+            <Analytics />
+            <SpeedInsights />
+          </TeamProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

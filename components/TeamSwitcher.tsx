@@ -1,37 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Plus, Users, Check, User, Settings } from 'lucide-react';
-import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { ChevronDown, Plus, Check, User, Settings } from 'lucide-react';
 import { Team } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { useTeam } from '../contexts/TeamContext';
 import { useNavigate } from 'react-router-dom';
 
 const TeamSwitcher: React.FC = () => {
-    const { user } = useAuth();
+    const { teams, currentTeam, switchTeam } = useTeam();
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
-
-    useEffect(() => {
-        loadTeams();
-    }, [user]);
-
-    const loadTeams = async () => {
-        if (!user) return;
-        const userTeams = await supabaseAdapter.getTeams();
-        setTeams(userTeams);
-        // Default to first team if exists for now, or use context/local storage
-        if (userTeams.length > 0) {
-            setCurrentTeam(userTeams[0]);
-        }
-    };
 
     const handleSwitch = (team: Team | null) => {
-        setCurrentTeam(team);
+        switchTeam(team ? team.id : null);
         setIsOpen(false);
-        // TODO: Update global context or trigger reload of data
-        // For now, just navigate to dashboard to refresh
+        // Refresh dashboard data logic is handled by effects in pages listening to currentTeam
         navigate('/dashboard');
     };
 
@@ -52,16 +34,19 @@ const TeamSwitcher: React.FC = () => {
                         {currentTeam ? 'Team Plan' : 'Free Plan'}
                     </div>
                 </div>
-                <div
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        navigate('/team/settings');
-                    }}
-                    className="p-1 hover:bg-stone-200 rounded-full transition-colors"
-                    title="Team Settings"
-                >
-                    <Settings className="w-4 h-4 text-stone-400 hover:text-slate-900" />
-                </div>
+                {/* Only show Settings for Teams, or maybe allow Personal Settings too? keeping clear separation */}
+                {currentTeam && (
+                    <div
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/team/settings');
+                        }}
+                        className="p-1 hover:bg-stone-200 rounded-full transition-colors"
+                        title="Team Settings"
+                    >
+                        <Settings className="w-4 h-4 text-stone-400 hover:text-slate-900" />
+                    </div>
+                )}
                 <ChevronDown className={`w-4 h-4 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -127,8 +112,12 @@ const TeamSwitcher: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         setIsOpen(false);
-                                        // TODO: Open Create Team Modal
-                                        navigate('/team/settings');
+                                        // We will add a query param or separate route for modal, 
+                                        // or just use TeamSettings for creation? 
+                                        // Plan said CreateTeamModal. Let's redirect to settings with 'create' intent or simple modal.
+                                        // For simplicity: Go to settings page where we can have "Create New Team" section or modal trigger.
+                                        // Or better: navigate to ?createTeam=true and handle in Layout.
+                                        navigate('/team/settings?action=create');
                                     }}
                                     className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-stone-50 transition-colors text-stone-500 hover:text-slate-900"
                                 >

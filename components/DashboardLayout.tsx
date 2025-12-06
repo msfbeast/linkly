@@ -6,7 +6,8 @@ import TopNavigation from './TopNavigation';
 import { TrialCountdown } from './TrialCountdown';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import LoadingFallback from './LoadingFallback';
-import TeamSettings from '../pages/TeamSettings';
+import TeamSettings from './teams/TeamSettings';
+import { useTeam } from '../contexts/TeamContext';
 
 // Lazy Load Pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
@@ -18,6 +19,7 @@ const ProductManager = React.lazy(() => import('../pages/ProductManager'));
 const ApiPage = React.lazy(() => import('../pages/ApiPage'));
 
 const DashboardLayout: React.FC = () => {
+    const { currentTeam } = useTeam();
     const [view, setView] = useState<ViewState>(() => {
         const path = window.location.pathname;
         if (path.includes('/team/settings')) return ViewState.TEAM_SETTINGS;
@@ -40,7 +42,8 @@ const DashboardLayout: React.FC = () => {
     useEffect(() => {
         const loadLinks = async () => {
             try {
-                const realLinks = await supabaseAdapter.getLinks();
+                // Pass currentTeam.id (or undefined/null for personal)
+                const realLinks = await supabaseAdapter.getLinks(currentTeam?.id);
                 setLinks(realLinks);
 
                 // Calculate real click change (compare last 7 days vs previous 7 days)
@@ -75,7 +78,7 @@ const DashboardLayout: React.FC = () => {
             }
         };
         loadLinks();
-    }, []);
+    }, [currentTeam]);
 
     // Sync view with URL
     useEffect(() => {

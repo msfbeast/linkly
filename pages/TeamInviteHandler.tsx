@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTeam } from '../contexts/TeamContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 
 const TeamInviteHandler: React.FC = () => {
     const { token } = useParams<{ token: string }>();
     const { user, loading: authLoading } = useAuth();
+    const { acceptInvite: contextAcceptInvite } = useTeam();
     const navigate = useNavigate();
 
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -27,9 +29,10 @@ const TeamInviteHandler: React.FC = () => {
             return;
         }
 
-        const acceptInvite = async () => {
+        const handleAccept = async () => {
             try {
-                await supabaseAdapter.acceptInvite(token, user.id);
+                // Use context method to ensure global state updates
+                await contextAcceptInvite(token);
                 setStatus('success');
                 setMessage('You have successfully joined the team!');
                 // Redirect after a short delay
@@ -41,8 +44,8 @@ const TeamInviteHandler: React.FC = () => {
             }
         };
 
-        acceptInvite();
-    }, [token, user, authLoading, navigate]);
+        handleAccept();
+    }, [token, user, authLoading, navigate, contextAcceptInvite]);
 
     if (authLoading) return null;
 
