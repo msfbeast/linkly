@@ -646,72 +646,75 @@ const BioDashboard: React.FC = () => {
                                         </button>
                                         <button onClick={() => handleDelete(profile.id)} className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
                                             <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                    ))
-                    )}
                                 </div>
                             </div>
-
-            {/* Link Modal */ }
-            { showLinkModal && (
-                                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
-                                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scaleIn">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <h3 className="text-xl font-bold text-slate-900">Add New Link</h3>
-                                            <button onClick={() => setShowLinkModal(false)} className="text-stone-400 hover:text-slate-900">
-                                                <X className="w-5 h-5" />
-                                            </button>
-                                        </div>
-
-                                        <form
-                                            onSubmit={async (e) => {
-                                                e.preventDefault();
-                                                const formData = new FormData(e.currentTarget);
-                                                const url = formData.get('url') as string;
-                                                const title = formData.get('title') as string;
-
-                                                if (!url || !title) return;
-
-                                                try {
-                                                    const newLink = await supabaseAdapter.createLink({
-                                                        originalUrl: url,
-                                                        shortCode: Math.random().toString(36).substring(7),
-                                                        title,
-                                                        tags: [],
-                                                        createdAt: Date.now(),
-                                                        clicks: 0,
-                                                        clickHistory: [],
-                                                        type: 'link',
-                                                        layoutConfig: { w: 1, h: 1 },
-                                                        metadata: {}
-                                                    });
-                                                    setAvailableLinks([newLink, ...availableLinks]);
-                                                    toast.success("Link added successfully!");
-                                                    setShowLinkModal(false);
-                                                } catch (error) {
-                                                    console.error(error);
-                                                    toast.error("Failed to add link");
-                                                }
-                                            }}
-                                            className="space-y-4"
-                                        >
-                                            <div>
-                                                <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Title</label>
-                                                <input name="title" required placeholder="My Awesome Website" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-stone-500 uppercase mb-1">URL</label>
-                                                <input name="url" type="url" required placeholder="https://example.com" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
-                                            </div>
-                                            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
-                                                Add Link
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            )}
+                        ))
+                    )}
                 </div>
-                );
+
+                {/* Link Modal */}
+                {showLinkModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
+                        <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scaleIn">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900">Add New Link</h3>
+                                <button onClick={() => setShowLinkModal(false)} className="text-stone-400 hover:text-slate-900">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const formData = new FormData(e.currentTarget);
+                                    const url = formData.get('url') as string;
+                                    const title = formData.get('title') as string;
+
+                                    if (!url || !title) return;
+
+                                    try {
+                                        const newLink = await supabaseAdapter.createLink({
+                                            originalUrl: url,
+                                            shortCode: Math.random().toString(36).substring(7),
+                                            title,
+                                            tags: [],
+                                            createdAt: Date.now(),
+                                            clicks: 0,
+                                            clickHistory: [],
+                                            type: 'link',
+                                            layoutConfig: { w: 1, h: 1 },
+                                            metadata: {}
+                                        });
+                                        setAvailableLinks([newLink, ...availableLinks]);
+                                        toast.success("Link added successfully!");
+                                        setShowLinkModal(false);
+                                    } catch (error) {
+                                        console.error(error);
+                                        toast.error("Failed to add link");
+                                    }
+                                }}
+                                className="space-y-4"
+                            >
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Title</label>
+                                    <input name="title" required placeholder="My Awesome Website" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">URL</label>
+                                    <input name="url" type="url" required placeholder="https://example.com" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
+                                </div>
+                                <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
+                                    Add Link
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
-                export default BioDashboard;
+export default BioDashboard;
