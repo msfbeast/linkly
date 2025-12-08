@@ -6,7 +6,7 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile, GalleryItem, NewsletterSubscriber, AppRecommendation } from '../../types';
+import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile, GalleryItem, NewsletterSubscriber, AppRecommendation, TechVaultItem } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,6 +27,7 @@ const BUCKETS = {
   AVATARS: 'avatars',
   GALLERY: 'gallery-images',
   APP_ICONS: 'app-icons',
+  TECH_VAULT: 'tech-vault-images',
 };
 
 /**
@@ -2529,6 +2530,116 @@ export class SupabaseAdapter implements StorageAdapter {
     if (error) throw error;
   }
 
+  // ==========================================
+  // Tech Vault (Gear Showcase)
+  // ==========================================
+
+  async getTechVaultItems(userId: string): Promise<TechVaultItem[]> {
+    if (!isSupabaseConfigured() || !supabase) return [];
+    const { data, error } = await supabase
+      .from('tech_vault_items')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    return (data || []).map(rowToTechVaultItem);
+  }
+
+  async addTechVaultItem(userId: string, item: Omit<TechVaultItem, 'id' | 'userId' | 'createdAt' | 'sortOrder'>): Promise<TechVaultItem> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+
+    // Get max sort order
+    const { data: maxOrderData } = await supabase
+      .from('tech_vault_items')
+      .select('sort_order')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: false })
+      .limit(1);
+
+    const nextOrder = (maxOrderData?.[0]?.sort_order || 0) + 1;
+
+    const { data, error } = await supabase
+      .from('tech_vault_items')
+      .insert({
+        user_id: userId,
+        name: item.name,
+        brand: item.brand,
+        category: item.category,
+        image_url: item.imageUrl,
+        description: item.description,
+        affiliate_url: item.affiliateUrl,
+        sort_order: nextOrder
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return rowToTechVaultItem(data);
+  }
+
+  async deleteTechVaultItem(id: string): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    // Delete image if exists
+    const { data: item } = await supabase
+      .from('tech_vault_items')
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    if (item?.image_url && item.image_url.includes(BUCKETS.TECH_VAULT)) {
+      const urlParts = item.image_url.split(`/${BUCKETS.TECH_VAULT}/`);
+      if (urlParts.length > 1) {
+        await supabase.storage.from(BUCKETS.TECH_VAULT).remove([urlParts[1]]);
+      }
+    }
+
+    const { error } = await supabase
+      .from('tech_vault_items')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  async uploadTechVaultImage(file: File, userId: string): Promise<string> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+
+    const optimizedFile = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.85 });
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/item-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKETS.TECH_VAULT)
+      .upload(fileName, optimizedFile, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from(BUCKETS.TECH_VAULT)
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  }
+
+  async updateTechVaultOrder(items: TechVaultItem[]): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+    const updates = items.map((item, index) => ({
+      id: item.id,
+      user_id: item.userId,
+      sort_order: index,
+      name: item.name,
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error } = await supabase
+      .from('tech_vault_items')
+      .upsert(updates, { onConflict: 'id' });
+
+    if (error) throw error;
+  }
+
   static getInstance(): SupabaseAdapter {
     if (!SupabaseAdapter.instance) {
       SupabaseAdapter.instance = new SupabaseAdapter();
@@ -2585,6 +2696,21 @@ function rowToAppRecommendation(row: any): AppRecommendation {
     description: row.description,
     linkUrl: row.link_url,
     isPaid: row.is_paid,
+    sortOrder: row.sort_order,
+    createdAt: new Date(row.created_at).getTime()
+  };
+}
+
+function rowToTechVaultItem(row: any): TechVaultItem {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    brand: row.brand,
+    category: row.category,
+    imageUrl: row.image_url,
+    description: row.description,
+    affiliateUrl: row.affiliate_url,
     sortOrder: row.sort_order,
     createdAt: new Date(row.created_at).getTime()
   };

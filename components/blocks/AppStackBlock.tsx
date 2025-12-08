@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Smartphone, Download } from 'lucide-react';
-import { AppRecommendation } from '../../types';
+import { AppRecommendation, WidgetVariant } from '../../types';
 import { supabaseAdapter } from '../../services/storage/supabaseAdapter';
 
 interface AppStackBlockProps {
     userId?: string;
     items?: AppRecommendation[];
     title?: string;
+    variant?: WidgetVariant;
+    className?: string;
 }
 
 export const AppStackBlock: React.FC<AppStackBlockProps> = ({
     userId,
     items: propItems,
-    title = "What's On My Phone"
+    title = "What's On My Phone",
+    variant = 'default',
+    className = ''
 }) => {
     const [apps, setApps] = useState<AppRecommendation[]>([]);
     const [selectedApp, setSelectedApp] = useState<AppRecommendation | null>(null);
@@ -36,9 +40,48 @@ export const AppStackBlock: React.FC<AppStackBlockProps> = ({
 
     if (!apps || apps.length === 0) return null;
 
+    const getTitleStyles = () => {
+        switch (variant) {
+            case 'cyberpunk':
+                return 'text-cyan-400';
+            case 'glass':
+                return 'text-white';
+            default:
+                return 'text-slate-900';
+        }
+    };
+
+    const getCardStyles = () => {
+        switch (variant) {
+            case 'neubrutalism':
+                return 'bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+            case 'bauhaus':
+                return 'bg-white border-2 border-black';
+            case 'cyberpunk':
+                return 'bg-black/80 border border-cyan-500/50';
+            case 'glass':
+                return 'bg-white/10 border border-white/20 backdrop-blur';
+            case 'clay':
+                return 'bg-[#dce2e9] shadow-[3px_3px_6px_#b8bec4,-3px_-3px_6px_#ffffff]';
+            default:
+                return 'bg-white shadow-sm border border-stone-100';
+        }
+    };
+
+    const getTextStyles = () => {
+        switch (variant) {
+            case 'cyberpunk':
+                return 'text-cyan-400';
+            case 'glass':
+                return 'text-white';
+            default:
+                return 'text-stone-700';
+        }
+    };
+
     return (
-        <div className="w-full my-8">
-            <h3 className="text-center font-black text-xl mb-6 uppercase tracking-tight flex items-center justify-center gap-2">
+        <div className={`w-full my-8 ${className}`}>
+            <h3 className={`text-center font-black text-xl mb-6 uppercase tracking-tight flex items-center justify-center gap-2 ${getTitleStyles()}`}>
                 <Smartphone className="w-5 h-5" />
                 {title}
             </h3>
@@ -52,11 +95,11 @@ export const AppStackBlock: React.FC<AppStackBlockProps> = ({
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                     >
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[18px] bg-white shadow-sm border border-stone-100 overflow-hidden relative">
+                        <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-[18px] overflow-hidden relative ${getCardStyles()}`}>
                             {app.iconUrl ? (
                                 <img src={app.iconUrl} alt={app.name} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-stone-100 text-stone-400">
+                                <div className={`w-full h-full flex items-center justify-center ${variant === 'cyberpunk' ? 'bg-cyan-900 text-cyan-400' : 'bg-stone-100 text-stone-400'}`}>
                                     <Smartphone className="w-8 h-8" />
                                 </div>
                             )}
@@ -66,7 +109,7 @@ export const AppStackBlock: React.FC<AppStackBlockProps> = ({
                                 </div>
                             )}
                         </div>
-                        <span className="text-xs font-medium text-center leading-tight line-clamp-2 w-full px-1">
+                        <span className={`text-xs font-medium text-center leading-tight line-clamp-2 w-full px-1 ${getTextStyles()}`}>
                             {app.name}
                         </span>
                     </motion.button>

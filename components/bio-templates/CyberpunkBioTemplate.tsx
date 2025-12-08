@@ -3,6 +3,8 @@ import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Terminal, Cpu } from 'lucide-react';
 import { GalleryBlock } from '../blocks/GalleryBlock';
 import { BioWidget } from '../BioWidget';
+import { TechVaultBlock } from '../blocks/TechVaultBlock';
+import { AppStackBlock } from '../blocks/AppStackBlock';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -107,6 +109,16 @@ const CyberpunkBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) =>
                         </h3>
                         <GalleryBlock userId={profile.userId} />
                     </div>
+                )}
+
+                {/* Tech Vault - auto-hides when empty */}
+                {(profile.blockVisibility?.techVault !== false) && (
+                    <TechVaultBlock userId={profile.userId} variant="cyberpunk" />
+                )}
+
+                {/* App Stack - auto-hides when empty */}
+                {(profile.blockVisibility?.appStack !== false) && (
+                    <AppStackBlock userId={profile.userId} variant="cyberpunk" />
                 )}
 
                 {/* Footer */}

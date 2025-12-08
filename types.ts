@@ -215,6 +215,7 @@ export interface BioProfile {
     gallery?: boolean;
     newsletter?: boolean;
     appStack?: boolean;
+    techVault?: boolean;
   };
 }
 
@@ -413,6 +414,21 @@ export interface AppRecommendation {
   description?: string;
   linkUrl?: string;
   isPaid: boolean;
+  sortOrder: number;
+  createdAt: number;
+}
+
+export type TechVaultCategory = 'camera' | 'audio' | 'computer' | 'accessories' | 'other';
+
+export interface TechVaultItem {
+  id: string;
+  userId: string;
+  name: string;
+  brand?: string;
+  category?: TechVaultCategory;
+  imageUrl?: string;
+  description?: string;
+  affiliateUrl?: string;
   sortOrder: number;
   createdAt: number;
 }

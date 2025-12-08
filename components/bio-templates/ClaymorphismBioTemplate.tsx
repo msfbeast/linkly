@@ -2,6 +2,8 @@ import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Cloud } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
+import { TechVaultBlock } from '../blocks/TechVaultBlock';
+import { AppStackBlock } from '../blocks/AppStackBlock';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -70,6 +72,16 @@ const ClaymorphismBioTemplate: React.FC<BioTemplateProps> = ({ profile, links })
                         );
                     })}
                 </div>
+
+                {/* Tech Vault - auto-hides when empty */}
+                {(profile.blockVisibility?.techVault !== false) && (
+                    <TechVaultBlock userId={profile.userId} variant="clay" />
+                )}
+
+                {/* App Stack - auto-hides when empty */}
+                {(profile.blockVisibility?.appStack !== false) && (
+                    <AppStackBlock userId={profile.userId} variant="clay" />
+                )}
 
                 {/* Footer */}
                 <div className="mt-16 text-center">

@@ -2,6 +2,8 @@ import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Archive, FileText } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
+import { TechVaultBlock } from '../blocks/TechVaultBlock';
+import { AppStackBlock } from '../blocks/AppStackBlock';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -72,6 +74,17 @@ const ArchiveBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                         })}
                     </div>
                 </div>
+
+
+                {/* Tech Vault - auto-hides when empty */}
+                {(profile.blockVisibility?.techVault !== false) && (
+                    <TechVaultBlock userId={profile.userId} variant="archive" />
+                )}
+
+                {/* App Stack - auto-hides when empty */}
+                {(profile.blockVisibility?.appStack !== false) && (
+                    <AppStackBlock userId={profile.userId} variant="archive" />
+                )}
 
                 {/* Footer */}
                 <div className="mt-20 text-center border-t border-[#dcd9d2] pt-6">
