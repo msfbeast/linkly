@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save } from 'lucide-react';
 import UTMBuilderModal from './UTMBuilderModal';
-import { analyzeUrlWithGemini, GeminiAnalysisResult, generateSmartTitle } from '../services/geminiService';
+import { analyzeUrlWithGemini, GeminiAnalysisResult, generateLinkMetadata } from '../services/geminiService';
 import { LinkData, SmartRedirects, Folder, Domain } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { TagInput } from './TagInput';
@@ -510,6 +510,48 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                     </div>
                   </div>
 
+                  {/* Title and Description */}
+                  <div className="space-y-4 mb-8">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Title</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="My Awesome Link"
+                          className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium pr-10"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!url) return;
+                            setIsGeneratingTitle(true);
+                            const metadata = await generateLinkMetadata(url, title);
+                            setTitle(metadata.title);
+                            setDescription(metadata.description);
+                            setIsGeneratingTitle(false);
+                          }}
+                          disabled={!url || isGeneratingTitle}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Magic Wand: Generate Smart Title & Summary"
+                        >
+                          {isGeneratingTitle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Description</label>
+                      <textarea
+                        placeholder="Optional description for your link..."
+                        rows={2}
+                        className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all text-sm"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
                   {/* Tags and Folder */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div>
@@ -775,7 +817,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           baseUrl={url}
           onApply={(newUrl) => setUrl(newUrl)}
         />
-      </div>
+      </div >
     </div >
   );
 };

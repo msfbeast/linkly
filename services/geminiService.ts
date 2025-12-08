@@ -137,21 +137,74 @@ export interface ProductDetails {
   imageUrl: string;
 }
 
-export const generateSmartTitle = async (url: string, currentTitle?: string): Promise<string> => {
+export const generateLinkMetadata = async (url: string, currentTitle?: string): Promise<{ title: string, description: string }> => {
   try {
     const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-    if (!apiKey) return currentTitle || "New Link";
+    if (!apiKey) return { title: currentTitle || "New Link", description: "" };
 
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       You are an expert copywriter. 
-      Generate a single, catchy, high-CTR title (max 50 chars) for this URL: "${url}".
+      Analyze this URL: "${url}"
       ${currentTitle ? `Current title context: "${currentTitle}"` : ''}
       
+      Tasks:
+      1. Generate a catchy, high-CTR title (max 50 chars). No clickbait.
+      2. Generate a concise, engaging description (max 100 chars).
+      
+      Return JSON:
+      {
+        "title": "...",
+        "description": "..."
+      }
+    `;
+
+    const result = await ai.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING }
+          }
+        }
+      }
+    });
+
+    const text = result.text || "";
+    if (text) {
+      const parsed = JSON.parse(text);
+      return {
+        title: parsed.title || currentTitle || "New Link",
+        description: parsed.description || ""
+      };
+    }
+    return { title: currentTitle || "New Link", description: "" };
+
+  } catch (error) {
+    console.error("Smart Link Metadata generation failed:", error);
+    return { title: currentTitle || "New Link", description: "" };
+  }
+};
+
+export const generateBio = async (keywords: string, currentBio?: string): Promise<string> => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey) return currentBio || "";
+
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `
+      You are a personal branding expert.
+      Write a professional, engaging Instagram-style bio based on these keywords/context: "${keywords}".
+      
       Rules:
-      - No clickbait.
-      - informative but intriguing.
-      - Return ONLY the title text. No quotes.
+      - Max 150 characters.
+      - Use relevant emojis.
+      - Make it sound human and authentic.
+      - Return ONLY the bio text.
     `;
 
     const result = await ai.models.generateContent({
@@ -159,10 +212,10 @@ export const generateSmartTitle = async (url: string, currentTitle?: string): Pr
       contents: prompt,
     });
 
-    return result.text || currentTitle || "New Link";
+    return result.text ? result.text.trim() : (currentBio || "");
   } catch (error) {
-    console.error("Smart Title generation failed:", error);
-    return currentTitle || "New Link";
+    console.error("Bio generation failed:", error);
+    return currentBio || "";
   }
 };
 
@@ -170,6 +223,7 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
   // Placeholder or move to API
   return null;
 };
+
 
 export const generateBackgroundImage = async (prompt: string): Promise<string> => {
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;

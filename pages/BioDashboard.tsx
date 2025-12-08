@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
     Plus, Trash2, GripVertical, Save, X,
     Layout, Palette, Camera, Mail, Smartphone,
-    UserCircle2, ExternalLink, Edit, Search
+    UserCircle2, ExternalLink, Edit, Search, Sparkles, Wand2, Loader2
 } from 'lucide-react';
 import { BioProfile, LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { generateBio } from '../services/geminiService';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +40,7 @@ const BioDashboard: React.FC = () => {
     const [availableLinks, setAvailableLinks] = useState<LinkData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isGeneratingBio, setIsGeneratingBio] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -228,7 +230,24 @@ const BioDashboard: React.FC = () => {
                                 </div>
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Bio</label>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-xs font-bold text-stone-500 uppercase">Bio</label>
+                                            <button
+                                                onClick={async () => {
+                                                    const keywords = currentProfile.displayName || "Personal Brand";
+                                                    setIsGeneratingBio(true);
+                                                    const bio = await generateBio(keywords, currentProfile.bio);
+                                                    setCurrentProfile(prev => ({ ...prev, bio }));
+                                                    setIsGeneratingBio(false);
+                                                }}
+                                                disabled={isGeneratingBio}
+                                                className="text-xs text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                                                title="Generate with AI"
+                                            >
+                                                {isGeneratingBio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                                                AI Write
+                                            </button>
+                                        </div>
                                         <textarea
                                             value={currentProfile.bio}
                                             onChange={e => setCurrentProfile({ ...currentProfile, bio: e.target.value })}
