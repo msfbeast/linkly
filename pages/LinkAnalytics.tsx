@@ -9,6 +9,7 @@ import {
     BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import LiveWorldMap from '../components/LiveWorldMap';
+import { ClickHeatmap } from '../components/ClickHeatmap';
 
 const LinkAnalytics: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -613,6 +614,11 @@ const LinkAnalytics: React.FC = () => {
                             );
                         })}
                     </div>
+                </div>
+
+                {/* Activity Heatmap */}
+                <div className="lg:col-span-3 h-[400px]">
+                    <ClickHeatmap data={filteredClicks} />
                 </div>
 
                 {/* Tech Details & Locale */}

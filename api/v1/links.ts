@@ -40,15 +40,21 @@ export default async function handler(request: Request) {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const keyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Init Supabase
+        // Init Supabase with Service Role Key (Bypass RLS)
         const supabaseUrl = process.env.VITE_SUPABASE_URL;
-        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        if (!supabaseUrl || !supabaseKey) {
-            return new Response(JSON.stringify({ error: 'Server misconfiguration' }), { status: 500 });
+        if (!supabaseUrl || !supabaseServiceKey) {
+            console.error('Server misconfiguration: Missing Supabase URL or Service Key');
+            return new Response(JSON.stringify({ error: 'Server Internal Error' }), { status: 500 });
         }
 
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        });
 
         // Verify Key
         const { data: keyData, error: keyError } = await supabase

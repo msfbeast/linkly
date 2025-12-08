@@ -381,3 +381,28 @@ export async function getLinkStats(linkId: string, dateRange: DateRange) {
 
   return null;
 }
+/**
+ * Processes click events into a heatmap grid (7 days x 24 hours)
+ * 
+ * @param events - Array of click events
+ * @returns Array of 7 day objects, each containing 24 hour counts
+ */
+export function processHeatmapData(events: ClickEvent[]) {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  // Initialize grid: 7 days x 24 hours
+  const heatmapData = days.map(day => ({
+    day,
+    hours: Array(24).fill(0).map((_, i) => ({ hour: i, count: 0 }))
+  }));
+
+  events.forEach(event => {
+    const date = new Date(event.timestamp);
+    const dayIndex = date.getDay(); // 0 (Sun) - 6 (Sat)
+    const hour = date.getHours(); // 0 - 23
+
+    heatmapData[dayIndex].hours[hour].count++;
+  });
+
+  return heatmapData;
+}
