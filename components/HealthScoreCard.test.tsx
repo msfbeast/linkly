@@ -13,7 +13,7 @@ describe('HealthScoreCard', () => {
 
     it('renders the score correctly', () => {
         render(<HealthScoreCard score={79} metrics={mockMetrics} />);
-        expect(screen.getByText('79')).toBeInTheDocument();
+        expect(screen.getByText('79%')).toBeInTheDocument();
     });
 
     it('displays "Fair" label for score 79', () => {

@@ -94,10 +94,10 @@ describe('Data Isolation Property Tests', () => {
           mockOrder.mockReset();
           mockFrom.mockReset();
           mockEq.mockReset();
-          
+
           // Generate links owned by this user
           const userLinks = await fc.sample(linkRowArb(userId), numLinks);
-          
+
           // Setup: Mock authenticated session
           mockGetSession.mockResolvedValue({
             data: {
@@ -107,42 +107,49 @@ describe('Data Isolation Property Tests', () => {
               },
             },
           });
-          
-          // Setup: Mock database query returning only user's links (RLS behavior)
-          mockOrder.mockResolvedValue({
-            data: userLinks,
-            error: null,
-          });
+
+          // Setup: Mock chainable query builder
+          // The chain is: from -> select -> order -> eq -> is -> await
+
+          const mockIs = vi.fn().mockResolvedValue({ data: userLinks, error: null });
+
+          mockEq.mockReturnValue({ is: mockIs });
+          mockOrder.mockReturnValue({ eq: mockEq });
           mockSelect.mockReturnValue({ order: mockOrder });
-          
-          // For click events query (empty for simplicity)
-          mockEq.mockResolvedValue({ data: [], error: null });
-          
+
+          // If we had teamId, it stops at eq, so eq also needs to be usable? 
+          // For now, let's simplisticly assume the personal workspace path which uses .is()
+
           mockFrom.mockImplementation((table: string) => {
             if (table === 'links') {
               return { select: mockSelect };
             }
-            // click_events table
+            // click_events table (used in getLinks -> clickEventsByLinkId)
+            // select -> in -> order -> range
             return {
               select: () => ({
-                eq: () => ({
-                  order: mockEq,
+                in: () => ({
+                  order: () => ({
+                    range: vi.fn().mockResolvedValue({ data: [], error: null }),
+                  }),
                 }),
+                // Fallback for previous simple tests if any
+                eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) })
               }),
             };
           });
-          
+
           // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
           const adapter = new SupabaseAdapter();
-          
+
           // Query links
           const links = await adapter.getLinks();
-          
+
           // Verify all returned links belong to the authenticated user
           // This validates that RLS is working correctly - no other user's links are returned
           expect(links.length).toBe(numLinks);
-          
+
           // In a real scenario with RLS, the database would filter out other users' links
           // This test verifies the adapter correctly processes the filtered results
         }
@@ -166,14 +173,14 @@ describe('Data Isolation Property Tests', () => {
         async (currentUserId, otherUserId, linkId) => {
           // Skip if users are the same
           if (currentUserId === otherUserId) return;
-          
+
           // Reset mocks for each iteration
           mockGetSession.mockReset();
           mockSelect.mockReset();
           mockEq.mockReset();
           mockSingle.mockReset();
           mockFrom.mockReset();
-          
+
           // Setup: Mock authenticated session
           mockGetSession.mockResolvedValue({
             data: {
@@ -183,7 +190,7 @@ describe('Data Isolation Property Tests', () => {
               },
             },
           });
-          
+
           // Setup: Mock database query returning not found (RLS blocks access)
           // When RLS is enabled, accessing another user's link returns PGRST116 (not found)
           mockSingle.mockResolvedValue({
@@ -193,14 +200,14 @@ describe('Data Isolation Property Tests', () => {
           mockEq.mockReturnValue({ single: mockSingle });
           mockSelect.mockReturnValue({ eq: mockEq });
           mockFrom.mockReturnValue({ select: mockSelect });
-          
+
           // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
           const adapter = new SupabaseAdapter();
-          
+
           // Try to access the link
           const link = await adapter.getLink(linkId);
-          
+
           // Verify the link is not accessible (RLS blocks it)
           expect(link).toBeNull();
         }
@@ -224,10 +231,10 @@ describe('Data Isolation Property Tests', () => {
           mockEq.mockReset();
           mockSingle.mockReset();
           mockFrom.mockReset();
-          
+
           // Generate a link owned by this user
           const [userLink] = await fc.sample(linkRowArb(userId), 1);
-          
+
           // Setup: Mock authenticated session
           mockGetSession.mockResolvedValue({
             data: {
@@ -237,7 +244,7 @@ describe('Data Isolation Property Tests', () => {
               },
             },
           });
-          
+
           // Setup: Mock database query returning the user's link
           mockSingle.mockResolvedValue({
             data: userLink,
@@ -245,10 +252,10 @@ describe('Data Isolation Property Tests', () => {
           });
           mockEq.mockReturnValue({ single: mockSingle });
           mockSelect.mockReturnValue({ eq: mockEq });
-          
+
           // For click events query
           const mockClickOrder = vi.fn().mockResolvedValue({ data: [], error: null });
-          
+
           mockFrom.mockImplementation((table: string) => {
             if (table === 'links') {
               return { select: mockSelect };
@@ -257,19 +264,26 @@ describe('Data Isolation Property Tests', () => {
             return {
               select: () => ({
                 eq: () => ({
-                  order: mockClickOrder,
+                  order: () => ({
+                    range: mockClickOrder, // Add range to support getLink's click event fetch
+                  }),
                 }),
+                in: () => ({
+                  order: () => ({
+                    range: mockClickOrder
+                  })
+                })
               }),
             };
           });
-          
+
           // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
           const adapter = new SupabaseAdapter();
-          
+
           // Access the link
           const link = await adapter.getLink(userLink.id);
-          
+
           // Verify the link is accessible
           expect(link).not.toBeNull();
           expect(link!.id).toBe(userLink.id);

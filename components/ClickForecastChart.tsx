@@ -33,7 +33,11 @@ const ClickForecastChart: React.FC<ClickForecastChartProps> = ({ data }) => {
   const forecastFill = 'url(#colorForecast)';
 
   return (
-    <div className="w-full h-full min-h-[200px]">
+    <div className="w-full h-full min-h-[200px]" data-testid="click-forecast-chart">
+      <div className="mb-4">
+        <h3 className="font-black text-2xl text-[#1F2937]" data-testid="chart-title">Click Forecast</h3>
+        <p className="text-sm text-[#1F2937]/70 font-medium" data-testid="chart-subtitle">Projected engagement via analytics</p>
+      </div>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>

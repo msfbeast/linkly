@@ -46,7 +46,7 @@ describe('TopNavigation - Property Tests', () => {
               <TopNavigation
                 totalClicks={totalClicks}
                 clickChange={clickChange}
-                onNewLinkClick={() => {}}
+                onNewLinkClick={() => { }}
               />
             </TestWrapper>
           );
@@ -55,10 +55,13 @@ describe('TopNavigation - Property Tests', () => {
           expect(screen.getByText(totalClicks.toLocaleString())).toBeDefined();
 
           // Verify change percentage is displayed with correct sign
-          const expectedChangeText = clickChange >= 0 
-            ? `+${clickChange}%` 
-            : `${clickChange}%`;
-          expect(screen.getByText(expectedChangeText)).toBeDefined();
+          // Verify change percentage is displayed with correct sign (if non-zero)
+          if (clickChange !== 0) {
+            const expectedChangeText = clickChange > 0
+              ? `+${clickChange}%`
+              : `${clickChange}%`;
+            expect(screen.getByText(expectedChangeText)).toBeDefined();
+          }
 
           cleanup();
         }

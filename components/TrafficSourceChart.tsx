@@ -35,7 +35,10 @@ const TrafficSourceChart: React.FC<TrafficSourceChartProps> = ({ data, total }) 
   const activeItem = activeIndex !== null ? data[activeIndex] : null;
 
   return (
-    <div className="w-full h-full p-6 bg-[#FDE047] rounded-[20px] font-sans flex flex-col shadow-xl">
+    <div
+      className="w-full h-full p-6 bg-[#FDE047] rounded-[20px] font-sans flex flex-col shadow-xl"
+      data-testid="traffic-source-chart"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="w-[35px] h-[35px] text-[#1F2937]">
@@ -46,7 +49,10 @@ const TrafficSourceChart: React.FC<TrafficSourceChartProps> = ({ data, total }) 
         </button>
       </div>
 
-      <h3 className="font-black text-2xl text-[#1F2937] mb-4">Traffic Sources</h3>
+      <div className="mb-4">
+        <h3 className="font-black text-2xl text-[#1F2937]" data-testid="chart-title">Traffic Sources</h3>
+        <p className="text-sm text-[#1F2937]/70 font-medium" data-testid="chart-subtitle">Where your clicks come from</p>
+      </div>
 
       <div className="flex-1 relative min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
@@ -96,7 +102,10 @@ const TrafficSourceChart: React.FC<TrafficSourceChartProps> = ({ data, total }) 
               <div className="text-[10px] text-[#1F2937]/70 font-bold uppercase tracking-wider mb-0.5">
                 Total
               </div>
-              <div className="text-2xl font-black text-[#1F2937] leading-none">
+              <div
+                className="text-2xl font-black text-[#1F2937] leading-none"
+                data-testid="total-display"
+              >
                 {total ? total.toLocaleString() : '0'}
               </div>
             </>

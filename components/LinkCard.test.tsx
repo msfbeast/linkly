@@ -5,19 +5,20 @@ import LinkCard from './LinkCard';
 import { LinkData } from '../types';
 
 // Mock dependencies
-vi.mock('@dnd-kit/core', () => ({
-    useDraggable: () => ({
+vi.mock('@dnd-kit/sortable', () => ({
+    useSortable: () => ({
         attributes: {},
         listeners: {},
         setNodeRef: vi.fn(),
         transform: null,
+        transition: null,
         isDragging: false,
     }),
 }));
 
 vi.mock('@dnd-kit/utilities', () => ({
     CSS: {
-        Translate: {
+        Transform: {
             toString: () => '',
         },
     },
@@ -30,9 +31,9 @@ const mockLink: LinkData = {
     shortCode: 'test',
     clicks: 0,
     createdAt: Date.now(),
-    userId: 'user1',
     folderId: null,
     tags: [],
+    clickHistory: [],
 };
 
 const renderLinkCard = (link: LinkData) => {

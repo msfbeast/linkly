@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import * as fc from 'fast-check';
 import TrafficSourceChart, {
-  TrafficSourceDataPoint,
   calculateTrafficTotal,
 } from './TrafficSourceChart';
+import { TrafficSourceDataPoint } from '../types';
 import { ThemeProvider } from '../contexts/ThemeContext';
 
 // Helper to render with ThemeProvider
@@ -90,7 +90,7 @@ describe('TrafficSourceChart - Property Tests', () => {
         // Verify title is displayed
         const title = screen.getByTestId('chart-title');
         expect(title).toBeInTheDocument();
-        expect(title.textContent).toBe('Traffic Source');
+        expect(title.textContent).toBe('Traffic Sources');
 
         // Verify subtitle is displayed
         const subtitle = screen.getByTestId('chart-subtitle');

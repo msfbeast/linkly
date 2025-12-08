@@ -35,7 +35,12 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({ score }) => {
             {/* Footer / Progress */}
             <div>
                 <div className="mt-8 flex justify-between items-end mb-2">
-                    <span className="font-medium text-sm text-[#1F2937]">Current Score</span>
+                    <span className="font-medium text-sm text-[#1F2937]">
+                        Current Score
+                        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full ${score >= 80 ? 'bg-emerald-100 text-emerald-700' : score >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                            {score >= 80 ? 'Good' : score >= 50 ? 'Fair' : 'Poor'}
+                        </span>
+                    </span>
                     <span className="font-black text-xl text-[#1F2937]">{score}%</span>
                 </div>
 

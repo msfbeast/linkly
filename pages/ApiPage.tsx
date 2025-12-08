@@ -3,20 +3,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Key, Plus, Trash2, Copy, Check, Terminal, Shield, Book, Code, Globe, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { ApiKey } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const ApiPage: React.FC = () => {
+    const { user, loading: authLoading } = useAuth();
     const [keys, setKeys] = useState<ApiKey[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // Internal loading for keys
     const [creating, setCreating] = useState(false);
     const [newKey, setNewKey] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState<'keys' | 'docs'>('keys');
 
     useEffect(() => {
-        loadKeys();
-    }, []);
+        if (authLoading) return;
+
+        if (user) {
+            loadKeys();
+        } else {
+            setLoading(false);
+            setKeys([]);
+        }
+    }, [user, authLoading]);
 
     const loadKeys = async () => {
+        setLoading(true);
         try {
             const apiKeys = await supabaseAdapter.getApiKeys();
             setKeys(apiKeys);
