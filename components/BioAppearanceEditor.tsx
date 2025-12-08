@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BioProfile, BioThemeConfig } from '../types';
-import { Palette, Type, Layout, Image as ImageIcon, Check } from 'lucide-react';
+import { Palette, Type, Layout, Image as ImageIcon, Check, Sparkles, Loader2, Wand2 } from 'lucide-react';
+import { generateBackgroundImage } from '../services/geminiService';
 
 interface BioAppearanceEditorProps {
     profile: BioProfile;
@@ -47,6 +48,26 @@ const GRADIENTS = [
 const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onChange }) => {
     const [isEnabled, setIsEnabled] = useState(!!profile.customTheme);
     const [theme, setTheme] = useState<BioThemeConfig>(profile.customTheme || DEFAULT_THEME);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [showAiPrompt, setShowAiPrompt] = useState(false);
+    const [aiPrompt, setAiPrompt] = useState('');
+
+    const handleGenerateBackground = async () => {
+        if (!aiPrompt.trim()) return;
+        setIsGenerating(true);
+        try {
+            const url = await generateBackgroundImage(aiPrompt);
+            updateTheme('backgroundType', 'image');
+            updateTheme('backgroundValue', url);
+            setShowAiPrompt(false);
+            setAiPrompt('');
+        } catch (error) {
+            console.error(error);
+            alert("Failed to generate background. Please try again.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     useEffect(() => {
         if (isEnabled) {
@@ -172,6 +193,45 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                     className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 text-sm"
                                 />
                                 <p className="text-xs text-stone-400 mt-2">Use Unsplash or direct image links.</p>
+
+                                <div className="mt-4">
+                                    {!showAiPrompt ? (
+                                        <button
+                                            onClick={() => setShowAiPrompt(true)}
+                                            className="flex items-center gap-2 text-sm font-bold text-amber-600 hover:text-amber-700 bg-amber-50 px-4 py-2 rounded-xl transition-colors w-full justify-center border border-amber-100"
+                                        >
+                                            <Wand2 className="w-4 h-4" />
+                                            Generate with AI (Nano Banana)
+                                        </button>
+                                    ) : (
+                                        <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl animate-fadeIn">
+                                            <label className="text-xs font-bold uppercase text-amber-900 mb-2 block">AI Prompt</label>
+                                            <textarea
+                                                value={aiPrompt}
+                                                onChange={(e) => setAiPrompt(e.target.value)}
+                                                placeholder="E.g., Cyberpunk city, neon lights, dark mode..."
+                                                className="w-full bg-white border border-amber-200 text-slate-900 p-3 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                                                rows={2}
+                                            />
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={handleGenerateBackground}
+                                                    disabled={isGenerating || !aiPrompt.trim()}
+                                                    className="flex-1 bg-amber-500 text-black font-bold py-2 rounded-lg text-sm hover:bg-amber-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                                >
+                                                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                                    {isGenerating ? 'Generating...' : 'Generate'}
+                                                </button>
+                                                <button
+                                                    onClick={() => setShowAiPrompt(false)}
+                                                    className="px-3 py-2 text-stone-500 hover:text-stone-700 font-medium text-sm"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

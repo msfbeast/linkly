@@ -11,6 +11,7 @@ export interface GeminiAnalysisResult {
 // Client-side fallback for local development
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './storage/supabaseClient';
+import { supabaseAdapter } from './storage/supabaseAdapter';
 
 export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisResult> => {
   try {
@@ -168,4 +169,48 @@ export const generateSmartTitle = async (url: string, currentTitle?: string): Pr
 export const extractProductDetails = async (url: string): Promise<ProductDetails | null> => {
   // Placeholder or move to API
   return null;
+};
+
+export const generateBackgroundImage = async (prompt: string): Promise<string> => {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey) throw new Error("Missing API Key");
+
+  // 1. Generate Image with Imagen 3
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      instances: [{ prompt }],
+      parameters: { sampleCount: 1 }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Imagen API failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const base64Image = data.predictions?.[0]?.bytesBase64Encoded;
+
+  if (!base64Image) {
+    throw new Error("No image generated");
+  }
+
+  // 2. Convert to File
+  const byteString = atob(base64Image);
+  const arrayBuffer = new ArrayBuffer(byteString.length);
+  const int8Array = new Uint8Array(arrayBuffer);
+  for (let i = 0; i < byteString.length; i++) {
+    int8Array[i] = byteString.charCodeAt(i);
+  }
+  const blob = new Blob([int8Array], { type: 'image/jpeg' });
+  const file = new File([blob], "ai-background.jpg", { type: 'image/jpeg' });
+
+  // 3. Upload to Supabase
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) throw new Error("User not authenticated");
+
+  return await supabaseAdapter.uploadGalleryImage(file, session.user.id);
 };
