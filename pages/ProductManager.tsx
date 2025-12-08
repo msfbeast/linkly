@@ -85,6 +85,11 @@ const ProductManager: React.FC = () => {
         setIsImporting(true);
         try {
             const details = await extractProductDetails(importUrl);
+            if (!details) {
+                toast.error('Could not extract details automatically');
+                return;
+            }
+
             setCurrentProduct(prev => ({
                 ...prev,
                 name: details.name,

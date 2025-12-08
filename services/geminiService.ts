@@ -274,8 +274,60 @@ export const chatWithProfile = async (context: ProfileContext, query: string, hi
 };
 
 export const extractProductDetails = async (url: string): Promise<ProductDetails | null> => {
-  // Placeholder or move to API
-  return null;
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey) return null;
+
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `
+      You are an e-commerce expert.
+      Analyze this URL to extract product details: "${url}"
+      
+      Infer details from the URL components if page access is restricted.
+      
+      Return JSON with:
+      - name: Product Name (max 60 chars)
+      - description: Short description (max 150 chars)
+      - price: Estimated status number (e.g. 19.99)
+      - currency: ISO 4217 code (default USD)
+      - imageUrl: A plausible image URL (or leave empty)
+    `;
+
+    const result = await ai.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            description: { type: Type.STRING },
+            price: { type: Type.NUMBER },
+            currency: { type: Type.STRING },
+            imageUrl: { type: Type.STRING }
+          }
+        }
+      }
+    });
+
+    const text = result.text || "";
+    if (text) {
+      const parsed = JSON.parse(text);
+      return {
+        name: parsed.name || "New Product",
+        description: parsed.description || "",
+        price: parsed.price || 0,
+        currency: parsed.currency || "USD",
+        imageUrl: parsed.imageUrl || ""
+      };
+    }
+    return null;
+
+  } catch (error) {
+    console.error("Product extraction failed:", error);
+    return null;
+  }
 };
 
 
