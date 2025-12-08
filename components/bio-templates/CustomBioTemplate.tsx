@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData, BioThemeConfig } from '../../types';
 import { ExternalLink, Star } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -99,25 +100,39 @@ const CustomBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
 
                 {/* Links */}
                 <div className="flex-1 space-y-4">
-                    {links.map((link) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={getButtonClasses()}
-                            style={{
-                                backgroundColor: theme.buttonStyle === 'outline' ? 'transparent' : theme.buttonColor,
-                                color: theme.buttonTextColor,
-                                borderColor: theme.buttonStyle === 'outline' ? theme.buttonColor : 'black'
-                            }}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="font-bold text-lg">{link.title}</span>
-                                <ExternalLink className="w-4 h-4 opacity-70" />
-                            </div>
-                        </a>
-                    ))}
+                    <div className="grid grid-cols-2 gap-4 auto-rows-min">
+                        {links.map((link) => {
+                            const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
+
+                            if (link.type !== 'link') {
+                                return (
+                                    <div key={link.id} className={`${style} overflow-hidden rounded-xl`}>
+                                        <BioWidget link={link} />
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <a
+                                    key={link.id}
+                                    href={`/r/${link.shortCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`${getButtonClasses()} ${style}`}
+                                    style={{
+                                        backgroundColor: theme.buttonStyle === 'outline' ? 'transparent' : theme.buttonColor,
+                                        color: theme.buttonTextColor,
+                                        borderColor: theme.buttonStyle === 'outline' ? theme.buttonColor : 'black'
+                                    }}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-bold text-lg">{link.title}</span>
+                                        <ExternalLink className="w-4 h-4 opacity-70" />
+                                    </div>
+                                </a>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Footer */}

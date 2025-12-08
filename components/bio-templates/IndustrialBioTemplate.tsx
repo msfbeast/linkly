@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, CornerDownRight, Hexagon } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -60,29 +61,41 @@ const IndustrialBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) =
                 </div>
 
                 {/* Links */}
-                <div className="flex-1 space-y-3">
-                    {links.map((link, i) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block bg-[#222] border border-[#333] p-4 hover:border-[#ff6b00] hover:bg-[#2a2a2a] transition-all group relative"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-[#444] text-xs font-bold">0{i + 1}</span>
-                                    <span className="font-bold text-sm uppercase tracking-wide group-hover:text-white transition-colors">
-                                        {link.title}
-                                    </span>
-                                </div>
-                                <ExternalLink className="w-4 h-4 text-[#444] group-hover:text-[#ff6b00] transition-colors" />
-                            </div>
+                <div className="flex-1 grid grid-cols-2 gap-3 auto-rows-min">
+                    {links.map((link, i) => {
+                        const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
 
-                            {/* Progress Bar Effect */}
-                            <div className="absolute bottom-0 left-0 h-[2px] bg-[#ff6b00] w-0 group-hover:w-full transition-all duration-300"></div>
-                        </a>
-                    ))}
+                        if (link.type !== 'link') {
+                            return (
+                                <div key={link.id} className={`${style} bg-[#222] border border-[#333] overflow-hidden`}>
+                                    <BioWidget link={link} />
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <a
+                                key={link.id}
+                                href={`/r/${link.shortCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${style} block bg-[#222] border border-[#333] p-4 hover:border-[#ff6b00] hover:bg-[#2a2a2a] transition-all group relative`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[#444] text-xs font-bold">0{i + 1}</span>
+                                        <span className="font-bold text-sm uppercase tracking-wide group-hover:text-white transition-colors">
+                                            {link.title}
+                                        </span>
+                                    </div>
+                                    <ExternalLink className="w-4 h-4 text-[#444] group-hover:text-[#ff6b00] transition-colors" />
+                                </div>
+
+                                {/* Progress Bar Effect */}
+                                <div className="absolute bottom-0 left-0 h-[2px] bg-[#ff6b00] w-0 group-hover:w-full transition-all duration-300"></div>
+                            </a>
+                        );
+                    })}
                 </div>
 
                 {/* Footer */}

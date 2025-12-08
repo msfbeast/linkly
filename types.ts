@@ -32,6 +32,21 @@ export interface ClickEvent {
   deviceModel?: string;    // Specific device model (e.g. iPhone 15)
 }
 
+export type WidgetVariant =
+  | 'default'
+  | 'glass'
+  | 'neubrutalism'
+  | 'retro'
+  | 'clay'
+  | 'cyberpunk'
+  | 'lofi'
+  | 'bauhaus'
+  | 'industrial'
+  | 'archive'
+  | 'lab'
+  | 'custom';
+
+
 export interface SmartRedirects {
   ios?: string;
   android?: string;

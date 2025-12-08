@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Music, Coffee } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -43,23 +44,35 @@ const LofiBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 </div>
 
                 {/* Links */}
-                <div className="flex-1 space-y-4">
-                    {links.map((link) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block bg-white/60 backdrop-blur-md border border-white/60 p-5 rounded-2xl shadow-sm hover:shadow-md hover:bg-white/80 hover:scale-[1.02] transition-all duration-300 group"
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="font-medium text-[#4a4e69] group-hover:text-[#22223b] transition-colors">
-                                    {link.title}
-                                </span>
-                                <ExternalLink className="w-4 h-4 text-[#9a8c98] group-hover:text-[#4a4e69]" />
-                            </div>
-                        </a>
-                    ))}
+                <div className="flex-1 grid grid-cols-2 gap-4 auto-rows-min">
+                    {links.map((link) => {
+                        const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
+
+                        if (link.type !== 'link') {
+                            return (
+                                <div key={link.id} className={`${style} bg-white/60 backdrop-blur-md border border-white/60 rounded-2xl shadow-sm overflow-hidden`}>
+                                    <BioWidget link={link} />
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <a
+                                key={link.id}
+                                href={`/r/${link.shortCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${style} block bg-white/60 backdrop-blur-md border border-white/60 p-5 rounded-2xl shadow-sm hover:shadow-md hover:bg-white/80 hover:scale-[1.02] transition-all duration-300 group`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium text-[#4a4e69] group-hover:text-[#22223b] transition-colors">
+                                        {link.title}
+                                    </span>
+                                    <ExternalLink className="w-4 h-4 text-[#9a8c98] group-hover:text-[#4a4e69]" />
+                                </div>
+                            </a>
+                        );
+                    })}
                 </div>
 
                 {/* Footer */}

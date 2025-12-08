@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Triangle, Circle, Square } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -53,24 +54,34 @@ const BauhausBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 )}
 
                 {/* Links */}
-                <div className="flex-1 p-8 space-y-0">
-                    {links.map((link, i) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block p-6 border-b-2 border-[#1a1a1a] hover:bg-[#2a5ad1] hover:text-white transition-all group relative overflow-hidden"
-                        >
-                            <div className="flex items-center justify-between relative z-10">
-                                <div className="flex items-center gap-4">
-                                    <span className="font-black text-xl">{i + 1}.</span>
-                                    <span className="font-bold text-lg uppercase tracking-tight">{link.title}</span>
+                <div className="flex-1 p-8 grid grid-cols-2 gap-0 auto-rows-min">
+                    {links.map((link, i) => {
+                        const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
+
+                        if (link.originalUrl?.startsWith('widget://') || link.type !== 'link') {
+                            return (
+                                <BioWidget key={link.id} link={link} variant="bauhaus" />
+                            );
+                        }
+
+                        return (
+                            <a
+                                key={link.id}
+                                href={`/r/${link.shortCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${style} block p-6 border-b-2 border-[#1a1a1a] hover:bg-[#2a5ad1] hover:text-white transition-all group relative overflow-hidden`}
+                            >
+                                <div className="flex items-center justify-between relative z-10">
+                                    <div className="flex items-center gap-4">
+                                        <span className="font-black text-xl">{i + 1}.</span>
+                                        <span className="font-bold text-lg uppercase tracking-tight">{link.title}</span>
+                                    </div>
+                                    <ArrowRightIcon className="w-6 h-6 transform group-hover:translate-x-2 transition-transform" />
                                 </div>
-                                <ArrowRightIcon className="w-6 h-6 transform group-hover:translate-x-2 transition-transform" />
-                            </div>
-                        </a>
-                    ))}
+                            </a>
+                        );
+                    })}
                 </div>
 
                 {/* Footer */}

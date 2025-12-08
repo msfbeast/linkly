@@ -2,6 +2,7 @@ import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Terminal, Cpu } from 'lucide-react';
 import { GalleryBlock } from '../blocks/GalleryBlock';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -59,27 +60,37 @@ const CyberpunkBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) =>
                 </div>
 
                 {/* Links */}
-                <div className="flex-1 space-y-4">
-                    {links.map((link, i) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block bg-black border border-[#00ff41] p-4 hover:bg-[#00ff41] hover:text-black transition-all group relative overflow-hidden"
-                        >
-                            <div className="flex items-center justify-between relative z-10">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] opacity-60 mb-1 group-hover:text-black/60">LINK_0{i + 1}</span>
-                                    <span className="font-bold uppercase tracking-wide">{link.title}</span>
-                                </div>
-                                <ExternalLink className="w-4 h-4" />
-                            </div>
+                <div className="flex-1 grid grid-cols-2 gap-4 auto-rows-min">
+                    {links.map((link, i) => {
+                        const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
 
-                            {/* Scanline on Hover */}
-                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0"></div>
-                        </a>
-                    ))}
+                        if (link.originalUrl?.startsWith('widget://') || link.type !== 'link') {
+                            return (
+                                <BioWidget key={link.id} link={link} variant="cyberpunk" />
+                            );
+                        }
+
+                        return (
+                            <a
+                                key={link.id}
+                                href={`/r/${link.shortCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${style} block bg-black border border-[#00ff41] p-4 hover:bg-[#00ff41] hover:text-black transition-all group relative overflow-hidden`}
+                            >
+                                <div className="flex items-center justify-between relative z-10">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] opacity-60 mb-1 group-hover:text-black/60">LINK_0{i + 1}</span>
+                                        <span className="font-bold uppercase tracking-wide">{link.title}</span>
+                                    </div>
+                                    <ExternalLink className="w-4 h-4" />
+                                </div>
+
+                                {/* Scanline on Hover */}
+                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0"></div>
+                            </a>
+                        );
+                    })}
                 </div>
 
                 {/* Tech Vault (Gallery) */}

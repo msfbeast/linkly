@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Archive, FileText } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -41,23 +42,35 @@ const ArchiveBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
 
                 {/* Links */}
                 <div className="flex-1 space-y-6">
-                    {links.map((link, i) => (
-                        <div key={link.id} className="group">
-                            <a
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-baseline justify-between hover:text-[#8b4513] transition-colors"
-                            >
-                                <span className="text-lg font-bold border-b border-[#ccc] group-hover:border-[#8b4513] pb-1 transition-all">
-                                    {link.title}
-                                </span>
-                                <span className="text-xs text-[#999] group-hover:text-[#8b4513] transition-colors">
-                                    Ref. {i + 1}
-                                </span>
-                            </a>
-                        </div>
-                    ))}
+                    <div className="grid grid-cols-2 gap-6 auto-rows-min">
+                        {links.map((link, i) => {
+                            const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
+
+                            if (link.originalUrl?.startsWith('widget://') || link.type !== 'link') {
+                                return (
+                                    <BioWidget key={link.id} link={link} variant="archive" />
+                                );
+                            }
+
+                            return (
+                                <div key={link.id} className={`${style} group`}>
+                                    <a
+                                        href={`/r/${link.shortCode}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-baseline justify-between hover:text-[#8b4513] transition-colors"
+                                    >
+                                        <span className="text-lg font-bold border-b border-[#ccc] group-hover:border-[#8b4513] pb-1 transition-all">
+                                            {link.title}
+                                        </span>
+                                        <span className="text-xs text-[#999] group-hover:text-[#8b4513] transition-colors">
+                                            Ref. {i + 1}
+                                        </span>
+                                    </a>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Footer */}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, ArrowUpRight } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -48,26 +49,38 @@ const GlassBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 </div>
 
                 {/* Links */}
-                <div className="flex-1 space-y-4">
-                    {links.map((link) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group block relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-500 backdrop-blur-md"
-                        >
-                            <div className="relative z-10 p-5 flex items-center justify-between">
-                                <span className="font-medium tracking-wide group-hover:translate-x-1 transition-transform duration-300">
-                                    {link.title}
-                                </span>
-                                <ArrowUpRight className="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-all duration-300" />
-                            </div>
+                <div className="flex-1 grid grid-cols-2 gap-4 auto-rows-min">
+                    {links.map((link) => {
+                        const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
 
-                            {/* Shimmer Effect */}
-                            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none"></div>
-                        </a>
-                    ))}
+                        if (link.type !== 'link') {
+                            return (
+                                <div key={link.id} className={`${style} rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md overflow-hidden`}>
+                                    <BioWidget link={link} />
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <a
+                                key={link.id}
+                                href={`/r/${link.shortCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${style} group block relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-500 backdrop-blur-md`}
+                            >
+                                <div className="relative z-10 p-5 flex items-center justify-between">
+                                    <span className="font-medium tracking-wide group-hover:translate-x-1 transition-transform duration-300">
+                                        {link.title}
+                                    </span>
+                                    <ArrowUpRight className="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-all duration-300" />
+                                </div>
+
+                                {/* Shimmer Effect */}
+                                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none"></div>
+                            </a>
+                        );
+                    })}
                 </div>
 
                 {/* Footer */}

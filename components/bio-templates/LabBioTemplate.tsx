@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, FlaskConical, Microscope } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -50,23 +51,37 @@ const LabBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 {/* Links */}
                 <div className="flex-1 space-y-3">
                     <div className="text-xs font-bold text-[#0066ff] mb-2 uppercase tracking-wider pl-1">Access_Points</div>
-                    {links.map((link, i) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-4 p-3 border border-[#e5e5e5] hover:border-[#0066ff] hover:bg-[#f0f8ff] transition-colors group"
-                        >
-                            <span className="text-xs font-bold text-[#999] group-hover:text-[#0066ff] w-6">
-                                {(i + 1).toString().padStart(2, '0')}
-                            </span>
-                            <span className="flex-1 text-sm font-bold truncate">
-                                {link.title}
-                            </span>
-                            <ExternalLink className="w-3 h-3 text-[#999] group-hover:text-[#0066ff]" />
-                        </a>
-                    ))}
+                    <div className="grid grid-cols-2 gap-3 auto-rows-min">
+                        {links.map((link, i) => {
+                            const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
+
+                            if (link.type !== 'link') {
+                                return (
+                                    <div key={link.id} className={`${style} border border-[#e5e5e5] overflow-hidden`}>
+                                        <BioWidget link={link} />
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <a
+                                    key={link.id}
+                                    href={`/r/${link.shortCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`${style} flex items-center gap-4 p-3 border border-[#e5e5e5] hover:border-[#0066ff] hover:bg-[#f0f8ff] transition-colors group`}
+                                >
+                                    <span className="text-xs font-bold text-[#999] group-hover:text-[#0066ff] w-6">
+                                        {(i + 1).toString().padStart(2, '0')}
+                                    </span>
+                                    <span className="flex-1 text-sm font-bold truncate">
+                                        {link.title}
+                                    </span>
+                                    <ExternalLink className="w-3 h-3 text-[#999] group-hover:text-[#0066ff]" />
+                                </a>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Footer */}

@@ -76,7 +76,27 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
             return;
           }
 
-          // If no password, proceed
+          // 4. Check Link Type (Widgets cannot be visited directly)
+          // Try to resolve underlying content URL if possible
+          const isWidget = (link.type && link.type !== 'link' && ['music', 'map', 'video', 'social_feed'].includes(link.type));
+          const isWidgetUrl = link.originalUrl?.trim().toLowerCase().startsWith('widget://');
+
+          if (isWidget || isWidgetUrl) {
+            // Attempt to find a valid redirect URL for the widget
+            // Preference: metadata.embedUrl -> metadata.url -> originalUrl (if not widget://)
+            const validRedirect = link.metadata?.embedUrl || link.metadata?.url || (!isWidgetUrl ? link.originalUrl : null);
+
+            if (validRedirect && !validRedirect.trim().toLowerCase().startsWith('widget://')) {
+              // Redirect to the underlying content
+              link.originalUrl = validRedirect;
+              // Proceed to processRedirect
+            } else {
+              setError("This link represents a embedded widget and cannot be visited directly.");
+              return;
+            }
+          }
+
+          // If no password and valid type, proceed
           await processRedirect(link);
         } else {
           setError("Link not found");
@@ -303,6 +323,12 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         finalUrl = geoUrl;
         setRedirectMsg(`Redirecting for ${userCountry}...`);
       }
+    }
+
+    // Ensure finalUrl is valid
+    if (!finalUrl || finalUrl.trim().toLowerCase().startsWith('widget://')) {
+      setError("Invalid destination URL. Direct access to widgets is not supported.");
+      return;
     }
 
     // Append lcid for conversion tracking - REMOVED to prevent WAF blocking

@@ -2565,6 +2565,9 @@ function linkDataToRow(link: Omit<LinkData, 'id'> & { id?: string }, userId?: st
     folder_id: link.folderId ?? null,
     domain: link.domain || null,
     ab_test_config: link.abTestConfig ?? null,
+    type: link.type ?? 'link',
+    layout_config: link.layoutConfig ?? { w: 1, h: 1 },
+    metadata: link.metadata ?? {},
     is_guest: !!link.isGuest,
     claim_token: link.claimToken ?? null,
     expires_at: link.expiresAt ? new Date(link.expiresAt).toISOString() : null

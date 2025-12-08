@@ -1,6 +1,7 @@
 import React from 'react';
 import { BioProfile, LinkData } from '../../types';
 import { ExternalLink, Cloud } from 'lucide-react';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -39,23 +40,35 @@ const ClaymorphismBioTemplate: React.FC<BioTemplateProps> = ({ profile, links })
                 </div>
 
                 {/* Links */}
-                <div className="flex-1 space-y-6">
-                    {links.map((link) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block bg-[#E0E5EC] p-5 rounded-2xl shadow-[9px_9px_16px_rgb(163,177,198,0.6),-9px_-9px_16px_rgba(255,255,255,0.5)] hover:shadow-[inset_9px_9px_16px_rgb(163,177,198,0.6),inset_-9px_-9px_16px_rgba(255,255,255,0.5)] hover:scale-[0.98] transition-all duration-300 group"
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="font-bold text-[#2D3748] group-hover:text-[#4A5568] transition-colors">
-                                    {link.title}
-                                </span>
-                                <ExternalLink className="w-4 h-4 text-[#A3B1C6] group-hover:text-[#718096]" />
-                            </div>
-                        </a>
-                    ))}
+                <div className="flex-1 grid grid-cols-2 gap-6 auto-rows-min">
+                    {links.map((link) => {
+                        const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
+
+                        if (link.originalUrl?.startsWith('widget://') || link.type !== 'link') {
+                            return (
+                                <div key={link.id} className={`${style} bg-[#E0E5EC] rounded-2xl shadow-[9px_9px_16px_rgb(163,177,198,0.6),-9px_-9px_16px_rgba(255,255,255,0.5)] overflow-hidden`}>
+                                    <BioWidget link={link} variant="clay" />
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <a
+                                key={link.id}
+                                href={`/r/${link.shortCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${style} block bg-[#E0E5EC] p-5 rounded-2xl shadow-[9px_9px_16px_rgb(163,177,198,0.6),-9px_-9px_16px_rgba(255,255,255,0.5)] hover:shadow-[inset_9px_9px_16px_rgb(163,177,198,0.6),inset_-9px_-9px_16px_rgba(255,255,255,0.5)] hover:scale-[0.98] transition-all duration-300 group`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="font-bold text-[#2D3748] group-hover:text-[#4A5568] transition-colors">
+                                        {link.title}
+                                    </span>
+                                    <ExternalLink className="w-4 h-4 text-[#A3B1C6] group-hover:text-[#718096]" />
+                                </div>
+                            </a>
+                        );
+                    })}
                 </div>
 
                 {/* Footer */}
