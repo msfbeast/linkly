@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Plus, Trash2, GripVertical, Save, X,
     Layout, Palette, Camera, Mail, Smartphone,
-    UserCircle2, ExternalLink, Edit, Search, Sparkles, Wand2, Loader2
+    UserCircle2, ExternalLink, Edit, Search, Sparkles, Wand2, Loader2,
+    Music, MapPin, Play, Plus, Trash2, GripVertical, Save, X
 } from 'lucide-react';
 import { BioProfile, LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
@@ -30,7 +30,9 @@ import {
     SortableContext,
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
+    rectSortingStrategy,
 } from '@dnd-kit/sortable';
+import { BioBlock } from '../components/BioBlock';
 
 const BioDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -41,6 +43,9 @@ const BioDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isGeneratingBio, setIsGeneratingBio] = useState(false);
+    const [showBioPrompt, setShowBioPrompt] = useState(false);
+    const [bioPrompt, setBioPrompt] = useState('');
+    const [showLinkModal, setShowLinkModal] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -71,6 +76,67 @@ const BioDashboard: React.FC = () => {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
+
+    const handleAddWidget = async (type: 'music' | 'map' | 'video') => {
+        let metadata = {};
+        let title = 'New Widget';
+
+        if (type === 'music') {
+            title = 'Music Player';
+            const url = prompt("Enter Spotify or Apple Music URL:");
+            if (!url) return;
+            metadata = { platform: url.includes('apple') ? 'apple' : 'spotify', embedUrl: url };
+        } else if (type === 'map') {
+            title = 'Location';
+            const address = prompt("Enter Address:");
+            if (!address) return;
+            // Mock Geocode for now (Random generic location)
+            metadata = { lat: 40.7128, lng: -74.0060, address };
+        } else if (type === 'video') {
+            title = 'Video';
+            const url = prompt("Enter YouTube URL:");
+            if (!url) return;
+            // Extract ID (simple regex)
+            const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
+            metadata = { videoId, videoPlatform: 'youtube' };
+        }
+
+        try {
+            const newLink = await supabaseAdapter.createLink({
+                originalUrl: 'widget://' + type,
+                shortCode: Math.random().toString(36).substring(7),
+                title,
+                tags: ['widget'],
+                createdAt: Date.now(),
+                clicks: 0,
+                clickHistory: [],
+                type,
+                layoutConfig: { w: type === 'music' ? 2 : 1, h: 1 }, // Default music to full width
+                metadata
+            });
+            setAvailableLinks([newLink, ...availableLinks]);
+            toast.success(`${title} added!`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to create widget");
+        }
+    };
+
+    const handleResizeBlock = async (id: string, size: { w: number; h: number }) => {
+        // Optimistic UI update
+        const updatedLinks = availableLinks.map(l =>
+            l.id === id ? { ...l, layoutConfig: size } : l
+        );
+        setAvailableLinks(updatedLinks);
+
+        try {
+            await supabaseAdapter.updateLink(id, { layoutConfig: size });
+        } catch (error) {
+            console.error("Failed to resize block:", error);
+            toast.error("Failed to save size");
+            fetchData();
+        }
+    };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -232,22 +298,58 @@ const BioDashboard: React.FC = () => {
                                     <div>
                                         <div className="flex justify-between items-center mb-1">
                                             <label className="text-xs font-bold text-stone-500 uppercase">Bio</label>
-                                            <button
-                                                onClick={async () => {
-                                                    const keywords = currentProfile.displayName || "Personal Brand";
-                                                    setIsGeneratingBio(true);
-                                                    const bio = await generateBio(keywords, currentProfile.bio);
-                                                    setCurrentProfile(prev => ({ ...prev, bio }));
-                                                    setIsGeneratingBio(false);
-                                                }}
-                                                disabled={isGeneratingBio}
-                                                className="text-xs text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
-                                                title="Generate with AI"
-                                            >
-                                                {isGeneratingBio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                                                AI Write
-                                            </button>
+                                            {!showBioPrompt ? (
+                                                <button
+                                                    onClick={() => setShowBioPrompt(true)}
+                                                    className="text-xs text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
+                                                >
+                                                    <Wand2 className="w-3 h-3" />
+                                                    AI Write
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setShowBioPrompt(false)}
+                                                    className="text-xs text-stone-400 hover:text-stone-500"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
                                         </div>
+
+                                        {showBioPrompt && (
+                                            <div className="mb-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg animate-fadeIn">
+                                                <textarea
+                                                    value={bioPrompt}
+                                                    onChange={(e) => setBioPrompt(e.target.value)}
+                                                    placeholder="E.g., Tech reviewer who loves coffee and minimal setups..."
+                                                    className="w-full bg-white border border-indigo-200 rounded-md p-2 text-sm mb-2 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                    rows={2}
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!bioPrompt.trim()) return;
+                                                        setIsGeneratingBio(true);
+                                                        try {
+                                                            const bio = await generateBio(bioPrompt, currentProfile.bio);
+                                                            setCurrentProfile(prev => ({ ...prev, bio }));
+                                                            setShowBioPrompt(false);
+                                                            setBioPrompt('');
+                                                        } catch (err) {
+                                                            toast.error("Failed to generate bio");
+                                                        } finally {
+                                                            setIsGeneratingBio(false);
+                                                        }
+                                                    }}
+                                                    disabled={isGeneratingBio || !bioPrompt.trim()}
+                                                    className="w-full bg-indigo-500 text-white font-bold py-1.5 rounded-md text-xs hover:bg-indigo-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                                >
+                                                    {isGeneratingBio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                                    Generate Bio
+                                                </button>
+                                            </div>
+                                        )}
+
                                         <textarea
                                             value={currentProfile.bio}
                                             onChange={e => setCurrentProfile({ ...currentProfile, bio: e.target.value })}
@@ -285,30 +387,33 @@ const BioDashboard: React.FC = () => {
                                     <div className="flex-1 bg-stone-50 rounded-xl p-4 border border-stone-100 overflow-y-auto max-h-[400px] custom-scrollbar">
                                         {activeLinksList.length === 0 ? (
                                             <div className="text-center py-12">
-                                                <p className="text-stone-400 text-sm">No links added yet.</p>
-                                                <p className="text-stone-400 text-xs mt-1">Select from available links.</p>
+                                                <p className="text-stone-400 text-sm">No blocks added yet.</p>
+                                                <p className="text-stone-400 text-xs mt-1">Add widgets or links below.</p>
                                             </div>
                                         ) : (
-                                            <DndContext
-                                                sensors={sensors}
-                                                collisionDetection={closestCenter}
-                                                onDragEnd={handleDragEnd}
-                                            >
-                                                <SortableContext
-                                                    items={activeLinksList.map(l => l.id)}
-                                                    strategy={verticalListSortingStrategy}
+                                            <div className="min-h-[200px]">
+                                                <DndContext
+                                                    sensors={sensors}
+                                                    collisionDetection={closestCenter}
+                                                    onDragEnd={handleDragEnd}
                                                 >
-                                                    <div className="space-y-2">
-                                                        {activeLinksList.map(link => (
-                                                            <SortableBioLinkItem
-                                                                key={link.id}
-                                                                link={link}
-                                                                onRemove={() => toggleLinkSelection(link.id)}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </SortableContext>
-                                            </DndContext>
+                                                    <SortableContext
+                                                        items={activeLinksList.map(l => l.id)}
+                                                        strategy={rectSortingStrategy}
+                                                    >
+                                                        <div className="grid grid-cols-2 gap-3 auto-rows-min">
+                                                            {activeLinksList.map(link => (
+                                                                <BioBlock
+                                                                    key={link.id}
+                                                                    link={link}
+                                                                    onRemove={() => toggleLinkSelection(link.id)}
+                                                                    onResize={handleResizeBlock}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </SortableContext>
+                                                </DndContext>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -460,12 +565,43 @@ const BioDashboard: React.FC = () => {
                                 className="pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none shadow-sm"
                             />
                         </div>
-                        <button
-                            onClick={handleCreateNew}
-                            className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm shadow-yellow-400/20"
-                        >
-                            <Plus className="w-5 h-5" /> Create Profile
-                        </button>
+                        <div className="flex items-center gap-2 mb-6">
+                            <button
+                                onClick={() => setShowLinkModal(true)}
+                                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors shadow-lg shadow-indigo-500/20"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Add Link
+                            </button>
+                            <div className="h-6 w-px bg-stone-300 mx-2" />
+                            <span className="text-xs font-bold text-stone-400 uppercase tracking-wider mr-2">Widgets</span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleAddWidget('music')}
+                                    className="bg-white border border-stone-200 hover:border-indigo-500 text-stone-600 hover:text-indigo-600 p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
+                                    title="Add Music Player"
+                                >
+                                    <Music className="w-4 h-4" />
+                                    Music
+                                </button>
+                                <button
+                                    onClick={() => handleAddWidget('map')}
+                                    className="bg-white border border-stone-200 hover:border-indigo-500 text-stone-600 hover:text-indigo-600 p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
+                                    title="Add Location Map"
+                                >
+                                    <MapPin className="w-4 h-4" />
+                                    Map
+                                </button>
+                                <button
+                                    onClick={() => handleAddWidget('video')}
+                                    className="bg-white border border-stone-200 hover:border-indigo-500 text-stone-600 hover:text-indigo-600 p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
+                                    title="Add Video Embed"
+                                >
+                                    <Play className="w-4 h-4" />
+                                    Video
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -510,16 +646,72 @@ const BioDashboard: React.FC = () => {
                                         </button>
                                         <button onClick={() => handleDelete(profile.id)} className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
                                             <Trash2 className="w-4 h-4" />
-                                        </button>
                                     </div>
+                                    ))
+                    )}
                                 </div>
                             </div>
-                        ))
-                    )}
+
+            {/* Link Modal */ }
+            { showLinkModal && (
+                                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
+                                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scaleIn">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-xl font-bold text-slate-900">Add New Link</h3>
+                                            <button onClick={() => setShowLinkModal(false)} className="text-stone-400 hover:text-slate-900">
+                                                <X className="w-5 h-5" />
+                                            </button>
+                                        </div>
+
+                                        <form
+                                            onSubmit={async (e) => {
+                                                e.preventDefault();
+                                                const formData = new FormData(e.currentTarget);
+                                                const url = formData.get('url') as string;
+                                                const title = formData.get('title') as string;
+
+                                                if (!url || !title) return;
+
+                                                try {
+                                                    const newLink = await supabaseAdapter.createLink({
+                                                        originalUrl: url,
+                                                        shortCode: Math.random().toString(36).substring(7),
+                                                        title,
+                                                        tags: [],
+                                                        createdAt: Date.now(),
+                                                        clicks: 0,
+                                                        clickHistory: [],
+                                                        type: 'link',
+                                                        layoutConfig: { w: 1, h: 1 },
+                                                        metadata: {}
+                                                    });
+                                                    setAvailableLinks([newLink, ...availableLinks]);
+                                                    toast.success("Link added successfully!");
+                                                    setShowLinkModal(false);
+                                                } catch (error) {
+                                                    console.error(error);
+                                                    toast.error("Failed to add link");
+                                                }
+                                            }}
+                                            className="space-y-4"
+                                        >
+                                            <div>
+                                                <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Title</label>
+                                                <input name="title" required placeholder="My Awesome Website" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-stone-500 uppercase mb-1">URL</label>
+                                                <input name="url" type="url" required placeholder="https://example.com" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
+                                            </div>
+                                            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
+                                                Add Link
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
                 </div>
-            </div>
-        </div>
-    );
+                );
 };
 
-export default BioDashboard;
+                export default BioDashboard;

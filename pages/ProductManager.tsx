@@ -123,7 +123,7 @@ const ProductManager: React.FC = () => {
                     createdAt: Date.now(),
                     tags: ['product'],
                     clickHistory: []
-                })).id : currentProduct.linkId || ''
+                })).id : (currentProduct.linkId || null)
             };
 
             if (isEditing && currentProduct.id) {

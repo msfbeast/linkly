@@ -58,6 +58,9 @@ interface LinkRow {
   is_guest?: boolean;
   claim_token?: string | null;
   expires_at?: string | null;
+  type?: string;
+  layout_config?: { w: number; h: number };
+  metadata?: Record<string, any>;
   ab_test_config: {
     enabled: boolean;
     variants: {
@@ -111,7 +114,7 @@ interface ProductRow {
   price: number;
   currency: string;
   image_url: string | null;
-  link_id: string;
+  link_id: string | null;
   short_code: string | null;
   original_url: string | null;
   category: string | null;
@@ -222,6 +225,9 @@ function rowToLinkData(row: LinkRow, clickHistory: ClickEvent[] = []): LinkData 
     folderId: row.folder_id ?? undefined,
     teamId: row.team_id ?? undefined,
     domain: row.domain ?? undefined,
+    type: (row.type as LinkData['type']) ?? 'link',
+    layoutConfig: row.layout_config ?? { w: 1, h: 1 },
+    metadata: row.metadata ?? {},
     abTestConfig: row.ab_test_config as LinkData['abTestConfig'] ?? undefined,
   };
 }
@@ -679,6 +685,9 @@ export class SupabaseAdapter implements StorageAdapter {
     if (updateFields.aiAnalysis !== undefined) rowUpdates.ai_analysis = updateFields.aiAnalysis ?? null;
     if (updateFields.folderId !== undefined) rowUpdates.folder_id = updateFields.folderId ?? null;
     if (updateFields.abTestConfig !== undefined) rowUpdates.ab_test_config = updateFields.abTestConfig ?? null;
+    if (updateFields.type !== undefined) rowUpdates.type = updateFields.type;
+    if (updateFields.layoutConfig !== undefined) rowUpdates.layout_config = updateFields.layoutConfig;
+    if (updateFields.metadata !== undefined) rowUpdates.metadata = updateFields.metadata;
 
     const { data: row, error } = await supabase!
       .from(TABLES.LINKS)
@@ -1649,11 +1658,7 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error(`Failed to fetch products: ${error.message}`);
     }
 
-    return (data || []).map((row: any) => ({
-      ...rowToProduct(row),
-      shortCode: row.link?.short_code,
-      originalUrl: row.link?.original_url
-    }));
+    return (data || []).map((row: any) => rowToProduct(row));
   }
 
   /**
@@ -1728,7 +1733,6 @@ export class SupabaseAdapter implements StorageAdapter {
     if (updates.name !== undefined) rowUpdates.name = updates.name;
     if (updates.description !== undefined) rowUpdates.description = updates.description;
     if (updates.price !== undefined) rowUpdates.price = updates.price;
-    if (updates.currency !== undefined) rowUpdates.currency = updates.currency;
     if (updates.currency !== undefined) rowUpdates.currency = updates.currency;
     if (updates.imageUrl !== undefined) rowUpdates.image_url = updates.imageUrl;
     if (updates.slug !== undefined) rowUpdates.slug = updates.slug;
@@ -2621,6 +2625,9 @@ function rowToProduct(row: ProductRow): Product {
     currency: row.currency,
     imageUrl: row.image_url ?? undefined,
     linkId: row.link_id,
+    shortCode: row.short_code ?? undefined,
+    originalUrl: row.original_url ?? undefined,
+    category: row.category ?? undefined,
     slug: row.slug ?? undefined,
     createdAt: new Date(row.created_at).getTime(),
   };

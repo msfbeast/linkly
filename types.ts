@@ -76,6 +76,30 @@ export interface LinkData {
   lastClickedAt?: number;
   clickHistory: ClickEvent[];
 
+  // Bento Grid & Widgets
+  type?: 'link' | 'music' | 'map' | 'video' | 'social_feed';
+  layoutConfig?: {
+    w: number; // Width in grid columns (1 or 2)
+    h: number; // Height in grid rows (1 or 2)
+  };
+  metadata?: {
+    // Music
+    platform?: 'spotify' | 'apple';
+    embedUrl?: string;
+    // Map
+    lat?: number;
+    lng?: number;
+    address?: string;
+    // Video
+    videoId?: string;
+    videoPlatform?: 'youtube' | 'vimeo';
+    // Social
+    socialPlatform?: 'instagram' | 'twitter' | 'linkedin';
+    username?: string;
+    // General
+    [key: string]: any;
+  };
+
   // Advanced Config
   smartRedirects?: SmartRedirects;
   geoRedirects?: Record<string, string>; // e.g. { 'US': '...', 'IN': '...' }
@@ -315,7 +339,7 @@ export interface Product {
   price: number;
   currency: string;
   imageUrl?: string;
-  linkId: string; // Links to LinkData for tracking
+  linkId?: string | null; // Links to LinkData for tracking
   shortCode?: string; // For direct linking from storefront
   originalUrl?: string; // For direct linking fallback
   category?: string;

@@ -4,6 +4,7 @@ import { ExternalLink, Zap, Star } from 'lucide-react';
 import { GalleryBlock } from '../blocks/GalleryBlock';
 import { NewsletterBlock } from '../blocks/NewsletterBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
     profile: BioProfile;
@@ -54,27 +55,40 @@ const VibrantBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 </div>
 
                 {/* Links */}
-                <div className="flex-1 space-y-4">
-                    {links.map((link, i) => (
-                        <a
-                            key={link.id}
-                            href={`/r/${link.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`block bg-white border-4 border-black p-4 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group relative overflow-hidden ${i % 2 === 0 ? 'rotate-1' : '-rotate-1'} hover:rotate-0`}
-                        >
-                            <div className="relative z-10 flex items-center justify-between">
-                                <span className="font-black text-lg uppercase tracking-tight group-hover:text-[#FF3366] transition-colors">
-                                    {link.title}
-                                </span>
-                                <div className="w-8 h-8 bg-yellow-300 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-black group-hover:text-white transition-colors">
-                                    <ExternalLink className="w-4 h-4" />
+                {/* Links / Grid */}
+                <div className="flex-1 grid grid-cols-2 gap-4 auto-rows-min">
+                    {links.map((link, i) => {
+                        const style = link.layoutConfig?.w === 2 ? 'col-span-2' : 'col-span-1';
+
+                        if (link.type !== 'link') {
+                            return (
+                                <div key={link.id} className={`${style} rounded-2xl overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] border-2 border-black`}>
+                                    <BioWidget link={link} />
                                 </div>
-                            </div>
-                            {/* Hover Effect Background */}
-                            <div className="absolute inset-0 bg-stone-50 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0"></div>
-                        </a>
-                    ))}
+                            );
+                        }
+
+                        return (
+                            <a
+                                key={link.id}
+                                href={`/r/${link.shortCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${style} block bg-white border-4 border-black p-4 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group relative overflow-hidden ${i % 2 === 0 ? 'rotate-1' : '-rotate-1'} hover:rotate-0`}
+                            >
+                                <div className="relative z-10 flex items-center justify-between">
+                                    <span className="font-black text-lg uppercase tracking-tight group-hover:text-[#FF3366] transition-colors truncate">
+                                        {link.title}
+                                    </span>
+                                    <div className="w-8 h-8 bg-yellow-300 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-black group-hover:text-white transition-colors shrink-0 ml-2">
+                                        <ExternalLink className="w-4 h-4" />
+                                    </div>
+                                </div>
+                                {/* Hover Effect Background */}
+                                <div className="absolute inset-0 bg-stone-50 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0"></div>
+                            </a>
+                        );
+                    })}
                 </div>
 
                 {/* Tech Vault (Gallery) - conditionally rendered */}

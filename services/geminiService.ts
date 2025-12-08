@@ -275,22 +275,121 @@ export const chatWithProfile = async (context: ProfileContext, query: string, hi
 
 export const extractProductDetails = async (url: string): Promise<ProductDetails | null> => {
   try {
+    // 0. Get Session Token
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    // 1. Try Server-Side API (Preferred - can fetch page content)
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch('/api/ai/extract_product', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ url }),
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+      console.warn('Product API failed, falling back to client-side:', response.status);
+    } catch (apiError) {
+      console.warn('Product API error:', apiError);
+    }
+
+    // 2. Client-Side Fallback (Jina AI Scrape + Gemini)
     const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
     if (!apiKey) return null;
+
+    let pageContext = "";
+    let possibleImages: string[] = [];
+
+    // Parallel fetch for speed
+    await Promise.allSettled([
+      // 1. Jina AI (Content) - High Priority for Product Images
+      (async () => {
+        try {
+          const jinaResponse = await fetch(`https://r.jina.ai/${url}`, { headers: { 'x-respond-with': 'markdown' } });
+          if (jinaResponse.ok) {
+            const text = await jinaResponse.text();
+            pageContext = text.substring(0, 20000); // 20k chars
+
+            // Extract valid image URLs from markdown immediately
+            const markdownImageRegex = /!\[.*?\]\((https?:\/\/.*?)\)/g;
+            let match;
+            while ((match = markdownImageRegex.exec(text)) !== null) {
+              // Unshift to put content images FIRST (higher priority than metadata)
+              if (!possibleImages.includes(match[1])) {
+                possibleImages.unshift(match[1]);
+              }
+            }
+          }
+        } catch (e) { console.warn("Jina fetch failed", e); }
+      })(),
+      // 2. Microlink (Metadata) - Fallback
+      (async () => {
+        try {
+          const microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}`;
+          const response = await fetch(microlinkUrl);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === 'success' && data.data) {
+              // Push metadata images to the END (lower priority)
+              if (data.data.image?.url) possibleImages.push(data.data.image.url);
+
+              // Append metadata to context
+              pageContext += `\n\nMicrolink Metadata:\nTitle: ${data.data.title}\nDescription: ${data.data.description}\nPublisher: ${data.data.publisher}\n`;
+            }
+          }
+        } catch (e) { console.warn("Microlink fetch failed", e); }
+      })()
+    ]);
+
+    // Filter out obvious logos/icons/brand placeholders
+    const badKeywords = [
+      'logo', 'icon', 'favicon', 'branding', 'placeholder', 'site-image',
+      'nav', 'header', 'social', 'amazon_logo', 'flipkart_logo',
+      'visa', 'mastercard', 'amex', 'paypal', 'payment', 'bank', 'wallet', 'upi'
+    ];
+    possibleImages = possibleImages.filter(img =>
+      !badKeywords.some(keyword => img.toLowerCase().includes(keyword))
+    );
 
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       You are an e-commerce expert.
-      Analyze this URL to extract product details: "${url}"
+      Analyze this product from the URL, scraped markdown content, and metadata.
       
-      Infer details from the URL components if page access is restricted.
+      URL: "${url}"
       
-      Return JSON with:
-      - name: Product Name (max 60 chars)
-      - description: Short description (max 150 chars)
-      - price: Estimated status number (e.g. 19.99)
-      - currency: ISO 4217 code (default USD)
-      - imageUrl: A plausible image URL (or leave empty)
+      Potential Images Found (Ordered by visual relevance):
+      ${possibleImages.slice(0, 15).join('\n')}
+      
+      Content (Markdown):
+      ${pageContext}
+      
+      Task:
+      1. Extract the PRECISE Product Name. Clean up titles (remove "Amazon.in:", "Buy...", etc).
+      2. Find the PRICE (numeric). 
+         - If multiple, pick the main offer price.
+         - Round to 2 decimal places.
+      3. Identify CURRENCY (ISO Code).
+      4. Select the BEST PRODUCT IMAGE URL.
+         - **CRITICAL**: Do NOT select a company logo (like "Flipkart" text, "Amazon" smile).
+         - Select a photo that looks like the ACTUAL PRODUCT.
+         - Use the 'Potential Images Found' list.
+         - MUST be a valid absolute URL.
+      5. Write a short description (max 200 chars).
+      
+      Return JSON only:
+      {
+        "name": "...",
+        "description": "...",
+        "price": 0.00,
+        "currency": "USD",
+        "imageUrl": "..."
+      }
     `;
 
     const result = await ai.models.generateContent({
@@ -314,12 +413,32 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
     const text = result.text || "";
     if (text) {
       const parsed = JSON.parse(text);
+
+      // Robust Image Fallback: If AI fails or returns a filtered image, try the next best
+      let finalImageUrl = parsed.imageUrl;
+      const isBadImage = (img: string) => !img || badKeywords.some(k => img.toLowerCase().includes(k));
+
+      if (isBadImage(finalImageUrl)) {
+        // Find first valid image in our filtered list
+        const fallback = possibleImages.find(img => !isBadImage(img));
+        if (fallback) {
+          finalImageUrl = fallback;
+          console.log("AI returned bad image, using fallback:", fallback);
+        }
+      }
+
+      // STRICT Currency Overrides
+      let finalCurrency = parsed.currency || "USD";
+      if (url.includes("amazon.in") || url.includes("flipkart.com") || url.includes("myntra.com")) {
+        finalCurrency = "INR";
+      }
+
       return {
         name: parsed.name || "New Product",
         description: parsed.description || "",
-        price: parsed.price || 0,
-        currency: parsed.currency || "USD",
-        imageUrl: parsed.imageUrl || ""
+        price: parsed.price ? Number(parsed.price.toFixed(2)) : 0,
+        currency: finalCurrency,
+        imageUrl: finalImageUrl || ""
       };
     }
     return null;
