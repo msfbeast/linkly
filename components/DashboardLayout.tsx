@@ -8,6 +8,7 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import LoadingFallback from './LoadingFallback';
 import TeamSettings from './teams/TeamSettings';
 import { useTeam } from '../contexts/TeamContext';
+import InstallPrompt from './pwa/InstallPrompt';
 
 // Lazy Load Pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
@@ -306,6 +307,8 @@ const DashboardLayout: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <InstallPrompt />
         </div>
     );
 };

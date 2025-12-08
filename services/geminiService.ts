@@ -136,6 +136,35 @@ export interface ProductDetails {
   imageUrl: string;
 }
 
+export const generateSmartTitle = async (url: string, currentTitle?: string): Promise<string> => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey) return currentTitle || "New Link";
+
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `
+      You are an expert copywriter. 
+      Generate a single, catchy, high-CTR title (max 50 chars) for this URL: "${url}".
+      ${currentTitle ? `Current title context: "${currentTitle}"` : ''}
+      
+      Rules:
+      - No clickbait.
+      - informative but intriguing.
+      - Return ONLY the title text. No quotes.
+    `;
+
+    const result = await ai.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: prompt,
+    });
+
+    return result.text || currentTitle || "New Link";
+  } catch (error) {
+    console.error("Smart Title generation failed:", error);
+    return currentTitle || "New Link";
+  }
+};
+
 export const extractProductDetails = async (url: string): Promise<ProductDetails | null> => {
   // Placeholder or move to API
   return null;

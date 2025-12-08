@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag } from 'lucide-react';
+import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save } from 'lucide-react';
 import UTMBuilderModal from './UTMBuilderModal';
-import { analyzeUrlWithGemini, GeminiAnalysisResult } from '../services/geminiService';
+import { analyzeUrlWithGemini, GeminiAnalysisResult, generateSmartTitle } from '../services/geminiService';
 import { LinkData, SmartRedirects, Folder, Domain } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { TagInput } from './TagInput';
@@ -26,7 +27,10 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   // Single Mode States
   const [url, setUrl] = useState('');
   const [slug, setSlug] = useState('');
+  const [title, setTitle] = useState(''); // Added title state
+  const [description, setDescription] = useState(''); // Added description state
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false); // Added for title generation
   const [analysis, setAnalysis] = useState<GeminiAnalysisResult | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [folderId, setFolderId] = useState<string | null>(null);
@@ -61,6 +65,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       setMode('single');
       setUrl(editingLink.originalUrl);
       setSlug(editingLink.shortCode);
+      setTitle(editingLink.title || ''); // Set title for editing
+      setDescription(editingLink.description || ''); // Set description for editing
       setSmartRedirects({
         ios: editingLink.smartRedirects?.ios || '',
         android: editingLink.smartRedirects?.android || '',
@@ -121,6 +127,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       const result = await analyzeUrlWithGemini(url);
       setAnalysis(result);
       if (!slug && !editingLink) setSlug(result.suggestedSlug || '');
+      if (!title && !editingLink) setTitle(result.title || 'Untitled Link');
+      if (!description && !editingLink) setDescription(result.description || '');
     } catch (error) {
       console.error(error);
     } finally {
@@ -156,6 +164,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     const commonData = {
       originalUrl: url,
       shortCode: slug,
+      title: title, // Use title from state
+      description: description, // Use description from state
       smartRedirects: {
         ios: smartRedirects.ios || undefined,
         android: smartRedirects.android || undefined,
@@ -178,8 +188,6 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     if (editingLink) {
       onUpdate(editingLink.id, {
         ...commonData,
-        title: analysis?.title || editingLink.title,
-        description: analysis?.description || editingLink.description,
         tags: tags.length > 0 ? tags : (analysis?.tags || editingLink.tags),
         aiAnalysis: analysis ? {
           sentiment: analysis.sentiment,
@@ -191,9 +199,6 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       const newLink: LinkData = {
         id: uuidv4(),
         ...commonData,
-        title: analysis?.title || 'Untitled Link',
-        description: analysis?.description || '',
-
         tags: tags.length > 0 ? tags : (analysis?.tags || []),
         clicks: 0,
         clickHistory: [],
@@ -304,6 +309,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     setTimeout(() => {
       setUrl('');
       setSlug('');
+      setTitle(''); // Reset title
+      setDescription(''); // Reset description
       setAnalysis(null);
       setBulkUrls('');
       setSmartRedirects({ ios: '', android: '', desktop: '' });
