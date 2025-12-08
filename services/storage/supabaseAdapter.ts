@@ -11,6 +11,7 @@ import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
 import { monetizeUrl } from '../../utils/affiliateUtils';
+import { compressImage } from '../../utils/imageUtils';
 
 const STORAGE_KEYS = {
   LINKS: 'linkly_links',
@@ -20,6 +21,12 @@ const STORAGE_KEYS = {
   DOMAINS: 'linkly_domains',
   TAGS: 'linkly_tags',
   FOLDERS: 'linkly_folders',
+};
+
+const BUCKETS = {
+  AVATARS: 'avatars',
+  GALLERY: 'gallery-images',
+  APP_ICONS: 'app-icons',
 };
 
 /**
@@ -602,6 +609,36 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     return newLink;
+  }
+
+  /**
+   * Batch create links
+   */
+  async createLinks(links: Omit<LinkData, 'id'>[]): Promise<LinkData[]> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    // Get the current user's ID from the auth session
+    const { data: { session } } = await supabase!.auth.getSession();
+    const userId = session?.user?.id ?? null;
+
+    // Prepare rows
+    const rows = links.map(link => {
+      const id = uuidv4();
+      return linkDataToRow({ ...link, id }, userId);
+    });
+
+    const { data: result, error } = await supabase!
+      .from(TABLES.LINKS)
+      .insert(rows)
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to batch create links: ${error.message}`);
+    }
+
+    return (result || []).map((row: LinkRow) => rowToLinkData(row as LinkRow, []));
   }
 
   /**
@@ -1229,10 +1266,8 @@ export class SupabaseAdapter implements StorageAdapter {
   }
 
   async verifyDomain(id: string): Promise<Domain | null> {
-    // Simulate verification delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
     if (!isSupabaseConfigured()) {
+      // Local storage fallback (simulation)
       const stored = localStorage.getItem(STORAGE_KEYS.DOMAINS);
       if (stored) {
         const domains: Domain[] = JSON.parse(stored);
@@ -1247,25 +1282,52 @@ export class SupabaseAdapter implements StorageAdapter {
       return null;
     }
 
-    // In a real scenario, we would check DNS records here.
-    // For now, we'll assume it's valid and update the DB.
-
-    const { data, error } = await supabase!
+    // Fetch domain details first
+    const { data: domainData, error: fetchError } = await supabase!
       .from(TABLES.DOMAINS)
-      .update({
-        status: 'active',
-        verified_at: new Date().toISOString(),
-      })
+      .select('domain')
       .eq('id', id)
-      .select()
       .single();
 
-    if (error) {
-      console.error('Error verifying domain:', error);
+    if (fetchError || !domainData) {
+      console.error('Error fetching domain for verification:', fetchError);
       return null;
     }
 
-    return rowToDomain(data as DomainRow);
+    // Call Vercel API for Real DNS Verification
+    try {
+      const response = await fetch(`/api/domain/verify?domain=${domainData.domain}`);
+      const result = await response.json();
+
+      if (!result.verified) {
+        console.warn(`DNS verification failed for ${domainData.domain}:`, result);
+        return null;
+      }
+
+      // Using real timestamp from verification
+      const verifiedAt = new Date().toISOString();
+
+      const { data, error } = await supabase!
+        .from(TABLES.DOMAINS)
+        .update({
+          status: 'active',
+          verified_at: verifiedAt,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating verified domain:', error);
+        return null;
+      }
+
+      return rowToDomain(data as DomainRow);
+
+    } catch (apiError) {
+      console.error('Failed to call verification API:', apiError);
+      return null;
+    }
   }
 
   /**
@@ -1944,17 +2006,19 @@ export class SupabaseAdapter implements StorageAdapter {
   async uploadAvatar(userId: string, file: File): Promise<string> {
     if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
 
+    const optimizedFile = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.8 });
     const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    const fileName = `${userId}/avatar.${fileExt}`;
+    const filePath = fileName;
 
     const { error: uploadError } = await supabase!.storage
-      .from('avatars')
-      .upload(fileName, file, { upsert: true });
+      .from(BUCKETS.AVATARS)
+      .upload(filePath, optimizedFile, { upsert: true });
 
     if (uploadError) throw uploadError;
 
     const { data: { publicUrl } } = supabase!.storage
-      .from('avatars')
+      .from(BUCKETS.AVATARS)
       .getPublicUrl(fileName);
 
     // Update profile with new avatar URL
@@ -2264,12 +2328,13 @@ export class SupabaseAdapter implements StorageAdapter {
   async uploadGalleryImage(file: File, userId: string): Promise<string> {
     if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
 
+    const optimizedFile = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${uuidv4()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('gallery-images')
-      .upload(fileName, file);
+      .from(BUCKETS.GALLERY)
+      .upload(fileName, optimizedFile);
 
     if (uploadError) {
       console.error('Error uploading gallery image:', uploadError);
@@ -2277,7 +2342,7 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('gallery-images')
+      .from(BUCKETS.GALLERY)
       .getPublicUrl(fileName);
 
     return publicUrl;
@@ -2425,17 +2490,19 @@ export class SupabaseAdapter implements StorageAdapter {
 
   async uploadAppIcon(file: File, userId: string): Promise<string> {
     if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('app-icons')
-      .upload(fileName, file);
+    const optimizedFile = await compressImage(file, { maxWidth: 200, maxHeight: 200, quality: 0.9 });
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/icon-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase!.storage
+      .from(BUCKETS.APP_ICONS)
+      .upload(fileName, optimizedFile, { upsert: true });
 
     if (uploadError) throw uploadError;
 
     const { data } = supabase.storage
-      .from('app-icons')
+      .from(BUCKETS.APP_ICONS)
       .getPublicUrl(fileName);
 
     return data.publicUrl;

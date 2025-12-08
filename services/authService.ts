@@ -321,6 +321,34 @@ export const authService = {
   },
 
   /**
+   * Sign in with an OAuth provider (Google, GitHub)
+   */
+  async signInWithOAuth(provider: 'google' | 'github'): Promise<AuthResult> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return {
+        success: false,
+        error: 'Supabase is not configured',
+      };
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`
+      }
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    return { success: true };
+  },
+
+  /**
    * Sign out the current user
    * Requirements: 3.1
    */

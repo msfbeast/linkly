@@ -21,7 +21,7 @@ interface CreateLinkModalProps {
 
 const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCreate, onUpdate, onBulkCreate, editingLink }) => {
   const { user } = useAuth();
-  const [mode, setMode] = useState<'single' | 'bulk'>('single');
+  const [mode, setMode] = useState<'single' | 'bulk' | 'csv'>('single');
 
   // Single Mode States
   const [url, setUrl] = useState('');
@@ -36,6 +36,11 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
   // Bulk Mode States
   const [bulkUrls, setBulkUrls] = useState('');
+
+  // CSV Mode States
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [isProcessingCsv, setIsProcessingCsv] = useState(false);
 
   // Advanced Options
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -224,6 +229,76 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     resetAndClose();
   };
 
+  const handleCsvSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!csvFile || !user) return;
+
+    setIsProcessingCsv(true);
+    setCsvError(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n');
+        const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+
+        // Basic Validation
+        const urlIndex = headers.findIndex(h => h === 'url' || h === 'destination' || h === 'originalurl');
+        if (urlIndex === -1) {
+          throw new Error('CSV must contain a "url" or "destination" column.');
+        }
+
+        const linksToCreate: LinkData[] = [];
+
+        // Parse rows
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          // Handle simple CSV splitting (doesn't support commas in quotes yet)
+          const values = line.split(',').map(v => v.trim());
+          const url = values[urlIndex];
+
+          if (!url) continue;
+
+          const slugIndex = headers.indexOf('slug');
+          const titleIndex = headers.indexOf('title');
+          const tagsIndex = headers.indexOf('tags');
+
+          const slug = slugIndex !== -1 ? values[slugIndex] : undefined;
+          const title = titleIndex !== -1 ? values[titleIndex] : 'Untitled Link';
+          const tags = tagsIndex !== -1 ? values[tagsIndex]?.split('|') : [];
+
+          linksToCreate.push({
+            id: uuidv4(),
+            originalUrl: url.startsWith('http') ? url : `https://${url}`,
+            shortCode: slug || uuidv4().slice(0, 8),
+            title: title,
+            tags: tags,
+            clicks: 0,
+            clickHistory: [],
+            createdAt: Date.now()
+          });
+        }
+
+        if (linksToCreate.length === 0) {
+          throw new Error('No valid links found in CSV.');
+        }
+
+        await supabaseAdapter.createLinks(linksToCreate);
+        onBulkCreate(linksToCreate); // Optimistic UI update
+        resetAndClose();
+
+      } catch (err: any) {
+        setCsvError(err.message || 'Failed to parse CSV');
+      } finally {
+        setIsProcessingCsv(false);
+      }
+    };
+    reader.readAsText(csvFile);
+  };
+
   const resetAndClose = () => {
     onClose();
     setTimeout(() => {
@@ -293,20 +368,38 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
             {/* Tabs - Only show in Create Mode */}
             {!editingLink && (
               <div className="flex border-b border-stone-100 bg-[#FDFBF7]/30">
-                <button
-                  onClick={() => setMode('single')}
-                  className={`flex-1 py-4 text-sm font-bold transition-all relative ${mode === 'single' ? 'text-amber-600 bg-amber-50' : 'text-stone-500 hover:text-slate-700 hover:bg-stone-50'}`}
-                >
-                  Single Link
-                  {mode === 'single' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500" />}
-                </button>
-                <button
-                  onClick={() => setMode('bulk')}
-                  className={`flex-1 py-4 text-sm font-bold transition-all relative ${mode === 'bulk' ? 'text-amber-600 bg-amber-50' : 'text-stone-500 hover:text-slate-700 hover:bg-stone-50'}`}
-                >
-                  Bulk Create
-                  {mode === 'bulk' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500" />}
-                </button>
+                <div className="flex p-1 bg-stone-100 rounded-xl w-full">
+                  <button
+                    type="button"
+                    onClick={() => setMode('single')}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'single'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'
+                      }`}
+                  >
+                    Single Link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('bulk')}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'bulk'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'
+                      }`}
+                  >
+                    Bulk Create
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('csv')}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'csv'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'
+                      }`}
+                  >
+                    Import CSV
+                  </button>
+                </div>
               </div>
             )}
 

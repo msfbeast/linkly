@@ -18,7 +18,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
-  const { signIn, user } = useAuth();
+  const { signIn, signInWithOAuth, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -80,6 +80,12 @@ const Login: React.FC = () => {
       setError('Unable to connect. Please try again.');
       setIsLoading(false);
     }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
+    setIsLoading(true);
+    await signInWithOAuth(provider);
+    // Redirect happens automatically via Supabase
   };
 
   return (
@@ -197,6 +203,48 @@ const Login: React.FC = () => {
                 'Sign in'
               )}
             </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-stone-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-stone-500">Or continue with</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleSocialLogin('google')}
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-3 py-3 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-stone-200 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-600 transition-all"
+              >
+                <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
+                  <path
+                    d="M12.0003 20.45c4.6667 0 7.3333-3.3333 7.3333-8.8 0-.9-.1-1.75-.2833-2.55h-7.05v3.4h4.15c-.2 1.25-1.1667 3.0167-4.15 3.0167-3.4 0-6.1667-2.7667-6.1667-6.1667s2.7667-6.1667 6.1667-6.1667c1.7833 0 3.25.7 4.1 1.5l2.6333-2.6333C17.3 1.05 14.9 0 12.0003 0 5.40033 0 .000329971 5.4 .000329971 12s5.400000029 12 12.000000029 12Z"
+                    fill="#EA4335" // Changed to official Google brand color for recognition
+                  />
+                  <path d="M12.0003 20.45c4.6667 0 7.3333-3.3333 7.3333-8.8 0-.9-.1-1.75-.2833-2.55h-7.05v3.4h4.15c-.2 1.25-1.1667 3.0167-4.15 3.0167-3.4 0-6.1667-2.7667-6.1667-6.1667s2.7667-6.1667 6.1667-6.1667c1.7833 0 3.25.7 4.1 1.5l2.6333-2.6333C17.3 1.05 14.9 0 12.0003 0 5.40033 0 .000329971 5.4 .000329971 12s5.400000029 12 12.000000029 12Z" fillOpacity="0" /> {/* Hack to ensure viewbox is correct if path is partial */}
+                </svg>
+                Google
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSocialLogin('github')}
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-3 py-3 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-stone-200 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-600 transition-all"
+              >
+                <svg className="h-5 w-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    fillRule="evenodd"
+                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                GitHub
+              </button>
+            </div>
           </form>
 
           <div className="mt-8 text-center">

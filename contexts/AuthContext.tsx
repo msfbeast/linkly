@@ -14,6 +14,7 @@ export interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, username?: string) => Promise<AuthResult>;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthResult>;
+  signInWithOAuth: (provider: 'google' | 'github') => Promise<AuthResult>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<AuthResult>;
   updatePassword: (newPassword: string) => Promise<AuthResult>;
@@ -92,6 +93,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return toAuthResult(result);
   }, []);
 
+
+
+  const signInWithOAuth = useCallback(async (provider: 'google' | 'github') => {
+    return await authService.signInWithOAuth(provider);
+  }, []);
+
   const signOut = useCallback(async () => {
     await authService.signOut();
     setUser(null);
@@ -160,6 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loading,
     signUp,
     signIn,
+    signInWithOAuth,
     signOut,
     resetPassword,
     updatePassword,
