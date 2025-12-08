@@ -500,6 +500,27 @@ const ProductManager: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </div>
+
+                                                {/* Image Preview */}
+                                                {currentProduct.imageUrl && (
+                                                    <div className="mt-6 pt-6 border-t border-yellow-400/20">
+                                                        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-3">
+                                                            Fetched Preview
+                                                        </label>
+                                                        <div className="relative rounded-2xl overflow-hidden border-2 border-white shadow-sm bg-white aspect-square w-full group">
+                                                            <img
+                                                                src={currentProduct.imageUrl}
+                                                                alt="Preview"
+                                                                className="w-full h-full object-contain p-4"
+                                                                referrerPolicy="no-referrer"
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                                                            <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded-full font-bold backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                {currentProduct.currency} {currentProduct.price}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
