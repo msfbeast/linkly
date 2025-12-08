@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Plus, Trash2, GripVertical, Save, X, Smartphone,
-    Upload, Loader2, ExternalLink, DollarSign
+    Upload, Loader2, ExternalLink, DollarSign, Wand2, Search
 } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { useAuth } from '../contexts/AuthContext';
@@ -97,6 +97,8 @@ export const AppStackManager: React.FC = () => {
     });
     const [iconFile, setIconFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [lookupUrl, setLookupUrl] = useState('');
+    const [isLookingUp, setIsLookingUp] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -148,6 +150,43 @@ export const AppStackManager: React.FC = () => {
             setApps(prev => prev.filter(app => app.id !== id));
         } catch (err) {
             console.error('Error deleting app:', err);
+        }
+    };
+
+    // URL Auto-Lookup
+    const handleLookupUrl = async () => {
+        if (!lookupUrl.trim()) return;
+
+        setIsLookingUp(true);
+        try {
+            const response = await fetch('/api/apps/lookup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: lookupUrl })
+            });
+
+            if (!response.ok) throw new Error('Lookup failed');
+
+            const data = await response.json();
+
+            // Auto-fill form with fetched data
+            setNewApp(prev => ({
+                ...prev,
+                name: data.name || prev.name,
+                developer: data.developer || prev.developer,
+                category: data.category || prev.category,
+                description: data.description || prev.description,
+                iconUrl: data.iconUrl || prev.iconUrl,
+                linkUrl: data.linkUrl || lookupUrl,
+                isPaid: data.isPaid ?? prev.isPaid
+            }));
+
+            setLookupUrl('');
+        } catch (err) {
+            console.error('URL lookup failed:', err);
+            alert('Could not fetch app info. Please fill in manually.');
+        } finally {
+            setIsLookingUp(false);
         }
     };
 
@@ -212,6 +251,33 @@ export const AppStackManager: React.FC = () => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* URL Lookup */}
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                            <label className="block text-xs font-bold text-indigo-600 mb-2">✨ Auto-fill from App Store URL</label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-indigo-400" />
+                                    <input
+                                        type="url"
+                                        value={lookupUrl}
+                                        onChange={e => setLookupUrl(e.target.value)}
+                                        className="w-full bg-white border border-indigo-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="https://apps.apple.com/... or play.google.com/..."
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleLookupUrl}
+                                    disabled={isLookingUp || !lookupUrl.trim()}
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+                                >
+                                    {isLookingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                                    Lookup
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-indigo-500 mt-2">Paste an App Store or Play Store URL to auto-fill app details</p>
+                        </div>
+
                         <div className="flex gap-4">
                             {/* Icon Upload */}
                             <div className="flex-shrink-0">

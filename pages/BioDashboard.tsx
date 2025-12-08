@@ -14,6 +14,7 @@ import BioPreview from '../components/BioPreview';
 import BioAppearanceEditor from '../components/BioAppearanceEditor';
 import { SortableBioLinkItem } from '../components/SortableBioLinkItem';
 import { GalleryManager } from '../components/GalleryManager';
+import { TechVaultManager } from '../components/TechVaultManager';
 import { NewsletterManager } from '../components/NewsletterManager';
 import { AppStackManager } from '../components/AppStackManager';
 import {
@@ -489,7 +490,7 @@ const BioDashboard: React.FC = () => {
                                 <Camera className="w-5 h-5 text-indigo-500" />
                                 <h3 className="text-slate-900 font-bold">Tech Vault</h3>
                             </div>
-                            <GalleryManager />
+                            <TechVaultManager />
                         </div>
 
                         {/* 5. Apps Card */}

@@ -1,5 +1,6 @@
 -- Tech Vault Items Table for storing user's gear/equipment showcase
 -- Created: 2025-12-09
+-- MIGRATION ALREADY APPLIED
 
 CREATE TABLE IF NOT EXISTS tech_vault_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
