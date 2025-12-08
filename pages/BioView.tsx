@@ -14,6 +14,7 @@ import BauhausBioTemplate from '../components/bio-templates/BauhausBioTemplate';
 import LabBioTemplate from '../components/bio-templates/LabBioTemplate';
 import ArchiveBioTemplate from '../components/bio-templates/ArchiveBioTemplate';
 import CustomBioTemplate from '../components/bio-templates/CustomBioTemplate';
+import AskMyAI from '../components/AskMyAI';
 
 import { useParams } from 'react-router-dom';
 
@@ -61,39 +62,59 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
     );
   }
 
+  let content;
+
   // Render Custom Template if configured
   if (profile.customTheme) {
-    return <CustomBioTemplate profile={profile} links={links} />;
+    content = <CustomBioTemplate profile={profile} links={links} />;
+  } else {
+    // Render the selected template
+    switch (profile.theme) {
+      case 'vibrant':
+        content = <VibrantBioTemplate profile={profile} links={links} />;
+        break;
+      case 'glass':
+        content = <GlassBioTemplate profile={profile} links={links} />;
+        break;
+      case 'industrial':
+        content = <IndustrialBioTemplate profile={profile} links={links} />;
+        break;
+      case 'retro':
+        content = <RetroPopBioTemplate profile={profile} links={links} />;
+        break;
+      case 'cyberpunk':
+        content = <CyberpunkBioTemplate profile={profile} links={links} />;
+        break;
+      case 'neubrutalism':
+        content = <NeubrutalismBioTemplate profile={profile} links={links} />;
+        break;
+      case 'lofi':
+        content = <LofiBioTemplate profile={profile} links={links} />;
+        break;
+      case 'clay':
+        content = <ClaymorphismBioTemplate profile={profile} links={links} />;
+        break;
+      case 'bauhaus':
+        content = <BauhausBioTemplate profile={profile} links={links} />;
+        break;
+      case 'lab':
+        content = <LabBioTemplate profile={profile} links={links} />;
+        break;
+      case 'archive':
+        content = <ArchiveBioTemplate profile={profile} links={links} />;
+        break;
+      default:
+        // Fallback to Vibrant for legacy themes or defaults
+        content = <VibrantBioTemplate profile={profile} links={links} />;
+    }
   }
 
-  // Render the selected template
-  switch (profile.theme) {
-    case 'vibrant':
-      return <VibrantBioTemplate profile={profile} links={links} />;
-    case 'glass':
-      return <GlassBioTemplate profile={profile} links={links} />;
-    case 'industrial':
-      return <IndustrialBioTemplate profile={profile} links={links} />;
-    case 'retro':
-      return <RetroPopBioTemplate profile={profile} links={links} />;
-    case 'cyberpunk':
-      return <CyberpunkBioTemplate profile={profile} links={links} />;
-    case 'neubrutalism':
-      return <NeubrutalismBioTemplate profile={profile} links={links} />;
-    case 'lofi':
-      return <LofiBioTemplate profile={profile} links={links} />;
-    case 'clay':
-      return <ClaymorphismBioTemplate profile={profile} links={links} />;
-    case 'bauhaus':
-      return <BauhausBioTemplate profile={profile} links={links} />;
-    case 'lab':
-      return <LabBioTemplate profile={profile} links={links} />;
-    case 'archive':
-      return <ArchiveBioTemplate profile={profile} links={links} />;
-    default:
-      // Fallback to Vibrant for legacy themes or defaults
-      return <VibrantBioTemplate profile={profile} links={links} />;
-  }
+  return (
+    <>
+      {content}
+      <AskMyAI profile={profile} links={links} />
+    </>
+  );
 };
 
 export default BioView;

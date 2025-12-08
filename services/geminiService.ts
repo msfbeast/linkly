@@ -9,9 +9,16 @@ export interface GeminiAnalysisResult {
 }
 
 // Client-side fallback for local development
+// Client-side fallback for local development
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './storage/supabaseClient';
 import { supabaseAdapter } from './storage/supabaseAdapter';
+
+export interface ProfileContext {
+  displayName: string;
+  bio: string;
+  links: { title: string; url: string; active: boolean }[];
+}
 
 export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisResult> => {
   try {
@@ -216,6 +223,53 @@ export const generateBio = async (keywords: string, currentBio?: string): Promis
   } catch (error) {
     console.error("Bio generation failed:", error);
     return currentBio || "";
+  }
+};
+
+export const chatWithProfile = async (context: ProfileContext, query: string, history: string[] = []): Promise<string> => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey) return "AI Chat is currently unavailable.";
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    // Construct context string
+    const linksContext = context.links
+      .filter(l => l.active)
+      .map(l => `- ${l.title} (${l.url})`)
+      .join('\n');
+
+    const systemPrompt = `
+      You are an AI assistant representing ${context.displayName}.
+      
+      Bio: "${context.bio}"
+      
+      Links/Content available:
+      ${linksContext}
+      
+      Your Goal: Answer the visitor's question based ONLY on the info above.
+      - Be friendly and helpful.
+      - If the answer is in a link, direct them to that specific link.
+      - If you don't know, say "I don't see that info on their profile."
+      - Keep answers short (under 50 words unless asked for more).
+      - Do not make up facts.
+    `;
+
+    // Fallback to flash if exp not available or for speed. Using 2.0-flash-exp as per prev setup.
+
+    const result = await ai.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: [
+        { role: 'user', parts: [{ text: systemPrompt }] }, // System instruction disguised as first user msg for simple API
+        ...history.map(msg => ({ role: 'user', parts: [{ text: msg }] })), // Simplified history for now
+        { role: 'user', parts: [{ text: query }] }
+      ],
+    });
+
+    return result.text ? result.text.trim() : "I'm not sure how to answer that.";
+  } catch (error) {
+    console.error("Chat generation failed:", error);
+    return "Sorry, I'm having trouble connecting right now.";
   }
 };
 
