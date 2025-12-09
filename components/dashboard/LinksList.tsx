@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Link as LinkIcon, ArrowUpRight } from 'lucide-react';
+import { Search, Link as LinkIcon, ArrowUpRight, Trash2, CheckSquare, Square, X } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
@@ -25,6 +25,7 @@ interface LinksListProps {
     onDragEnd: (event: DragEndEvent) => void;
     onEdit: (link: LinkData) => void;
     onDelete: (id: string) => void;
+    onBulkDelete?: (ids: string[]) => void;
     onCreateFirstLink: () => void;
     isLoading?: boolean;
 }
@@ -36,9 +37,13 @@ const LinksList: React.FC<LinksListProps> = ({
     onDragEnd,
     onEdit,
     onDelete,
+    onBulkDelete,
     onCreateFirstLink,
     isLoading = false
 }) => {
+    const [isSelectMode, setIsSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -50,6 +55,47 @@ const LinksList: React.FC<LinksListProps> = ({
         (link.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (link.originalUrl || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleToggleSelect = (id: string, selected: boolean) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (selected) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = () => {
+        if (selectedIds.size === filteredLinks.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredLinks.map(l => l.id)));
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.size === 0) return;
+
+        const message = `Are you sure you want to delete ${selectedIds.size} link${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`;
+        if (confirm(message)) {
+            if (onBulkDelete) {
+                onBulkDelete(Array.from(selectedIds));
+            } else {
+                // Fallback: delete one by one
+                selectedIds.forEach(id => onDelete(id));
+            }
+            setSelectedIds(new Set());
+            setIsSelectMode(false);
+        }
+    };
+
+    const exitSelectMode = () => {
+        setIsSelectMode(false);
+        setSelectedIds(new Set());
+    };
 
     if (isLoading) {
         return (
@@ -88,9 +134,50 @@ const LinksList: React.FC<LinksListProps> = ({
                         className="w-full pl-10 pr-4 py-2 bg-transparent border-none focus:ring-0 text-sm font-medium text-slate-900 placeholder:text-stone-400"
                     />
                 </div>
-                <div className="px-4 py-1 text-xs font-bold text-stone-400 uppercase tracking-wider border-l border-stone-200">
-                    {filteredLinks.length} Links
-                </div>
+
+                {/* Bulk Actions */}
+                {isSelectMode ? (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleSelectAll}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-stone-600 hover:text-slate-900 hover:bg-stone-100 rounded-lg transition-colors"
+                        >
+                            {selectedIds.size === filteredLinks.length ? (
+                                <><CheckSquare className="w-4 h-4" /> Deselect All</>
+                            ) : (
+                                <><Square className="w-4 h-4" /> Select All</>
+                            )}
+                        </button>
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={selectedIds.size === 0}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedIds.size > 0
+                                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                    : 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                                }`}
+                        >
+                            <Trash2 className="w-4 h-4" /> Delete ({selectedIds.size})
+                        </button>
+                        <button
+                            onClick={exitSelectMode}
+                            className="p-1.5 text-stone-400 hover:text-slate-900 hover:bg-stone-100 rounded-lg transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsSelectMode(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-stone-500 hover:text-slate-900 hover:bg-stone-100 rounded-lg transition-colors border border-stone-200"
+                        >
+                            <CheckSquare className="w-4 h-4" /> Select
+                        </button>
+                        <div className="px-4 py-1 text-xs font-bold text-stone-400 uppercase tracking-wider border-l border-stone-200">
+                            {filteredLinks.length} Links
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Links List */}
@@ -112,6 +199,9 @@ const LinksList: React.FC<LinksListProps> = ({
                                         link={link}
                                         onEdit={() => onEdit(link)}
                                         onDelete={() => onDelete(link.id)}
+                                        selectable={isSelectMode}
+                                        selected={selectedIds.has(link.id)}
+                                        onSelect={handleToggleSelect}
                                     />
                                 ))
                             ) : (
@@ -147,3 +237,4 @@ const LinksList: React.FC<LinksListProps> = ({
 };
 
 export default LinksList;
+

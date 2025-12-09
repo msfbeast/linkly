@@ -280,6 +280,27 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const handleBulkDelete = async (ids: string[]) => {
+    try {
+      await Promise.all(
+        ids.map(id =>
+          retryExecute(
+            () => supabaseAdapter.deleteLink(id),
+            { maxRetries: 3, baseDelayMs: 1000 }
+          )
+        )
+      );
+      toast.success(`Deleted ${ids.length} link${ids.length > 1 ? 's' : ''}`);
+      await loadLinks();
+      onLinksUpdate?.();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete links';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error('Failed to bulk delete links:', err);
+    }
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
@@ -539,6 +560,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onDragEnd={handleDragEnd}
                 onEdit={openEditModal}
                 onDelete={handleDeleteLink}
+                onBulkDelete={handleBulkDelete}
                 onCreateFirstLink={() => setIsModalOpen(true)}
                 isLoading={isLoading}
               />
