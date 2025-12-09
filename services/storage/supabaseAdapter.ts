@@ -566,10 +566,10 @@ export class SupabaseAdapter implements StorageAdapter {
 
 
   /**
-   * Create a new link
-   * Automatically sets user_id from the current auth session
-   * Requirements: 5.1
-   */
+ * Create a new link
+ * Automatically sets user_id from the current auth session
+ * Requirements: 5.1
+ */
   async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData> {
     if (!isSupabaseConfigured()) {
       throw new Error('Supabase is not configured');
@@ -589,33 +589,53 @@ export class SupabaseAdapter implements StorageAdapter {
       });
     }
 
-    const id = uuidv4();
-    const rowData = linkDataToRow({ ...link, id, originalUrl: finalUrl }, userId);
+    // Retry logic for short code conflicts
+    const maxAttempts = 3;
+    let lastError: Error | null = null;
 
-    const { data: row, error } = await supabase!
-      .from(TABLES.LINKS)
-      .insert(rowData)
-      .select()
-      .single();
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const id = uuidv4();
+      // Generate a new short code if none provided OR if retrying after conflict
+      const shortCode = (attempt === 0 && link.shortCode)
+        ? link.shortCode
+        : this.generateShortCode();
 
-    if (error) {
-      throw new Error(`Failed to create link: ${error.message}`);
+      const rowData = linkDataToRow({ ...link, id, shortCode, originalUrl: finalUrl }, userId);
+
+      const { data: row, error } = await supabase!
+        .from(TABLES.LINKS)
+        .insert(rowData)
+        .select()
+        .single();
+
+      if (error) {
+        // Check if it's a duplicate key error
+        if (error.code === '23505' || error.message.includes('duplicate key')) {
+          console.warn(`Short code conflict (attempt ${attempt + 1}/${maxAttempts}), generating new code...`);
+          lastError = new Error(`Short code conflict: ${error.message}`);
+          continue; // Retry with a new short code
+        }
+        throw new Error(`Failed to create link: ${error.message}`);
+      }
+
+      const newLink = rowToLinkData(row as LinkRow, link.clickHistory || []);
+
+      // Sync to Edge Cache (Fire and forget)
+      if (newLink.shortCode && newLink.originalUrl) {
+        this.syncToEdge(newLink.shortCode, newLink.originalUrl, newLink.id, {
+          password: !!newLink.password,
+          expiration: newLink.expirationDate,
+          start: newLink.startDate
+        }).catch(err => {
+          console.warn('[SupabaseAdapter] Failed to sync to edge:', err);
+        });
+      }
+
+      return newLink;
     }
 
-    const newLink = rowToLinkData(row as LinkRow, link.clickHistory || []);
-
-    // Sync to Edge Cache (Fire and forget)
-    if (newLink.shortCode && newLink.originalUrl) {
-      this.syncToEdge(newLink.shortCode, newLink.originalUrl, newLink.id, {
-        password: !!newLink.password,
-        expiration: newLink.expirationDate,
-        start: newLink.startDate
-      }).catch(err => {
-        console.warn('[SupabaseAdapter] Failed to sync to edge:', err);
-      });
-    }
-
-    return newLink;
+    // All attempts failed
+    throw lastError || new Error('Failed to create link after multiple attempts');
   }
 
   /**
