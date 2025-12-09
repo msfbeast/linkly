@@ -242,7 +242,13 @@ const LinkCard: React.FC<LinkCardProps> = ({
                 {/* Website Favicon */}
                 <div className="w-10 h-10 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-center overflow-hidden flex-shrink-0 mt-1">
                   <img
-                    src={`https://www.google.com/s2/favicons?domain=${new URL(link.originalUrl).hostname}&sz=64`}
+                    src={(() => {
+                      try {
+                        const u = new URL(link.originalUrl);
+                        if (!['http:', 'https:'].includes(u.protocol)) return undefined;
+                        return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+                      } catch { return undefined; }
+                    })()}
                     alt=""
                     className="w-6 h-6"
                     onError={(e) => {

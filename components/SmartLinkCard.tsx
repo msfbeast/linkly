@@ -35,7 +35,13 @@ const SmartLinkCard: React.FC<SmartLinkCardProps> = ({ link, onCopy, onEdit, onD
                     <div className="flex items-center gap-3">
                         <div className="bg-white w-10 h-10 flex justify-center items-center rounded-full shadow-sm flex-shrink-0 overflow-hidden">
                             <img
-                                src={`https://www.google.com/s2/favicons?domain=${link.originalUrl}&sz=64`}
+                                src={(() => {
+                                    try {
+                                        const u = new URL(link.originalUrl);
+                                        if (!['http:', 'https:'].includes(u.protocol)) return undefined;
+                                        return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+                                    } catch { return undefined; }
+                                })()}
                                 alt="Logo"
                                 className="w-6 h-6 object-contain"
                                 onError={(e) => {

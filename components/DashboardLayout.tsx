@@ -84,7 +84,7 @@ const DashboardLayout: React.FC = () => {
     // Sync view with URL
     useEffect(() => {
         const path = location.pathname;
-        console.log('DashboardLayout: path changed to', path);
+
 
         if (path.includes('/team/settings')) {
             setView(ViewState.TEAM_SETTINGS);
