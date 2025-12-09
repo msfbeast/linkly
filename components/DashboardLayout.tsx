@@ -121,6 +121,12 @@ const DashboardLayout: React.FC = () => {
                 setIsModalOpen(true);
             }
 
+            // Cmd/Ctrl+K - Create new link (universal shortcut)
+            if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                setIsModalOpen(true);
+            }
+
             // D - Go to Dashboard
             if (e.key === 'd' && !e.metaKey && !e.ctrlKey) {
                 e.preventDefault();
@@ -282,6 +288,7 @@ const DashboardLayout: React.FC = () => {
                         <h3 className="text-lg font-bold text-white mb-4">Keyboard Shortcuts</h3>
                         <div className="space-y-3">
                             {[
+                                { key: '⌘K', action: 'Create new link' },
                                 { key: 'C', action: 'Create new link' },
                                 { key: 'D', action: 'Go to Dashboard' },
                                 { key: 'L', action: 'Go to Links' },

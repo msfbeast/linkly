@@ -602,7 +602,9 @@ export class SupabaseAdapter implements StorageAdapter {
       if (existingLinks && existingLinks.length > 0) {
         console.log('[createLink] Found existing link for URL, returning existing');
         const clickHistory = await this.getClickEvents(existingLinks[0].id);
-        return rowToLinkData(existingLinks[0] as LinkRow, clickHistory);
+        const existingLink = rowToLinkData(existingLinks[0] as LinkRow, clickHistory);
+        // Add marker so UI can show appropriate toast
+        return { ...existingLink, _isExisting: true } as LinkData & { _isExisting?: boolean };
       }
     }
 

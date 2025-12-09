@@ -24,6 +24,7 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics, UserClickStats, CityBreakdown } from '../services/aggregatedAnalyticsService';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
+import { toast } from 'sonner';
 import {
   DndContext,
   closestCenter,
@@ -206,15 +207,26 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleCreateLink = async (link: LinkData) => {
     try {
-      await retryExecute(
+      const result = await retryExecute(
         () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
         { maxRetries: 3, baseDelayMs: 1000 }
-      );
+      ) as LinkData & { _isExisting?: boolean };
+
+      // Show appropriate toast
+      if (result._isExisting) {
+        toast.info('Link already exists! Showing your existing short link.', {
+          duration: 4000,
+        });
+      } else {
+        toast.success('Link created successfully!');
+      }
+
       await loadLinks();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create link';
       setError(errorMessage);
+      toast.error(errorMessage);
       console.error('Failed to create link:', err);
     }
   };
