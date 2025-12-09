@@ -9,27 +9,13 @@ export interface ThemePreset {
 
 export const PRESET_THEMES: ThemePreset[] = [
     {
-        id: 'nature',
-        name: 'Hydra Nature',
-        previewColor: '#4f5b45',
+        id: 'pastel-pop',
+        name: 'Pastel Pop',
+        previewColor: '#e0f2fe',
         config: {
-            backgroundType: 'image',
-            backgroundValue: 'https://images.unsplash.com/photo-1615880484746-113149013aa6?q=80&w=3074&auto=format&fit=crop', // Sage green aesthetic
-            textColor: '#fefdec',
-            buttonStyle: 'rounded',
-            buttonColor: '#fefdec',
-            buttonTextColor: '#4f5b45',
-            font: 'outfit'
-        }
-    },
-    {
-        id: 'neon-city',
-        name: 'Neon City',
-        previewColor: '#0f172a',
-        config: {
-            backgroundType: 'image',
-            backgroundValue: 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=2970&auto=format&fit=crop', // Cyber city
-            textColor: '#ffffff',
+            backgroundType: 'solid',
+            backgroundValue: '#e0f2fe', // Light blue
+            textColor: '#0f172a',
             buttonStyle: 'hard-shadow',
             buttonColor: '#f43f5e', // Neon red
             buttonTextColor: '#fff',
