@@ -284,6 +284,27 @@ const LinkCard: React.FC<LinkCardProps> = ({
               <div className="text-left lg:text-right">
                 <div className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{link.clicks}</div>
                 <div className="text-[10px] sm:text-xs text-stone-500 font-medium uppercase tracking-wider">Clicks</div>
+                {/* Click Goal Progress Bar */}
+                {link.clickGoal && link.clickGoal > 0 && (
+                  <div className="mt-2 w-24 lg:w-20">
+                    <div className="flex items-center justify-between text-[9px] font-bold mb-1">
+                      <span className="text-amber-600">🎯 Goal</span>
+                      <span className="text-stone-500">{Math.min(Math.round((link.clicks / link.clickGoal) * 100), 100)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${link.clicks >= link.clickGoal
+                            ? 'bg-emerald-500'
+                            : link.clicks >= link.clickGoal * 0.75
+                              ? 'bg-amber-500'
+                              : 'bg-amber-400'
+                          }`}
+                        style={{ width: `${Math.min((link.clicks / link.clickGoal) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <div className="text-[9px] text-stone-400 mt-0.5">{link.clicks}/{link.clickGoal}</div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-1">

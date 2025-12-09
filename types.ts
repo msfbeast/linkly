@@ -121,6 +121,7 @@ export interface LinkData {
   startDate?: number | null;
   expirationDate?: number | null;
   maxClicks?: number | null;
+  clickGoal?: number | null; // Target click goal for progress tracking
   password?: string | null;
 
   qrCodeData?: string;

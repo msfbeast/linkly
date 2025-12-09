@@ -54,6 +54,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const [startDate, setStartDate] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
   const [clickLimit, setClickLimit] = useState('');
+  const [clickGoal, setClickGoal] = useState('');
   const [password, setPassword] = useState('');
 
   // A/B Testing State
@@ -175,6 +176,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       startDate: startDate ? new Date(startDate).getTime() : null,
       expirationDate: expirationDate ? new Date(expirationDate).getTime() : null,
       maxClicks: clickLimit ? parseInt(clickLimit) : null,
+      clickGoal: clickGoal ? parseInt(clickGoal) : null,
       password: password || null,
       tags: tags,
       folderId: folderId,
@@ -318,6 +320,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       setStartDate('');
       setExpirationDate('');
       setClickLimit('');
+      setClickGoal('');
       setPassword('');
       setTags([]);
       setFolderId(null);
@@ -664,10 +667,19 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       </div>
 
                       <div className="pt-2 border-t border-stone-200">
-                        <div>
-                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Click Limit</label>
-                          <input type="number" placeholder="∞" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickLimit} onChange={e => setClickLimit(e.target.value)} />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Click Limit</label>
+                            <input type="number" placeholder="∞" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickLimit} onChange={e => setClickLimit(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                              🎯 Click Goal
+                            </label>
+                            <input type="number" placeholder="e.g. 1000" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickGoal} onChange={e => setClickGoal(e.target.value)} />
+                          </div>
                         </div>
+                        <p className="text-xs text-stone-400 mt-2">Set a click goal to track progress towards your target.</p>
                       </div>
 
                       {/* Password Protection */}
