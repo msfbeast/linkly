@@ -476,7 +476,9 @@ const BioDashboard: React.FC = () => {
                                     <label className="text-xs font-bold text-stone-500 block mb-3 uppercase tracking-wider">Theme Collection</label>
                                     <ThemeGallery
                                         currentTheme={currentProfile.theme || 'vibrant'}
-                                        onSelect={(theme) => setCurrentProfile({ ...currentProfile, theme: theme as any })}
+                                        currentCustomTheme={currentProfile.customTheme}
+                                        onSelect={(theme) => setCurrentProfile({ ...currentProfile, theme: theme as any, customTheme: undefined })}
+                                        onSelectCustom={(config) => setCurrentProfile({ ...currentProfile, customTheme: config })}
                                     />
                                 </div>
 

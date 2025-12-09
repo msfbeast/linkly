@@ -1,10 +1,14 @@
 import React from 'react';
 import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Microscope, Clock, Hexagon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ThemeGalleryComponent } from './ThemeGalleryComponent';
+import { BioThemeConfig } from '../types';
 
 interface ThemeGalleryProps {
     currentTheme: string;
     onSelect: (theme: string) => void;
+    onSelectCustom?: (config: BioThemeConfig) => void;
+    currentCustomTheme?: BioThemeConfig;
 }
 
 interface ThemeDefinition {
@@ -104,58 +108,90 @@ const THEMES: ThemeDefinition[] = [
 
 
 
-export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSelect }) => {
+import { ThemeGalleryComponent } from './ThemeGalleryComponent';
+import { BioThemeConfig } from '../types';
+
+interface ThemeGalleryProps {
+    currentTheme: string;
+    onSelect: (theme: string) => void;
+    onSelectCustom?: (config: BioThemeConfig) => void;
+    currentCustomTheme?: BioThemeConfig;
+}
+
+// ... existing imports ...
+
+export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSelect, onSelectCustom, currentCustomTheme }) => {
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {THEMES.map((theme) => {
-                const isActive = currentTheme === theme.id;
-                const Icon = theme.icon;
+        <div className="space-y-8">
+            {/* Premium Themes (Deep Customization) */}
+            {onSelectCustom && (
+                <div>
 
-                return (
-                    <button
-                        key={theme.id}
-                        onClick={() => onSelect(theme.id)}
-                        className={`
-                            relative group flex flex-col items-start p-4 rounded-xl border-2 transition-all duration-200 text-left
-                            ${isActive
-                                ? 'border-amber-500 bg-amber-50 shadow-md ring-1 ring-amber-500/20'
-                                : 'border-stone-100 bg-white hover:border-amber-200 hover:shadow-sm'
-                            }
-                        `}
-                    >
-                        {/* Header: Icon and Name */}
-                        <div className="flex items-center gap-3 mb-2 w-full">
-                            <div className={`
-                                p-2 rounded-lg transition-colors
-                                ${isActive ? 'bg-amber-100/50 text-amber-600' : 'bg-stone-50 text-stone-400 group-hover:text-amber-500 group-hover:bg-amber-50'}
-                            `}>
-                                <Icon className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h4 className={`font-bold text-sm truncate ${isActive ? 'text-amber-900' : 'text-slate-900'}`}>{theme.name}</h4>
-                            </div>
-                            {isActive && (
-                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                            )}
-                        </div>
+                    <ThemeGalleryComponent
+                        currentTheme={currentCustomTheme}
+                        onSelect={onSelectCustom}
+                    />
+                </div>
+            )}
 
-                        {/* Description */}
-                        <p className="text-xs text-stone-500 mb-3 line-clamp-1">{theme.description}</p>
+            {/* Standard Themes */}
+            <div>
+                <div className="flex items-center gap-2 mb-4">
+                    <Grid className="w-5 h-5 text-indigo-400" />
+                    <h3 className="text-lg font-bold text-slate-900">Standard Presets</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {THEMES.map((theme) => {
+                        const isActive = currentTheme === theme.id && !currentCustomTheme;
+                        const Icon = theme.icon;
 
-                        {/* Color Swatches */}
-                        <div className="flex gap-1 mt-auto">
-                            {theme.colors.map((color, idx) => (
-                                <div
-                                    key={idx}
-                                    className="w-4 h-4 rounded-full ring-1 ring-black/5 shadow-sm"
-                                    style={{ backgroundColor: color }}
-                                    title={color}
-                                />
-                            ))}
-                        </div>
-                    </button>
-                );
-            })}
+                        return (
+                            <button
+                                key={theme.id}
+                                onClick={() => onSelect(theme.id)}
+                                className={`
+                                    relative group flex flex-col items-start p-4 rounded-xl border-2 transition-all duration-200 text-left
+                                    ${isActive
+                                        ? 'border-amber-500 bg-amber-50 shadow-md ring-1 ring-amber-500/20'
+                                        : 'border-stone-100 bg-white hover:border-amber-200 hover:shadow-sm'
+                                    }
+                                `}
+                            >
+                                {/* Header: Icon and Name */}
+                                <div className="flex items-center gap-3 mb-2 w-full">
+                                    <div className={`
+                                        p-2 rounded-lg transition-colors
+                                        ${isActive ? 'bg-amber-100/50 text-amber-600' : 'bg-stone-50 text-stone-400 group-hover:text-amber-500 group-hover:bg-amber-50'}
+                                    `}>
+                                        <Icon className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className={`font-bold text-sm truncate ${isActive ? 'text-amber-900' : 'text-slate-900'}`}>{theme.name}</h4>
+                                    </div>
+                                    {isActive && (
+                                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                    )}
+                                </div>
+
+                                {/* Description */}
+                                <p className="text-xs text-stone-500 mb-3 line-clamp-1">{theme.description}</p>
+
+                                {/* Color Swatches */}
+                                <div className="flex gap-1 mt-auto">
+                                    {theme.colors.map((color, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="w-4 h-4 rounded-full ring-1 ring-black/5 shadow-sm"
+                                            style={{ backgroundColor: color }}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 };

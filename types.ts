@@ -233,7 +233,7 @@ export interface BioThemeConfig {
   backgroundType: 'solid' | 'gradient' | 'image' | 'video';
   backgroundValue: string;
   textColor: string;
-  buttonStyle: 'rounded' | 'pill' | 'square' | 'shadow' | 'hard-shadow' | 'outline';
+  buttonStyle: 'rounded' | 'pill' | 'square' | 'shadow' | 'hard-shadow' | 'outline' | 'wavy';
   buttonColor: string;
   buttonTextColor: string;
   font?: string; // Added font support

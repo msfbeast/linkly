@@ -24,6 +24,7 @@ const CustomBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
             case 'shadow': return `${base} rounded-lg shadow-lg hover:shadow-xl`;
             case 'hard-shadow': return `${base} rounded-lg border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]`;
             case 'outline': return `${base} rounded-lg border-2`;
+            case 'wavy': return `${base} rounded-[20px_5px_20px_5px] border-2 border-current shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all`;
             case 'rounded': default: return `${base} rounded-lg`;
         }
     };
