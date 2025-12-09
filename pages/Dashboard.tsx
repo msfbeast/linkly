@@ -301,6 +301,42 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const handleDuplicateLink = async (link: LinkData) => {
+    try {
+      // Create a copy with reset stats
+      const duplicatedLink: Omit<LinkData, 'id'> = {
+        originalUrl: link.originalUrl,
+        shortCode: '', // Let backend generate new code
+        title: `${link.title} (Copy)`,
+        description: link.description,
+        tags: link.tags,
+        createdAt: Date.now(),
+        clicks: 0,
+        clickHistory: [],
+        teamId: currentTeam?.id,
+        // Copy advanced settings
+        smartRedirects: link.smartRedirects,
+        geoRedirects: link.geoRedirects,
+        password: link.password,
+        expirationDate: link.expirationDate,
+        startDate: link.startDate,
+      };
+
+      await retryExecute(
+        () => supabaseAdapter.createLink(duplicatedLink),
+        { maxRetries: 3, baseDelayMs: 1000 }
+      );
+      toast.success('Link duplicated successfully!');
+      await loadLinks();
+      onLinksUpdate?.();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to duplicate link';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error('Failed to duplicate link:', err);
+    }
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
@@ -561,6 +597,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onEdit={openEditModal}
                 onDelete={handleDeleteLink}
                 onBulkDelete={handleBulkDelete}
+                onDuplicate={handleDuplicateLink}
                 onCreateFirstLink={() => setIsModalOpen(true)}
                 isLoading={isLoading}
               />

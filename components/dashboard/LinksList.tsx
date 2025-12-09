@@ -26,6 +26,7 @@ interface LinksListProps {
     onEdit: (link: LinkData) => void;
     onDelete: (id: string) => void;
     onBulkDelete?: (ids: string[]) => void;
+    onDuplicate?: (link: LinkData) => void;
     onCreateFirstLink: () => void;
     isLoading?: boolean;
 }
@@ -38,6 +39,7 @@ const LinksList: React.FC<LinksListProps> = ({
     onEdit,
     onDelete,
     onBulkDelete,
+    onDuplicate,
     onCreateFirstLink,
     isLoading = false
 }) => {
@@ -152,8 +154,8 @@ const LinksList: React.FC<LinksListProps> = ({
                             onClick={handleBulkDelete}
                             disabled={selectedIds.size === 0}
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedIds.size > 0
-                                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                    : 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                : 'bg-stone-100 text-stone-400 cursor-not-allowed'
                                 }`}
                         >
                             <Trash2 className="w-4 h-4" /> Delete ({selectedIds.size})
@@ -199,6 +201,7 @@ const LinksList: React.FC<LinksListProps> = ({
                                         link={link}
                                         onEdit={() => onEdit(link)}
                                         onDelete={() => onDelete(link.id)}
+                                        onDuplicate={onDuplicate}
                                         selectable={isSelectMode}
                                         selected={selectedIds.has(link.id)}
                                         onSelect={handleToggleSelect}

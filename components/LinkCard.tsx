@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock, GripVertical, Clock, AlertCircle, CheckCircle2, Download } from 'lucide-react';
+import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock, GripVertical, Clock, AlertCircle, CheckCircle2, Download, Copy as CopyIcon } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import QRCodeGenerator from './QRCodeGenerator';
@@ -15,6 +15,7 @@ interface LinkCardProps {
   link: LinkData;
   onDelete: (id: string) => void;
   onEdit: (link: LinkData) => void;
+  onDuplicate?: (link: LinkData) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (id: string, selected: boolean) => void;
@@ -24,6 +25,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
   link,
   onDelete,
   onEdit,
+  onDuplicate,
   selectable = false,
   selected = false,
   onSelect
@@ -292,6 +294,15 @@ const LinkCard: React.FC<LinkCardProps> = ({
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
+                {onDuplicate && (
+                  <button
+                    onClick={() => onDuplicate(link)}
+                    className="p-2 rounded-lg text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-all"
+                    title="Duplicate Link"
+                  >
+                    <CopyIcon className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   onClick={handleGeneratePost}
                   disabled={isGeneratingPost}
