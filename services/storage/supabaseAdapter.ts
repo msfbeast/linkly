@@ -2802,12 +2802,13 @@ export class SupabaseAdapter implements StorageAdapter {
       byLocation,
       topLinks
     };
+  }
   // ============================================
   // Interactive Engagement (Polls & QnA)
   // ============================================
 
-  async createPoll(userId: string, question: string, options: string[]): Promise < PollData > {
-      if(!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+  async createPoll(userId: string, question: string, options: string[]): Promise<PollData> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
 
     // 1. Create Poll Link/Entry
     // For simplicity, we store the poll as a "Widget" in the links table with specific metadata
