@@ -335,9 +335,7 @@ function bioProfileToRow(profile: Partial<BioProfile>, userId?: string): Partial
   if (profile.theme) row.theme = profile.theme;
   if (profile.links) row.links = profile.links;
   if (profile.views !== undefined) row.views = profile.views;
-  // custom_theme column does not exist in the current legacy schema. 
-  // Disabling this to prevent 400 errors during save.
-  // if (profile.customTheme) row.custom_theme = profile.customTheme;
+  if (profile.customTheme) row.custom_theme = profile.customTheme;
   if (userId) row.user_id = userId;
   return row;
 }
