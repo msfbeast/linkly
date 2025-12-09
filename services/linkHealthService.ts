@@ -13,6 +13,16 @@ const CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
 export const checkLinkHealth = async (url: string): Promise<HealthCheckResult> => {
     if (!url) return { status: 'unknown', lastChecked: Date.now() };
 
+    // Skip health checks for internal widget URLs - they're not real links
+    if (url.startsWith('widget://')) {
+        return { status: 'healthy', lastChecked: Date.now() };
+    }
+
+    // Skip health checks for obviously invalid URLs
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return { status: 'unknown', lastChecked: Date.now() };
+    }
+
     // Check cache
     const cached = healthCache[url];
     if (cached && (Date.now() - cached.lastChecked < CACHE_DURATION)) {

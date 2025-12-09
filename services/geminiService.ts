@@ -182,12 +182,17 @@ export const generateLinkMetadata = async (url: string, currentTitle?: string): 
     });
 
     const text = result.text || "";
-    if (text) {
-      const parsed = JSON.parse(text);
-      return {
-        title: parsed.title || currentTitle || "New Link",
-        description: parsed.description || ""
-      };
+    if (text && text.trim()) {
+      try {
+        const parsed = JSON.parse(text);
+        return {
+          title: parsed.title || currentTitle || "New Link",
+          description: parsed.description || ""
+        };
+      } catch (parseError) {
+        console.warn("Smart Link Metadata JSON parse failed, using fallback");
+        return { title: currentTitle || "New Link", description: "" };
+      }
     }
     return { title: currentTitle || "New Link", description: "" };
 
