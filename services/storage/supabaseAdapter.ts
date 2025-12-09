@@ -2767,14 +2767,17 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     clicks?.forEach(c => {
-      // Safety check for invalid timestamp
-      if (!c.timestamp) return;
-      const d = new Date(c.timestamp);
-      if (isNaN(d.getTime())) return;
+      try {
+        if (!c.timestamp) return;
+        const d = new Date(c.timestamp);
+        if (isNaN(d.getTime())) return;
 
-      const date = d.toISOString().split('T')[0];
-      if (clicksByDate.has(date)) {
-        clicksByDate.set(date, (clicksByDate.get(date) || 0) + 1);
+        const date = d.toISOString().split('T')[0];
+        if (clicksByDate.has(date)) {
+          clicksByDate.set(date, (clicksByDate.get(date) || 0) + 1);
+        }
+      } catch (e) {
+        // Ignore invalid dates
       }
     });
 
