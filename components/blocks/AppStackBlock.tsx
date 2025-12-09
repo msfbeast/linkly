@@ -86,7 +86,7 @@ export const AppStackBlock: React.FC<AppStackBlockProps> = ({
                 {title}
             </h3>
 
-            <div className="grid grid-cols-4 gap-4 px-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 px-2">
                 {apps.map((app) => (
                     <motion.button
                         key={app.id}

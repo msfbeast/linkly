@@ -34,13 +34,17 @@ export const MapBlock: React.FC<MapBlockProps> = ({ lat, lng, address, variant =
             case 'neubrutalism':
             case 'bauhaus':
                 return 'rounded-none border-2 border-black';
+            case 'vibrant':
+                return 'rounded-2xl border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]';
+            case 'clay':
+                return 'rounded-3xl shadow-[9px_9px_16px_rgb(163,177,198,0.6),-9px_-9px_16px_rgba(255,255,255,0.5)] border-none';
             case 'retro':
             case 'archive':
                 return 'rounded-sm border-2 border-stone-800';
             case 'industrial':
                 return 'rounded-sm border-2 border-slate-700 bg-slate-800';
             case 'cyberpunk':
-                return 'rounded-none border border-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]';
+                return 'rounded-none border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)]';
             case 'lofi':
                 return 'rounded-xl border border-stone-400';
             case 'lab':
@@ -53,10 +57,12 @@ export const MapBlock: React.FC<MapBlockProps> = ({ lat, lng, address, variant =
     const getOverlayStyles = () => {
         switch (variant) {
             case 'glass':
-                return 'bg-black/40 backdrop-blur-md border-t border-white/20 text-white';
+                return 'bg-black/30 backdrop-blur-lg border-t border-white/10 text-white';
             case 'neubrutalism':
             case 'bauhaus':
                 return 'bg-yellow-300 border-t-2 border-black text-black font-mono tracking-tight';
+            case 'vibrant':
+                return 'bg-yellow-300 border-t-4 border-black text-black font-black uppercase tracking-widest';
             case 'retro':
             case 'archive':
                 return 'bg-[#f0e6d2] border-t-2 border-[#5c4033] text-[#5c4033] font-serif';
@@ -65,7 +71,7 @@ export const MapBlock: React.FC<MapBlockProps> = ({ lat, lng, address, variant =
             case 'cyberpunk':
                 return 'bg-black/90 border-t border-cyan-500 text-cyan-400 font-mono tracking-wider';
             case 'clay':
-                return 'bg-[#E0E5EC]/90 backdrop-blur-sm text-[#4A5568] border-t border-white/50';
+                return 'bg-[#E0E5EC]/80 backdrop-blur-sm text-[#4A5568] border-none';
             case 'lofi':
                 return 'bg-stone-100/90 border-t border-stone-300 text-stone-600 font-mono text-xs';
             case 'lab':
@@ -87,7 +93,10 @@ export const MapBlock: React.FC<MapBlockProps> = ({ lat, lng, address, variant =
                 src={mapUrl}
                 className="w-full h-full"
             ></iframe>
-            <div className={`absolute bottom-0 left-0 right-0 p-3 ${getOverlayStyles()}`}>
+            {variant === 'cyberpunk' && (
+                <div className="absolute inset-0 pointer-events-none z-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-50"></div>
+            )}
+            <div className={`absolute bottom-0 left-0 right-0 p-3 z-20 ${getOverlayStyles()}`}>
                 <div className="flex items-center gap-2">
                     <div className={`p-1.5 rounded-full ${variant === 'neubrutalism' ? 'bg-black text-white' : 'bg-red-500 text-white'}`}>
                         <MapPin className="w-3 h-3" />

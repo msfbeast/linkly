@@ -4,6 +4,7 @@ import { ExternalLink, Zap, Star } from 'lucide-react';
 import { GalleryBlock } from '../blocks/GalleryBlock';
 import { NewsletterBlock } from '../blocks/NewsletterBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { BioWidget } from '../BioWidget';
 
 interface BioTemplateProps {
@@ -63,7 +64,7 @@ const VibrantBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                         if (link.type !== 'link') {
                             return (
                                 <div key={link.id} className={`${style} rounded-2xl overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] border-2 border-black`}>
-                                    <BioWidget link={link} />
+                                    <BioWidget link={link} profile={profile} />
                                 </div>
                             );
                         }
@@ -91,7 +92,14 @@ const VibrantBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     })}
                 </div>
 
-                {/* Tech Vault (Gallery) - conditionally rendered */}
+                {/* Tech Vault - conditionally rendered */}
+                {(profile.blockVisibility?.techVault !== false) && (
+                    <div className="mt-8">
+                        <TechVaultBlock userId={profile.userId} variant="neubrutalism" />
+                    </div>
+                )}
+
+                {/* Gallery - conditionally rendered */}
                 {(profile.blockVisibility?.gallery !== false) && (
                     <div className="mt-8">
                         <GalleryBlock userId={profile.userId} />

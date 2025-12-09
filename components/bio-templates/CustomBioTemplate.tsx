@@ -53,6 +53,18 @@ const CustomBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
         }
     };
 
+    // Helper for Google Font URL
+    const getGoogleFontUrl = () => {
+        switch (theme.font) {
+            case 'roboto': return 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap';
+            case 'lora': return 'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&display=swap';
+            case 'poppins': return 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap';
+            case 'space-mono': return 'https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap';
+            case 'outfit': return 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap';
+            case 'inter': default: return 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap';
+        }
+    };
+
     return (
         <div
             className="min-h-screen w-full overflow-x-hidden"
@@ -62,6 +74,9 @@ const CustomBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 fontFamily: getFontFamily()
             }}
         >
+            {/* Inject Font */}
+            <link href={getGoogleFontUrl()} rel="stylesheet" />
+
             {/* Overlay for readability if image background */}
             {theme.backgroundType === 'image' && (
                 <div className="fixed inset-0 bg-black/30 pointer-events-none" />

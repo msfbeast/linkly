@@ -35,8 +35,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const [tags, setTags] = useState<string[]>([]);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [domains, setDomains] = useState<Domain[]>([]);
-  const [selectedDomain, setSelectedDomain] = useState('links.trak.in');
+  const [domains, setDomains] = useState<Domain[]>([]); // This state will hold fetched Domain objects
+  const [selectedDomain, setSelectedDomain] = useState('links.trak.in'); // Initial default domain
 
   // Bulk Mode States
   const [bulkUrls, setBulkUrls] = useState('');

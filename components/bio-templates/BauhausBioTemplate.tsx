@@ -20,41 +20,48 @@ const BauhausBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-[#e6b800]"></div>
             </div>
 
-            <div className="max-w-md mx-auto min-h-screen relative z-10 flex flex-col bg-white shadow-2xl min-h-screen">
+            {/* Mondrian Grid Background */}
+            <div className="max-w-md mx-auto min-h-screen bg-[#f0f0f0] flex flex-col border-x-4 border-black relative">
 
-                {/* Header */}
-                <div className="p-8 pb-12 bg-[#1a1a1a] text-white relative overflow-hidden">
-                    <div className="absolute top-4 right-4 flex gap-2 opacity-50">
-                        <Triangle className="w-4 h-4 fill-current text-[#e6b800]" />
-                        <Circle className="w-4 h-4 fill-current text-[#d12a2a]" />
-                        <Square className="w-4 h-4 fill-current text-[#2a5ad1]" />
+                {/* Header Grid */}
+                <div className="grid grid-cols-4 grid-rows-[auto_auto] gap-0 border-b-4 border-black">
+                    {/* Avatar Block (2x2) */}
+                    <div className="col-span-2 row-span-2 aspect-square border-r-4 border-black overflow-hidden relative group">
+                        {profile.avatarUrl ? (
+                            <img src={profile.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                        ) : (
+                            <div className="w-full h-full bg-blue-600 flex items-center justify-center">
+                                <span className="text-4xl font-black text-white">{profile.displayName.charAt(0)}</span>
+                            </div>
+                        )}
+                        {/* Geometric Overlay */}
+                        <div className="absolute top-0 right-0 w-0 h-0 border-t-[20px] border-r-[20px] border-t-transparent border-r-yellow-400 group-hover:border-r-red-600 transition-colors"></div>
                     </div>
 
-                    <div className="flex flex-col items-center relative z-10">
-                        <div className="w-24 h-24 bg-white rounded-full p-1 mb-6">
-                            <div className="w-full h-full rounded-full overflow-hidden bg-[#f0f0f0]">
-                                {profile.avatarUrl ? (
-                                    <img src={profile.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover grayscale" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[#1a1a1a] font-black text-2xl">
-                                        {profile.displayName.charAt(0)}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    {/* Name Block */}
+                    <div className="col-span-2 bg-white p-4 flex flex-col justify-end border-b-4 border-black min-h-[100px]">
+                        <h1 className="text-2xl font-black leading-none uppercase tracking-tighter">{profile.displayName}</h1>
+                        <span className="text-xs font-bold bg-black text-white inline-block px-1 w-max mt-1">@{profile.handle}</span>
+                    </div>
 
-                        <h1 className="text-4xl font-black tracking-tighter uppercase mb-2">{profile.displayName}</h1>
-                        <p className="font-medium text-[#e6b800]">@{profile.handle}</p>
+                    {/* Color Block Decoration */}
+                    <div className="col-span-1 bg-yellow-400 border-r-4 border-black min-h-[60px]"></div>
+
+                    {/* Bio Block */}
+                    <div className="col-span-1 bg-white flex items-center justify-center relative overflow-hidden">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,black_1px,transparent_1px)] bg-[length:4px_4px] opacity-20"></div>
                     </div>
                 </div>
 
-                {/* Bio Section */}
+                {/* Bio Text Area */}
                 {profile.bio && (
-                    <div className="bg-[#d12a2a] p-6 text-white text-center font-medium leading-relaxed">
-                        {profile.bio}
+                    <div className="border-b-4 border-black p-6 bg-white relative">
+                        <div className="absolute top-0 right-0 w-4 h-4 bg-red-600"></div>
+                        <p className="font-bold text-sm leading-relaxed max-w-[90%]">
+                            {profile.bio}
+                        </p>
                     </div>
                 )}
-
                 {/* Links */}
                 <div className="flex-1 p-8 grid grid-cols-2 gap-0 auto-rows-min">
                     {links.map((link, i) => {

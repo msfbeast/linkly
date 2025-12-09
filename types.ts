@@ -44,8 +44,22 @@ export type WidgetVariant =
   | 'industrial'
   | 'archive'
   | 'lab'
-  | 'custom';
+  | 'custom'
+  | 'vibrant';
 
+
+export interface BioAnalyticsData {
+  overview: {
+    totalViews: number;
+    totalClicks: number;
+    ctr: number;
+    totalSubscribers: number;
+  };
+  clicksOverTime: { date: string; clicks: number }[];
+  byDevice: { name: string; value: number }[];
+  byLocation: { name: string; value: number }[];
+  topLinks: { title: string; clicks: number; url: string }[];
+}
 
 export interface SmartRedirects {
   ios?: string;
@@ -71,6 +85,31 @@ export interface Folder {
   createdAt: number;
 }
 
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
+}
+
+export interface PollData {
+  id: string;
+  question: string;
+  options: PollOption[];
+  totalVotes: number;
+  userVoted?: string; // optionId if voted
+}
+
+export interface QnaMessage {
+  id: string;
+  userId: string;
+  content: string;
+  visitorEmail?: string;
+  createdAt: number;
+  isRead: boolean;
+}
+
+export type LinkType = 'link' | 'music' | 'video' | 'map' | 'social_feed' | 'newsletter' | 'contact' | 'poll' | 'qna' | 'tip_jar';
+
 export interface LinkData {
   id: string;
   originalUrl: string;
@@ -92,7 +131,7 @@ export interface LinkData {
   clickHistory: ClickEvent[];
 
   // Bento Grid & Widgets
-  type?: 'link' | 'music' | 'map' | 'video' | 'social_feed';
+  type?: LinkType;
   layoutConfig?: {
     w: number; // Width in grid columns (1 or 2)
     h: number; // Height in grid rows (1 or 2)
@@ -191,26 +230,51 @@ export function getCategoryColor(category: LinkCategory): string {
 }
 
 export interface BioThemeConfig {
-  backgroundType: 'solid' | 'gradient' | 'image';
+  backgroundType: 'solid' | 'gradient' | 'image' | 'video';
   backgroundValue: string;
   textColor: string;
-  buttonStyle: 'rounded' | 'square' | 'pill' | 'shadow' | 'outline' | 'hard-shadow';
+  buttonStyle: 'rounded' | 'pill' | 'square' | 'shadow' | 'hard-shadow' | 'outline';
   buttonColor: string;
   buttonTextColor: string;
-  font: 'inter' | 'roboto' | 'lora' | 'poppins' | 'space-mono' | 'outfit';
+  font?: string; // Added font support
 }
 
 export interface BioProfile {
   id: string;
   userId: string;
-  handle: string; // unique slug
-  displayName: string;
-  bio: string;
-  avatarUrl: string;
-  theme: 'vibrant' | 'glass' | 'industrial' | 'retro' | 'cyberpunk' | 'neubrutalism' | 'lofi' | 'clay' | 'bauhaus' | 'lab' | 'archive' | 'dark' | 'light' | 'blue' | 'purple';
-  links: string[]; // Array of LinkData IDs
-  views: number;
+  handle: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  isPublished: boolean;
+  links?: string[]; // Array of Link IDs for ordering
+  views?: number;
+
+  // Visualization
+  theme: BioTheme;
   customTheme?: BioThemeConfig;
+
+  // New Appearance Overrides (Deep Customization)
+  appearance?: {
+    font?: string;
+    globalCss?: string; // For advanced users later
+  };
+
+  // SEO & Social
+  seo?: {
+    title?: string;
+    description?: string;
+    ogImage?: string;
+  };
+
+  // Monetization
+  monetization?: {
+    enabled?: boolean;
+    paypalMe?: string;
+    ethWallet?: string;
+    solWallet?: string;
+    currency?: 'USD' | 'EUR' | 'SOL' | 'ETH';
+  };
   // Block visibility settings
   blockVisibility?: {
     gallery?: boolean;

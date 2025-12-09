@@ -1,19 +1,20 @@
-
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, X, Maximize2, Minimize2 } from 'lucide-react';
-import { LinkData } from '../types';
+import { LinkData, BioProfile } from '../types'; // Added BioProfile import
 import { BioWidget } from './BioWidget';
+import TipJarBlock from './blocks/TipJarBlock';
 
 interface BioBlockProps {
     link: LinkData;
     onRemove: (id: string) => void;
     onResize?: (id: string, size: { w: number; h: number }) => void;
     readOnly?: boolean;
+    profile?: BioProfile; // Added profile prop
 }
 
-export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, readOnly }) => {
+export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, readOnly, profile }) => { // Destructured profile
     const {
         attributes,
         listeners,
@@ -32,8 +33,8 @@ export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, re
         zIndex: isDragging ? 50 : undefined,
         opacity: isDragging ? 0.5 : 1,
         // Grid spanning
-        gridColumn: `span ${link.layoutConfig?.w || 1}`,
-        gridRow: `span ${link.layoutConfig?.h || 1}`,
+        gridColumn: `span ${link.layoutConfig?.w || 1} `,
+        gridRow: `span ${link.layoutConfig?.h || 1} `,
     };
 
     const toggleSize = (e: React.MouseEvent) => {
@@ -59,7 +60,7 @@ export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, re
                 </div>
             );
         }
-        return <BioWidget link={link} />;
+        return <BioWidget link={link} profile={profile} />;
     };
 
     return (
@@ -67,10 +68,10 @@ export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, re
             ref={setNodeRef}
             style={style}
             className={`
-                group relative bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden
+                group relative bg - white rounded - 2xl border border - stone - 200 shadow - sm overflow - hidden
                 ${isDragging ? 'ring-2 ring-yellow-400 z-50' : 'hover:border-yellow-400/50'}
-                ${link.type === 'link' ? 'min-h-[72px]' : 'min-h-[160px]'} 
-            `}
+                ${link.type === 'link' ? 'min-h-[72px]' : 'min-h-[160px]'}
+`}
         >
             {/* Drag Handle (Visible on Hover) */}
             {!readOnly && (

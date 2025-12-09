@@ -12,11 +12,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import BioPreview from '../components/BioPreview';
 import BioAppearanceEditor from '../components/BioAppearanceEditor';
+import BioSeoEditor from '../components/BioSeoEditor';
 import { SortableBioLinkItem } from '../components/SortableBioLinkItem';
 import { GalleryManager } from '../components/GalleryManager';
 import { TechVaultManager } from '../components/TechVaultManager';
 import { NewsletterManager } from '../components/NewsletterManager';
 import { AppStackManager } from '../components/AppStackManager';
+import { ThemeGallery } from '../components/ThemeGallery';
 import {
     DndContext,
     closestCenter,
@@ -34,6 +36,9 @@ import {
     rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { BioBlock } from '../components/BioBlock';
+import { BioAnalyticsDashboard } from '../components/BioAnalyticsDashboard';
+import { BlockGalleryModal, BlockType } from '../components/BlockGalleryModal'; // New Import
+import { BarChart3 } from 'lucide-react';
 
 const BioDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -47,6 +52,8 @@ const BioDashboard: React.FC = () => {
     const [showBioPrompt, setShowBioPrompt] = useState(false);
     const [bioPrompt, setBioPrompt] = useState('');
     const [showLinkModal, setShowLinkModal] = useState(false);
+    const [showAnalytics, setShowAnalytics] = useState(false);
+    const [showBlockGallery, setShowBlockGallery] = useState(false); // New State
 
     useEffect(() => {
         if (user) {
@@ -78,7 +85,7 @@ const BioDashboard: React.FC = () => {
         })
     );
 
-    const handleAddWidget = async (type: 'music' | 'map' | 'video') => {
+    const handleAddWidget = async (type: BlockType) => {
         let metadata = {};
         let title = 'New Widget';
 
@@ -95,12 +102,42 @@ const BioDashboard: React.FC = () => {
             metadata = { lat: 40.7128, lng: -74.0060, address };
         } else if (type === 'video') {
             title = 'Video';
-            const url = prompt("Enter YouTube URL:");
+            const url = prompt("Enter YouTube or Vimeo URL:");
             if (!url) return;
-            // Extract ID (simple regex)
-            const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
-            metadata = { videoId, videoPlatform: 'youtube' };
+            const videoId = url.split('v=')[1] || url.split('/').pop();
+            metadata = { videoPlatform: url.includes('vimeo') ? 'vimeo' : 'youtube', videoId };
+        } else if (type === 'poll') {
+            title = 'Poll';
+            const question = prompt("Enter Poll Question:", "What should I create next?");
+            if (!question) return;
+            metadata = {
+                question,
+                options: [
+                    { id: '1', text: 'Option A', votes: 0 },
+                    { id: '2', text: 'Option B', votes: 0 }
+                ]
+            };
+        } else if (type === 'qna') {
+            title = 'Q&A';
+            const qnaTitle = prompt("Enter Title:", "Ask me anything");
+            if (!qnaTitle) return;
+            metadata = { title: qnaTitle };
+        } else if (type === 'newsletter') {
+            // Scroll to newsletter section
+            document.getElementById('newsletter-section')?.scrollIntoView({ behavior: 'smooth' });
+            return;
+        } else if (type === 'social_feed') {
+            alert("Social Feed integration coming soon!");
+            return;
+        } else if (type === 'link') {
+            // Should be handled by handleBlockSelect, but just in case
+            setShowLinkModal(true);
+            return;
+        } else if (type === 'tip_jar') {
+            title = 'Support Me';
+            metadata = {};
         }
+
 
         try {
             const newLink = await supabaseAdapter.createLink({
@@ -161,7 +198,7 @@ const BioDashboard: React.FC = () => {
             displayName: user?.displayName || '',
             bio: '',
             avatarUrl: user?.avatar_url || '',
-            theme: 'dark',
+            theme: 'vibrant',
             links: [],
             views: 0
         });
@@ -407,6 +444,7 @@ const BioDashboard: React.FC = () => {
                                                                 <BioBlock
                                                                     key={link.id}
                                                                     link={link}
+                                                                    profile={currentProfile as BioProfile}
                                                                     onRemove={() => toggleLinkSelection(link.id)}
                                                                     onResize={handleResizeBlock}
                                                                 />
@@ -452,28 +490,16 @@ const BioDashboard: React.FC = () => {
                                 <Palette className="w-5 h-5 text-indigo-500" />
                                 <h3 className="text-slate-900 font-bold">Appearance</h3>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div>
-                                    <label className="text-xs font-bold text-stone-500 block mb-2 uppercase">Theme Preset</label>
-                                    <select
-                                        value={currentProfile.theme}
-                                        onChange={e => setCurrentProfile({ ...currentProfile, theme: e.target.value as any })}
-                                        className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    >
-                                        <option value="vibrant">Vibrant (Pop!)</option>
-                                        <option value="glass">Glass (Modern Dark)</option>
-                                        <option value="industrial">Industrial (Technical)</option>
-                                        <option value="retro">Retro Pop (90s)</option>
-                                        <option value="cyberpunk">Cyberpunk (Neon)</option>
-                                        <option value="neubrutalism">Neubrutalism (Bold)</option>
-                                        <option value="lofi">Lofi (Chill)</option>
-                                        <option value="clay">Claymorphism (Soft 3D)</option>
-                                        <option value="bauhaus">Bauhaus (Geometric)</option>
-                                        <option value="lab">Lab (Scientific)</option>
-                                        <option value="archive">Archive (Vintage)</option>
-                                    </select>
+                                    <label className="text-xs font-bold text-stone-500 block mb-3 uppercase tracking-wider">Theme Collection</label>
+                                    <ThemeGallery
+                                        currentTheme={currentProfile.theme || 'vibrant'}
+                                        onSelect={(theme) => setCurrentProfile({ ...currentProfile, theme: theme as any })}
+                                    />
                                 </div>
-                                <div className="pt-2">
+
+                                <div className="border-t border-stone-100 pt-4">
                                     {currentProfile.id && (
                                         <BioAppearanceEditor
                                             profile={currentProfile as BioProfile}
@@ -502,8 +528,24 @@ const BioDashboard: React.FC = () => {
                             <AppStackManager />
                         </div>
 
-                        {/* 6. Newsletter Card */}
+                        {/* 6. SEO & Social Card */}
                         <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Search className="w-5 h-5 text-indigo-500" />
+                                <h3 className="text-slate-900 font-bold">SEO & Social</h3>
+                            </div>
+                            <div className="mt-2">
+                                {currentProfile.id && (
+                                    <BioSeoEditor
+                                        profile={currentProfile as BioProfile}
+                                        onChange={(updates) => setCurrentProfile(prev => ({ ...prev, ...updates }))}
+                                    />
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 7. Newsletter Card */}
+                        <div id="newsletter-section" className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
                             <div className="flex items-center gap-2 mb-4">
                                 <Mail className="w-5 h-5 text-indigo-500" />
                                 <h3 className="text-slate-900 font-bold">Newsletter</h3>
@@ -539,6 +581,15 @@ const BioDashboard: React.FC = () => {
         );
     }
 
+    const handleBlockSelect = (type: BlockType) => {
+        setShowBlockGallery(false);
+        if (type === 'link') {
+            setShowLinkModal(true);
+        } else {
+            handleAddWidget(type);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -566,42 +617,21 @@ const BioDashboard: React.FC = () => {
                                 className="pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none shadow-sm"
                             />
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                             <button
-                                onClick={() => setShowLinkModal(true)}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors shadow-lg shadow-indigo-500/20"
+                                onClick={() => setShowAnalytics(true)}
+                                className="bg-white hover:bg-stone-50 text-slate-900 border border-stone-200 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors"
+                            >
+                                <BarChart3 className="w-4 h-4 text-stone-400" />
+                                Analytics
+                            </button>
+                            <button
+                                onClick={() => setShowBlockGallery(true)}
+                                className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 hover:-translate-y-0.5"
                             >
                                 <Plus className="w-4 h-4" />
-                                Add Link
+                                Add Content
                             </button>
-                            <div className="h-6 w-px bg-stone-300 mx-2" />
-                            <span className="text-xs font-bold text-stone-400 uppercase tracking-wider mr-2">Widgets</span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => handleAddWidget('music')}
-                                    className="bg-white border border-stone-200 hover:border-indigo-500 text-stone-600 hover:text-indigo-600 p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
-                                    title="Add Music Player"
-                                >
-                                    <Music className="w-4 h-4" />
-                                    Music
-                                </button>
-                                <button
-                                    onClick={() => handleAddWidget('map')}
-                                    className="bg-white border border-stone-200 hover:border-indigo-500 text-stone-600 hover:text-indigo-600 p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
-                                    title="Add Location Map"
-                                >
-                                    <MapPin className="w-4 h-4" />
-                                    Map
-                                </button>
-                                <button
-                                    onClick={() => handleAddWidget('video')}
-                                    className="bg-white border border-stone-200 hover:border-indigo-500 text-stone-600 hover:text-indigo-600 p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
-                                    title="Add Video Embed"
-                                >
-                                    <Play className="w-4 h-4" />
-                                    Video
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -654,6 +684,36 @@ const BioDashboard: React.FC = () => {
                         ))
                     )}
                 </div>
+
+                {/* Block Gallery Modal */}
+                <BlockGalleryModal
+                    isOpen={showBlockGallery}
+                    onClose={() => setShowBlockGallery(false)}
+                    onSelect={handleBlockSelect}
+                />
+
+                {/* Analytics Modal */}
+                {showAnalytics && user && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
+                        <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                            <div className="p-6 border-b border-stone-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-900">Analytics Dashboard</h2>
+                                    <p className="text-sm text-stone-500">Insights for all your bio pages</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowAnalytics(false)}
+                                    className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-stone-500" />
+                                </button>
+                            </div>
+                            <div className="p-6 bg-stone-50/50 min-h-[500px]">
+                                <BioAnalyticsDashboard userId={user.id} />
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Link Modal */}
                 {showLinkModal && (

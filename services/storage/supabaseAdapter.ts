@@ -2685,6 +2685,230 @@ export class SupabaseAdapter implements StorageAdapter {
       SupabaseAdapter.instance = new SupabaseAdapter();
     }
     return SupabaseAdapter.instance;
+  // ============================================
+  // Bio Analytics
+  // ============================================
+
+  async getBioAnalytics(userId: string, days = 30): Promise < BioAnalyticsData > {
+      if(!isSupabaseConfigured() || !supabase) {
+      return {
+        overview: { totalViews: 0, totalClicks: 0, ctr: 0, totalSubscribers: 0 },
+        clicksOverTime: [],
+        byDevice: [],
+        byLocation: [],
+        topLinks: []
+      };
+    }
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // 1. Fetch User's Links
+    const { data: links } = await supabase
+      .from('links')
+      .select('id, title, short_code')
+      .eq('user_id', userId);
+
+    const linkIds = links?.map(l => l.id) || [];
+
+    // 2. Fetch Click Events for these links
+    const { data: clicks } = await supabase
+      .from('click_events')
+      .select('*')
+      .in('link_id', linkIds)
+      .gte('created_at', startDate.toISOString());
+
+    // 3. Fetch Subscriber Count
+    const { count: subscriberCount } = await supabase
+      .from('newsletter_subscribers')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    // 4. Fetch Profile Views
+    const { data: profiles } = await supabase
+      .from('bio_profiles')
+      .select('views')
+      .eq('user_id', userId);
+
+    const totalViews = profiles?.reduce((acc, curr) => acc + (curr.views || 0), 0) || 0;
+
+    // Aggregation
+    const totalClicks = clicks?.length || 0;
+    const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100) : 0;
+
+    // Time Series
+    const clicksByDate = new Map<string, number>();
+    // Initialize dates
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      clicksByDate.set(d.toISOString().split('T')[0], 0);
+    }
+
+    clicks?.forEach(c => {
+      const date = new Date(c.created_at).toISOString().split('T')[0];
+      if (clicksByDate.has(date)) {
+        clicksByDate.set(date, (clicksByDate.get(date) || 0) + 1);
+      }
+    });
+
+    const clicksOverTime = Array.from(clicksByDate.entries())
+      .map(([date, clicks]) => ({ date, clicks }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Device
+    const deviceCount: Record<string, number> = {};
+    clicks?.forEach(c => {
+      const device = c.device || 'unknown';
+      deviceCount[device] = (deviceCount[device] || 0) + 1;
+    });
+    const byDevice = Object.entries(deviceCount).map(([name, value]) => ({ name, value }));
+
+    // Location
+    const locationCount: Record<string, number> = {};
+    clicks?.forEach(c => {
+      const loc = c.country || 'Unknown';
+      locationCount[loc] = (locationCount[loc] || 0) + 1;
+    });
+    const byLocation = Object.entries(locationCount)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5
+
+    // Top Links
+    const linkClicks: Record<string, number> = {};
+    clicks?.forEach(c => {
+      if (c.link_id) linkClicks[c.link_id] = (linkClicks[c.link_id] || 0) + 1;
+    });
+
+    const topLinks = links?.map(l => ({
+      title: l.title,
+      url: `/r/${l.short_code}`,
+      clicks: linkClicks[l.id] || 0
+    }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5) || [];
+
+    return {
+      overview: {
+        totalViews,
+        totalClicks,
+        ctr: parseFloat(ctr.toFixed(1)),
+        totalSubscribers: subscriberCount || 0
+      },
+      clicksOverTime,
+      byDevice,
+      byLocation,
+      topLinks
+    };
+  // ============================================
+  // Interactive Engagement (Polls & QnA)
+  // ============================================
+
+  async createPoll(userId: string, question: string, options: string[]): Promise < PollData > {
+      if(!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+
+    // 1. Create Poll Link/Entry
+    // For simplicity, we store the poll as a "Widget" in the links table with specific metadata
+    // This avoids creating new tables if we want to piggyback on the bento grid system immediately.
+    // However, storing votes needs a separate table or a jsonb update.
+    // Let's assume we use a 'polls' table for structured data, but we also link it to the 'links' table for display order.
+
+    // Actually, purely creating a record in 'polls' table:
+    const { data: poll, error } = await supabase
+      .from('polls')
+      .insert({
+        user_id: userId,
+        question,
+        options: options.map(opt => ({ id: crypto.randomUUID(), text: opt, votes: 0 })),
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return {
+      id: poll.id,
+      question: poll.question,
+      options: poll.options, // stored as jsonb
+      totalVotes: 0
+    };
+  }
+
+  async getPoll(pollId: string): Promise<PollData | null> {
+    if (!isSupabaseConfigured() || !supabase) return null;
+    const { data, error } = await supabase.from('polls').select('*').eq('id', pollId).single();
+    if (error || !data) return null;
+
+    const totalVotes = (data.options as PollOption[]).reduce((acc, opt) => acc + opt.votes, 0);
+    return {
+      id: data.id,
+      question: data.question,
+      options: data.options as PollOption[],
+      totalVotes
+    };
+  }
+
+  async votePoll(pollId: string, optionId: string): Promise<PollData> {
+    if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
+
+    // Simple increment for now (race conditions possible but OK for MVP)
+    // In production: use an RPC or atomic update.
+    // We'll fetch, update local, and push back.
+    const { data: poll } = await supabase.from('polls').select('options').eq('id', pollId).single();
+    if (!poll) throw new Error('Poll not found');
+
+    const newOptions = (poll.options as PollOption[]).map(opt =>
+      opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
+    );
+
+    const { data: updated, error } = await supabase
+      .from('polls')
+      .update({ options: newOptions })
+      .eq('id', pollId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const totalVotes = (updated.options as PollOption[]).reduce((acc: number, opt: PollOption) => acc + opt.votes, 0);
+    return {
+      id: updated.id,
+      question: updated.question,
+      options: updated.options as PollOption[],
+      totalVotes
+    };
+  }
+
+  async sendQna(userId: string, content: string, email?: string): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+    const { error } = await supabase.from('qna_messages').insert({
+      user_id: userId,
+      content,
+      visitor_email: email,
+      is_read: false
+    });
+    if (error) throw error;
+  }
+
+  async getQnaMessages(userId: string): Promise<QnaMessage[]> {
+    if (!isSupabaseConfigured() || !supabase) return [];
+    const { data, error } = await supabase
+      .from('qna_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      content: row.content,
+      visitorEmail: row.visitor_email,
+      createdAt: new Date(row.created_at).getTime(),
+      isRead: row.is_read
+    }));
   }
 }
 

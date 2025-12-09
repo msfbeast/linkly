@@ -29,6 +29,10 @@ export const VideoBlock: React.FC<VideoBlockProps> = ({ videoId, platform = 'you
         switch (variant) {
             case 'neubrutalism':
                 return 'rounded-none border-2 border-black bg-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]';
+            case 'vibrant':
+                return 'rounded-2xl border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] bg-black';
+            case 'clay':
+                return 'rounded-3xl bg-[#E0E5EC] shadow-[9px_9px_16px_rgb(163,177,198,0.6),-9px_-9px_16px_rgba(255,255,255,0.5)] border-none';
             case 'bauhaus':
                 return 'rounded-none border-4 border-black bg-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]';
             case 'retro':

@@ -17,46 +17,61 @@ const CyberpunkBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) =>
             {/* CRT Scanline Effect */}
             <div className="fixed inset-0 pointer-events-none z-50 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] pointer-events-none"></div>
 
-            {/* Glow Background */}
             <div className="fixed inset-0 pointer-events-none">
                 <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-[#00ff41] rounded-full blur-[150px] opacity-10"></div>
                 <div className="absolute bottom-[20%] right-[10%] w-[300px] h-[300px] bg-[#00ff41] rounded-full blur-[150px] opacity-10"></div>
             </div>
 
+            {/* CRT Scanline Overlay */}
+            <div className="fixed inset-0 pointer-events-none z-50 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] pointer-events-none"></div>
+
+            {/* Vignette */}
+            <div className="fixed inset-0 pointer-events-none z-40 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.6))]"></div>
+
             <div className="max-w-md mx-auto min-h-screen relative z-10 flex flex-col py-12 px-6">
 
                 {/* Header */}
-                <div className="mb-12 relative group">
-                    <div className="absolute -left-4 top-0 bottom-0 w-1 bg-[#00ff41] opacity-50"></div>
+                <div className="mb-12 relative">
+                    <div className="absolute -left-4 top-0 w-1 h-24 bg-gradient-to-b from-cyan-500 to-transparent"></div>
 
-                    <div className="flex items-center gap-6 mb-6">
-                        <div className="w-20 h-20 border-2 border-[#00ff41] relative overflow-hidden">
-                            {profile.avatarUrl ? (
-                                <img src={profile.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover grayscale contrast-150 hover:grayscale-0 transition-all" />
-                            ) : (
-                                <div className="w-full h-full bg-[#001a05] flex items-center justify-center">
-                                    <Terminal className="w-8 h-8" />
-                                </div>
-                            )}
-                            {/* Glitch Overlay */}
-                            <div className="absolute inset-0 bg-[#00ff41] mix-blend-overlay opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                    <div className="flex items-end gap-6 mb-6">
+                        <div className="relative group">
+                            <div className="w-24 h-24 bg-black border-2 border-cyan-500 relative z-10 overflow-hidden">
+                                {profile.avatarUrl ? (
+                                    <img src={profile.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0 transition-all duration-300" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-black text-cyan-500">
+                                        <Terminal className="w-10 h-10" />
+                                    </div>
+                                )}
+                            </div>
+                            {/* Glitch Offset Layers */}
+                            <div className="absolute inset-0 border-2 border-[#ff003c] translate-x-1 translate-y-1 -z-10 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform"></div>
+                            <div className="absolute inset-0 border-2 border-[#f0f] -translate-x-1 -translate-y-1 -z-20 group-hover:-translate-x-2 group-hover:-translate-y-2 transition-transform"></div>
                         </div>
 
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tighter uppercase glitch-text" data-text={profile.displayName}>
+                        <div className="flex-1 pb-1">
+                            <h1 className="text-3xl font-black uppercase tracking-tighter text-white mb-1 shadow-[2px_2px_0px_#00ffff] text-shadow-neon">
                                 {profile.displayName}
                             </h1>
-                            <p className="text-xs text-[#00ff41]/60 mt-1 flex items-center gap-2">
-                                <Cpu className="w-3 h-3" />
-                                <span>NET_ID: {profile.handle}</span>
-                            </p>
+                            <div className="flex items-center gap-2 text-xs font-bold font-mono text-cyan-500">
+                                <span className="animate-pulse">●</span>
+                                <span>NET_ID: @{profile.handle}</span>
+                            </div>
                         </div>
                     </div>
 
                     {profile.bio && (
-                        <div className="bg-[#001a05] border border-[#00ff41]/30 p-4 text-xs leading-relaxed relative">
-                            <span className="absolute -top-2 left-2 bg-[#050505] px-1 text-[#00ff41]/50 text-[10px]">BIO_DATA</span>
-                            {profile.bio}
+                        <div className="border border-cyan-900/50 bg-black/50 p-4 relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyan-500"></div>
+                            <div className="absolute bottom-0 right-0 w-2 h-2 border-t border-r border-cyan-500"></div>
+                            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-cyan-500"></div>
+                            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500"></div>
+                            <p className="text-cyan-100/80 font-mono text-sm leading-relaxed relative z-10">
+                                <span className="text-cyan-600 mr-2">{'>'}</span>
+                                {profile.bio}
+                                <span className="animate-pulse ml-1 inline-block w-2 h-4 bg-cyan-500 align-middle"></span>
+                            </p>
                         </div>
                     )}
                 </div>

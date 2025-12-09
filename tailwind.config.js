@@ -97,6 +97,9 @@ export default {
       animation: {
         'blob': 'blob 7s infinite',
         'fadeIn': 'fadeIn 0.5s ease-out forwards',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'spin-slow': 'spin 8s linear infinite',
+        'bounce-slow': 'bounce 3s infinite',
       },
       keyframes: {
         blob: {
