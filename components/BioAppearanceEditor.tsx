@@ -45,12 +45,6 @@ const GRADIENTS = [
     'linear-gradient(to right, #fc466b, #3f5efb)',
 ];
 
-const [showAdvanced, setShowAdvanced] = useState(false);
-const [theme, setTheme] = useState<BioThemeConfig>(profile.customTheme || DEFAULT_THEME);
-const [isGenerating, setIsGenerating] = useState(false);
-const [showAiPrompt, setShowAiPrompt] = useState(false);
-const [aiPrompt, setAiPrompt] = useState('');
-
 useEffect(() => {
     // Sync local state if profile changes externally (e.g. from ThemeGallery)
     if (profile.customTheme) {
