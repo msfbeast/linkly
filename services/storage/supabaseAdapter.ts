@@ -2714,8 +2714,11 @@ export class SupabaseAdapter implements StorageAdapter {
     const linkIds = links?.map(l => l.id) || [];
 
     // 2. Fetch Click Events for these links
+    // 2. Fetch Click Events for these links
     const clicks: any[] = [];
     const BATCH_SIZE = 5; // Reduced from 20 to 5 to avoid 400 errors
+
+    console.log(`[Analytics] Fetching clicks for ${linkIds.length} links since ${startDate.toISOString()}`);
 
     for (let i = 0; i < linkIds.length; i += BATCH_SIZE) {
       const batch = linkIds.slice(i, i + BATCH_SIZE);
@@ -2730,7 +2733,10 @@ export class SupabaseAdapter implements StorageAdapter {
       }
 
       if (batchClicks) {
+        console.log(`[Analytics] Batch ${i} returned ${batchClicks.length} clicks`);
         clicks.push(...batchClicks);
+      } else {
+        console.log(`[Analytics] Batch ${i} returned no data`);
       }
     }
 
