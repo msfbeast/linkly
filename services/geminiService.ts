@@ -133,7 +133,7 @@ export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisR
 // Social Post Generation (Placeholder - should move to API)
 export const generateSocialPost = async (linkData: any): Promise<string> => {
   // Return mock for now or implement API call
-  return `Check out this link: ${linkData.title} #linkly`;
+  return `Check out this link: ${linkData.title} #gather`;
 }
 
 export interface ProductDetails {

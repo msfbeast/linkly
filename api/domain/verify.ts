@@ -49,10 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const cnames = await dns.resolveCname(domain);
 
         // Check if any CNAME points to our target
-        // Allow 'vercel-dns' or 'linkly' in the target
+        // Allow 'vercel-dns' or 'gather' in the target
         const isVerified = cnames.some(record =>
             record.toLowerCase().includes('vercel-dns') ||
-            record.toLowerCase().includes('linkly')
+            record.toLowerCase().includes('gather')
         );
 
         return res.status(200).json({

@@ -71,7 +71,7 @@ const ApiPage: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Developer API</h1>
-                    <p className="text-stone-500 text-lg">Integrate Linkly's powerful link shortening directly into your apps.</p>
+                    <p className="text-stone-500 text-lg">Integrate Gather's powerful link shortening directly into your apps.</p>
                 </div>
 
                 <div className="flex p-1 bg-stone-100 rounded-xl space-x-1">

@@ -39,7 +39,7 @@ export default async function handler(request: Request) {
             password?: boolean;
             expiration?: number;
             start?: number;
-        }>(`linkly:link:${code}`);
+        }>(`gather:link:${code}`);
 
         if (linkData && linkData.url) {
             // Async Analytics: Publish to QStash

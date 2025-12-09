@@ -33,8 +33,8 @@ const LandingPage: React.FC = () => {
 
     // Initialize guest session
     useEffect(() => {
-        if (!localStorage.getItem('linkly_guest_session')) {
-            localStorage.setItem('linkly_guest_session', crypto.randomUUID());
+        if (!localStorage.getItem('gather_guest_session')) {
+            localStorage.setItem('gather_guest_session', crypto.randomUUID());
         }
     }, []);
 

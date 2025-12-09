@@ -124,7 +124,7 @@ const SharedAnalytics: React.FC = () => {
                         <span>Shared Analytics Report</span>
                     </div>
                     <h1 className="text-3xl font-bold text-slate-900">{data.displayName}'s Analytics</h1>
-                    <p className="text-stone-500 mt-2">Real-time stats from Linkly</p>
+                    <p className="text-stone-500 mt-2">Real-time stats from Gather</p>
                 </div>
 
                 {/* Stats Grid */}

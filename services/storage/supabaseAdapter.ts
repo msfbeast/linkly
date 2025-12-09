@@ -6,7 +6,7 @@ import {
   AggregatedClickData,
   ExportData,
 } from './types';
-import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile, GalleryItem, NewsletterSubscriber, AppRecommendation, TechVaultItem } from '../../types';
+import { LinkData, ClickEvent, Product, Tag, Folder, Domain, BioProfile, Team, TeamMember, TeamInvite, ApiKey, UserProfile, GalleryItem, NewsletterSubscriber, AppRecommendation, TechVaultItem, BioAnalyticsData, PollData, PollOption, QnaMessage } from '../../types';
 import { parseUserAgent } from '../userAgentParser';
 import { getGeolocation } from '../geolocationService';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,13 +14,13 @@ import { monetizeUrl } from '../../utils/affiliateUtils';
 import { compressImage } from '../../utils/imageUtils';
 
 const STORAGE_KEYS = {
-  LINKS: 'linkly_links',
-  CLICKS: 'linkly_clicks',
-  BIO_PROFILES: 'linkly_bio_profiles',
-  PRODUCTS: 'linkly_products',
-  DOMAINS: 'linkly_domains',
-  TAGS: 'linkly_tags',
-  FOLDERS: 'linkly_folders',
+  LINKS: 'gather_links',
+  CLICKS: 'gather_clicks',
+  BIO_PROFILES: 'gather_bio_profiles',
+  PRODUCTS: 'gather_products',
+  DOMAINS: 'gather_domains',
+  TAGS: 'gather_tags',
+  FOLDERS: 'gather_folders',
 };
 
 const BUCKETS = {
@@ -322,6 +322,7 @@ function rowToBioProfile(row: BioProfileRow): BioProfile {
     links: row.links || [],
     views: row.views,
     customTheme: row.custom_theme,
+    isPublished: true,
   };
 }
 

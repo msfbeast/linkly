@@ -28,7 +28,7 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
-const BASE_URL = 'https://linkly.ai'; // Replace with actual domain or env var
+const BASE_URL = 'https://gather.link'; // Replace with actual domain or env var
 
 async function generateSitemap() {
     console.log('Generating sitemap...');

@@ -1,4 +1,4 @@
-# Redis Setup for Linkly
+# Redis Setup for Gather
 
 ## Overview
 

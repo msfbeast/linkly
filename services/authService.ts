@@ -91,7 +91,6 @@ function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
     emailVerified: supabaseUser.email_confirmed_at !== null,
     createdAt: supabaseUser.created_at,
     user_metadata: supabaseUser.user_metadata,
-    role: (supabaseUser as any).role, // Mapped from profile fetch
   };
 }
 
@@ -167,11 +166,12 @@ export const authService = {
           userId: data.user.id,
           handle: username,
           displayName: username,
-          bio: `Welcome to my Linkly page!`,
+          bio: `Welcome to my Gather page!`,
           avatarUrl: `https://ui-avatars.com/api/?name=${username}&background=random`,
           theme: 'vibrant',
           links: [],
-          customTheme: undefined
+          customTheme: undefined,
+          isPublished: true
         });
       } catch (err) {
         console.error('Failed to create bio profile:', err);
@@ -270,9 +270,9 @@ export const authService = {
     // The rememberMe flag can be used to clear session on browser close if false
     if (data.session && !rememberMe) {
       // Store a flag to indicate session should be cleared on browser close
-      sessionStorage.setItem('linkly_session_temp', 'true');
+      sessionStorage.setItem('gather_session_temp', 'true');
     } else {
-      sessionStorage.removeItem('linkly_session_temp');
+      sessionStorage.removeItem('gather_session_temp');
     }
 
     // Return user immediately - profile will be fetched in background

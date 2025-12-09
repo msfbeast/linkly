@@ -121,7 +121,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
    */
   const generateVisitorHash = async (ip: string, ua: string): Promise<string> => {
     const today = new Date().toISOString().split('T')[0]; // Daily rotation
-    const salt = 'linkly-privacy-salt'; // In prod, this should be an env var
+    const salt = 'gather-privacy-salt'; // In prod, this should be an env var
     const data = `${ua}|${ip}|${today}|${salt}`;
 
     const msgBuffer = new TextEncoder().encode(data);

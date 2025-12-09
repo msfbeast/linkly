@@ -55,7 +55,7 @@ const SmartRedirect: React.FC = () => {
                 </a>
 
                 <p className="text-xs text-slate-400">
-                    Powered by Linkly
+                    Powered by Gather
                 </p>
             </div>
         </div>

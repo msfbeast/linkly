@@ -7,7 +7,7 @@ import { LinkData } from '../types';
  * Provides high-performance caching layer for link lookups
  */
 
-const CACHE_PREFIX = 'linkly:link:';
+const CACHE_PREFIX = 'gather:link:';
 const CACHE_TTL = 86400; // 24 hours in seconds
 
 interface CachedLink {

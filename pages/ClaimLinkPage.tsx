@@ -162,7 +162,7 @@ const ClaimLinkPage: React.FC = () => {
                     {link && (
                         <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6">
                             <div className="text-sm text-green-800 mb-2">
-                                linkly.co/{link.shortCode}
+                                gather.link/{link.shortCode}
                             </div>
                             {link.clicks > 0 && (
                                 <div className="text-2xl font-bold text-green-900">

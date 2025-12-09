@@ -129,7 +129,7 @@ const LinkAnalytics: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', `linkly_analytics_${id}_${timeRange}.csv`);
+        link.setAttribute('download', `gather_analytics_${id}_${timeRange}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

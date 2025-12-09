@@ -10,15 +10,15 @@ function escapeCSVValue(value: string | number | undefined | null): string {
   if (value === undefined || value === null) {
     return '';
   }
-  
+
   const stringValue = String(value);
-  
+
   // Check if value needs escaping
   if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
     // Escape quotes by doubling them and wrap in quotes
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
-  
+
   return stringValue;
 }
 
@@ -35,7 +35,7 @@ function formatTimestamp(timestamp: number): string {
 function generateLinksCSV(links: LinkData[]): string {
   const headers = ['title', 'originalUrl', 'shortCode', 'createdAt', 'clicks'];
   const rows: string[] = [headers.join(',')];
-  
+
   for (const link of links) {
     const row = [
       escapeCSVValue(link.title),
@@ -46,7 +46,7 @@ function generateLinksCSV(links: LinkData[]): string {
     ];
     rows.push(row.join(','));
   }
-  
+
   return rows.join('\n');
 }
 
@@ -56,7 +56,7 @@ function generateLinksCSV(links: LinkData[]): string {
 function generateClickEventsCSV(clickEvents: ClickEvent[]): string {
   const headers = ['timestamp', 'referrer', 'device', 'os', 'country'];
   const rows: string[] = [headers.join(',')];
-  
+
   for (const event of clickEvents) {
     const row = [
       escapeCSVValue(formatTimestamp(event.timestamp)),
@@ -67,7 +67,7 @@ function generateClickEventsCSV(clickEvents: ClickEvent[]): string {
     ];
     rows.push(row.join(','));
   }
-  
+
   return rows.join('\n');
 }
 
@@ -86,7 +86,7 @@ function generateClickEventsCSV(clickEvents: ClickEvent[]): string {
 export function generateCSVExport(data: ExportData): string {
   const linksCSV = generateLinksCSV(data.links);
   const clickEventsCSV = generateClickEventsCSV(data.clickEvents);
-  
+
   // Combine with section headers for clarity
   const sections = [
     '# Links',
@@ -95,7 +95,7 @@ export function generateCSVExport(data: ExportData): string {
     '# Click Events',
     clickEventsCSV,
   ];
-  
+
   return sections.join('\n');
 }
 
@@ -108,20 +108,20 @@ export function generateCSVExport(data: ExportData): string {
 export function downloadCSV(content: string, filename: string): void {
   // Create a Blob with the CSV content
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  
+
   // Create a temporary link element
   const link = document.createElement('a');
-  
+
   // Create object URL for the blob
   const url = URL.createObjectURL(blob);
   link.href = url;
   link.download = filename;
-  
+
   // Append to body, click, and cleanup
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   // Release the object URL
   URL.revokeObjectURL(url);
 }
@@ -130,7 +130,7 @@ export function downloadCSV(content: string, filename: string): void {
  * Convenience function to export and download all data
  * 
  * @param data - ExportData containing links and clickEvents
- * @param filename - Optional custom filename (defaults to linkly-export-{date}.csv)
+ * @param filename - Optional custom filename (defaults to gather-export-{date}.csv)
  */
 export function exportAndDownload(data: ExportData, filename?: string): void {
   const csvContent = generateCSVExport(data);
