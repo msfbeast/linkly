@@ -452,26 +452,27 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                         '--gradient-blue': '#3186ff',
                         background: 'var(--btn-bg)',
                         border: 'none',
-                        borderRadius: '2.5em',
+                        borderRadius: '0.75rem',
                         cursor: url && !isAnalyzing ? 'pointer' : 'not-allowed',
                         fontSize: '0.875rem',
                         fontWeight: '600',
-                        height: '2.75em',
+                        height: 'auto',
                         padding: '0 1.25em',
                         position: 'relative',
                         color: 'var(--btn-text)',
                         overflow: 'visible',
                         transition: 'transform 0.15s ease',
                         minWidth: '160px',
+                        alignSelf: 'stretch',
                       } as React.CSSProperties}
                     >
                       {/* Outer glow border */}
                       <span
-                        className="absolute inset-0 rounded-[2.5em] border border-white/20 bg-white/5 opacity-40 group-hover:opacity-0 transition-opacity duration-400"
+                        className="absolute inset-0 rounded-xl border border-white/20 bg-white/5 opacity-40 group-hover:opacity-0 transition-opacity duration-400"
                       />
 
                       {/* Blur layer */}
-                      <span className="absolute inset-0 rounded-[2.5em] overflow-hidden pointer-events-none opacity-35 blur-[3px]">
+                      <span className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none opacity-35 blur-[3px]">
                         <span
                           className="absolute inset-0 h-[200%] -top-1/2 opacity-0 group-hover:opacity-100 group-hover:animate-[rotate-gradient_2s_linear_infinite] transition-opacity duration-400"
                           style={{
@@ -483,7 +484,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       </span>
 
                       {/* Gradient layer */}
-                      <span className="absolute inset-0 rounded-[2.5em] overflow-hidden pointer-events-none">
+                      <span className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
                         <span
                           className="absolute inset-0 h-[200%] -top-1/2 opacity-0 group-hover:opacity-100 group-hover:animate-[rotate-gradient_2s_linear_infinite] transition-opacity duration-400"
                           style={{
@@ -496,7 +497,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
                       {/* Inner background */}
                       <span
-                        className="absolute rounded-[2.5em] bg-[#2c303d] group-hover:blur-[3px] transition-[filter] duration-1000"
+                        className="absolute rounded-[0.65rem] bg-[#2c303d] group-hover:blur-[3px] transition-[filter] duration-1000"
                         style={{ inset: '2px' }}
                       />
 
