@@ -148,37 +148,7 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative z-10">
-                    {/* 1. Creator Rank */}
-                    <div className="lg:col-span-1">
-                        {rank && <RankBadge rank={rank} />}
-                    </div>
 
-                    {/* 2. Velocity */}
-                    <div className="lg:col-span-1">
-                        {velocity && <VelocityGauge velocity={velocity} />}
-                    </div>
-
-                    {/* 3. Personas */}
-                    <div className="lg:col-span-2">
-                        <div className="bg-white border border-stone-200 rounded-2xl p-6 h-full flex flex-col">
-                            <h3 className="text-stone-500 text-xs font-bold uppercase tracking-wider mb-4">Detected Personas</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
-                                {personas.length > 0 ? (
-                                    personas.map(persona => (
-                                        <AudiencePersonaCard key={persona.id} persona={persona} />
-                                    ))
-                                ) : (
-                                    <div className="col-span-2 border-2 border-dashed border-stone-100 rounded-xl flex flex-col items-center justify-center text-center bg-stone-50/50">
-                                        <span className="text-3xl mb-3 opacity-30">🔮</span>
-                                        <p className="text-stone-500 font-bold text-sm">Validating Identity...</p>
-                                        <p className="text-xs text-stone-400 mt-1">Need more data to generate personas.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
