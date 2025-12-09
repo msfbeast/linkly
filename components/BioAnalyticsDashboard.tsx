@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { BioAnalyticsData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { Loader2, TrendingUp, Users, MousePointer2, Eye, Globe, Smartphone } from 'lucide-react';
+import { Loader2, TrendingUp, Users, MousePointer2, Eye, Globe, Smartphone, Sparkles } from 'lucide-react';
 
 interface BioAnalyticsDashboardProps {
     userId: string;
@@ -16,9 +16,6 @@ const COLORS = ['#F59E0B', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
 export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ userId }) => {
     const [data, setData] = useState<BioAnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [velocity, setVelocity] = useState<EngagementVelocity | null>(null);
-    const [personas, setPersonas] = useState<AudiencePersona[]>([]);
-    const [rank, setRank] = useState<CreatorRank | null>(null);
     const [dateRange, setDateRange] = useState(30);
 
     useEffect(() => {
