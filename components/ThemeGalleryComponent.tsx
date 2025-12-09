@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { PRESET_THEMES, ThemePreset } from './ThemeGalleryConfig';
 import { BioThemeConfig } from '../types';
-import { Check, Palette } from 'lucide-react';
+import { Check, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ThemeGalleryComponentProps {
     currentTheme?: BioThemeConfig;
@@ -79,29 +79,59 @@ export const ThemeGalleryComponent: React.FC<ThemeGalleryComponentProps> = ({ cu
                         currentTheme.buttonStyle === preset.config.buttonStyle;
 
                     return (
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
+                        <div key={preset.id} className="snap-center flex flex-col items-center gap-3">
+                            <button
+                                onClick={() => onSelect(preset.config)}
+                                className={`
+                                    relative w-[180px] h-[320px] rounded-[2.5rem] border-[6px] transition-all duration-300 overflow-hidden flex-shrink-0 shadow-xl group
+                                    ${isSelected ? 'border-stone-900 scale-105 ring-4 ring-stone-900/20' : 'border-stone-100 hover:border-stone-300 hover:scale-102'}
+                                `}
+                            >
+                                {/* Phone Mockup Inner */}
+                                <div
+                                    className="w-full h-full flex flex-col items-center pt-8 px-4"
+                                    style={{
+                                        background: preset.config.backgroundType === 'image'
+                                            ? `url(${preset.config.backgroundValue}) center/cover no-repeat`
+                                            : preset.config.backgroundValue || preset.config.backgroundColor
+                                    }}
+                                >
 
-                            {/* Content Preview */ }
-                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4">
-                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur mb-3" />
-                        <div className="w-full h-8 rounded-lg bg-white/20 backdrop-blur mb-2" />
-                        <div className="w-full h-8 rounded-lg bg-white/20 backdrop-blur" />
+                                    {/* Mini Profile */}
+                                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-3 border border-white/30 shrink-0" />
+                                    <div className="w-24 h-3 rounded-full bg-current opacity-50 mb-6 shrink-0" style={{ color: preset.config.textColor }} />
 
-                        {isSelected && (
-                            <div className="absolute top-2 right-2 bg-indigo-500 text-white p-1 rounded-full shadow-lg">
-                                <Check className="w-3 h-3" />
-                            </div>
-                        )}
-                    </div>
+                                    {/* Mini Buttons */}
+                                    <div className="w-full space-y-2">
+                                        {renderMiniButton(preset.config)}
+                                        {renderMiniButton(preset.config)}
+                                        {renderMiniButton(preset.config)}
+                                    </div>
 
-                    {/* Label */ }
-                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/60 backdrop-blur-md text-white z-30">
-                        <p className="text-xs font-bold text-center">{preset.name}</p>
-                    </div>
-                        </button>
-            );
+                                    {/* Selection Overlay */}
+                                    {isSelected && (
+                                        <div className="absolute inset-0 bg-black/10 flex items-center justify-center backdrop-blur-[1px]">
+                                            <div className="bg-white text-stone-900 rounded-full p-2 shadow-lg scale-110">
+                                                <Check className="w-6 h-6" />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Hover overlay name */}
+                                    {!isSelected && (
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                            <p className="text-white font-bold text-lg translate-y-4 group-hover:translate-y-0 transition-transform">Preview</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </button>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-stone-900 font-bold' : 'text-stone-500'}`}>
+                                {preset.name}
+                            </span>
+                        </div>
+                    );
                 })}
-        </div>
+            </div>
         </div >
     );
 };
