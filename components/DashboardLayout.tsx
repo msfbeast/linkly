@@ -204,10 +204,10 @@ const DashboardLayout: React.FC = () => {
     console.log('DashboardLayout rendering view:', view);
 
     return (
-        <div className="flex min-h-screen bg-[#FDFBF7] dark:bg-slate-950 text-slate-900 dark:text-white relative overflow-hidden">
+        <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900 relative overflow-hidden">
             {/* Aurora Background */}
             <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-200/30 dark:bg-purple-900/20 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-200/30 rounded-full blur-[120px] animate-pulse" />
                 <div className="absolute top-[20%] right-[-10%] w-[30%] h-[30%] bg-yellow-200/30 rounded-full blur-[100px] animate-pulse delay-1000" />
                 <div className="absolute bottom-[-10%] left-[20%] w-[35%] h-[35%] bg-pink-200/20 rounded-full blur-[120px] animate-pulse delay-2000" />
             </div>
