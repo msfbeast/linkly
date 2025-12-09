@@ -2685,12 +2685,13 @@ export class SupabaseAdapter implements StorageAdapter {
       SupabaseAdapter.instance = new SupabaseAdapter();
     }
     return SupabaseAdapter.instance;
+  }
   // ============================================
   // Bio Analytics
   // ============================================
 
-  async getBioAnalytics(userId: string, days = 30): Promise < BioAnalyticsData > {
-      if(!isSupabaseConfigured() || !supabase) {
+  async getBioAnalytics(userId: string, days = 30): Promise<BioAnalyticsData> {
+    if (!isSupabaseConfigured() || !supabase) {
       return {
         overview: { totalViews: 0, totalClicks: 0, ctr: 0, totalSubscribers: 0 },
         clicksOverTime: [],
