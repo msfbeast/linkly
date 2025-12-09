@@ -151,15 +151,30 @@ const LinkCard: React.FC<LinkCardProps> = ({
                   const now = Date.now();
                   const isScheduled = link.startDate && now < link.startDate;
                   const isExpired = link.expirationDate && now > link.expirationDate;
-                  const isActive = (!link.startDate || now >= link.startDate) && (!link.expirationDate || now <= link.expirationDate);
+                  const isLimitReached = link.maxClicks && link.clicks >= link.maxClicks;
+
+                  // Check if expiring within 48 hours
+                  const hoursUntilExpiration = link.expirationDate ? (link.expirationDate - now) / (1000 * 60 * 60) : null;
+                  const isExpiringSoon = hoursUntilExpiration !== null && hoursUntilExpiration > 0 && hoursUntilExpiration <= 48;
+
+                  const isActive = (!link.startDate || now >= link.startDate) && (!link.expirationDate || now <= link.expirationDate) && !isLimitReached;
+
+                  if (isLimitReached) {
+                    return (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title={`Limit reached: ${link.clicks}/${link.maxClicks} clicks`}>
+                        <AlertCircle className="w-3 h-3" /> Limit Reached
+                      </span>
+                    );
+                  }
 
                   if (isScheduled) {
                     return (
-                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title={`Starts: ${new Date(link.startDate!).toLocaleString()}`}>
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title={`Starts: ${new Date(link.startDate!).toLocaleString()}`}>
                         <Clock className="w-3 h-3" /> Scheduled
                       </span>
                     );
                   }
+
                   if (isExpired) {
                     return (
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title={`Expired: ${new Date(link.expirationDate!).toLocaleString()}`}>
@@ -167,12 +182,21 @@ const LinkCard: React.FC<LinkCardProps> = ({
                       </span>
                     );
                   }
-                  // Optional: Show Active badge if it has dates but is currently active
-                  if (isActive && (link.startDate || link.expirationDate)) {
+
+                  if (isActive) {
                     return (
-                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title="Link is active">
-                        <CheckCircle2 className="w-3 h-3" /> Active
-                      </span>
+                      <>
+                        {isExpiringSoon && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" title={`Expires in ${Math.ceil(hoursUntilExpiration!)} hours`}>
+                            <Clock className="w-3 h-3" /> Expiring Soon
+                          </span>
+                        )}
+                        {(link.startDate || link.expirationDate || link.maxClicks) && (
+                          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${isExpiringSoon ? 'bg-transparent text-stone-500 border-stone-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`} title="Link is active">
+                            <CheckCircle2 className="w-3 h-3" /> Active
+                          </span>
+                        )}
+                      </>
                     );
                   }
                   return null;
@@ -294,10 +318,10 @@ const LinkCard: React.FC<LinkCardProps> = ({
                     <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${link.clicks >= link.clickGoal
-                            ? 'bg-emerald-500'
-                            : link.clicks >= link.clickGoal * 0.75
-                              ? 'bg-amber-500'
-                              : 'bg-amber-400'
+                          ? 'bg-emerald-500'
+                          : link.clicks >= link.clickGoal * 0.75
+                            ? 'bg-amber-500'
+                            : 'bg-amber-400'
                           }`}
                         style={{ width: `${Math.min((link.clicks / link.clickGoal) * 100, 100)}%` }}
                       />
