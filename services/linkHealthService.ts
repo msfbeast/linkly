@@ -33,6 +33,14 @@ export const checkLinkHealth = async (url: string): Promise<HealthCheckResult> =
         // Use Microlink API to check if the URL is reachable
         // We request 'statusCode' to get the HTTP status code
         const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}&meta=false&filter=statusCode`);
+
+        // If Microlink API itself fails (400, 500, etc.), don't mark link as broken
+        // This happens when Microlink can't fetch the URL (blocked by site, rate limited, etc.)
+        if (!response.ok) {
+            console.warn(`Microlink API returned ${response.status} for ${url}, marking as unknown`);
+            return { status: 'unknown', lastChecked: Date.now() };
+        }
+
         const data = await response.json();
 
         if (data.status === 'success') {
@@ -58,14 +66,10 @@ export const checkLinkHealth = async (url: string): Promise<HealthCheckResult> =
             healthCache[url] = result;
             return result;
         } else {
-            // If Microlink fails, it usually means the site is down or unreachable
-            const result: HealthCheckResult = {
-                status: 'broken',
-                statusCode: data.code || 0,
-                lastChecked: Date.now()
-            };
-            healthCache[url] = result;
-            return result;
+            // If Microlink returns fail status, mark as unknown (not broken)
+            // The link might still be working - Microlink just couldn't check it
+            console.warn(`Microlink failed to check ${url}, marking as unknown`);
+            return { status: 'unknown', lastChecked: Date.now() };
         }
     } catch (error) {
         console.error('Error checking link health:', error);
