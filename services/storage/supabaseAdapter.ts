@@ -2714,11 +2714,22 @@ export class SupabaseAdapter implements StorageAdapter {
     const linkIds = links?.map(l => l.id) || [];
 
     // 2. Fetch Click Events for these links
-    const { data: clicks } = await supabase
-      .from('click_events')
-      .select('*')
-      .in('link_id', linkIds)
-      .gte('created_at', startDate.toISOString());
+    // 2. Fetch Click Events for these links
+    const clicks: any[] = [];
+    const BATCH_SIZE = 20; // Conservative batch size
+
+    for (let i = 0; i < linkIds.length; i += BATCH_SIZE) {
+      const batch = linkIds.slice(i, i + BATCH_SIZE);
+      const { data: batchClicks } = await supabase
+        .from('click_events')
+        .select('*')
+        .in('link_id', batch)
+        .gte('created_at', startDate.toISOString());
+
+      if (batchClicks) {
+        clicks.push(...batchClicks);
+      }
+    }
 
     // 3. Fetch Subscriber Count
     const { count: subscriberCount } = await supabase
