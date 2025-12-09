@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock, GripVertical, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock, GripVertical, Clock, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import QRCodeGenerator from './QRCodeGenerator';
+import { QRCodeCanvas } from 'qrcode.react';
 import { LinkData } from '../types';
 import { generateSocialPost } from '../services/geminiService';
 import { checkLinkHealth, getHealthColor, getHealthTooltip } from '../services/linkHealthService';
@@ -73,6 +74,22 @@ const LinkCard: React.FC<LinkCardProps> = ({
     const post = await generateSocialPost(link);
     setGeneratedPost(post);
     setIsGeneratingPost(false);
+  };
+
+  // Reference for hidden QR canvas
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Quick download QR code as PNG
+  const handleQuickDownloadQR = () => {
+    const canvas = qrCanvasRef.current;
+    if (!canvas) return;
+
+    // Create download link
+    const downloadLink = document.createElement('a');
+    const sanitizedTitle = (link.title || 'qr-code').replace(/[^a-z0-9]/gi, '-').substring(0, 30);
+    downloadLink.download = `${sanitizedTitle}.png`;
+    downloadLink.href = canvas.toDataURL('image/png');
+    downloadLink.click();
   };
 
 
@@ -249,6 +266,13 @@ const LinkCard: React.FC<LinkCardProps> = ({
                   <button onClick={() => setShowQr(!showQr)} className={`p-2 rounded-lg transition-all ${showQr ? 'text-yellow-600 bg-yellow-100' : 'text-stone-400 hover:text-slate-900 hover:bg-stone-100'}`} title="QR Code">
                     <Share2 className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={handleQuickDownloadQR}
+                    className="p-2 rounded-lg text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                    title="Download QR Code"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -307,8 +331,17 @@ const LinkCard: React.FC<LinkCardProps> = ({
         )}
 
       </motion.div >
-
-
+      {/* Hidden QR Canvas for Quick Download */}
+      <div className="hidden">
+        <QRCodeCanvas
+          ref={qrCanvasRef}
+          value={fullShortUrl}
+          size={400}
+          level="H"
+          bgColor="#ffffff"
+          fgColor="#000000"
+        />
+      </div>
     </>
   );
 };
