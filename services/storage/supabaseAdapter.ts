@@ -568,6 +568,7 @@ export class SupabaseAdapter implements StorageAdapter {
   /**
  * Create a new link
  * Automatically sets user_id from the current auth session
+ * If a link with the same URL already exists for this user, returns the existing link
  * Requirements: 5.1
  */
   async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData> {
@@ -589,9 +590,26 @@ export class SupabaseAdapter implements StorageAdapter {
       });
     }
 
+    // Check if a link with this URL already exists for this user (skip for widgets)
+    if (userId && !link.originalUrl.startsWith('widget://')) {
+      const { data: existingLinks } = await supabase!
+        .from(TABLES.LINKS)
+        .select('*')
+        .eq('user_id', userId)
+        .eq('original_url', finalUrl)
+        .limit(1);
+
+      if (existingLinks && existingLinks.length > 0) {
+        console.log('[createLink] Found existing link for URL, returning existing');
+        const clickHistory = await this.getClickEvents(existingLinks[0].id);
+        return rowToLinkData(existingLinks[0] as LinkRow, clickHistory);
+      }
+    }
+
     // Retry logic for short code conflicts
     const maxAttempts = 3;
     let lastError: Error | null = null;
+
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const id = uuidv4();
