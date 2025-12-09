@@ -116,68 +116,70 @@ interface ThemeGalleryProps {
     onSelect: (theme: string) => void;
     onSelectCustom?: (config: BioThemeConfig) => void;
     currentCustomTheme?: BioThemeConfig;
-    export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSelect, onSelectCustom, currentCustomTheme }) => {
+}
+
+export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSelect, onSelectCustom, currentCustomTheme }) => {
     return (
-    <div className = "space-y-8">
-    {/* Premium Themes (Deep Customization) - Main View */}
-    {onSelectCustom && (
-    <div className = "animate-fadeIn">
-    <div className = "flex items-center gap-2 mb-6 px-1">
-    <Sparkles className = "w-5 h-5 text-amber-500" />
-    <h3 className = "text-lg font-bold text-slate-900">Featured Themes</h3>
-    <span className = "text-xs text-stone-400 font-medium ml-auto">Scroll for more →</span>
-    </div>
-    <ThemeGalleryComponent
-    currentTheme = {currentCustomTheme}
-    onSelect = {onSelectCustom}
-    />
-    </div>
-    ) }
+        <div className="space-y-8">
+            {/* Premium Themes (Deep Customization) - Main View */}
+            {onSelectCustom && (
+                <div className="animate-fadeIn">
+                    <div className="flex items-center gap-2 mb-6 px-1">
+                        <Sparkles className="w-5 h-5 text-amber-500" />
+                        <h3 className="text-lg font-bold text-slate-900">Featured Themes</h3>
+                        <span className="text-xs text-stone-400 font-medium ml-auto">Scroll for more →</span>
+                    </div>
+                    <ThemeGalleryComponent
+                        currentTheme={currentCustomTheme}
+                        onSelect={onSelectCustom}
+                    />
+                </div>
+            )}
 
-    {/* Legacy / Standard Themes - Hidden by default */}
-    <details className = "group border-t border-stone-200 pt-6">
-    <summary className = "flex items-center gap-2 cursor-pointer list-none text-stone-500 hover:text-stone-800 transition-colors py-2 selection:bg-none">
-    <div className = "p-1 rounded bg-stone-100 group-hover:bg-stone-200 transition-colors">
-    <Palette className = "w-4 h-4" />
-    </div>
-    <span className = "font-medium text-sm">Create Custom Theme / Classic Presets</span>
-    <div className = "ml-auto transform group-open:rotate-180 transition-transform">
-    <ChevronDown className = "w-4 h-4" />
-    </div>
-    </summary>
+            {/* Legacy / Standard Themes - Hidden by default */}
+            <details className="group border-t border-stone-200 pt-6">
+                <summary className="flex items-center gap-2 cursor-pointer list-none text-stone-500 hover:text-stone-800 transition-colors py-2 selection:bg-none">
+                    <div className="p-1 rounded bg-stone-100 group-hover:bg-stone-200 transition-colors">
+                        <Palette className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium text-sm">Create Custom Theme / Classic Presets</span>
+                    <div className="ml-auto transform group-open:rotate-180 transition-transform">
+                        <ChevronDown className="w-4 h-4" />
+                    </div>
+                </summary>
 
-    <div className = "mt-6 animate-slideDown">
-    <div className = "flex items-center gap-2 mb-4">
-    <Grid className = "w-5 h-5 text-indigo-400" />
-    <h3 className = "text-lg font-bold text-slate-900">Standard Presets</h3>
-    </div>
-    <div className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-    {THEMES.map((theme) => {
-    const isActive = currentTheme === theme.id && !currentCustomTheme;
-    const Icon = theme.icon;
+                <div className="mt-6 animate-slideDown">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Grid className="w-5 h-5 text-indigo-400" />
+                        <h3 className="text-lg font-bold text-slate-900">Standard Presets</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {THEMES.map((theme) => {
+                            const isActive = currentTheme === theme.id && !currentCustomTheme;
+                            const Icon = theme.icon;
 
-    return (
-    <button
-    key = {theme.id}
-    onClick = {() => onSelect(theme.id) }
-    className = {`
+                            return (
+                                <button
+                                    key={theme.id}
+                                    onClick={() => onSelect(theme.id)}
+                                    className={`
                                         relative group flex flex-col items-start p-4 rounded-xl border-2 transition-all duration-200 text-left
                                         ${isActive
-    ?'border-amber-500 bg-amber-50 shadow-md ring-1 ring-amber-500/20'
-    : 'border-stone-100 bg-white hover:border-amber-200 hover:shadow-sm'
-    }
+                                            ? 'border-amber-500 bg-amber-50 shadow-md ring-1 ring-amber-500/20'
+                                            : 'border-stone-100 bg-white hover:border-amber-200 hover:shadow-sm'
+                                        }
     `}
                                 >
                                     {/* Header: Icon and Name */}
                                     <div className="flex items-center gap-3 mb-2 w-full">
                                         <div className={`
     p-2 rounded-lg transition-colors
-    ${isActive?'bg-amber-100/50 text-amber-600': 'bg-stone-50 text-stone-400 group-hover:text-amber-500 group-hover:bg-amber-50'}
+    ${isActive ? 'bg-amber-100/50 text-amber-600' : 'bg-stone-50 text-stone-400 group-hover:text-amber-500 group-hover:bg-amber-50'}
     `}>
                                             <Icon className="w-5 h-5" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className={`font-bold text-sm truncate ${isActive?'text-amber-900': 'text-slate-900'}`}>{theme.name}</h4>
+                                            <h4 className={`font-bold text-sm truncate ${isActive ? 'text-amber-900' : 'text-slate-900'}`}>{theme.name}</h4>
                                         </div>
                                         {isActive && (
                                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
