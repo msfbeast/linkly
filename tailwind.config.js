@@ -108,6 +108,10 @@ export default {
         fadeIn: {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'rotate-gradient': {
+          '0%': { transform: 'rotate(180deg)' },
+          '100%': { transform: 'rotate(540deg)' },
         }
       }
     },

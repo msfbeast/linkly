@@ -442,16 +442,75 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       type="button"
                       onClick={handleAnalyze}
                       disabled={!url || isAnalyzing}
-                      className="bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-bold px-5 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-amber-400/20 min-w-[140px] justify-center"
+                      className="ai-mode-button group disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        '--btn-bg': '#2c303d',
+                        '--btn-text': '#e8e8e8',
+                        '--gradient-green': '#34a853',
+                        '--gradient-yellow': '#ffd314',
+                        '--gradient-red': '#ff4641',
+                        '--gradient-blue': '#3186ff',
+                        background: 'var(--btn-bg)',
+                        border: 'none',
+                        borderRadius: '2.5em',
+                        cursor: url && !isAnalyzing ? 'pointer' : 'not-allowed',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        height: '2.75em',
+                        padding: '0 1.25em',
+                        position: 'relative',
+                        color: 'var(--btn-text)',
+                        overflow: 'visible',
+                        transition: 'transform 0.15s ease',
+                        minWidth: '160px',
+                      } as React.CSSProperties}
                     >
-                      {isAnalyzing ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          <span>Auto-Fill with AI</span>
-                        </>
-                      )}
+                      {/* Outer glow border */}
+                      <span
+                        className="absolute inset-0 rounded-[2.5em] border border-white/20 bg-white/5 opacity-40 group-hover:opacity-0 transition-opacity duration-400"
+                      />
+
+                      {/* Blur layer */}
+                      <span className="absolute inset-0 rounded-[2.5em] overflow-hidden pointer-events-none opacity-35 blur-[3px]">
+                        <span
+                          className="absolute inset-0 h-[200%] -top-1/2 opacity-0 group-hover:opacity-100 group-hover:animate-[rotate-gradient_2s_linear_infinite] transition-opacity duration-400"
+                          style={{
+                            background: 'conic-gradient(rgba(49,134,255,0) 0deg, #34a853 43deg, #ffd314 65deg, #ff4641 105deg, #3186ff 144deg, #3186ff 180deg, rgba(49,134,255,0) 324deg, rgba(49,134,255,0) 360deg)',
+                            transform: 'rotate(180deg)',
+                            scale: '2 1',
+                          }}
+                        />
+                      </span>
+
+                      {/* Gradient layer */}
+                      <span className="absolute inset-0 rounded-[2.5em] overflow-hidden pointer-events-none">
+                        <span
+                          className="absolute inset-0 h-[200%] -top-1/2 opacity-0 group-hover:opacity-100 group-hover:animate-[rotate-gradient_2s_linear_infinite] transition-opacity duration-400"
+                          style={{
+                            background: 'conic-gradient(rgba(49,134,255,0) 0deg, #34a853 43deg, #ffd314 65deg, #ff4641 105deg, #3186ff 144deg, #3186ff 180deg, rgba(49,134,255,0) 324deg, rgba(49,134,255,0) 360deg)',
+                            transform: 'rotate(180deg)',
+                            scale: '2 1',
+                          }}
+                        />
+                      </span>
+
+                      {/* Inner background */}
+                      <span
+                        className="absolute rounded-[2.5em] bg-[#2c303d] group-hover:blur-[3px] transition-[filter] duration-1000"
+                        style={{ inset: '2px' }}
+                      />
+
+                      {/* Button content */}
+                      <span className="relative z-10 flex items-center gap-2 justify-center">
+                        {isAnalyzing ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            <span>Auto-Fill with AI</span>
+                          </>
+                        )}
+                      </span>
                     </button>
                   </div>
                 </div>
