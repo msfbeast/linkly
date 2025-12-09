@@ -2725,8 +2725,7 @@ export class SupabaseAdapter implements StorageAdapter {
       const { data: batchClicks, error } = await supabase
         .from(STORAGE_KEYS.CLICKS)
         .select('*')
-        .in('link_id', batch)
-        .gte('created_at', startDate.toISOString());
+        .in('link_id', batch);
 
       if (error) {
         console.error('Error fetching click batch:', JSON.stringify(error));
