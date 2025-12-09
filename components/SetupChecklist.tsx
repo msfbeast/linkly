@@ -93,7 +93,7 @@ const SetupChecklist: React.FC<SetupChecklistProps> = ({ links, onComplete }) =>
         },
         {
             id: 'share',
-            title: 'Share your Linktree',
+            title: 'Share your Gather link',
             description: 'Share your unique link on your social profiles to start getting traffic.',
             icon: Share2,
             isComplete: hasShared,
