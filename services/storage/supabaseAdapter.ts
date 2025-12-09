@@ -14,13 +14,13 @@ import { monetizeUrl } from '../../utils/affiliateUtils';
 import { compressImage } from '../../utils/imageUtils';
 
 const STORAGE_KEYS = {
-  LINKS: 'gather_links',
-  CLICKS: 'gather_clicks',
-  BIO_PROFILES: 'gather_bio_profiles',
-  PRODUCTS: 'gather_products',
-  DOMAINS: 'gather_domains',
-  TAGS: 'gather_tags',
-  FOLDERS: 'gather_folders',
+  LINKS: 'links',
+  CLICKS: 'click_events',
+  BIO_PROFILES: 'bio_profiles',
+  PRODUCTS: 'products',
+  DOMAINS: 'custom_domains',
+  TAGS: 'tags',
+  FOLDERS: 'folders',
 };
 
 const BUCKETS = {
