@@ -2723,13 +2723,13 @@ export class SupabaseAdapter implements StorageAdapter {
     for (let i = 0; i < linkIds.length; i += BATCH_SIZE) {
       const batch = linkIds.slice(i, i + BATCH_SIZE);
       const { data: batchClicks, error } = await supabase
-        .from('click_events')
+        .from(STORAGE_KEYS.CLICKS)
         .select('*')
         .in('link_id', batch)
         .gte('created_at', startDate.toISOString());
 
       if (error) {
-        console.error('Error fetching click batch:', error);
+        console.error('Error fetching click batch:', JSON.stringify(error));
       }
 
       if (batchClicks) {
