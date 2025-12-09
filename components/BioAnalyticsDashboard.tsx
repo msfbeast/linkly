@@ -30,16 +30,6 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
             } catch (error) {
                 console.error('Failed to load analytics', error);
             } finally {
-                setForecastData(forecast);
-
-                // Oracle & Gamification
-                const v = calculateVelocity(fetchedLinks);
-                const p = generatePersonas(fetchedLinks);
-                const r = calculateCreatorRank(fetchedLinks);
-                setVelocity(v);
-                setPersonas(p);
-                setRank(r);
-
                 setLoading(false);
             }
         };
