@@ -425,7 +425,7 @@ const LinkAnalytics: React.FC = () => {
                 <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     <h3 className="text-lg font-bold text-slate-900 mb-6">Click Trends</h3>
                     <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
                             <AreaChart data={timelineData}>
                                 <defs>
                                     <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
@@ -466,7 +466,7 @@ const LinkAnalytics: React.FC = () => {
                 <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     <h3 className="text-lg font-bold text-slate-900 mb-6">Browsers</h3>
                     <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
                             <PieChart>
                                 <Pie
                                     data={browserData}

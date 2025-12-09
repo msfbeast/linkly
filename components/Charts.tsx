@@ -55,7 +55,7 @@ interface TimeChartProps {
 export const ClicksOverTime: React.FC<TimeChartProps> = ({ data }) => {
   return (
     <div className="w-full h-[250px]">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
@@ -108,7 +108,7 @@ export const DeviceStats: React.FC<DeviceChartProps> = ({ data }) => {
 
   return (
     <div className="w-full h-[200px] flex items-end gap-2 justify-center px-4">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
         <BarChart data={data} barSize={40}>
           <Tooltip
             cursor={{ fill: 'rgba(0,0,0,0.02)' }}

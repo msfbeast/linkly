@@ -201,7 +201,7 @@ const DashboardLayout: React.FC = () => {
 
     // ... (rest of component)
 
-    console.log('DashboardLayout rendering view:', view);
+
 
     return (
         <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900 relative overflow-hidden">
