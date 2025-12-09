@@ -2718,8 +2718,6 @@ export class SupabaseAdapter implements StorageAdapter {
     const clicks: any[] = [];
     const BATCH_SIZE = 5; // Reduced from 20 to 5 to avoid 400 errors
 
-    console.log(`[Analytics] Fetching clicks for ${linkIds.length} links since ${startDate.toISOString()}`);
-
     for (let i = 0; i < linkIds.length; i += BATCH_SIZE) {
       const batch = linkIds.slice(i, i + BATCH_SIZE);
       const { data: batchClicks, error } = await supabase
@@ -2732,10 +2730,7 @@ export class SupabaseAdapter implements StorageAdapter {
       }
 
       if (batchClicks) {
-        console.log(`[Analytics] Batch ${i} returned ${batchClicks.length} clicks`);
         clicks.push(...batchClicks);
-      } else {
-        console.log(`[Analytics] Batch ${i} returned no data`);
       }
     }
 
@@ -2796,7 +2791,15 @@ export class SupabaseAdapter implements StorageAdapter {
     // Location
     const locationCount: Record<string, number> = {};
     clicks?.forEach(c => {
-      const loc = c.country || 'Unknown';
+      let loc = c.country || 'Unknown';
+
+      // Normalize common country codes/names
+      if (loc === 'IN') loc = 'India';
+      if (loc === 'US' || loc === 'USA') loc = 'United States';
+      if (loc === 'GB' || loc === 'UK') loc = 'United Kingdom';
+      if (loc === 'CA') loc = 'Canada';
+      if (loc === 'AU') loc = 'Australia';
+
       locationCount[loc] = (locationCount[loc] || 0) + 1;
     });
     const byLocation = Object.entries(locationCount)
