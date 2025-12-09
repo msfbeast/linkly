@@ -37,7 +37,8 @@ import {
 } from '@dnd-kit/sortable';
 import { BioBlock } from '../components/BioBlock';
 import { BioAnalyticsDashboard } from '../components/BioAnalyticsDashboard';
-import { BlockGalleryModal, BlockType } from '../components/BlockGalleryModal'; // New Import
+import { BlockGalleryModal, BlockType } from '../components/BlockGalleryModal';
+import { WidgetConfigModal } from '../components/WidgetConfigModal';
 import { BarChart3 } from 'lucide-react';
 
 const BioDashboard: React.FC = () => {
@@ -53,7 +54,8 @@ const BioDashboard: React.FC = () => {
     const [bioPrompt, setBioPrompt] = useState('');
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [showAnalytics, setShowAnalytics] = useState(false);
-    const [showBlockGallery, setShowBlockGallery] = useState(false); // New State
+    const [showBlockGallery, setShowBlockGallery] = useState(false);
+    const [configWidgetType, setConfigWidgetType] = useState<BlockType | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -86,57 +88,36 @@ const BioDashboard: React.FC = () => {
     );
 
     const handleAddWidget = async (type: BlockType) => {
-        let metadata = {};
-        let title = 'New Widget';
-
-        if (type === 'music') {
-            title = 'Music Player';
-            const url = prompt("Enter Spotify or Apple Music URL:");
-            if (!url) return;
-            metadata = { platform: url.includes('apple') ? 'apple' : 'spotify', embedUrl: url };
-        } else if (type === 'map') {
-            title = 'Location';
-            const address = prompt("Enter Address:");
-            if (!address) return;
-            // Mock Geocode for now (Random generic location)
-            metadata = { lat: 40.7128, lng: -74.0060, address };
-        } else if (type === 'video') {
-            title = 'Video';
-            const url = prompt("Enter YouTube or Vimeo URL:");
-            if (!url) return;
-            const videoId = url.split('v=')[1] || url.split('/').pop();
-            metadata = { videoPlatform: url.includes('vimeo') ? 'vimeo' : 'youtube', videoId };
-        } else if (type === 'poll') {
-            title = 'Poll';
-            const question = prompt("Enter Poll Question:", "What should I create next?");
-            if (!question) return;
-            metadata = {
-                question,
-                options: [
-                    { id: '1', text: 'Option A', votes: 0 },
-                    { id: '2', text: 'Option B', votes: 0 }
-                ]
-            };
-        } else if (type === 'qna') {
-            title = 'Q&A';
-            const qnaTitle = prompt("Enter Title:", "Ask me anything");
-            if (!qnaTitle) return;
-            metadata = { title: qnaTitle };
-        } else if (type === 'newsletter') {
-            // Scroll to newsletter section
+        // Handle types that don't need configuration first
+        if (type === 'newsletter') {
             document.getElementById('newsletter-section')?.scrollIntoView({ behavior: 'smooth' });
             return;
         } else if (type === 'social_feed') {
-            alert("Social Feed integration coming soon!");
+            toast.info("Social Feed integration coming soon!");
             return;
         } else if (type === 'link') {
-            // Should be handled by handleBlockSelect, but just in case
             setShowLinkModal(true);
             return;
         } else if (type === 'tip_jar') {
-            title = 'Support Me';
-            metadata = {};
+            handleWidgetConfigSubmit({}, 'tip_jar'); // No config needed
+            return;
         }
+
+        // Open config modal for others
+        setConfigWidgetType(type);
+    };
+
+    const handleWidgetConfigSubmit = async (metadata: any, typeOverride?: BlockType) => {
+        const type = typeOverride || configWidgetType;
+        if (!type || !user) return;
+
+        let title = 'New Widget';
+        if (type === 'music') title = 'Music Player';
+        if (type === 'video') title = 'Video';
+        if (type === 'poll') title = 'Poll';
+        if (type === 'qna') title = 'Q&A';
+        if (type === 'map') title = 'Location';
+        if (type === 'tip_jar') title = 'Support Me';
 
 
         try {
@@ -774,6 +755,13 @@ const BioDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+            {/* Widget Config Modal */}
+            <WidgetConfigModal
+                isOpen={!!configWidgetType}
+                type={configWidgetType}
+                onClose={() => setConfigWidgetType(null)}
+                onSubmit={handleWidgetConfigSubmit}
+            />
         </div>
     );
 };
