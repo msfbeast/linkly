@@ -1532,6 +1532,7 @@ export class SupabaseAdapter implements StorageAdapter {
       throw new Error('Profile not found');
     }
 
+    console.log('[SupabaseAdapter] updating bio profile:', id, updates);
     const rowUpdates = bioProfileToRow(updates);
 
     const { data, error } = await supabase!
@@ -1539,10 +1540,16 @@ export class SupabaseAdapter implements StorageAdapter {
       .update(rowUpdates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
+      console.error('[SupabaseAdapter] update error:', error);
       throw new Error(`Failed to update bio profile: ${error.message}`);
+    }
+
+    if (!data) {
+      console.error('[SupabaseAdapter] update returned no data. ID might be missing or RLS violation:', id);
+      throw new Error('Profile not found or access denied during update.');
     }
 
     return rowToBioProfile(data as BioProfileRow);
