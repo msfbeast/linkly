@@ -2767,7 +2767,12 @@ export class SupabaseAdapter implements StorageAdapter {
     }
 
     clicks?.forEach(c => {
-      const date = new Date(c.created_at).toISOString().split('T')[0];
+      // Safety check for invalid timestamp
+      if (!c.timestamp) return;
+      const d = new Date(c.timestamp);
+      if (isNaN(d.getTime())) return;
+
+      const date = d.toISOString().split('T')[0];
       if (clicksByDate.has(date)) {
         clicksByDate.set(date, (clicksByDate.get(date) || 0) + 1);
       }
