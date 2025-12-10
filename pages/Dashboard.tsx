@@ -57,6 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [serverCityData, setServerCityData] = useState<CityBreakdown[]>([]);
   const [serverOsData, setServerOsData] = useState<any[]>([]);
   const [serverBrowserData, setServerBrowserData] = useState<any[]>([]);
+  const [serverReferrerData, setServerReferrerData] = useState<any[]>([]);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -183,16 +184,18 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       } else if (user?.id) {
         // Personal Mode - Use precise Server RPC
-        const [stats, cities, os, browsers] = await Promise.all([
+        const [stats, cities, os, browsers, referrers] = await Promise.all([
           aggregatedAnalytics.getUserClickStats(user.id),
           aggregatedAnalytics.getCityBreakdown(user.id),
           aggregatedAnalytics.getOsBreakdown(user.id),
-          aggregatedAnalytics.getBrowserBreakdown(user.id)
+          aggregatedAnalytics.getBrowserBreakdown(user.id),
+          aggregatedAnalytics.getReferrerBreakdown(user.id)
         ]);
         setUserClickStats(stats);
         setServerCityData(cities);
         setServerOsData(os);
         setServerBrowserData(browsers);
+        setServerReferrerData(referrers);
       }
 
     } catch (err) {
@@ -579,6 +582,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 serverCityData={serverCityData}
                 serverOsData={serverOsData}
                 serverBrowserData={serverBrowserData}
+                serverReferrerData={serverReferrerData}
               />
             </ErrorBoundary>
           )}

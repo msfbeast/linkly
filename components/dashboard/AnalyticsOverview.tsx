@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import TopCitiesTable from './TopCitiesTable';
 import { BrowserStats } from './BrowserStats';
 import { OSStats } from './OSStats';
+import { ReferrerStats } from './ReferrerStats';
 
 import ClickForecastChart from '../ClickForecastChart';
 import TrafficSourceChart, { calculateTrafficTotal } from '../TrafficSourceChart';
@@ -21,6 +22,7 @@ interface AnalyticsOverviewProps {
     serverCityData?: CityBreakdown[];
     serverOsData?: any[];
     serverBrowserData?: any[];
+    serverReferrerData?: any[];
 }
 
 const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
@@ -31,7 +33,8 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
     totalClicks,
     serverCityData = [],
     serverOsData,
-    serverBrowserData
+    serverBrowserData,
+    serverReferrerData
 }) => {
     // Generate health data
     const linkHealthData = generateLinkHealthData(links);
@@ -273,6 +276,16 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 className="min-w-0 h-[400px]"
             >
                 <OSStats data={osStats} />
+            </motion.div>
+
+            {/* Referrer Stats */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="min-w-0 h-[400px]"
+            >
+                <ReferrerStats data={serverReferrerData?.map((r: any) => ({ name: r.referrer, value: r.clickCount })) || []} />
             </motion.div>
         </div>
     );
