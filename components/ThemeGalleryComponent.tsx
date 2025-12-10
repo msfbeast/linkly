@@ -53,15 +53,15 @@ export const ThemeGalleryComponent: React.FC<ThemeGalleryComponentProps> = ({ cu
             {/* Navigation Overlay */}
             <button
                 onClick={() => scroll('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white/80 backdrop-blur shadow-lg rounded-full -ml-2 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 disabled:opacity-0"
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-black/50 backdrop-blur shadow-lg rounded-full -ml-2 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 disabled:opacity-0"
             >
-                <ChevronLeft className="w-5 h-5 text-stone-800" />
+                <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <button
                 onClick={() => scroll('right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white/80 backdrop-blur shadow-lg rounded-full -mr-2 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110"
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-black/50 backdrop-blur shadow-lg rounded-full -mr-2 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110"
             >
-                <ChevronRight className="w-5 h-5 text-stone-800" />
+                <ChevronRight className="w-5 h-5 text-white" />
             </button>
 
 
@@ -84,7 +84,7 @@ export const ThemeGalleryComponent: React.FC<ThemeGalleryComponentProps> = ({ cu
                                 onClick={() => onSelect(preset.config)}
                                 className={`
                                     relative w-[180px] h-[320px] rounded-[2.5rem] border-[6px] transition-all duration-300 overflow-hidden flex-shrink-0 shadow-xl group
-                                    ${isSelected ? 'border-stone-900 scale-105 ring-4 ring-stone-900/20' : 'border-stone-100 hover:border-stone-300 hover:scale-102'}
+                                    ${isSelected ? 'border-indigo-500 scale-105 ring-4 ring-indigo-500/20' : 'border-stone-800 hover:border-stone-600 hover:scale-102'}
                                 `}
                             >
                                 {/* Phone Mockup Inner */}
@@ -93,7 +93,7 @@ export const ThemeGalleryComponent: React.FC<ThemeGalleryComponentProps> = ({ cu
                                     style={{
                                         background: preset.config.backgroundType === 'image'
                                             ? `url(${preset.config.backgroundValue}) center/cover no-repeat`
-                                            : preset.config.backgroundValue || preset.config.backgroundColor
+                                            : preset.config.backgroundValue || preset.config.backgroundValue
                                     }}
                                 >
 

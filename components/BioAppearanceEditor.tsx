@@ -85,20 +85,20 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
     return (
         <div className="space-y-6">
             {/* Content Blocks - Functional Settings */}
-            <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 shadow-none">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-green-50 rounded-lg text-green-500">
+                    <div className="p-2 bg-green-500/10 rounded-lg text-green-500">
                         <Layout className="w-5 h-5" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">Content Blocks</h3>
+                    <h3 className="text-lg font-bold text-white">Content Blocks</h3>
                 </div>
 
                 <div className="space-y-4">
                     {/* Gallery Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl">
+                    <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
                         <div>
-                            <p className="font-medium text-slate-900">📸 Gallery</p>
-                            <p className="text-xs text-stone-500">Show your photo gallery section</p>
+                            <p className="font-medium text-white">📸 Gallery</p>
+                            <p className="text-xs text-stone-400">Show your photo gallery section</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -112,15 +112,15 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                 })}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                            <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                         </label>
                     </div>
 
                     {/* Newsletter Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl">
+                    <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
                         <div>
-                            <p className="font-medium text-slate-900">📧 Newsletter</p>
-                            <p className="text-xs text-stone-500">Show email subscription form</p>
+                            <p className="font-medium text-white">📧 Newsletter</p>
+                            <p className="text-xs text-stone-400">Show email subscription form</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -134,15 +134,15 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                 })}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                            <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                         </label>
                     </div>
 
                     {/* App Stack Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl">
+                    <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
                         <div>
-                            <p className="font-medium text-slate-900">📱 App Stack</p>
-                            <p className="text-xs text-stone-500">Show your favorite apps section</p>
+                            <p className="font-medium text-white">📱 App Stack</p>
+                            <p className="text-xs text-stone-400">Show your favorite apps section</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -156,47 +156,47 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                 })}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                            <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                         </label>
                     </div>
                 </div>
             </div>
 
             {/* Advanced Styling (Collapsible) */}
-            <details className="group border border-stone-200 rounded-xl bg-white shadow-sm overflow-hidden">
-                <summary className="flex items-center gap-3 p-4 cursor-pointer hover:bg-stone-50 transition-colors select-none">
-                    <div className="p-2 bg-stone-100 rounded-lg text-stone-500">
+            <details className="group border border-white/10 rounded-xl bg-white/5 shadow-none overflow-hidden text-white">
+                <summary className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/10 transition-colors select-none">
+                    <div className="p-2 bg-white/5 rounded-lg text-stone-300">
                         <Wand2 className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="text-slate-900 font-bold">Advanced Styling</h3>
-                        <p className="text-xs text-stone-500">Manually tweak colors, fonts, and buttons</p>
+                        <h3 className="text-white font-bold">Advanced Styling</h3>
+                        <p className="text-xs text-stone-400">Manually tweak colors, fonts, and buttons</p>
                     </div>
                     <div className="ml-auto transform group-open:rotate-180 transition-transform text-stone-400">
                         <ChevronDown className="w-5 h-5" />
                     </div>
                 </summary>
 
-                <div className="p-6 space-y-8 border-t border-stone-100 animate-slideDown">
+                <div className="p-6 space-y-8 border-t border-white/10 animate-slideDown">
                     {/* Background Section */}
                     <div>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-amber-50 rounded-lg text-amber-500">
+                            <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500">
                                 <ImageIcon className="w-5 h-5" />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900">Background</h3>
+                            <h3 className="text-lg font-bold text-white">Background</h3>
                         </div>
 
                         <div className="space-y-6">
                             {/* Type Selector */}
-                            <div className="flex bg-stone-100 p-1 rounded-lg">
+                            <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
                                 {(['solid', 'gradient', 'image'] as const).map(type => (
                                     <button
                                         key={type}
                                         onClick={() => updateTheme('backgroundType', type)}
                                         className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${theme.backgroundType === type
-                                            ? 'bg-white text-slate-900 shadow-sm'
-                                            : 'text-stone-500 hover:text-slate-700'
+                                            ? 'bg-white/10 text-white shadow-sm'
+                                            : 'text-stone-500 hover:text-stone-300'
                                             }`}
                                     >
                                         {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -298,10 +298,10 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                     {/* Buttons Section */}
                     <div>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-blue-50 rounded-lg text-blue-500">
+                            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
                                 <Layout className="w-5 h-5" />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900">Buttons</h3>
+                            <h3 className="text-lg font-bold text-white">Buttons</h3>
                         </div>
 
                         <div className="space-y-6">
@@ -311,8 +311,8 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                         key={style.id}
                                         onClick={() => updateTheme('buttonStyle', style.id)}
                                         className={`p-4 border rounded-xl flex flex-col items-center gap-2 transition-all ${theme.buttonStyle === style.id
-                                            ? 'border-amber-500 bg-amber-50 text-amber-900'
-                                            : 'border-stone-200 hover:border-stone-300 text-stone-600'
+                                            ? 'border-amber-500 bg-amber-500/10 text-amber-500'
+                                            : 'border-white/10 hover:border-white/30 text-stone-400 hover:text-white'
                                             }`}
                                     >
                                         <div className={`w-full h-8 bg-current opacity-20 ${style.class}`} />
@@ -335,7 +335,7 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                             type="text"
                                             value={theme.buttonColor}
                                             onChange={e => updateTheme('buttonColor', e.target.value)}
-                                            className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono"
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
                                         />
                                     </div>
                                 </div>
@@ -352,7 +352,7 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                             type="text"
                                             value={theme.buttonTextColor}
                                             onChange={e => updateTheme('buttonTextColor', e.target.value)}
-                                            className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono"
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
                                         />
                                     </div>
                                 </div>
@@ -363,10 +363,10 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                     {/* Typography Section */}
                     <div>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-purple-50 rounded-lg text-purple-500">
+                            <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
                                 <Type className="w-5 h-5" />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900">Typography</h3>
+                            <h3 className="text-lg font-bold text-white">Typography</h3>
                         </div>
 
                         <div className="space-y-6">
@@ -375,7 +375,7 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                 <select
                                     value={theme.font}
                                     onChange={e => updateTheme('font', e.target.value)}
-                                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                                 >
                                     {FONTS.map(font => (
                                         <option key={font.id} value={font.id}>{font.name}</option>
@@ -396,7 +396,7 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                         type="text"
                                         value={theme.textColor}
                                         onChange={e => updateTheme('textColor', e.target.value)}
-                                        className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono"
+                                        className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
                                     />
                                 </div>
                             </div>

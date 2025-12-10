@@ -108,16 +108,6 @@ const THEMES: ThemeDefinition[] = [
 
 
 
-import { ThemeGalleryComponent } from './ThemeGalleryComponent';
-import { BioThemeConfig } from '../types';
-
-interface ThemeGalleryProps {
-    currentTheme: string;
-    onSelect: (theme: string) => void;
-    onSelectCustom?: (config: BioThemeConfig) => void;
-    currentCustomTheme?: BioThemeConfig;
-}
-
 export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSelect, onSelectCustom, currentCustomTheme }) => {
     return (
         <div className="space-y-8">
@@ -126,7 +116,7 @@ export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSele
                 <div className="animate-fadeIn">
                     <div className="flex items-center gap-2 mb-6 px-1">
                         <Sparkles className="w-5 h-5 text-amber-500" />
-                        <h3 className="text-lg font-bold text-slate-900">Featured Themes</h3>
+                        <h3 className="text-lg font-bold text-white">Featured Themes</h3>
                         <span className="text-xs text-stone-400 font-medium ml-auto">Scroll for more →</span>
                     </div>
                     <ThemeGalleryComponent
@@ -137,9 +127,9 @@ export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSele
             )}
 
             {/* Legacy / Standard Themes - Hidden by default */}
-            <details className="group border-t border-stone-200 pt-6">
-                <summary className="flex items-center gap-2 cursor-pointer list-none text-stone-500 hover:text-stone-800 transition-colors py-2 selection:bg-none">
-                    <div className="p-1 rounded bg-stone-100 group-hover:bg-stone-200 transition-colors">
+            <details className="group border-t border-white/10 pt-6">
+                <summary className="flex items-center gap-2 cursor-pointer list-none text-stone-400 hover:text-white transition-colors py-2 selection:bg-none">
+                    <div className="p-1 rounded bg-white/5 group-hover:bg-white/10 transition-colors">
                         <Palette className="w-4 h-4" />
                     </div>
                     <span className="font-medium text-sm">Create Custom Theme / Classic Presets</span>
@@ -151,7 +141,7 @@ export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSele
                 <div className="mt-6 animate-slideDown">
                     <div className="flex items-center gap-2 mb-4">
                         <Grid className="w-5 h-5 text-indigo-400" />
-                        <h3 className="text-lg font-bold text-slate-900">Standard Presets</h3>
+                        <h3 className="text-lg font-bold text-white">Standard Presets</h3>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {THEMES.map((theme) => {

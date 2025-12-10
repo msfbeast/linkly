@@ -19,6 +19,8 @@ interface AnalyticsOverviewProps {
     trafficSourceData: { name: string; value: number; color: string }[];
     totalClicks?: number;
     serverCityData?: CityBreakdown[];
+    serverOsData?: any[];
+    serverBrowserData?: any[];
 }
 
 const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
@@ -27,7 +29,9 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
     clickForecastData,
     trafficSourceData,
     totalClicks,
-    serverCityData = []
+    serverCityData = [],
+    serverOsData,
+    serverBrowserData
 }) => {
     // Generate health data
     const linkHealthData = generateLinkHealthData(links);
@@ -43,6 +47,26 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
 
     // Aggregate Browser and OS Data
     const { browserStats, osStats } = useMemo(() => {
+        // Use server data if available
+        if (serverOsData?.length && serverBrowserData?.length) {
+            // Transform server OS data
+            const osData = serverOsData.map((item: any) => ({
+                name: item.os === 'ios' ? 'iOS' :
+                    item.os === 'macos' ? 'macOS' :
+                        item.os.charAt(0).toUpperCase() + item.os.slice(1),
+                value: item.clickCount,
+                color: '' // Will be handled by component
+            }));
+
+            // Transform server Browser data
+            const browserData = serverBrowserData.map((item: any) => ({
+                name: item.browser,
+                value: item.clickCount
+            })).slice(0, 5);
+
+            return { browserStats: browserData, osStats: osData };
+        }
+
         const browsers: Record<string, number> = {};
         const oss: Record<string, number> = {};
 
@@ -82,7 +106,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
             .sort((a, b) => b.value - a.value);
 
         return { browserStats: browserData, osStats: osData };
-    }, [links]);
+    }, [links, serverOsData, serverBrowserData]);
 
 
     // Generate insights

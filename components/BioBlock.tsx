@@ -11,10 +11,11 @@ interface BioBlockProps {
     onRemove: (id: string) => void;
     onResize?: (id: string, size: { w: number; h: number }) => void;
     readOnly?: boolean;
-    profile?: BioProfile; // Added profile prop
+    profile?: BioProfile;
+    className?: string; // Added className prop
 }
 
-export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, readOnly, profile }) => { // Destructured profile
+export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, readOnly, profile, className }) => {
     const {
         attributes,
         listeners,

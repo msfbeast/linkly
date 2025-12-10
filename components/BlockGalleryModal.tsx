@@ -4,7 +4,7 @@ import {
     BarChart2, MessageCircle, Mail, Plus, MonitorSmartphone
 } from 'lucide-react';
 
-export type BlockType = 'link' | 'music' | 'map' | 'video' | 'poll' | 'qna' | 'newsletter' | 'social_feed';
+export type BlockType = 'link' | 'music' | 'map' | 'video' | 'poll' | 'qna' | 'newsletter' | 'social_feed' | 'tip_jar';
 
 interface BlockGalleryModalProps {
     isOpen: boolean;
