@@ -26,7 +26,7 @@ const SmartLinkCard: React.FC<SmartLinkCardProps> = ({ link, onCopy, onEdit, onD
     const date = new Date(link.createdAt).toLocaleDateString();
 
     return (
-        <div className="w-full max-w-sm mx-auto bg-[#fefefe] rounded-[2rem] p-2 text-[#141417] shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-300">
+        <div className="w-full max-w-sm mx-auto bg-[#fefefe] rounded-[2rem] p-2 text-[#141417] shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300">
             {/* Hero Section */}
             <div className="bg-[#fef4e2] rounded-[1.5rem] border border-[#f0e5d4] p-6 flex flex-col justify-between h-[200px] relative group">
 

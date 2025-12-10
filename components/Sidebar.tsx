@@ -50,9 +50,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, on
                   if (window.innerWidth < 768) onClose();
                 }}
                 data-tour={item.id === ViewState.BIO_PAGES ? 'bio-nav' : undefined}
-                className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group overflow-hidden ${isActive
-                  ? 'text-white shadow-lg shadow-slate-900/20'
-                  : 'text-stone-500 hover:text-slate-900 hover:bg-white/50'
+                className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group overflow-hidden ${isActive
+                  ? 'text-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.4)]'
+                  : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100/50 hover:pl-5 active:scale-95'
                   }`}
               >
                 {isActive && (
@@ -60,11 +60,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, on
                     layoutId="activeTab"
                     className="absolute inset-0 bg-slate-900 rounded-xl"
                     initial={false}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
-                <Icon className={`w-5 h-5 relative z-10 transition-colors ${isActive ? 'text-white' : 'text-stone-400 group-hover:text-stone-600'}`} />
-                <span className={`font-bold text-sm tracking-wide relative z-10 ${isActive ? 'text-white' : ''}`}>{item.label}</span>
+                <Icon className={`w-5 h-5 relative z-10 transition-colors duration-200 ${isActive ? 'text-white' : 'text-stone-400 group-hover:text-amber-500'}`} />
+                <span className={`font-bold text-sm tracking-wide relative z-10 transition-all duration-200 ${isActive ? 'text-white' : ''}`}>{item.label}</span>
               </button>
             );
           })}

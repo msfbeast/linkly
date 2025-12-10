@@ -36,7 +36,7 @@ const TrafficSourceChart: React.FC<TrafficSourceChartProps> = ({ data, total }) 
 
   return (
     <div
-      className="w-full h-full p-6 bg-[#FDE047] rounded-[20px] font-sans flex flex-col shadow-xl"
+      className="w-full h-full p-6 bg-[#FDE047] rounded-[2rem] font-sans flex flex-col shadow-xl transition-transform duration-300 hover:scale-[1.02]"
       data-testid="traffic-source-chart"
     >
       {/* Header */}

@@ -15,7 +15,7 @@ export const BrowserStats: React.FC<BrowserStatsProps> = ({ data }) => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
 
     return (
-        <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm h-full">
+        <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm h-full transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1">
             <h3 className="text-lg font-bold text-slate-900 mb-6">Top Browsers</h3>
             <div className="space-y-4">
                 {data.map((item, index) => {

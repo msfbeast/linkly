@@ -140,7 +140,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           {currentView !== ViewState.DASHBOARD && (
             <button
               onClick={onNewLinkClick}
-              className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full transition-all shadow-lg shadow-slate-900/20 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
+              className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full transition-all duration-300 shadow-[0_4px_14px_0_rgba(15,23,42,0.39)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.23)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 text-sm"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden md:inline">New Link</span>
@@ -190,7 +190,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
             </button>
 
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-stone-200 py-1 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+              <div className="absolute right-0 mt-3 w-72 bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-white/50 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50 ring-1 ring-black/5">
                 <div className="px-4 py-3 border-b border-stone-100">
                   <p className="text-sm font-bold text-slate-900 truncate">{user?.email}</p>
                   <p className="text-xs text-stone-500">Free Plan</p>

@@ -237,7 +237,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 transition={{ delay: 0.3 }}
                 className="md:col-span-2 lg:col-span-2 min-w-0"
             >
-                <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm h-full min-h-[320px] min-w-0">
+                <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm h-full min-h-[320px] min-w-0 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1">
                     <div className="mb-4">
                         <h3 className="text-lg font-bold text-slate-900">Click Forecast</h3>
                         <p className="text-stone-500 text-sm">Predicted vs Actual Performance</p>

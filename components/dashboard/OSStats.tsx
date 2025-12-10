@@ -32,7 +32,7 @@ export const OSStats: React.FC<OSStatsProps> = ({ data }) => {
     const totalClicks = chartData.reduce((acc, curr) => acc + curr.value, 0);
 
     return (
-        <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm flex flex-col h-full card-hover relative overflow-hidden">
+        <div className="bg-white rounded-[2rem] p-6 border border-stone-200 shadow-sm flex flex-col h-full transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 card-hover relative overflow-hidden">
             <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2 z-10">
                 Operating Systems
             </h3>
