@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Microscope, Clock, Hexagon, ChevronDown } from 'lucide-react';
+import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Microscope, Clock, Hexagon, ChevronDown, LayoutGrid, Star, Newspaper } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ThemeGalleryComponent } from './ThemeGalleryComponent';
 import { BioThemeConfig } from '../types';
@@ -26,6 +26,30 @@ const Music = ({ className }: { className?: string }) => (
 );
 
 const THEMES: ThemeDefinition[] = [
+    {
+        id: 'bento',
+        name: 'Bento Grid',
+        description: 'Modern masonry layout',
+        colors: ['#F9FAFB', '#111827', '#E5E7EB'],
+        icon: LayoutGrid,
+        isPremium: true
+    },
+    {
+        id: 'neopop',
+        name: 'Neo Pop',
+        description: 'Vibrant & fun',
+        colors: ['#FEF08A', '#F472B6', '#000000'],
+        icon: Star,
+        isPremium: true
+    },
+    {
+        id: 'editorial',
+        name: 'Editorial',
+        description: 'Magazine aesthetic',
+        colors: ['#1C1917', '#FFFFFF', '#D6D3D1'],
+        icon: Newspaper,
+        isPremium: true
+    },
     {
         id: 'vibrant',
         name: 'Vibrant',

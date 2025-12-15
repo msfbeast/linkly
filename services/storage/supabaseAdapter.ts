@@ -328,14 +328,14 @@ function rowToBioProfile(row: BioProfileRow): BioProfile {
 
 function bioProfileToRow(profile: Partial<BioProfile>, userId?: string): Partial<BioProfileRow> {
   const row: Partial<BioProfileRow> = {};
-  if (profile.handle) row.handle = profile.handle;
-  if (profile.displayName) row.display_name = profile.displayName;
-  if (profile.bio) row.bio = profile.bio;
-  if (profile.avatarUrl) row.avatar_url = profile.avatarUrl;
-  if (profile.theme) row.theme = profile.theme;
-  if (profile.links) row.links = profile.links;
+  if (profile.handle !== undefined) row.handle = profile.handle;
+  if (profile.displayName !== undefined) row.display_name = profile.displayName;
+  if (profile.bio !== undefined) row.bio = profile.bio;
+  if (profile.avatarUrl !== undefined) row.avatar_url = profile.avatarUrl;
+  if (profile.theme !== undefined) row.theme = profile.theme;
+  if (profile.links !== undefined) row.links = profile.links;
   if (profile.views !== undefined) row.views = profile.views;
-  if (profile.customTheme) row.custom_theme = profile.customTheme;
+  if (profile.customTheme !== undefined) row.custom_theme = profile.customTheme;
   if (userId) row.user_id = userId;
   return row;
 }

@@ -45,7 +45,12 @@ export type WidgetVariant =
   | 'archive'
   | 'lab'
   | 'custom'
-  | 'vibrant';
+  | 'vibrant'
+  | 'bento'
+  | 'neopop'
+  | 'editorial';
+
+export type BioTheme = WidgetVariant;
 
 
 export interface BioAnalyticsData {
@@ -252,7 +257,7 @@ export interface BioProfile {
 
   // Visualization
   theme: BioTheme;
-  customTheme?: BioThemeConfig;
+  customTheme?: BioThemeConfig | null;
 
   // New Appearance Overrides (Deep Customization)
   appearance?: {

@@ -136,17 +136,19 @@ const CustomBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                                     href={`/r/${link.shortCode}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className={`${getButtonClasses()} ${style}`}
+                                    className={`${getButtonClasses()} ${style} flex flex-col items-center justify-center gap-2 h-full min-h-[140px]`}
                                     style={{
                                         backgroundColor: theme.buttonStyle === 'outline' ? 'transparent' : theme.buttonColor,
                                         color: theme.buttonTextColor,
                                         borderColor: theme.buttonStyle === 'outline' ? theme.buttonColor : 'black'
                                     }}
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-bold text-lg">{link.title}</span>
-                                        <ExternalLink className="w-4 h-4 opacity-70" />
+                                    <div className="flex-1 flex items-center justify-center w-full px-4">
+                                        <span className="font-bold text-sm md:text-base text-center leading-tight line-clamp-3 break-words w-full">
+                                            {link.title}
+                                        </span>
                                     </div>
+                                    <ExternalLink className="w-4 h-4 opacity-70 flex-shrink-0" />
                                 </a>
                             );
                         })}

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import PricingCard from '../components/PricingCard';
 import { useAuth } from '../contexts/AuthContext';
+import { createOrder, startPayment } from '../services/cashfreeService';
 import { Check, Zap, Shield, BarChart3, Globe, Users } from 'lucide-react';
 
 declare global {
@@ -45,57 +46,22 @@ const Pricing: React.FC = () => {
 
         try {
             if (currency === 'INR') {
-                // Razorpay Flow
-                const amount = tierName === 'pro' ? 99900 : 399900; // Amount in paisa
+                // Cashfree Flow
+                const amount = tierName === 'pro' ? 999 : 3999; // Amount in INR (not paisa for Cashfree)
 
-                const response = await fetch('/api/create-razorpay-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        amount,
-                        currency: 'INR',
-                        receipt: `receipt_${Date.now()}`,
-                        notes: {
-                            userId: user.id,
-                            tier: tierName
-                        }
-                    }),
+                const order = await createOrder({
+                    amount,
+                    customerId: user.id,
+                    customerName: user.user_metadata?.full_name || user.email || 'User',
+                    customerPhone: (user as any).phone || '9999999999'
                 });
 
-                const order = await response.json();
+                await startPayment(order.payment_session_id);
 
-                if (!response.ok) throw new Error(order.error || 'Failed to create order');
-
-                const options = {
-                    key: "rzp_test_placeholder", // Replace with your Key ID
-                    amount: order.amount,
-                    currency: order.currency,
-                    name: "Gather",
-                    description: `${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Subscription`,
-                    image: "https://linkly.ai/logo.png", // Update with real logo
-                    order_id: order.id,
-                    handler: function (response: any) {
-                        toast.success(`Payment Successful! Welcome to ${tierName} plan.`);
-                        // Here you would typically verify the payment on backend
-                        // and update the UI
-                        setLoadingTier(null);
-                    },
-                    prefill: {
-                        name: user.full_name || '',
-                        email: user.email,
-                        contact: ""
-                    },
-                    theme: {
-                        color: "#F59E0B"
-                    }
-                };
-
-                const rzp1 = new window.Razorpay(options);
-                rzp1.on('payment.failed', function (response: any) {
-                    toast.error(response.error.description || "Payment Failed");
-                    setLoadingTier(null);
-                });
-                rzp1.open();
+                // Payment success is handled via return_url in api/create-cashfree-order.ts
+                // But we can also handle it here if using 'seamless' mode later
+                toast.dismiss(); // Dismiss any loading toasts
+                setLoadingTier(null);
 
             } else {
                 // Stripe Flow (Existing)

@@ -64,5 +64,47 @@ export const PRESET_THEMES: ThemePreset[] = [
             buttonTextColor: '#ffffff',
             font: 'outfit'
         }
+    },
+    {
+        id: 'bento',
+        name: 'Bento Grid',
+        previewColor: '#f3f4f6',
+        config: {
+            backgroundType: 'solid',
+            backgroundValue: '#f9fafb',
+            textColor: '#111827',
+            buttonStyle: 'rounded',
+            buttonColor: '#ffffff',
+            buttonTextColor: '#111827',
+            font: 'inter'
+        }
+    },
+    {
+        id: 'neopop',
+        name: 'Neo Pop',
+        previewColor: '#facc15',
+        config: {
+            backgroundType: 'solid',
+            backgroundValue: '#fef08a',
+            textColor: '#000000',
+            buttonStyle: 'hard-shadow',
+            buttonColor: '#f472b6',
+            buttonTextColor: '#000000',
+            font: 'comic-neue'
+        }
+    },
+    {
+        id: 'editorial',
+        name: 'Editorial',
+        previewColor: '#1c1917',
+        config: {
+            backgroundType: 'image',
+            backgroundValue: 'https://images.unsplash.com/photo-1492633423870-43d1cd2775eb?q=80&w=2970&auto=format&fit=crop',
+            textColor: '#ffffff',
+            buttonStyle: 'rounded',
+            buttonColor: 'transparent',
+            buttonTextColor: '#ffffff',
+            font: 'playfair-display'
+        }
     }
 ];

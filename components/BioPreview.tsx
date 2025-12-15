@@ -12,6 +12,9 @@ import BauhausBioTemplate from './bio-templates/BauhausBioTemplate';
 import LabBioTemplate from './bio-templates/LabBioTemplate';
 import ArchiveBioTemplate from './bio-templates/ArchiveBioTemplate';
 import CustomBioTemplate from './bio-templates/CustomBioTemplate';
+import BentoBioTemplate from './bio-templates/BentoBioTemplate';
+import NeoPopBioTemplate from './bio-templates/NeoPopBioTemplate';
+import EditorialBioTemplate from './bio-templates/EditorialBioTemplate';
 
 interface BioPreviewProps {
     profile: Partial<BioProfile>;
@@ -56,6 +59,9 @@ const BioPreview: React.FC<BioPreviewProps> = ({ profile, links }) => {
             case 'bauhaus': return <BauhausBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'lab': return <LabBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'archive': return <ArchiveBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'bento': return <BentoBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'neopop': return <NeoPopBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'editorial': return <EditorialBioTemplate profile={previewProfile} links={previewLinks} />;
             default: return <VibrantBioTemplate profile={previewProfile} links={previewLinks} />;
         }
     };

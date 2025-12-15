@@ -202,6 +202,15 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
             return `com.amazon.mobile.shopping.web://content/view?currentUrl=${encodeURIComponent(webUrl)}`;
         }
 
+        // Google Drive / Docs
+        if (hostname === 'drive.google.com' || hostname === 'docs.google.com') {
+            if (isAndroid) {
+                const cleanPath = webUrl.replace(/^https?:\/\//, '');
+                // Target Google Drive App directly
+                return `intent://${cleanPath}#Intent;scheme=https;package=com.google.android.apps.docs;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+            }
+        }
+
         return null;
     } catch (e) {
         console.error('Error parsing URL for deep link:', e);

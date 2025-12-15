@@ -14,6 +14,9 @@ import BauhausBioTemplate from '../components/bio-templates/BauhausBioTemplate';
 import LabBioTemplate from '../components/bio-templates/LabBioTemplate';
 import ArchiveBioTemplate from '../components/bio-templates/ArchiveBioTemplate';
 import CustomBioTemplate from '../components/bio-templates/CustomBioTemplate';
+import BentoBioTemplate from '../components/bio-templates/BentoBioTemplate';
+import NeoPopBioTemplate from '../components/bio-templates/NeoPopBioTemplate';
+import EditorialBioTemplate from '../components/bio-templates/EditorialBioTemplate';
 import AskMyAI from '../components/AskMyAI';
 
 import { useParams } from 'react-router-dom';
@@ -102,6 +105,15 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
         break;
       case 'archive':
         content = <ArchiveBioTemplate profile={profile} links={links} />;
+        break;
+      case 'bento':
+        content = <BentoBioTemplate profile={profile} links={links} />;
+        break;
+      case 'neopop':
+        content = <NeoPopBioTemplate profile={profile} links={links} />;
+        break;
+      case 'editorial':
+        content = <EditorialBioTemplate profile={profile} links={links} />;
         break;
       default:
         // Fallback to Vibrant for legacy themes or defaults
