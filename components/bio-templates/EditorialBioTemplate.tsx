@@ -1,15 +1,18 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { ArrowRight, Globe, Instagram, Twitter } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { GalleryBlock } from '../blocks/GalleryBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const EditorialBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const EditorialBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-[#FDFBF7] text-[#1c1917] font-serif selection:bg-[#1c1917] selection:text-[#FDFBF7]">
 
@@ -62,42 +65,49 @@ const EditorialBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) =>
                             </p>
                         </div>
 
-                        {/* Links List */}
+                        {/* Links or Store */}
                         <div className="space-y-8">
-                            {links.map((link, i) => {
-                                if (link.type !== 'link') {
-                                    return (
-                                        <div key={link.id} className="border-b border-[#1c1917] pb-8">
-                                            <BioWidget link={link} />
-                                        </div>
-                                    );
-                                }
+                            {activeTab === 'store' ? (
+                                <div className="py-8">
+                                    <h3 className="text-sm font-sans uppercase tracking-[0.2em] mb-8 text-center text-stone-400">The Collection</h3>
+                                    <ProductGrid products={products} />
+                                </div>
+                            ) : (
+                                links.map((link, i) => {
+                                    if (link.type !== 'link') {
+                                        return (
+                                            <div key={link.id} className="border-b border-[#1c1917] pb-8">
+                                                <BioWidget link={link} />
+                                            </div>
+                                        );
+                                    }
 
-                                return (
-                                    <a
-                                        key={link.id}
-                                        href={`/r/${link.shortCode}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="group block border-b border-[#1c1917] pb-6 hover:pl-4 transition-all duration-500"
-                                    >
-                                        <div className="flex justify-between items-baseline mb-2">
-                                            <span className="text-3xl lg:text-4xl font-serif group-hover:italic transition-all">
-                                                {link.title}
-                                            </span>
-                                            <span className="text-xs font-sans uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                                                Visit <ArrowRight className="inline w-3 h-3 ml-1" />
-                                            </span>
-                                        </div>
-                                        <div className="text-xs font-sans text-stone-400 uppercase tracking-wider flex items-center justify-between">
-                                            <span>0{i + 1}</span>
-                                            <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
-                                                {link.originalUrl?.replace(/^https?:\/\//, '').split('/')[0]}
-                                            </span>
-                                        </div>
-                                    </a>
-                                );
-                            })}
+                                    return (
+                                        <a
+                                            key={link.id}
+                                            href={`/r/${link.shortCode}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group block border-b border-[#1c1917] pb-6 hover:pl-4 transition-all duration-500"
+                                        >
+                                            <div className="flex justify-between items-baseline mb-2">
+                                                <span className="text-3xl lg:text-4xl font-serif group-hover:italic transition-all">
+                                                    {link.title}
+                                                </span>
+                                                <span className="text-xs font-sans uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    Visit <ArrowRight className="inline w-3 h-3 ml-1" />
+                                                </span>
+                                            </div>
+                                            <div className="text-xs font-sans text-stone-400 uppercase tracking-wider flex items-center justify-between">
+                                                <span>0{i + 1}</span>
+                                                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
+                                                    {link.originalUrl?.replace(/^https?:\/\//, '').split('/')[0]}
+                                                </span>
+                                            </div>
+                                        </a>
+                                    );
+                                })
+                            )}
                         </div>
 
                         {/* Gallery Section */}

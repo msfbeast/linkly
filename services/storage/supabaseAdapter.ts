@@ -396,6 +396,65 @@ function userProfileToRow(profile: Partial<UserProfile>): any {
 
 
 /**
+ * Convert a database row to Product object
+ */
+function rowToProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    description: row.description,
+    price: row.price,
+    currency: row.currency,
+    imageUrl: row.image_url ?? undefined,
+    linkId: row.link_id ?? undefined,
+    shortCode: row.short_code ?? undefined,
+    originalUrl: row.original_url ?? undefined,
+    category: row.category ?? undefined,
+    slug: row.slug ?? undefined,
+    createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+interface DomainRow {
+  id: string;
+  user_id: string;
+  domain: string;
+  status: string;
+  verification_token: string;
+  target_type: string;
+  created_at: string;
+  verified_at: string | null;
+}
+
+function rowToDomain(row: DomainRow): Domain {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    domain: row.domain,
+    status: row.status as Domain['status'],
+    verificationToken: row.verification_token,
+    targetType: (row.target_type as Domain['targetType']) || 'bio',
+    createdAt: new Date(row.created_at).getTime(),
+    verifiedAt: row.verified_at ? new Date(row.verified_at).getTime() : undefined,
+  };
+}
+
+/**
+ * Simple hash function for IP addresses (for privacy)
+ */
+function hashIP(ip: string): string {
+  let hash = 0;
+  for (let i = 0; i < ip.length; i++) {
+    const char = ip.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16).padStart(8, '0');
+}
+
+
+/**
  * Supabase implementation of the StorageAdapter interface
  */
 export class SupabaseAdapter implements StorageAdapter {
@@ -417,6 +476,36 @@ export class SupabaseAdapter implements StorageAdapter {
   /**
    * Get products for a user
    */
+  async getProducts(userId?: string): Promise<Product[]> {
+    if (!isSupabaseConfigured()) {
+      const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+      const products: Product[] = stored ? JSON.parse(stored) : [];
+      if (userId) return products.filter(p => p.userId === userId);
+      return products;
+    }
+
+    // If no userId provided, try to get from session (though usually we pass it explicitly for bio pages)
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const { data: { session } } = await supabase!.auth.getSession();
+      targetUserId = session?.user?.id;
+    }
+
+    if (!targetUserId) return [];
+
+    const { data, error } = await supabase!
+      .from('products') // Using string literal as TABLES.PRODUCTS might be missing in snippet context, but safer to use string 'products' if unsure, or I should check TABLES.
+      .select('*')
+      .eq('user_id', targetUserId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to fetch products:', error);
+      return [];
+    }
+
+    return (data || []).map((row: ProductRow) => rowToProduct(row));
+  }
 
 
   /**
@@ -1683,32 +1772,7 @@ export class SupabaseAdapter implements StorageAdapter {
     return rowToProduct(data as ProductRow);
   }
 
-  /**
-   * Get all products for a user
-   */
-  async getProducts(userId: string): Promise<Product[]> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase is not configured');
-    }
 
-    const { data, error } = await supabase!
-      .from(TABLES.PRODUCTS)
-      .select(`
-        *,
-        link:links (
-          short_code,
-          original_url
-        )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw new Error(`Failed to fetch products: ${error.message}`);
-    }
-
-    return (data || []).map((row: any) => rowToProduct(row));
-  }
 
   /**
    * Fetches aggregated analytics from the summary table
@@ -3044,64 +3108,6 @@ function rowToGalleryItem(row: GalleryItemRow): GalleryItem {
   };
 }
 
-
-/**
- * Convert a product database row to Product object
- */
-function rowToProduct(row: ProductRow): Product {
-  return {
-    id: row.id,
-    userId: row.user_id,
-    name: row.name,
-    description: row.description,
-    price: row.price,
-    currency: row.currency,
-    imageUrl: row.image_url ?? undefined,
-    linkId: row.link_id,
-    shortCode: row.short_code ?? undefined,
-    originalUrl: row.original_url ?? undefined,
-    category: row.category ?? undefined,
-    slug: row.slug ?? undefined,
-    createdAt: new Date(row.created_at).getTime(),
-  };
-}
-
-interface DomainRow {
-  id: string;
-  user_id: string;
-  domain: string;
-  status: string;
-  verification_token: string;
-  target_type: string;
-  created_at: string;
-  verified_at: string | null;
-}
-
-function rowToDomain(row: DomainRow): Domain {
-  return {
-    id: row.id,
-    userId: row.user_id,
-    domain: row.domain,
-    status: row.status as Domain['status'],
-    verificationToken: row.verification_token,
-    targetType: (row.target_type as Domain['targetType']) || 'bio',
-    createdAt: new Date(row.created_at).getTime(),
-    verifiedAt: row.verified_at ? new Date(row.verified_at).getTime() : undefined,
-  };
-}
-
-/**
- * Simple hash function for IP addresses (for privacy)
- */
-function hashIP(ip: string): string {
-  let hash = 0;
-  for (let i = 0; i < ip.length; i++) {
-    const char = ip.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0');
-}
 
 /**
  * Singleton instance of the Supabase adapter

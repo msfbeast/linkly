@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { Cloud, Wind, ArrowRight } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const AirBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const AirBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-sky-50 text-sky-900 font-sans p-6 relative overflow-hidden">
 
@@ -56,37 +59,41 @@ const AirBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     )}
                 </header>
 
-                {/* Links */}
+                {/* Links or Store */}
                 <div className="space-y-4">
-                    {links.map((link) => {
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className="bg-white/60 backdrop-blur-md rounded-2xl p-1 shadow-sm border border-white">
-                                    <BioWidget link={link} />
-                                </div>
-                            )
-                        }
-
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-white border border-sky-100 rounded-2xl p-4 shadow-[0_4px_12px_rgba(186,230,253,0.3)] hover:shadow-[0_8px_20px_rgba(186,230,253,0.5)] hover:-translate-y-1 transition-all duration-300"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform">
-                                            <Cloud className="w-5 h-5 fill-current" />
-                                        </div>
-                                        <span className="font-bold text-sky-900">{link.title}</span>
+                    {activeTab === 'store' ? (
+                        <ProductGrid products={products} />
+                    ) : (
+                        links.map((link) => {
+                            if (link.type !== 'link') {
+                                return (
+                                    <div key={link.id} className="bg-white/60 backdrop-blur-md rounded-2xl p-1 shadow-sm border border-white">
+                                        <BioWidget link={link} />
                                     </div>
-                                    <ArrowRight className="w-4 h-4 text-sky-300 group-hover:text-sky-500 group-hover:translate-x-1 transition-all" />
-                                </div>
-                            </a>
-                        );
-                    })}
+                                )
+                            }
+
+                            return (
+                                <a
+                                    key={link.id}
+                                    href={`/r/${link.shortCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group block bg-white border border-sky-100 rounded-2xl p-4 shadow-[0_4px_12px_rgba(186,230,253,0.3)] hover:shadow-[0_8px_20px_rgba(186,230,253,0.5)] hover:-translate-y-1 transition-all duration-300"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform">
+                                                <Cloud className="w-5 h-5 fill-current" />
+                                            </div>
+                                            <span className="font-bold text-sky-900">{link.title}</span>
+                                        </div>
+                                        <ArrowRight className="w-4 h-4 text-sky-300 group-hover:text-sky-500 group-hover:translate-x-1 transition-all" />
+                                    </div>
+                                </a>
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* Blocks */}

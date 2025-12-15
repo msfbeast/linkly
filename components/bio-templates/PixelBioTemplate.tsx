@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { Gamepad2, Heart, Cpu } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const PixelBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const PixelBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-[#2D2D2D] text-white font-mono p-4" style={{ imageRendering: 'pixelated' }}>
             <div className="max-w-md mx-auto">
@@ -43,44 +46,65 @@ const PixelBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 </div>
 
                 {/* HP Bar Decoration */}
-                <div className="flex items-center gap-2 mb-6 px-2">
-                    <span className="text-xs font-bold text-red-400">HP</span>
-                    <div className="flex-1 h-4 border-2 border-white bg-black">
-                        <div className="h-full w-[85%] bg-red-500"></div>
+                {activeTab === 'links' && (
+                    <div className="flex items-center gap-2 mb-6 px-2">
+                        <span className="text-xs font-bold text-red-400">HP</span>
+                        <div className="flex-1 h-4 border-2 border-white bg-black">
+                            <div className="h-full w-[85%] bg-red-500"></div>
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* Links */}
-                <div className="space-y-4">
-                    {links.map((link) => {
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className="border-4 border-white bg-[#0000AA] p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
-                                    <BioWidget link={link} />
-                                </div>
-                            )
-                        }
+                {/* MP Bar (for Store) */}
+                {activeTab === 'store' && (
+                    <div className="flex items-center gap-2 mb-6 px-2">
+                        <span className="text-xs font-bold text-blue-400">MP</span>
+                        <div className="flex-1 h-4 border-2 border-white bg-black">
+                            <div className="h-full w-[95%] bg-blue-500"></div>
+                        </div>
+                    </div>
+                )}
 
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-white border-4 border-black p-3 hover:translate-y-1 hover:shadow-none shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer relative"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-gray-200 border-2 border-black flex items-center justify-center group-hover:bg-yellow-400 transition-colors">
-                                        <Heart className="w-5 h-5 text-black fill-current" />
-                                    </div>
-                                    <span className="font-bold text-black uppercase tracking-tight">{link.title}</span>
-                                </div>
-                                <div className="absolute top-1/2 right-4 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="text-black font-black text-xs animate-bounce">PRESS START &gt;</span>
-                                </div>
-                            </a>
-                        );
-                    })}
+                {/* Links or Store */}
+                <div className="relative z-10">
+                    {activeTab === 'store' ? (
+                        <div className="border-4 border-white bg-[#3D3D3D] p-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.5)]">
+                            <h2 className="text-xs text-center mb-4 text-yellow-400 font-bold uppercase tracking-widest border-b-2 border-dashed border-gray-500 pb-2"> Item Shop </h2>
+                            <ProductGrid products={products} />
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {links.map((link) => {
+                                if (link.type !== 'link') {
+                                    return (
+                                        <div key={link.id} className="border-4 border-white bg-[#0000AA] p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
+                                            <BioWidget link={link} />
+                                        </div>
+                                    )
+                                }
+
+                                return (
+                                    <a
+                                        key={link.id}
+                                        href={`/r/${link.shortCode}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group block bg-white border-4 border-black p-3 hover:translate-y-1 hover:shadow-none shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer relative"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-gray-200 border-2 border-black flex items-center justify-center group-hover:bg-yellow-400 transition-colors">
+                                                <Heart className="w-5 h-5 text-black fill-current" />
+                                            </div>
+                                            <span className="font-bold text-black uppercase tracking-tight">{link.title}</span>
+                                        </div>
+                                        <div className="absolute top-1/2 right-4 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-black font-black text-xs animate-bounce">PRESS START &gt;</span>
+                                        </div>
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Blocks */}

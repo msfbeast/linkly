@@ -1,17 +1,20 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { ArrowUpRight, Github, Twitter, Instagram, Linkedin, Mail, MapPin } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
 import { GalleryBlock } from '../blocks/GalleryBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const BentoBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const BentoBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-stone-50 text-slate-900 font-sans selection:bg-slate-200 selection:text-slate-900 overflow-x-hidden p-4 md:p-8">
             <div className="max-w-4xl mx-auto">
@@ -62,47 +65,53 @@ const BentoBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                         </button>
                     </div>
 
-                    {/* Links Section */}
-                    <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {links.map((link) => {
-                            // Determine if link should be wide based on importance or config
-                            const isWide = link.layoutConfig?.w === 2;
-                            const colSpan = isWide ? 'md:col-span-2' : 'md:col-span-1 lg:col-span-2'; // Default to 2 cols on large grid for readability
+                    {/* Main Content Area (Links or Store) */}
+                    <div className="md:col-span-3">
+                        {activeTab === 'store' ? (
+                            <ProductGrid products={products} />
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {links.map((link) => {
+                                    // Determine if link should be wide based on importance or config
+                                    const isWide = link.layoutConfig?.w === 2;
+                                    const colSpan = isWide ? 'md:col-span-2' : 'md:col-span-1 lg:col-span-2'; // Default to 2 cols on large grid for readability
 
-                            if (link.type !== 'link') {
-                                return (
-                                    <div key={link.id} className={`${colSpan} bg-white rounded-[1.5rem] border border-stone-200 p-1 overflow-hidden shadow-sm hover:shadow-md transition-shadow`}>
-                                        <BioWidget link={link} />
-                                    </div>
-                                );
-                            }
+                                    if (link.type !== 'link') {
+                                        return (
+                                            <div key={link.id} className={`${colSpan} bg-white rounded-[1.5rem] border border-stone-200 p-1 overflow-hidden shadow-sm hover:shadow-md transition-shadow`}>
+                                                <BioWidget link={link} />
+                                            </div>
+                                        );
+                                    }
 
-                            return (
-                                <a
-                                    key={link.id}
-                                    href={`/r/${link.shortCode}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`${colSpan} group bg-white hover:bg-stone-50 rounded-[1.5rem] border border-stone-200 p-6 flex flex-col justify-between transition-all hover:scale-[1.01] hover:border-stone-300 shadow-sm`}
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 bg-stone-100 rounded-2xl group-hover:bg-white group-hover:shadow-sm transition-all">
-                                            {/* Icon Logic placeholder - would normally map url to icon */}
-                                            <ArrowUpRight className="w-6 h-6 text-slate-900" />
-                                        </div>
-                                        <div className="w-8 h-8 rounded-full border border-stone-200 flex items-center justify-center text-stone-400 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all">
-                                            <ArrowUpRight className="w-4 h-4" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-lg text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">{link.title}</h3>
-                                        <p className="text-sm text-stone-500 line-clamp-1">
-                                            {link.originalUrl?.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
-                                        </p>
-                                    </div>
-                                </a>
-                            );
-                        })}
+                                    return (
+                                        <a
+                                            key={link.id}
+                                            href={`/r/${link.shortCode}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={`${colSpan} group bg-white hover:bg-stone-50 rounded-[1.5rem] border border-stone-200 p-6 flex flex-col justify-between transition-all hover:scale-[1.01] hover:border-stone-300 shadow-sm`}
+                                        >
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="p-3 bg-stone-100 rounded-2xl group-hover:bg-white group-hover:shadow-sm transition-all">
+                                                    {/* Icon Logic placeholder - would normally map url to icon */}
+                                                    <ArrowUpRight className="w-6 h-6 text-slate-900" />
+                                                </div>
+                                                <div className="w-8 h-8 rounded-full border border-stone-200 flex items-center justify-center text-stone-400 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all">
+                                                    <ArrowUpRight className="w-4 h-4" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-lg text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">{link.title}</h3>
+                                                <p className="text-sm text-stone-500 line-clamp-1">
+                                                    {link.originalUrl?.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                                                </p>
+                                            </div>
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Content Blocks */}

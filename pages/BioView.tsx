@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { BioProfile, LinkData } from '../types';
+import { BioProfile, LinkData, Product } from '../types';
 import { UserCircle2, ExternalLink } from 'lucide-react';
 import VibrantBioTemplate from '../components/bio-templates/VibrantBioTemplate';
 import GlassBioTemplate from '../components/bio-templates/GlassBioTemplate';
@@ -41,7 +41,9 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
 
   const [profile, setProfile] = useState<BioProfile | null>(null);
   const [links, setLinks] = useState<LinkData[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'links' | 'store'>('links');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -51,12 +53,18 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
         const foundProfile = await supabaseAdapter.getBioProfileByHandle(handle);
         if (foundProfile) {
           setProfile(foundProfile);
+
+          // Fetch Links
           if (foundProfile.links && foundProfile.links.length > 0) {
             const profileLinks = await supabaseAdapter.getPublicLinks(foundProfile.links);
             setLinks(profileLinks);
           } else {
             setLinks([]);
           }
+
+          // Fetch Products (if any)
+          const userProducts = await supabaseAdapter.getProducts(foundProfile.userId);
+          setProducts(userProducts);
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -75,95 +83,126 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
     );
   }
 
+  // Floating Tab Switcher - Only show if there are products
+  const TabSwitcher = products.length > 0 && (
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slideUpFade">
+      <div className="flex items-center gap-1 p-1 bg-white/80 backdrop-blur-xl border border-white/20 shadow-xl rounded-full ring-1 ring-black/5">
+        <button
+          onClick={() => setActiveTab('links')}
+          className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-200 ${activeTab === 'links'
+            ? 'bg-slate-900 text-white shadow-lg'
+            : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'
+            }`}
+        >
+          Links
+        </button>
+        <button
+          onClick={() => setActiveTab('store')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-200 ${activeTab === 'store'
+            ? 'bg-slate-900 text-white shadow-lg'
+            : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'
+            }`}
+        >
+          Store
+          <span className="px-1.5 py-0.5 bg-indigo-500 text-white text-[10px] rounded-full">
+            {products.length}
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+
   let content;
+  const commonProps = { profile, links, products, activeTab };
 
   // Render Custom Template if configured
   if (profile.customTheme) {
-    content = <CustomBioTemplate profile={profile} links={links} />;
+    content = <CustomBioTemplate {...commonProps} />;
   } else {
     // Render the selected template
     switch (profile.theme) {
       case 'vibrant':
-        content = <VibrantBioTemplate profile={profile} links={links} />;
+        content = <VibrantBioTemplate {...commonProps} />;
         break;
       case 'glass':
-        content = <GlassBioTemplate profile={profile} links={links} />;
+        content = <GlassBioTemplate {...commonProps} />;
         break;
       case 'industrial':
-        content = <IndustrialBioTemplate profile={profile} links={links} />;
+        content = <IndustrialBioTemplate {...commonProps} />;
         break;
       case 'retro':
-        content = <RetroPopBioTemplate profile={profile} links={links} />;
+        content = <RetroPopBioTemplate {...commonProps} />;
         break;
       case 'cyberpunk':
-        content = <CyberpunkBioTemplate profile={profile} links={links} />;
+        content = <CyberpunkBioTemplate {...commonProps} />;
         break;
       case 'neubrutalism':
-        content = <NeubrutalismBioTemplate profile={profile} links={links} />;
+        content = <NeubrutalismBioTemplate {...commonProps} />;
         break;
       case 'lofi':
-        content = <LofiBioTemplate profile={profile} links={links} />;
+        content = <LofiBioTemplate {...commonProps} />;
         break;
       case 'clay':
-        content = <ClaymorphismBioTemplate profile={profile} links={links} />;
+        content = <ClaymorphismBioTemplate {...commonProps} />;
         break;
       case 'bauhaus':
-        content = <BauhausBioTemplate profile={profile} links={links} />;
+        content = <BauhausBioTemplate {...commonProps} />;
         break;
       case 'lab':
-        content = <LabBioTemplate profile={profile} links={links} />;
+        content = <LabBioTemplate {...commonProps} />;
         break;
       case 'archive':
-        content = <ArchiveBioTemplate profile={profile} links={links} />;
+        content = <ArchiveBioTemplate {...commonProps} />;
         break;
       case 'bento':
-        content = <BentoBioTemplate profile={profile} links={links} />;
+        content = <BentoBioTemplate {...commonProps} />;
         break;
       case 'neopop':
-        content = <NeoPopBioTemplate profile={profile} links={links} />;
+        content = <NeoPopBioTemplate {...commonProps} />;
         break;
       case 'editorial':
-        content = <EditorialBioTemplate profile={profile} links={links} />;
+        content = <EditorialBioTemplate {...commonProps} />;
         break;
       case 'swiss':
-        content = <SwissBioTemplate profile={profile} links={links} />;
+        content = <SwissBioTemplate {...commonProps} />;
         break;
       case 'midnight':
-        content = <MidnightBioTemplate profile={profile} links={links} />;
+        content = <MidnightBioTemplate {...commonProps} />;
         break;
       case 'nature':
-        content = <NatureBioTemplate profile={profile} links={links} />;
+        content = <NatureBioTemplate {...commonProps} />;
         break;
       case 'aura':
-        content = <AuraBioTemplate profile={profile} links={links} />;
+        content = <AuraBioTemplate {...commonProps} />;
         break;
       case 'pixel':
-        content = <PixelBioTemplate profile={profile} links={links} />;
+        content = <PixelBioTemplate {...commonProps} />;
         break;
       case 'terminal':
-        content = <TerminalBioTemplate profile={profile} links={links} />;
+        content = <TerminalBioTemplate {...commonProps} />;
         break;
       case 'paper':
-        content = <PaperBioTemplate profile={profile} links={links} />;
+        content = <PaperBioTemplate {...commonProps} />;
         break;
       case 'luxury':
-        content = <LuxuryBioTemplate profile={profile} links={links} />;
+        content = <LuxuryBioTemplate {...commonProps} />;
         break;
       case 'gamer':
-        content = <GamerBioTemplate profile={profile} links={links} />;
+        content = <GamerBioTemplate {...commonProps} />;
         break;
       case 'air':
-        content = <AirBioTemplate profile={profile} links={links} />;
+        content = <AirBioTemplate {...commonProps} />;
         break;
       default:
         // Fallback to Vibrant for legacy themes or defaults
-        content = <VibrantBioTemplate profile={profile} links={links} />;
+        content = <VibrantBioTemplate {...commonProps} />;
     }
   }
 
   return (
     <>
       {content}
+      {TabSwitcher}
       <AskMyAI profile={profile} links={links} />
     </>
   );

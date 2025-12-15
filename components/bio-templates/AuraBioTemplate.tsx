@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const AuraBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const AuraBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen font-sans text-white p-6 relative overflow-hidden">
             {/* Animated Mesh Gradient Background */}
@@ -51,39 +54,45 @@ const AuraBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     )}
                 </header>
 
-                {/* Links */}
-                <div className="space-y-4">
-                    {links.map((link) => {
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-lg shadow-black/10">
-                                    <BioWidget link={link} />
-                                </div>
-                            )
-                        }
-
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group relative block bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-2xl p-4 transition-all duration-300 overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-white/5 to-purple-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-all duration-700 ease-in-out"></div>
-
-                                <div className="relative flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-white/10 to-transparent border border-white/5 flex items-center justify-center">
-                                            <Sparkles className="w-4 h-4 text-cyan-200" />
+                {/* Links or Store */}
+                <div className="relative z-10">
+                    {activeTab === 'store' ? (
+                        <ProductGrid products={products} />
+                    ) : (
+                        <div className="space-y-4">
+                            {links.map((link) => {
+                                if (link.type !== 'link') {
+                                    return (
+                                        <div key={link.id} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-lg shadow-black/10">
+                                            <BioWidget link={link} />
                                         </div>
-                                        <span className="font-semibold text-white/90 tracking-wide">{link.title}</span>
-                                    </div>
-                                    <ArrowUpRight className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
-                                </div>
-                            </a>
-                        );
-                    })}
+                                    )
+                                }
+
+                                return (
+                                    <a
+                                        key={link.id}
+                                        href={`/r/${link.shortCode}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group relative block bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-2xl p-4 transition-all duration-300 overflow-hidden"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-white/5 to-purple-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-all duration-700 ease-in-out"></div>
+
+                                        <div className="relative flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-white/10 to-transparent border border-white/5 flex items-center justify-center">
+                                                    <Sparkles className="w-4 h-4 text-cyan-200" />
+                                                </div>
+                                                <span className="font-semibold text-white/90 tracking-wide">{link.title}</span>
+                                            </div>
+                                            <ArrowUpRight className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
+                                        </div>
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Blocks */}

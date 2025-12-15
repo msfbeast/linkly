@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { Pen, Trash2, StickyNote } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const PaperBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const PaperBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-[#F0EBE3] text-[#2D2A26] p-6"
             style={{
@@ -55,34 +58,38 @@ const PaperBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                         )}
                     </div>
 
-                    {/* Links */}
+                    {/* Links or Store */}
                     <div className="space-y-6">
-                        {links.map((link, i) => {
-                            if (link.type !== 'link') {
+                        {activeTab === 'store' ? (
+                            <ProductGrid products={products} />
+                        ) : (
+                            links.map((link, i) => {
+                                if (link.type !== 'link') {
+                                    return (
+                                        <div key={link.id} className="transform rotate-1 p-2 bg-yellow-50 border border-yellow-200 shadow">
+                                            <BioWidget link={link} />
+                                        </div>
+                                    )
+                                }
+
+                                const rotation = i % 2 === 0 ? 'rotate-1' : '-rotate-1';
+
                                 return (
-                                    <div key={link.id} className="transform rotate-1 p-2 bg-yellow-50 border border-yellow-200 shadow">
-                                        <BioWidget link={link} />
-                                    </div>
-                                )
-                            }
-
-                            const rotation = i % 2 === 0 ? 'rotate-1' : '-rotate-1';
-
-                            return (
-                                <a
-                                    key={link.id}
-                                    href={`/r/${link.shortCode}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`block bg-white border-2 border-[#2D2A26] p-4 shadow-[4px_4px_0px_#2D2A26] hover:shadow-[1px_1px_0px_#2D2A26] hover:translate-x-[3px] hover:translate-y-[3px] transition-all transform ${rotation} hover:rotate-0`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-bold text-lg">{link.title}</span>
-                                        <StickyNote className="w-5 h-5 text-gray-400" />
-                                    </div>
-                                </a>
-                            );
-                        })}
+                                    <a
+                                        key={link.id}
+                                        href={`/r/${link.shortCode}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`block bg-white border-2 border-[#2D2A26] p-4 shadow-[4px_4px_0px_#2D2A26] hover:shadow-[1px_1px_0px_#2D2A26] hover:translate-x-[3px] hover:translate-y-[3px] transition-all transform ${rotation} hover:rotate-0`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-lg">{link.title}</span>
+                                            <StickyNote className="w-5 h-5 text-gray-400" />
+                                        </div>
+                                    </a>
+                                );
+                            })
+                        )}
                     </div>
 
                     {/* Doodle Footer */}

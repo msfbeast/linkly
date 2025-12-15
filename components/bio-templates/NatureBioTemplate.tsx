@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { ArrowRight, Leaf, Flower2 } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const NatureBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const NatureBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-[#F7F9F5] text-[#2C3E2D] font-sans selection:bg-[#D4E8D7] selection:text-[#1A2F1B] relative overflow-hidden p-6">
 
@@ -49,37 +52,43 @@ const NatureBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     )}
                 </header>
 
-                {/* Links */}
-                <div className="space-y-4">
-                    {links.map((link) => {
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className="bg-white/80 backdrop-blur-md border border-white rounded-[1.5rem] p-1 shadow-sm">
-                                    <BioWidget link={link} />
-                                </div>
-                            )
-                        }
-
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-white border border-[#E8F3E9] rounded-[1.5rem] p-4 shadow-[0_2px_8px_rgba(44,62,45,0.04)] hover:shadow-[0_8px_16px_rgba(44,62,45,0.06)] hover:border-[#D4E8D7] hover:-translate-y-1 transition-all duration-300"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-[#F7F9F5] flex items-center justify-center text-[#6B8A6D] group-hover:bg-[#E8F3E9] group-hover:text-[#4A674B] transition-colors">
-                                            <Leaf className="w-4 h-4 transform group-hover:rotate-12 transition-transform" />
+                {/* Links or Store */}
+                <div className="relative z-10">
+                    {activeTab === 'store' ? (
+                        <ProductGrid products={products} />
+                    ) : (
+                        <div className="space-y-4">
+                            {links.map((link) => {
+                                if (link.type !== 'link') {
+                                    return (
+                                        <div key={link.id} className="bg-white/80 backdrop-blur-md border border-white rounded-[1.5rem] p-1 shadow-sm">
+                                            <BioWidget link={link} />
                                         </div>
-                                        <span className="font-semibold text-[#2C3E2D]">{link.title}</span>
-                                    </div>
-                                    <ArrowRight className="w-4 h-4 text-[#8FA990] group-hover:translate-x-1 transition-transform" />
-                                </div>
-                            </a>
-                        );
-                    })}
+                                    )
+                                }
+
+                                return (
+                                    <a
+                                        key={link.id}
+                                        href={`/r/${link.shortCode}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group block bg-white border border-[#E8F3E9] rounded-[1.5rem] p-4 shadow-[0_2px_8px_rgba(44,62,45,0.04)] hover:shadow-[0_8px_16px_rgba(44,62,45,0.06)] hover:border-[#D4E8D7] hover:-translate-y-1 transition-all duration-300"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-[#F7F9F5] flex items-center justify-center text-[#6B8A6D] group-hover:bg-[#E8F3E9] group-hover:text-[#4A674B] transition-colors">
+                                                    <Leaf className="w-4 h-4 transform group-hover:rotate-12 transition-transform" />
+                                                </div>
+                                                <span className="font-semibold text-[#2C3E2D]">{link.title}</span>
+                                            </div>
+                                            <ArrowRight className="w-4 h-4 text-[#8FA990] group-hover:translate-x-1 transition-transform" />
+                                        </div>
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Blocks */}

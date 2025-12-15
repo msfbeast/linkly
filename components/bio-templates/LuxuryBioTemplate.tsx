@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { Gem, ArrowRight } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const LuxuryBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const LuxuryBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-[#E5E5E5] font-serif p-8 selection:bg-[#D4AF37] selection:text-black">
             <div className="max-w-xl mx-auto border-x border-[#222] min-h-screen relative p-8">
@@ -48,31 +51,35 @@ const LuxuryBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     )}
                 </header>
 
-                {/* Links */}
+                {/* Links or Store */}
                 <div className="space-y-8">
-                    {links.map((link) => {
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className="bg-[#111] p-1 border border-[#222]">
-                                    <BioWidget link={link} />
-                                </div>
-                            )
-                        }
+                    {activeTab === 'store' ? (
+                        <ProductGrid products={products} />
+                    ) : (
+                        links.map((link) => {
+                            if (link.type !== 'link') {
+                                return (
+                                    <div key={link.id} className="bg-[#111] p-1 border border-[#222]">
+                                        <BioWidget link={link} />
+                                    </div>
+                                )
+                            }
 
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block text-center py-4 border border-transparent hover:border-[#D4AF37] border-b-[#222] transition-colors duration-500"
-                            >
-                                <span className="font-sans text-sm tracking-[0.15em] uppercase group-hover:text-[#D4AF37] transition-colors duration-300">
-                                    {link.title}
-                                </span>
-                            </a>
-                        );
-                    })}
+                            return (
+                                <a
+                                    key={link.id}
+                                    href={`/r/${link.shortCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group block text-center py-4 border border-transparent hover:border-[#D4AF37] border-b-[#222] transition-colors duration-500"
+                                >
+                                    <span className="font-sans text-sm tracking-[0.15em] uppercase group-hover:text-[#D4AF37] transition-colors duration-300">
+                                        {link.title}
+                                    </span>
+                                </a>
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* Blocks */}

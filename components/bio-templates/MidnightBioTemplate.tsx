@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { ExternalLink, Moon, Sparkles } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const MidnightBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const MidnightBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-neutral-800 selection:text-white p-6">
             <div className="max-w-md mx-auto relative">
@@ -41,36 +44,42 @@ const MidnightBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => 
                     )}
                 </header>
 
-                {/* Links */}
-                <div className="space-y-4 relative z-10">
-                    {links.map((link) => {
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className="bg-neutral-950 border border-neutral-900 rounded-xl p-1 shadow-lg shadow-black/50">
-                                    <BioWidget link={link} />
-                                </div>
-                            )
-                        }
+                {/* Links or Store */}
+                <div className="relative z-10">
+                    {activeTab === 'store' ? (
+                        <ProductGrid products={products} />
+                    ) : (
+                        <div className="space-y-4">
+                            {links.map((link) => {
+                                if (link.type !== 'link') {
+                                    return (
+                                        <div key={link.id} className="bg-neutral-950 border border-neutral-900 rounded-xl p-1 shadow-lg shadow-black/50">
+                                            <BioWidget link={link} />
+                                        </div>
+                                    )
+                                }
 
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group flex items-center justify-between p-4 bg-neutral-950 border border-neutral-900 rounded-xl hover:border-neutral-700 hover:bg-neutral-900 transition-all duration-300 shadow-lg shadow-black/50"
-                            >
-                                <div className="flex items-center gap-4">
-                                    {/* Simple Icon Placeholder */}
-                                    <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center text-neutral-600 group-hover:text-white transition-colors border border-neutral-900">
-                                        <Sparkles className="w-4 h-4" />
-                                    </div>
-                                    <span className="font-medium text-neutral-300 group-hover:text-white transition-colors">{link.title}</span>
-                                </div>
-                                <ExternalLink className="w-4 h-4 text-neutral-700 group-hover:text-neutral-400 transition-colors" />
-                            </a>
-                        );
-                    })}
+                                return (
+                                    <a
+                                        key={link.id}
+                                        href={`/r/${link.shortCode}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group flex items-center justify-between p-4 bg-neutral-950 border border-neutral-900 rounded-xl hover:border-neutral-700 hover:bg-neutral-900 transition-all duration-300 shadow-lg shadow-black/50"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            {/* Simple Icon Placeholder */}
+                                            <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center text-neutral-600 group-hover:text-white transition-colors border border-neutral-900">
+                                                <Sparkles className="w-4 h-4" />
+                                            </div>
+                                            <span className="font-medium text-neutral-300 group-hover:text-white transition-colors">{link.title}</span>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-neutral-700 group-hover:text-neutral-400 transition-colors" />
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Blocks */}

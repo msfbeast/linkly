@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { ExternalLink, Star, Zap, Music, Play, ShoppingBag } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const NeoPopBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const NeoPopBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-yellow-300 text-slate-900 font-sans selection:bg-pink-500 selection:text-white overflow-x-hidden p-4">
 
@@ -59,38 +62,48 @@ const NeoPopBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     )}
                 </div>
 
-                {/* Links Stack */}
+                {/* Links or Store */}
                 <div className="space-y-4">
-                    {links.map((link, i) => {
-                        const colors = ['bg-pink-400', 'bg-cyan-400', 'bg-white', 'bg-lime-400'];
-                        const bgColor = colors[i % colors.length];
-                        const rotate = (i % 2 === 0) ? 'rotate-1' : '-rotate-1';
+                    {activeTab === 'store' ? (
+                        <div className="bg-white border-4 border-black p-4 rounded-[2rem] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                            <div className="flex items-center justify-center gap-2 mb-4 border-b-4 border-black pb-2">
+                                <ShoppingBag className="w-6 h-6" />
+                                <h3 className="font-black text-xl uppercase">MERCH DROP</h3>
+                            </div>
+                            <ProductGrid products={products} />
+                        </div>
+                    ) : (
+                        links.map((link, i) => {
+                            const colors = ['bg-pink-400', 'bg-cyan-400', 'bg-white', 'bg-lime-400'];
+                            const bgColor = colors[i % colors.length];
+                            const rotate = (i % 2 === 0) ? 'rotate-1' : '-rotate-1';
 
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className={`${bgColor} border-4 border-black p-1 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]`}>
-                                    <BioWidget link={link} />
-                                </div>
-                            );
-                        }
-
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`block ${bgColor} border-4 border-black p-4 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all group ${rotate} hover:rotate-0`}
-                            >
-                                <div className="flex justify-between items-center">
-                                    <span className="font-black text-xl uppercase tracking-tight">{link.title}</span>
-                                    <div className="bg-black text-white p-2 rounded-lg border-2 border-white/20 group-hover:scale-110 transition-transform">
-                                        <ExternalLink className="w-5 h-5" />
+                            if (link.type !== 'link') {
+                                return (
+                                    <div key={link.id} className={`${bgColor} border-4 border-black p-1 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]`}>
+                                        <BioWidget link={link} />
                                     </div>
-                                </div>
-                            </a>
-                        );
-                    })}
+                                );
+                            }
+
+                            return (
+                                <a
+                                    key={link.id}
+                                    href={`/r/${link.shortCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`block ${bgColor} border-4 border-black p-4 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all group ${rotate} hover:rotate-0`}
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-black text-xl uppercase tracking-tight">{link.title}</span>
+                                        <div className="bg-black text-white p-2 rounded-lg border-2 border-white/20 group-hover:scale-110 transition-transform">
+                                            <ExternalLink className="w-5 h-5" />
+                                        </div>
+                                    </div>
+                                </a>
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* Tech Vault */}

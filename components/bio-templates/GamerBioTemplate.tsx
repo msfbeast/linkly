@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { Gamepad, Zap, Play } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const GamerBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const GamerBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-[#0d0d12] text-white font-sans selection:bg-[#00ff99] selection:text-black overflow-x-hidden">
 
@@ -55,41 +58,50 @@ const GamerBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     </div>
                 </div>
 
-                {/* Links */}
+                {/* Links or Store */}
                 <div className="space-y-4">
-                    {links.map((link) => {
-                        if (link.type !== 'link') {
-                            return (
-                                <div key={link.id} className="relative bg-[#15151a] border border-[#2a2a35] p-1 rounded-lg">
-                                    <BioWidget link={link} />
-                                </div>
-                            )
-                        }
-
-                        return (
-                            <a
-                                key={link.id}
-                                href={`/r/${link.shortCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group relative block bg-[#15151a] hover:bg-[#1a1a20] border-l-4 border-[#333] hover:border-[#00FF99] p-4 transition-all duration-200 overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-[#00FF99]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity skew-x-[-20deg] translate-x-10"></div>
-
-                                <div className="relative flex items-center justify-between z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-[#222] rounded text-[#FF0055] group-hover:text-[#00FF99] transition-colors">
-                                            <Play className="w-4 h-4 fill-current" />
-                                        </div>
-                                        <span className="font-bold uppercase tracking-tight text-gray-200 group-hover:text-white group-hover:tracking-wide transition-all">
-                                            {link.title}
-                                        </span>
+                    {activeTab === 'store' ? (
+                        <div className="relative bg-[#15151a] border border-[#2a2a35] p-3 rounded-lg">
+                            <h2 className="text-[#00FF99] font-black italic tracking-tighter uppercase mb-4 text-center">
+                                &lt; STORE /&gt;
+                            </h2>
+                            <ProductGrid products={products} />
+                        </div>
+                    ) : (
+                        links.map((link) => {
+                            if (link.type !== 'link') {
+                                return (
+                                    <div key={link.id} className="relative bg-[#15151a] border border-[#2a2a35] p-1 rounded-lg">
+                                        <BioWidget link={link} />
                                     </div>
-                                    <Zap className="w-4 h-4 text-[#333] group-hover:text-[#00FF99] transition-colors" />
-                                </div>
-                            </a>
-                        );
-                    })}
+                                )
+                            }
+
+                            return (
+                                <a
+                                    key={link.id}
+                                    href={`/r/${link.shortCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group relative block bg-[#15151a] hover:bg-[#1a1a20] border-l-4 border-[#333] hover:border-[#00FF99] p-4 transition-all duration-200 overflow-hidden"
+                                >
+                                    <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-[#00FF99]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity skew-x-[-20deg] translate-x-10"></div>
+
+                                    <div className="relative flex items-center justify-between z-10">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-[#222] rounded text-[#FF0055] group-hover:text-[#00FF99] transition-colors">
+                                                <Play className="w-4 h-4 fill-current" />
+                                            </div>
+                                            <span className="font-bold uppercase tracking-tight text-gray-200 group-hover:text-white group-hover:tracking-wide transition-all">
+                                                {link.title}
+                                            </span>
+                                        </div>
+                                        <Zap className="w-4 h-4 text-[#333] group-hover:text-[#00FF99] transition-colors" />
+                                    </div>
+                                </a>
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* Setup Block */}

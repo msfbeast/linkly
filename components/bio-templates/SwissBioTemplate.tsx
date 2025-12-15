@@ -1,16 +1,19 @@
 import React from 'react';
-import { BioProfile, LinkData } from '../../types';
+import { BioProfile, LinkData, Product } from '../../types';
 import { ArrowUpRight, Grid, Disc } from 'lucide-react';
 import { BioWidget } from '../BioWidget';
 import { TechVaultBlock } from '../blocks/TechVaultBlock';
 import { AppStackBlock } from '../blocks/AppStackBlock';
+import { ProductGrid } from './ProductGrid';
 
 interface BioTemplateProps {
     profile: BioProfile;
     links: LinkData[];
+    products?: Product[];
+    activeTab?: 'links' | 'store';
 }
 
-const SwissBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
+const SwissBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products = [], activeTab = 'links' }) => {
     return (
         <div className="min-h-screen bg-neutral-100 text-neutral-900 font-sans selection:bg-red-500 selection:text-white p-4 md:p-12">
             <div className="max-w-3xl mx-auto">
@@ -50,51 +53,57 @@ const SwissBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                     </div>
                 )}
 
-                {/* Links Section */}
+                {/* Main Content: Links OR Store */}
                 <section className="mb-20">
-                    <div className="grid grid-cols-12 gap-4 mb-4">
-                        <div className="col-span-12 md:col-span-2 text-xs font-bold uppercase tracking-widest border-b border-black pb-2">
-                            Index
-                        </div>
-                        <div className="col-span-12 md:col-span-8 text-xs font-bold uppercase tracking-widest border-b border-black pb-2 text-right md:text-left">
-                            Title
-                        </div>
-                        <div className="col-span-0 md:col-span-2 text-xs font-bold uppercase tracking-widest border-b border-black pb-2 text-right hidden md:block">
-                            Action
-                        </div>
-                    </div>
+                    {activeTab === 'store' ? (
+                        <ProductGrid products={products} />
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-12 gap-4 mb-4">
+                                <div className="col-span-12 md:col-span-2 text-xs font-bold uppercase tracking-widest border-b border-black pb-2">
+                                    Index
+                                </div>
+                                <div className="col-span-12 md:col-span-8 text-xs font-bold uppercase tracking-widest border-b border-black pb-2 text-right md:text-left">
+                                    Title
+                                </div>
+                                <div className="col-span-0 md:col-span-2 text-xs font-bold uppercase tracking-widest border-b border-black pb-2 text-right hidden md:block">
+                                    Action
+                                </div>
+                            </div>
 
-                    <div className="space-y-0">
-                        {links.map((link, i) => {
-                            if (link.type !== 'link') {
-                                return (
-                                    <div key={link.id} className="py-8 border-b border-neutral-300">
-                                        <BioWidget link={link} />
-                                    </div>
-                                )
-                            }
+                            <div className="space-y-0">
+                                {links.map((link, i) => {
+                                    if (link.type !== 'link') {
+                                        return (
+                                            <div key={link.id} className="py-8 border-b border-neutral-300">
+                                                <BioWidget link={link} />
+                                            </div>
+                                        )
+                                    }
 
-                            return (
-                                <a
-                                    key={link.id}
-                                    href={`/r/${link.shortCode}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="group grid grid-cols-12 gap-4 py-6 border-b border-neutral-200 hover:border-black hover:bg-white transition-all items-center"
-                                >
-                                    <div className="col-span-2 md:col-span-2 font-mono text-sm text-neutral-400 group-hover:text-red-500 transition-colors">
-                                        {(i + 1).toString().padStart(2, '0')}
-                                    </div>
-                                    <div className="col-span-8 md:col-span-8 text-2xl font-bold tracking-tight group-hover:translate-x-2 transition-transform">
-                                        {link.title}
-                                    </div>
-                                    <div className="col-span-2 md:col-span-2 flex justify-end">
-                                        <ArrowUpRight className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:rotate-45" />
-                                    </div>
-                                </a>
-                            );
-                        })}
-                    </div>
+                                    return (
+                                        <a
+                                            key={link.id}
+                                            href={`/r/${link.shortCode}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group grid grid-cols-12 gap-4 py-6 border-b border-neutral-200 hover:border-black hover:bg-white transition-all items-center"
+                                        >
+                                            <div className="col-span-2 md:col-span-2 font-mono text-sm text-neutral-400 group-hover:text-red-500 transition-colors">
+                                                {(i + 1).toString().padStart(2, '0')}
+                                            </div>
+                                            <div className="col-span-8 md:col-span-8 text-2xl font-bold tracking-tight group-hover:translate-x-2 transition-transform">
+                                                {link.title}
+                                            </div>
+                                            <div className="col-span-2 md:col-span-2 flex justify-end">
+                                                <ArrowUpRight className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:rotate-45" />
+                                            </div>
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
                 </section>
 
                 {/* Tech Vault */}
