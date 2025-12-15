@@ -15,6 +15,16 @@ import CustomBioTemplate from './bio-templates/CustomBioTemplate';
 import BentoBioTemplate from './bio-templates/BentoBioTemplate';
 import NeoPopBioTemplate from './bio-templates/NeoPopBioTemplate';
 import EditorialBioTemplate from './bio-templates/EditorialBioTemplate';
+import SwissBioTemplate from './bio-templates/SwissBioTemplate';
+import MidnightBioTemplate from './bio-templates/MidnightBioTemplate';
+import NatureBioTemplate from './bio-templates/NatureBioTemplate';
+import AuraBioTemplate from './bio-templates/AuraBioTemplate';
+import PixelBioTemplate from './bio-templates/PixelBioTemplate';
+import TerminalBioTemplate from './bio-templates/TerminalBioTemplate';
+import PaperBioTemplate from './bio-templates/PaperBioTemplate';
+import LuxuryBioTemplate from './bio-templates/LuxuryBioTemplate';
+import GamerBioTemplate from './bio-templates/GamerBioTemplate';
+import AirBioTemplate from './bio-templates/AirBioTemplate';
 
 interface BioPreviewProps {
     profile: Partial<BioProfile>;
@@ -25,7 +35,7 @@ const BioPreview: React.FC<BioPreviewProps> = ({ profile, links }) => {
     // Mock profile for preview if fields are missing
     const previewProfile: BioProfile = {
         id: 'preview',
-        userId: 'preview-user',
+        userId: '00000000-0000-0000-0000-000000000000',
         isPublished: true,
         handle: profile.handle || 'preview',
         displayName: profile.displayName || 'Your Name',

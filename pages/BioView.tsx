@@ -125,6 +125,36 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
       case 'editorial':
         content = <EditorialBioTemplate profile={profile} links={links} />;
         break;
+      case 'swiss':
+        content = <SwissBioTemplate profile={profile} links={links} />;
+        break;
+      case 'midnight':
+        content = <MidnightBioTemplate profile={profile} links={links} />;
+        break;
+      case 'nature':
+        content = <NatureBioTemplate profile={profile} links={links} />;
+        break;
+      case 'aura':
+        content = <AuraBioTemplate profile={profile} links={links} />;
+        break;
+      case 'pixel':
+        content = <PixelBioTemplate profile={profile} links={links} />;
+        break;
+      case 'terminal':
+        content = <TerminalBioTemplate profile={profile} links={links} />;
+        break;
+      case 'paper':
+        content = <PaperBioTemplate profile={profile} links={links} />;
+        break;
+      case 'luxury':
+        content = <LuxuryBioTemplate profile={profile} links={links} />;
+        break;
+      case 'gamer':
+        content = <GamerBioTemplate profile={profile} links={links} />;
+        break;
+      case 'air':
+        content = <AirBioTemplate profile={profile} links={links} />;
+        break;
       default:
         // Fallback to Vibrant for legacy themes or defaults
         content = <VibrantBioTemplate profile={profile} links={links} />;
