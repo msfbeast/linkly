@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Microscope, Clock, Hexagon, ChevronDown, LayoutGrid, Star, Newspaper } from 'lucide-react';
+import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Microscope, Clock, Hexagon, ChevronDown, LayoutGrid, Star, Newspaper, Moon, Leaf, Aperture, Cpu, StickyNote, Gem, Gamepad2, Cloud } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ThemeGalleryComponent } from './ThemeGalleryComponent';
 import { BioThemeConfig } from '../types';
@@ -126,6 +126,86 @@ const THEMES: ThemeDefinition[] = [
         description: 'Minimal document style',
         colors: ['#F1F2F6', '#2F3542', '#A4B0BE'],
         icon: Archive
+    },
+    {
+        id: 'swiss',
+        name: 'Swiss',
+        description: 'Clean typographic grid',
+        colors: ['#EF4444', '#FFFFFF', '#000000'],
+        icon: Type,
+        isPremium: true
+    },
+    {
+        id: 'midnight',
+        name: 'Midnight',
+        description: 'Deep OLED black',
+        colors: ['#000000', '#1C1917', '#FFFFFF'],
+        icon: Moon,
+        isPremium: true
+    },
+    {
+        id: 'nature',
+        name: 'Nature',
+        description: 'Organic greens & soft shapes',
+        colors: ['#ECFCCB', '#365314', '#14532D'],
+        icon: Leaf,
+        isPremium: true
+    },
+    {
+        id: 'aura',
+        name: 'Aura',
+        description: 'Ethereal moving gradients',
+        colors: ['#C4B5FD', '#FBCFE8', '#67E8F9'],
+        icon: Aperture,
+        isPremium: true
+    },
+    {
+        id: 'pixel',
+        name: 'Pixel',
+        description: 'Retro 8-bit style',
+        colors: ['#3B82F6', '#EF4444', '#FCD34D'],
+        icon: Cpu, // Imported below
+        isPremium: true
+    },
+    {
+        id: 'terminal',
+        name: 'Terminal',
+        description: 'Hacker CLI aesthetics',
+        colors: ['#000000', '#22C55E', '#00420C'],
+        icon: Terminal,
+        isPremium: true
+    },
+    {
+        id: 'paper',
+        name: 'Paper',
+        description: 'Hand-drawn sketchbook',
+        colors: ['#F5F5F4', '#292524', '#78716C'],
+        icon: StickyNote,
+        isPremium: true
+    },
+    {
+        id: 'luxury',
+        name: 'Luxury',
+        description: 'Premium gold & serif',
+        colors: ['#000000', '#D4AF37', '#171717'],
+        icon: Gem,
+        isPremium: true
+    },
+    {
+        id: 'gamer',
+        name: 'Gamer',
+        description: 'RGB & Sharp Angles',
+        colors: ['#000000', '#FF0055', '#00FF99'],
+        icon: Gamepad2,
+        isPremium: true
+    },
+    {
+        id: 'air',
+        name: 'Air',
+        description: 'Light, breezy & cloudy',
+        colors: ['#E0F2FE', '#FFFFFF', '#38BDF8'],
+        icon: Cloud,
+        isPremium: true
     },
 ];
 

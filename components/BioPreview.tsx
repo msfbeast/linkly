@@ -25,6 +25,8 @@ const BioPreview: React.FC<BioPreviewProps> = ({ profile, links }) => {
     // Mock profile for preview if fields are missing
     const previewProfile: BioProfile = {
         id: 'preview',
+        userId: 'preview-user',
+        isPublished: true,
         handle: profile.handle || 'preview',
         displayName: profile.displayName || 'Your Name',
         bio: profile.bio || 'This is a preview of your bio page.',
@@ -62,6 +64,16 @@ const BioPreview: React.FC<BioPreviewProps> = ({ profile, links }) => {
             case 'bento': return <BentoBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'neopop': return <NeoPopBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'editorial': return <EditorialBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'swiss': return <SwissBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'midnight': return <MidnightBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'nature': return <NatureBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'aura': return <AuraBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'pixel': return <PixelBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'terminal': return <TerminalBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'paper': return <PaperBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'luxury': return <LuxuryBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'gamer': return <GamerBioTemplate profile={previewProfile} links={previewLinks} />;
+            case 'air': return <AirBioTemplate profile={previewProfile} links={previewLinks} />;
             default: return <VibrantBioTemplate profile={previewProfile} links={previewLinks} />;
         }
     };

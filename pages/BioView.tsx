@@ -17,6 +17,16 @@ import CustomBioTemplate from '../components/bio-templates/CustomBioTemplate';
 import BentoBioTemplate from '../components/bio-templates/BentoBioTemplate';
 import NeoPopBioTemplate from '../components/bio-templates/NeoPopBioTemplate';
 import EditorialBioTemplate from '../components/bio-templates/EditorialBioTemplate';
+import SwissBioTemplate from '../components/bio-templates/SwissBioTemplate';
+import MidnightBioTemplate from '../components/bio-templates/MidnightBioTemplate';
+import NatureBioTemplate from '../components/bio-templates/NatureBioTemplate';
+import AuraBioTemplate from '../components/bio-templates/AuraBioTemplate';
+import PixelBioTemplate from '../components/bio-templates/PixelBioTemplate';
+import TerminalBioTemplate from '../components/bio-templates/TerminalBioTemplate';
+import PaperBioTemplate from '../components/bio-templates/PaperBioTemplate';
+import LuxuryBioTemplate from '../components/bio-templates/LuxuryBioTemplate';
+import GamerBioTemplate from '../components/bio-templates/GamerBioTemplate';
+import AirBioTemplate from '../components/bio-templates/AirBioTemplate';
 import AskMyAI from '../components/AskMyAI';
 
 import { useParams } from 'react-router-dom';

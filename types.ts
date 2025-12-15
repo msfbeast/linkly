@@ -48,7 +48,17 @@ export type WidgetVariant =
   | 'vibrant'
   | 'bento'
   | 'neopop'
-  | 'editorial';
+  | 'editorial'
+  | 'swiss'
+  | 'midnight'
+  | 'nature'
+  | 'aura'
+  | 'pixel'
+  | 'terminal'
+  | 'paper'
+  | 'luxury'
+  | 'gamer'
+  | 'air';
 
 export type BioTheme = WidgetVariant;
 
