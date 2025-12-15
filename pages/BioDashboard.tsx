@@ -537,7 +537,7 @@ const BioDashboard: React.FC = () => {
                     </div>
 
                     {/* Right Column (Sticky Preview) */}
-                    <div className="lg:col-span-4 sticky top-8">
+                    <div className="lg:col-span-4 sticky top-6 self-start h-fit z-10">
                         <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-lg shadow-stone-100">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-slate-900 font-bold">Live Preview</h3>
