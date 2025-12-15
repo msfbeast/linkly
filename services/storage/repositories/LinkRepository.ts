@@ -94,6 +94,25 @@ export class LinkRepository extends BaseRepository {
         return (linkRows || []).map((row: LinkRow) => rowToLinkData(row));
     }
 
+    async getLinkByCode(code: string): Promise<LinkData | null> {
+        if (!this.isConfigured()) return null;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .select('*')
+            .eq('short_code', code)
+            .single();
+
+        if (error) {
+            console.error('[LinkRepository] Error fetching link by code:', error);
+            return null;
+        }
+
+        if (!data) return null;
+
+        return rowToLinkData(data as LinkRow);
+    }
+
     async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData & { _isExisting?: boolean }> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 

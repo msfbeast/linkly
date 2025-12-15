@@ -141,6 +141,10 @@ export class SupabaseAdapter {
     return this.linkRepo.updateLinkOrder(ids);
   }
 
+  async getLinkByCode(code: string): Promise<LinkData | null> {
+    return this.linkRepo.getLinkByCode(code);
+  }
+
   // Tags & Folders
   async getTags(userId: string): Promise<Tag[]> {
     return this.linkRepo.getTags(userId);
