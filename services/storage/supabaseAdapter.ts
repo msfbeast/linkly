@@ -2861,15 +2861,40 @@ export class SupabaseAdapter implements StorageAdapter {
 
     // Location
     const locationCount: Record<string, number> = {};
-    clicks?.forEach(c => {
-      let loc = c.country || 'Unknown';
+    const codeMap: Record<string, string> = {
+      'IN': 'India',
+      'US': 'United States', 'USA': 'United States',
+      'GB': 'United Kingdom', 'UK': 'United Kingdom',
+      'CA': 'Canada',
+      'AU': 'Australia',
+      'DE': 'Germany',
+      'FR': 'France',
+      'ES': 'Spain',
+      'IT': 'Italy',
+      'JP': 'Japan',
+      'BR': 'Brazil',
+      'RU': 'Russia',
+      'CN': 'China',
+      'NL': 'Netherlands',
+      'SG': 'Singapore'
+    };
 
-      // Normalize common country codes/names
-      if (loc === 'IN') loc = 'India';
-      if (loc === 'US' || loc === 'USA') loc = 'United States';
-      if (loc === 'GB' || loc === 'UK') loc = 'United Kingdom';
-      if (loc === 'CA') loc = 'Canada';
-      if (loc === 'AU') loc = 'Australia';
+    clicks?.forEach(c => {
+      let loc = (c.country || 'Unknown').trim();
+
+      // Skip empty stats
+      if (!loc) {
+        loc = 'Unknown';
+      }
+
+      // Check codes first (case-insensitive)
+      const upperLoc = loc.toUpperCase();
+      if (codeMap[upperLoc]) {
+        loc = codeMap[upperLoc];
+      } else if (loc !== 'Unknown') {
+        // Ensure Title Case for consistency (e.g. "india" -> "India")
+        loc = loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase();
+      }
 
       locationCount[loc] = (locationCount[loc] || 0) + 1;
     });

@@ -138,7 +138,7 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
                 {/* Decorative background */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
 
-                <div className="flex items-center gap-3 mb-8 relative z-10">
+                <div className="flex items-center gap-3 mb-6 relative z-10">
                     <div className="p-2.5 bg-slate-900 rounded-xl shadow-lg shadow-indigo-900/20 text-white">
                         <Sparkles className="w-5 h-5" />
                     </div>
@@ -148,7 +148,91 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
                     </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+                    {/* Insight 1: Growth Trend */}
+                    {(() => {
+                        const clicks = data.clicksOverTime;
+                        const trend = clicks.length >= 2
+                            ? (clicks[clicks.length - 1].clicks - clicks[0].clicks)
+                            : 0;
+                        const isPositive = trend >= 0;
 
+                        return (
+                            <div className="bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-white shadow-sm flex flex-col justify-between group hover:scale-[1.02] transition-transform duration-300">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className={`p-2 rounded-lg ${isPositive ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                                        <TrendingUp className="w-5 h-5" />
+                                    </div>
+                                    <span className="bg-stone-100 text-stone-500 text-[10px] uppercase font-bold px-2 py-1 rounded-full">Trend</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 leading-tight mb-1">
+                                        {isPositive ? 'Traffic is up!' : 'Stable Traffic'}
+                                    </h4>
+                                    <p className="text-xs text-stone-500 font-medium">
+                                        {isPositive
+                                            ? `+${trend} clicks vs start of period`
+                                            : 'Maintain consistency to grow'}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Insight 2: Top Audience */}
+                    {(() => {
+                        const topLoc = data.byLocation[0];
+                        return (
+                            <div className="bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-white shadow-sm flex flex-col justify-between group hover:scale-[1.02] transition-transform duration-300">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                                        <Globe className="w-5 h-5" />
+                                    </div>
+                                    <span className="bg-stone-100 text-stone-500 text-[10px] uppercase font-bold px-2 py-1 rounded-full">Audience</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 leading-tight mb-1">
+                                        {topLoc ? `Big in ${topLoc.name}!` : 'Global Reach'}
+                                    </h4>
+                                    <p className="text-xs text-stone-500 font-medium">
+                                        {topLoc
+                                            ? `Your top fans are from ${topLoc.name}`
+                                            : 'Keep sharing to reach more regions'}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Insight 3: Gamification Badge */}
+                    {(() => {
+                        const totalViews = data.overview.totalViews;
+                        let badge = { name: 'Newcomer', icon: '🐣', color: 'bg-yellow-100 text-yellow-700' };
+
+                        if (totalViews > 10000) badge = { name: 'Viral Sensation', icon: '🦄', color: 'bg-purple-100 text-purple-700' };
+                        else if (totalViews > 1000) badge = { name: 'Influencer', icon: '🚀', color: 'bg-indigo-100 text-indigo-700' };
+                        else if (totalViews > 100) badge = { name: 'Rising Star', icon: '🌟', color: 'bg-amber-100 text-amber-700' };
+
+                        return (
+                            <div className="bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-white shadow-sm flex flex-col justify-between group hover:scale-[1.02] transition-transform duration-300">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className={`p-2 rounded-lg ${badge.color} text-xl flex items-center justify-center w-10 h-10`}>
+                                        {badge.icon}
+                                    </div>
+                                    <span className="bg-indigo-100 text-indigo-600 text-[10px] uppercase font-bold px-2 py-1 rounded-full">Badge</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 leading-tight mb-1">
+                                        {badge.name}
+                                    </h4>
+                                    <p className="text-xs text-stone-500 font-medium">
+                                        Top {totalViews > 1000 ? '10%' : '50%'} of creators
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
