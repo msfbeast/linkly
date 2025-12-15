@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { BioProfile } from '../types';
-import { Globe, Search, ImageIcon, Twitter, Linkedin, Info, Layout } from 'lucide-react';
+import { Globe, Search, ImageIcon, Twitter, Linkedin, Info, Layout, Upload, Loader2 } from 'lucide-react';
 import InfoTooltip from './InfoTooltip';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { toast } from 'sonner';
 
 interface BioSeoEditorProps {
     profile: BioProfile;
@@ -10,6 +12,7 @@ interface BioSeoEditorProps {
 
 const BioSeoEditor: React.FC<BioSeoEditorProps> = ({ profile, onChange }) => {
     const [activePreview, setActivePreview] = useState<'google' | 'twitter' | 'linkedin'>('google');
+    const [isUploading, setIsUploading] = useState(false);
 
     const seo = profile.seo || {};
     const title = seo.title || profile.displayName || 'My Profile';
@@ -82,6 +85,34 @@ const BioSeoEditor: React.FC<BioSeoEditorProps> = ({ profile, onChange }) => {
                                     />
                                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                                 </div>
+                                <label className="flex items-center justify-center p-3 bg-white border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-50 transition-colors" title="Upload Image">
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            try {
+                                                setIsUploading(true);
+                                                const url = await supabaseAdapter.uploadOgImage(file, profile.userId);
+                                                handleUpdate('ogImage', url);
+                                                toast.success('Image uploaded successfully');
+                                            } catch (error) {
+                                                console.error(error);
+                                                toast.error('Failed to upload image');
+                                            } finally {
+                                                setIsUploading(false);
+                                            }
+                                        }}
+                                    />
+                                    {isUploading ? (
+                                        <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                                    ) : (
+                                        <Upload className="w-5 h-5 text-stone-500" />
+                                    )}
+                                </label>
                             </div>
                             <p className="text-xs text-stone-400 mt-2">
                                 Recommended size: 1200x630 pixels. Defaults to your avatar if left empty.

@@ -36,9 +36,14 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-stone-400">
-                <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                <p className="text-sm font-medium">Crunching the numbers...</p>
+            <div className="space-y-6 animate-pulse">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-28 bg-stone-100 rounded-2xl border border-stone-200" />
+                    ))}
+                </div>
+                <div className="h-[300px] w-full bg-stone-100 rounded-2xl border border-stone-200" />
+                <div className="h-48 w-full bg-stone-100 rounded-2xl border border-stone-200" />
             </div>
         );
     }

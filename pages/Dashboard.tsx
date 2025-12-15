@@ -571,7 +571,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Analytics Overview (Bento Grid) */}
-          {!hasNoLinks && (
+          {/* Analytics Overview (Bento Grid) */}
+          {(isLoading || !hasNoLinks) && (
             <ErrorBoundary>
               <AnalyticsOverview
                 links={links}

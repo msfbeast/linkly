@@ -40,6 +40,7 @@ import { BioAnalyticsDashboard } from '../components/BioAnalyticsDashboard';
 import { BlockGalleryModal, BlockType } from '../components/BlockGalleryModal';
 import { WidgetConfigModal } from '../components/WidgetConfigModal';
 import { BarChart3 } from 'lucide-react';
+import { BioDashboardSkeleton } from '../components/skeletons/BioDashboardSkeleton';
 
 const BioDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -572,11 +573,7 @@ const BioDashboard: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-            </div>
-        );
+        return <BioDashboardSkeleton />;
     }
 
     return (

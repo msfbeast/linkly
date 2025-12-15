@@ -28,6 +28,8 @@ import LuxuryBioTemplate from '../components/bio-templates/LuxuryBioTemplate';
 import GamerBioTemplate from '../components/bio-templates/GamerBioTemplate';
 import AirBioTemplate from '../components/bio-templates/AirBioTemplate';
 import AskMyAI from '../components/AskMyAI';
+import { BioSkeleton } from '../components/skeletons/BioSkeleton';
+import { BioError } from '../components/BioError';
 
 import { useParams } from 'react-router-dom';
 
@@ -43,44 +45,54 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'links' | 'store'>('links');
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!handle) return;
-      setLoading(true);
-      try {
-        const foundProfile = await supabaseAdapter.getBioProfileByHandle(handle);
-        if (foundProfile) {
-          setProfile(foundProfile);
-
-          // Fetch Links
-          if (foundProfile.links && foundProfile.links.length > 0) {
-            const profileLinks = await supabaseAdapter.getPublicLinks(foundProfile.links);
-            setLinks(profileLinks);
-          } else {
-            setLinks([]);
-          }
-
-          // Fetch Products (if any)
-          const userProducts = await supabaseAdapter.getProducts(foundProfile.userId);
-          setProducts(userProducts);
-        }
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProfile();
   }, [handle]);
 
+  const fetchProfile = async () => {
+    if (!handle) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const foundProfile = await supabaseAdapter.getBioProfileByHandle(handle);
+      if (foundProfile) {
+        setProfile(foundProfile);
+
+        // Fetch Links
+        if (foundProfile.links && foundProfile.links.length > 0) {
+          const profileLinks = await supabaseAdapter.getPublicLinks(foundProfile.links);
+          setLinks(profileLinks);
+        } else {
+          setLinks([]);
+        }
+
+        // Fetch Products (if any)
+        const userProducts = await supabaseAdapter.getProducts(foundProfile.userId);
+        setProducts(userProducts);
+      } else {
+        // Profile is null but no error thrown means not found
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      setError('Failed to load profile. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <BioSkeleton />;
+  }
+
+  if (error) {
+    return <BioError message={error} onRetry={fetchProfile} />;
+  }
+
   if (!profile) {
-    return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center text-stone-500">
-        Profile not found
-      </div>
-    );
+    return <BioError message={`@${handle} not found`} />;
   }
 
   // Floating Tab Switcher - Only show if there are products

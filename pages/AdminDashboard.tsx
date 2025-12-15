@@ -10,7 +10,8 @@ import {
     Shield,
     CheckCircle,
     XCircle,
-    AlertTriangle
+    AlertTriangle,
+    Database
 } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { UserProfile } from '../types';
@@ -22,8 +23,11 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState({
         totalUsers: 0,
         activeSubscriptions: 0,
-        totalRevenue: 0, // Placeholder
-        totalLinks: 0
+        totalRevenue: 0,
+        totalLinks: 0,
+        userGrowth: 0,
+        linkGrowth: 0,
+        systemHealth: 0
     });
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -34,22 +38,14 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const profiles = await supabaseAdapter.getAllProfiles(100);
+            // Parallel fetch for table and stats
+            const [profiles, platformStats] = await Promise.all([
+                supabaseAdapter.getAllProfiles(100),
+                supabaseAdapter.getPlatformStats()
+            ]);
+
             setUsers(profiles);
-
-            // Calculate stats
-            const activeSubs = profiles.filter(p => p.subscription_status === 'active').length;
-
-            // Fetch total links count (this is a bit heavy, maybe optimize later)
-            const links = await supabaseAdapter.getLinks(); // This only gets CURRENT user links if RLS is on. 
-            // We need an admin method to get ALL links count. For now, we'll skip total links or use a placeholder.
-
-            setStats({
-                totalUsers: profiles.length,
-                activeSubscriptions: activeSubs,
-                totalRevenue: activeSubs * 29, // Rough estimate
-                totalLinks: 0
-            });
+            setStats(platformStats);
         } catch (error) {
             console.error('Failed to fetch admin data:', error);
             toast.error('Failed to load admin data');
@@ -64,6 +60,16 @@ export default function AdminDashboard() {
         user.id.includes(searchQuery)
     );
 
+    const handleAggregation = async () => {
+        try {
+            toast.info('Starting analytics aggregation...');
+            await supabaseAdapter.runAnalyticsAggregation();
+            toast.success('Analytics aggregated successfully via RPC');
+        } catch (e) {
+            toast.error('Aggregation failed (check console)');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 p-8">
             <div className="max-w-7xl mx-auto space-y-8">
@@ -75,6 +81,13 @@ export default function AdminDashboard() {
                         <p className="text-slate-500 mt-1">Platform overview and user management</p>
                     </div>
                     <div className="flex gap-3">
+                        <button
+                            onClick={handleAggregation}
+                            className="px-4 py-2 bg-slate-900 border border-transparent rounded-lg text-white hover:bg-slate-800 font-medium transition-colors flex items-center gap-2"
+                        >
+                            <Database className="w-4 h-4" />
+                            Run Aggregation
+                        </button>
                         <button
                             onClick={fetchData}
                             className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors"
@@ -91,6 +104,7 @@ export default function AdminDashboard() {
                         value={stats.totalUsers}
                         icon={Users}
                         color="blue"
+                        growth={stats.userGrowth}
                     />
                     <StatCard
                         title="Active Subscriptions"
@@ -106,7 +120,7 @@ export default function AdminDashboard() {
                     />
                     <StatCard
                         title="System Health"
-                        value="98%"
+                        value={`${stats.systemHealth}%`}
                         icon={Shield}
                         color="emerald"
                     />
@@ -175,8 +189,8 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin' || user.role === 'super_admin'
-                                                        ? 'bg-purple-100 text-purple-800'
-                                                        : 'bg-slate-100 text-slate-800'
+                                                    ? 'bg-purple-100 text-purple-800'
+                                                    : 'bg-slate-100 text-slate-800'
                                                     }`}>
                                                     {user.role || 'user'}
                                                 </span>
@@ -188,8 +202,8 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${user.subscription_status === 'active'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-yellow-100 text-yellow-800'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-yellow-100 text-yellow-800'
                                                     }`}>
                                                     {user.subscription_status === 'active' ? (
                                                         <CheckCircle className="w-3 h-3" />
@@ -219,7 +233,7 @@ export default function AdminDashboard() {
     );
 }
 
-function StatCard({ title, value, icon: Icon, color }: any) {
+function StatCard({ title, value, icon: Icon, color, growth }: any) {
     const colors: any = {
         blue: 'bg-blue-50 text-blue-600',
         green: 'bg-green-50 text-green-600',
@@ -233,9 +247,11 @@ function StatCard({ title, value, icon: Icon, color }: any) {
                 <div className={`p-3 rounded-lg ${colors[color]}`}>
                     <Icon className="w-6 h-6" />
                 </div>
-                <span className="text-green-600 text-xs font-bold bg-green-50 px-2 py-1 rounded-full">
-                    +12%
-                </span>
+                {growth !== undefined && (
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${growth >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                        {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
+                    </span>
+                )}
             </div>
             <h3 className="text-slate-500 text-sm font-medium mb-1">{title}</h3>
             <p className="text-2xl font-bold text-slate-900">{value}</p>
