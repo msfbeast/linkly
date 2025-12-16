@@ -16,6 +16,7 @@ interface LinkCardProps {
   link: LinkData;
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
+  onRestore?: (id: string) => void;
   onEdit: (link: LinkData) => void;
   onDuplicate?: (link: LinkData) => void;
   selectable?: boolean;
@@ -27,6 +28,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
   link,
   onDelete,
   onArchive,
+  onRestore,
   onEdit,
   onDuplicate,
   selectable = false,
@@ -378,12 +380,21 @@ const LinkCard: React.FC<LinkCardProps> = ({
                   )}
                 </button>
                 <button
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => onDelete(link.id)} // This triggers showDeleteConfirm now
                   className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 transition-all"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
+                {onRestore && (
+                  <button
+                    onClick={() => onRestore(link.id)}
+                    className="p-2 rounded-lg text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition-all font-bold text-xs"
+                    title="Restore Link"
+                  >
+                    RESTORE
+                  </button>
+                )}
               </div>
             </div>
           </div>

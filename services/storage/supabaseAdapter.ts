@@ -116,8 +116,8 @@ export class SupabaseAdapter {
   // Links
   // ==========================================
 
-  async getLinks(teamId?: string | null): Promise<LinkData[]> {
-    return this.linkRepo.getLinks(teamId);
+  async getLinks(teamId?: string | null, options?: { archived?: boolean }): Promise<LinkData[]> {
+    return this.linkRepo.getLinks(teamId, options);
   }
 
   async getPublicLinks(ids: string[]): Promise<LinkData[]> {
@@ -142,6 +142,10 @@ export class SupabaseAdapter {
 
   async archiveLink(id: string): Promise<void> {
     return this.linkRepo.archiveLink(id);
+  }
+
+  async restoreLink(id: string): Promise<void> {
+    return this.linkRepo.restoreLink(id);
   }
 
   async updateLinkOrder(ids: string[]): Promise<void> {

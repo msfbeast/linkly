@@ -26,6 +26,7 @@ interface LinksListProps {
     onEdit: (link: LinkData) => void;
     onDelete: (id: string) => void;
     onArchive?: (id: string) => void;
+    onRestore?: (id: string) => void;
     onBulkDelete?: (ids: string[]) => void;
     onDuplicate?: (link: LinkData) => void;
     onCreateFirstLink: () => void;
@@ -40,6 +41,7 @@ const LinksList: React.FC<LinksListProps> = ({
     onEdit,
     onDelete,
     onArchive,
+    onRestore,
     onBulkDelete,
     onDuplicate,
     onCreateFirstLink,
@@ -204,6 +206,7 @@ const LinksList: React.FC<LinksListProps> = ({
                                         onEdit={() => onEdit(link)}
                                         onDelete={() => onDelete(link.id)}
                                         onArchive={onArchive ? () => onArchive(link.id) : undefined}
+                                        onRestore={onRestore ? () => onRestore(link.id) : undefined}
                                         onDuplicate={onDuplicate}
                                         selectable={isSelectMode}
                                         selected={selectedIds.has(link.id)}

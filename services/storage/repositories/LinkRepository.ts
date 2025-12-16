@@ -17,7 +17,7 @@ export class LinkRepository extends BaseRepository {
     /**
      * Get all links for a user or team
      */
-    async getLinks(teamId?: string | null): Promise<LinkData[]> {
+    async getLinks(teamId?: string | null, options?: { archived?: boolean }): Promise<LinkData[]> {
         if (!this.isConfigured()) {
             return [];
         }
@@ -43,13 +43,13 @@ export class LinkRepository extends BaseRepository {
             query = query.eq('user_id', userId).is('team_id', null);
         }
 
-        // Filter out archived links by default
-        // We use 'is' for null check or 'eq' false. Since we added default false, eq false is safe.
-        // But for existing rows without the column (if migration failed), they might be null.
-        // Safe bet: .or('is_archived.IS.FALSE,is_archived.IS.NULL') but simpler: not.eq.true?
-        // Actually, just .neq('is_archived', true) covers false and null (sometimes, depending on DB).
-        // Safest: We added default false.
-        query = query.neq('is_archived', true);
+        // Filter based on archived status
+        if (options?.archived) {
+            query = query.eq('is_archived', true);
+        } else {
+            // Default behavior: show only active links
+            query = query.neq('is_archived', true);
+        }
 
         const { data: linkRows, error } = await query;
 
@@ -290,6 +290,16 @@ export class LinkRepository extends BaseRepository {
         const { error } = await this.supabase!
             .from(this.TABLES.LINKS)
             .update({ is_archived: true })
+            .eq('id', id);
+
+        if (error) throw error;
+    }
+
+    async restoreLink(id: string): Promise<void> {
+        if (!this.isConfigured()) return;
+        const { error } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .update({ is_archived: false })
             .eq('id', id);
 
         if (error) throw error;

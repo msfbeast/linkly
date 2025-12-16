@@ -69,6 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
+  const [filterStatus, setFilterStatus] = useState<'active' | 'archived'>('active');
 
   const { user } = useAuth();
   const { currentTeam } = useTeam();
@@ -108,12 +109,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const storedLinks = await retryExecute(
-        () => supabaseAdapter.getLinks(currentTeam?.id), // Pass team ID
+      // Pass filterStatus to getLinks
+      const fetchedLinks = await retryExecute(
+        () => supabaseAdapter.getLinks(currentTeam?.id, { archived: filterStatus === 'archived' }),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
-      setLinks(storedLinks);
+      setLinks(fetchedLinks);
 
+      // Calculate server-side stats from fetched links (or fetch separate stats if needed)
       // Check for pending link from landing page
       const pendingLinkUrl = sessionStorage.getItem('pending_link_url');
       if (pendingLinkUrl) {
@@ -148,11 +151,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       // If in Team Mode, calculate client-side to ensure team isolation (Server RPC is User-bound)
       if (currentTeam?.id) {
         // Client-side aggregation
-        const totalClicks = storedLinks.reduce((sum, link) => sum + link.clicks, 0);
+        const totalClicks = fetchedLinks.reduce((sum, link) => sum + link.clicks, 0);
 
         // Calculate unique visitors (approx based on click history if available, else 0)
         const visitorSet = new Set<string>();
-        storedLinks.forEach(l => l.clickHistory.forEach(c => {
+        fetchedLinks.forEach(l => l.clickHistory.forEach(c => {
           if (c.visitorId) visitorSet.add(c.visitorId);
         }));
 
@@ -168,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         // Aggregate City Data
         const cityMap: Record<string, number> = {};
-        storedLinks.forEach(l => l.clickHistory.forEach(c => {
+        fetchedLinks.forEach(l => l.clickHistory.forEach(c => {
           if (c.city) {
             const key = `${c.city}, ${c.country}`;
             cityMap[key] = (cityMap[key] || 0) + 1;
@@ -205,14 +208,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, currentTeam?.id]);
+  }, [user?.id, currentTeam?.id, filterStatus]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('Dashboard: Loading links...');
     }
     loadLinks();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, currentTeam, filterStatus]); // Add filterStatus dependency
 
   const handleCreateLink = async (link: LinkData) => {
     try {
@@ -547,6 +550,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const handleRestoreLink = async (id: string) => {
+    try {
+      await retryExecute(
+        () => supabaseAdapter.restoreLink(id),
+        { maxRetries: 3, baseDelayMs: 1000 }
+      );
+      await loadLinks();
+      onLinksUpdate?.();
+      toast.success('Link restored successfully');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to restore link';
+      setError(errorMessage);
+      console.error('Failed to restore link:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] transition-all duration-300 relative overflow-hidden">
       {/* Aurora Background Effects */}
@@ -613,6 +632,28 @@ const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
 
+            {/* Filter Tabs */}
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={() => setFilterStatus('active')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filterStatus === 'active'
+                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
+                    : 'bg-white text-stone-500 hover:bg-stone-50'
+                  }`}
+              >
+                Active Links
+              </button>
+              <button
+                onClick={() => setFilterStatus('archived')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filterStatus === 'archived'
+                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
+                    : 'bg-white text-stone-500 hover:bg-stone-50'
+                  }`}
+              >
+                Archived
+              </button>
+            </div>
+
             <ErrorBoundary>
               <LinksList
                 links={links}
@@ -621,7 +662,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onDragEnd={handleDragEnd}
                 onEdit={openEditModal}
                 onDelete={handleDeleteLink}
-                onArchive={handleArchiveLink} // New prop for Soft Delete
+                onArchive={filterStatus === 'active' ? handleArchiveLink : undefined}
+                onRestore={filterStatus === 'archived' ? handleRestoreLink : undefined}
                 onBulkDelete={handleBulkDelete}
                 onDuplicate={handleDuplicateLink}
                 onCreateFirstLink={() => setIsModalOpen(true)}
