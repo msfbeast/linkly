@@ -322,7 +322,7 @@ export class BioRepository extends BaseRepository {
             .select('user_id, target_type')
             .eq('domain', domain.toLowerCase())
             .eq('status', 'active')
-            .single();
+            .maybeSingle();
 
         if (error || !domainData) return null;
 
