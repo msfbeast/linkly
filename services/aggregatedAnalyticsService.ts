@@ -190,7 +190,8 @@ class AggregatedAnalyticsService {
      */
     async getOsBreakdown(userId: string): Promise<OsBreakdown[]> {
         if (!isSupabaseConfigured() || !supabase) return [];
-
+        return []; // RPC 'get_user_os_breakdown' not yet deployed
+        /*
         try {
             const { data, error } = await supabase.rpc('get_user_os_breakdown', {
                 p_user_id: userId
@@ -205,6 +206,7 @@ class AggregatedAnalyticsService {
         } catch {
             return [];
         }
+        */
     }
 
     /**

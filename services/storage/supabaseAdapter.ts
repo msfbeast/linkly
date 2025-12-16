@@ -1,13 +1,12 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import {
-  LinkRepository,
-  BioRepository,
-  AssetRepository,
-  AnalyticsRepository,
-  UserRepository,
-  TeamRepository,
-  MiscRepository
-} from './repositories';
+import { ProductRow, DomainRow } from './mappers';
+import { AnalyticsRepository } from './repositories/AnalyticsRepository';
+import { AssetRepository } from './repositories/AssetRepository';
+import { BioRepository } from './repositories/BioRepository';
+import { LinkRepository } from './repositories/LinkRepository';
+import { MiscRepository } from './repositories/MiscRepository';
+import { TeamRepository } from './repositories/TeamRepository';
+import { UserRepository } from './repositories/UserRepository';
 import {
   LinkData,
   BioProfile,
@@ -187,8 +186,8 @@ export class SupabaseAdapter {
     return this.bioRepo.getBioProfileByHandle(handle);
   }
 
-  async updateBioProfile(userId: string, updates: Partial<BioProfile>): Promise<BioProfile | null> {
-    return this.bioRepo.updateBioProfile(userId, updates);
+  async updateBioProfile(id: string, updates: Partial<BioProfile>): Promise<BioProfile | null> {
+    return this.bioRepo.updateBioProfile(id, updates);
   }
 
   async checkHandleAvailability(handle: string): Promise<boolean> {
@@ -375,6 +374,8 @@ export class SupabaseAdapter {
   async uploadOgImage(file: File, userId: string): Promise<string> {
     return this.assetRepo.uploadOgImage(file, userId);
   }
+
+
 
 
   async updateGalleryOrder(items: GalleryItem[]): Promise<void> {

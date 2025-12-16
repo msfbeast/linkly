@@ -1,8 +1,8 @@
 // Supabase Edge Function for Click Tracking
 // This runs server-side and has access to visitor IP for geolocation
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'std/http/server.ts'
+import { createClient } from '@supabase/supabase-js'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +37,7 @@ interface GeoData {
 // Parse user agent for device and OS
 function parseUserAgent(ua: string): { device: string; os: string; browser: string } {
   const uaLower = ua.toLowerCase()
-  
+
   // Detect device
   let device = 'Desktop'
   if (/mobile|android|iphone|ipad|ipod|blackberry|windows phone/i.test(ua)) {
@@ -47,7 +47,7 @@ function parseUserAgent(ua: string): { device: string; os: string; browser: stri
       device = 'Mobile'
     }
   }
-  
+
   // Detect OS
   let os = 'Unknown'
   if (/windows nt 10/i.test(ua)) os = 'Windows 10'
@@ -60,7 +60,7 @@ function parseUserAgent(ua: string): { device: string; os: string; browser: stri
   else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS'
   else if (/linux/i.test(ua)) os = 'Linux'
   else if (/cros/i.test(ua)) os = 'ChromeOS'
-  
+
   // Detect browser
   let browser = 'Unknown'
   if (/edg/i.test(ua)) browser = 'Edge'
@@ -69,7 +69,7 @@ function parseUserAgent(ua: string): { device: string; os: string; browser: stri
   else if (/firefox/i.test(ua)) browser = 'Firefox'
   else if (/opera|opr/i.test(ua)) browser = 'Opera'
   else if (/msie|trident/i.test(ua)) browser = 'IE'
-  
+
   return { device, os, browser }
 }
 
@@ -85,16 +85,16 @@ async function getGeoFromIP(ip: string): Promise<GeoData> {
         city: 'Local',
       }
     }
-    
+
     // Use ip-api.com (free, no API key needed, 45 requests/minute)
     const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,region,regionName,city,lat,lon,isp`)
-    
+
     if (!response.ok) {
       throw new Error('Geo API failed')
     }
-    
+
     const data = await response.json()
-    
+
     if (data.status === 'success') {
       return {
         country: data.country || 'Unknown',
@@ -106,7 +106,7 @@ async function getGeoFromIP(ip: string): Promise<GeoData> {
         isp: data.isp,
       }
     }
-    
+
     return {
       country: 'Unknown',
       countryCode: 'XX',
@@ -136,7 +136,7 @@ function generateFingerprint(data: ClickRequest, ip: string): string {
     data.platform,
     ip,
   ].filter(Boolean).join('|')
-  
+
   // Simple hash function
   let hash = 0
   for (let i = 0; i < components.length; i++) {
@@ -167,30 +167,30 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    
+
     // Get visitor IP from headers
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
-      || req.headers.get('x-real-ip') 
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || req.headers.get('x-real-ip')
       || req.headers.get('cf-connecting-ip')
       || 'Unknown'
-    
+
     const body: ClickRequest = await req.json()
-    
+
     console.log('Track click request:', { linkId: body.linkId, ip })
-    
+
     // Parse user agent
     const { device, os, browser } = parseUserAgent(body.userAgent || '')
-    
+
     // Get geolocation
     const geo = await getGeoFromIP(ip)
-    
+
     // Generate fingerprint
     const fingerprint = generateFingerprint(body, ip)
-    
+
     const timestamp = new Date().toISOString()
-    
+
     // Insert click event with detailed data
     const clickEventRow = {
       link_id: body.linkId,
@@ -218,22 +218,22 @@ serve(async (req) => {
       ip_hash: hashIP(ip),
       raw_user_agent: body.userAgent,
     }
-    
+
     const { error: clickError } = await supabase
       .from('click_events')
       .insert(clickEventRow)
-    
+
     if (clickError) {
       console.error('Failed to insert click:', clickError)
       throw new Error(`Failed to record click: ${clickError.message}`)
     }
-    
+
     // Update link click count
     const { error: updateError } = await supabase.rpc('increment_link_clicks', {
       link_id: body.linkId,
       clicked_at: timestamp,
     })
-    
+
     if (updateError) {
       // Fallback to manual update
       const { data: link } = await supabase
@@ -241,7 +241,7 @@ serve(async (req) => {
         .select('clicks')
         .eq('id', body.linkId)
         .single()
-      
+
       if (link) {
         await supabase
           .from('links')
@@ -252,22 +252,22 @@ serve(async (req) => {
           .eq('id', body.linkId)
       }
     }
-    
+
     return new Response(
       JSON.stringify({ success: true, fingerprint }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        status: 200
       }
     )
-    
+
   } catch (error) {
     console.error('Track click error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
+        status: 500
       }
     )
   }

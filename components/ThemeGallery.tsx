@@ -3,6 +3,7 @@ import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Mic
 import { motion } from 'framer-motion';
 import { ThemeGalleryComponent } from './ThemeGalleryComponent';
 import { BioThemeConfig } from '../types';
+import BioPreview from './BioPreview';
 
 interface ThemeGalleryProps {
     currentTheme: string;
@@ -241,57 +242,97 @@ export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ currentTheme, onSele
                 </div>
             )}
 
-            {/* Premium Themes Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {THEMES.map((theme) => {
-                    const isActive = currentTheme === theme.id && !currentCustomTheme;
-                    const Icon = theme.icon;
+            {/* Premium Themes Horizontal Scroll (Carousel) */}
+            <div className="relative group/carousel -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="flex gap-4 overflow-x-auto pb-6 pt-2 snap-x hide-scrollbar">
+                    {THEMES.map((theme) => {
+                        const isActive = currentTheme === theme.id && !currentCustomTheme;
+                        const Icon = theme.icon;
 
-                    return (
-                        <button
-                            key={theme.id}
-                            onClick={() => onSelect(theme.id)}
-                            className={`
-                                relative group flex flex-col items-start p-4 rounded-xl border-2 transition-all duration-200 text-left
-                                ${isActive
-                                    ? 'border-amber-500 bg-amber-50 shadow-md ring-1 ring-amber-500/20'
-                                    : 'border-stone-100 bg-white hover:border-amber-200 hover:shadow-sm'
-                                }
-                            `}
-                        >
-                            {/* Header: Icon and Name */}
-                            <div className="flex items-center gap-3 mb-2 w-full">
-                                <div className={`
-                                    p-2 rounded-lg transition-colors
-                                    ${isActive ? 'bg-amber-100/50 text-amber-600' : 'bg-stone-50 text-stone-400 group-hover:text-amber-500 group-hover:bg-amber-50'}
-                                `}>
-                                    <Icon className="w-5 h-5" />
+                        // Mock profile for preview
+                        const previewProfile: any = {
+                            displayName: 'Preview',
+                            handle: 'preview',
+                            bio: theme.description,
+                            avatarUrl: '',
+                            theme: theme.id,
+                            links: []
+                        };
+
+                        const previewLinks: any[] = [
+                            { id: '1', title: 'Link 1', url: '#', layoutConfig: { w: 1, h: 1 } },
+                            { id: '2', title: '2', url: '#', layoutConfig: { w: 1, h: 1 } },
+                        ];
+
+                        return (
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                key={theme.id}
+                                onClick={() => onSelect(theme.id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        onSelect(theme.id);
+                                    }
+                                }}
+                                className={`
+                                    relative flex flex-col p-3 rounded-2xl border-2 transition-all duration-300 text-left h-full min-w-[160px] w-[160px] snap-start cursor-pointer
+                                    ${isActive
+                                        ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-1 ring-indigo-600/20 scale-[1.02]'
+                                        : 'border-stone-100 bg-white hover:border-indigo-200 hover:shadow-lg hover:-translate-y-1'
+                                    }
+                                `}
+                            >
+                                {/* Visual Preview */}
+                                <div className="w-full aspect-[9/14] mb-3 relative overflow-hidden rounded-xl bg-stone-100 ring-1 ring-black/5 shrink-0">
+                                    <div className="absolute inset-0 origin-top-left w-[300%] h-[300%] scale-[0.33] pointer-events-none select-none">
+                                        <BioPreview profile={previewProfile} links={previewLinks} />
+                                    </div>
+                                    {/* Overlay to prevent interaction */}
+                                    <div className="absolute inset-0 bg-transparent" />
+
+                                    {isActive && (
+                                        <div className="absolute inset-0 ring-2 ring-indigo-600 rounded-xl z-20 pointer-events-none" />
+                                    )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className={`font-bold text-sm truncate ${isActive ? 'text-amber-900' : 'text-slate-900'}`}>{theme.name}</h4>
+
+                                {/* Info */}
+                                <div className="flex items-center gap-2 mb-1 w-full">
+                                    <div className={`
+                                        p-1.5 rounded-lg transition-colors shrink-0
+                                        ${isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-stone-50 text-stone-400 group-hover:text-amber-500 group-hover:bg-amber-50'}
+                                    `}>
+                                        <Icon className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h4 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-900'}`}>{theme.name}</h4>
+                                    </div>
                                 </div>
+
+                                <p className="text-[10px] text-stone-500 line-clamp-1 mb-2">{theme.description}</p>
+
+                                {/* Color Swatches */}
+                                <div className="flex gap-1 mt-auto">
+                                    {theme.colors.map((color, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="w-3 h-3 rounded-full ring-1 ring-black/5 shadow-sm"
+                                            style={{ backgroundColor: color }}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+
                                 {isActive && (
-                                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full border-2 border-white flex items-center justify-center z-30 shadow-sm">
+                                        <div className="w-2 h-2 bg-white rounded-full" />
+                                    </div>
                                 )}
                             </div>
-
-                            {/* Description */}
-                            <p className="text-xs text-stone-500 mb-3 line-clamp-1">{theme.description}</p>
-
-                            {/* Color Swatches */}
-                            <div className="flex gap-1 mt-auto">
-                                {theme.colors.map((color, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="w-4 h-4 rounded-full ring-1 ring-black/5 shadow-sm"
-                                        style={{ backgroundColor: color }}
-                                        title={color}
-                                    />
-                                ))}
-                            </div>
-                        </button>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

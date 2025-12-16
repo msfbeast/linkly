@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Layout, Palette, Camera, Mail, Smartphone,
     UserCircle2, ExternalLink, Edit, Search, Sparkles, Wand2, Loader2,
-    Music, MapPin, Play, Plus, Trash2, GripVertical, Save, X, Eye
+    Music, MapPin, Play, Plus, Trash2, GripVertical, Save, X, Eye, ChevronDown, Upload
 } from 'lucide-react';
 import { BioProfile, LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
@@ -41,6 +41,7 @@ import { BlockGalleryModal, BlockType } from '../components/BlockGalleryModal';
 import { WidgetConfigModal } from '../components/WidgetConfigModal';
 import { BarChart3 } from 'lucide-react';
 import { BioDashboardSkeleton } from '../components/skeletons/BioDashboardSkeleton';
+import { CollapsibleWidget } from '../components/CollapsibleWidget';
 
 const BioDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -193,7 +194,13 @@ const BioDashboard: React.FC = () => {
     };
 
     const handleEdit = (profile: BioProfile) => {
-        setCurrentProfile({ ...profile });
+        // Auto-fill avatar from user account if missing in profile
+        const avatarUrl = profile.avatarUrl || user?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '';
+
+        setCurrentProfile({
+            ...profile,
+            avatarUrl
+        });
         setIsEditing(true);
     };
 
@@ -305,17 +312,18 @@ const BioDashboard: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
                         {/* Left & Center Columns (Edit Widgets) */}
-                        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6 h-fit">
                             {/* ... Existing Cards ... */}
                             {/* 1. Identity Card */}
-                            <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                            <CollapsibleWidget
+                                title="Identity"
+                                icon={UserCircle2}
+                                defaultOpen={true}
+                                className="md:col-span-2"
+                            >
                                 {/* ... Identity Content ... */}
-                                <div className="flex items-center gap-2 mb-4">
-                                    <UserCircle2 className="w-5 h-5 text-indigo-500" />
-                                    <h3 className="text-slate-900 font-bold">Identity</h3>
-                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         <div>
@@ -405,101 +413,182 @@ const BioDashboard: React.FC = () => {
                                                 placeholder="Tech enthusiast & content creator."
                                             />
                                         </div>
-                                        <div className="hidden">
-                                            <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Avatar URL</label>
-                                            <input
-                                                type="text"
-                                                value={currentProfile.avatarUrl}
-                                                onChange={e => setCurrentProfile({ ...currentProfile, avatarUrl: e.target.value })}
-                                                className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900"
-                                                placeholder="https://..."
-                                            />
+                                        <div>
+                                            <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Profile Photo</label>
+                                            <div className="flex items-center gap-4">
+                                                <div className="relative w-16 h-16 rounded-full bg-stone-100 border border-stone-200 overflow-hidden shrink-0 group cursor-pointer">
+                                                    {currentProfile.avatarUrl ? (
+                                                        <img src={currentProfile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-stone-400">
+                                                            <UserCircle2 className="w-8 h-8 opacity-50" />
+                                                        </div>
+                                                    )}
+
+                                                    {/* Hover Overlay */}
+                                                    <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                                        <Upload className="w-5 h-5 text-white" />
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={async (e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (!file || !user?.id) return;
+
+                                                                const toastId = toast.loading("Uploading avatar...");
+                                                                try {
+                                                                    const url = await supabaseAdapter.uploadAvatar(user.id, file);
+                                                                    setCurrentProfile(prev => ({ ...prev, avatarUrl: url }));
+                                                                    toast.success("Avatar updated!", { id: toastId });
+                                                                } catch (error) {
+                                                                    console.error(error);
+                                                                    toast.error("Failed to upload avatar", { id: toastId });
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs text-stone-500 mb-2">
+                                                        Recommended: 400x400px. Supports JPG, PNG.
+                                                    </p>
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        <label className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-stone-50 cursor-pointer shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2">
+                                                            <Upload className="w-3 h-3" />
+                                                            Upload Photo
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                onChange={async (e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (!file || !user?.id) return;
+
+                                                                    const toastId = toast.loading("Uploading avatar...");
+                                                                    try {
+                                                                        const url = await supabaseAdapter.uploadAvatar(user.id, file);
+                                                                        setCurrentProfile(prev => ({ ...prev, avatarUrl: url }));
+                                                                        toast.success("Avatar updated!", { id: toastId });
+                                                                    } catch (error) {
+                                                                        console.error(error);
+                                                                        toast.error("Failed to upload avatar", { id: toastId });
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </label>
+
+                                                        {/* Import from User Profile */}
+                                                        {(user?.user_metadata?.avatar_url || user?.user_metadata?.picture) && (
+                                                            <button
+                                                                onClick={() => setCurrentProfile(prev => ({ ...prev, avatarUrl: user.user_metadata.avatar_url || user.user_metadata.picture }))}
+                                                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-2"
+                                                            >
+                                                                <UserCircle2 className="w-3 h-3" />
+                                                                Use Profile DP
+                                                            </button>
+                                                        )}
+
+                                                        {currentProfile.avatarUrl && (
+                                                            <button
+                                                                onClick={() => setCurrentProfile(prev => ({ ...prev, avatarUrl: '' }))}
+                                                                className="px-3 py-1.5 text-red-500 hover:bg-red-50 rounded-lg text-xs font-bold transition-colors"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </CollapsibleWidget>
 
                             {/* 2. Content Card (Link Management) - Full Width */}
-                            <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm min-h-[500px] flex flex-col">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Layout className="w-5 h-5 text-indigo-500" />
-                                    <h3 className="text-slate-900 font-bold">Content</h3>
-                                </div>
-
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
-                                    {/* Active Links */}
-                                    <div className="flex flex-col h-full">
-                                        <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
-                                            Active Links ({activeLinksList.length})
-                                        </h4>
-                                        <div className="flex-1 bg-stone-50 rounded-xl p-4 border border-stone-100 overflow-y-auto max-h-[400px] custom-scrollbar">
-                                            {activeLinksList.length === 0 ? (
-                                                <div className="text-center py-12">
-                                                    <p className="text-stone-400 text-sm">No blocks added yet.</p>
-                                                    <p className="text-stone-400 text-xs mt-1">Add widgets or links below.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="min-h-[200px]">
-                                                    <DndContext
-                                                        sensors={sensors}
-                                                        collisionDetection={closestCenter}
-                                                        onDragEnd={handleDragEnd}
-                                                    >
-                                                        <SortableContext
-                                                            items={activeLinksList.map(l => l.id)}
-                                                            strategy={rectSortingStrategy}
+                            <CollapsibleWidget
+                                title="Content"
+                                icon={Layout}
+                                defaultOpen={true}
+                                className="md:col-span-2"
+                            >
+                                <div className="min-h-[500px] flex flex-col">
+                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                                        {/* Active Links */}
+                                        <div className="flex flex-col h-full">
+                                            <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
+                                                Active Links ({activeLinksList.length})
+                                            </h4>
+                                            <div className="flex-1 bg-stone-50 rounded-xl p-4 border border-stone-100 overflow-y-auto max-h-[400px] custom-scrollbar">
+                                                {activeLinksList.length === 0 ? (
+                                                    <div className="text-center py-12">
+                                                        <p className="text-stone-400 text-sm">No blocks added yet.</p>
+                                                        <p className="text-stone-400 text-xs mt-1">Add widgets or links below.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="min-h-[200px]">
+                                                        <DndContext
+                                                            sensors={sensors}
+                                                            collisionDetection={closestCenter}
+                                                            onDragEnd={handleDragEnd}
                                                         >
-                                                            <div className="grid grid-cols-2 gap-3 auto-rows-min">
-                                                                {activeLinksList.map(link => (
-                                                                    <BioBlock
-                                                                        key={link.id}
-                                                                        link={link}
-                                                                        profile={currentProfile as BioProfile}
-                                                                        onRemove={() => toggleLinkSelection(link.id)}
-                                                                        onResize={handleResizeBlock}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </SortableContext>
-                                                    </DndContext>
-                                                </div>
-                                            )}
+                                                            <SortableContext
+                                                                items={activeLinksList.map(l => l.id)}
+                                                                strategy={rectSortingStrategy}
+                                                            >
+                                                                <div className="grid grid-cols-2 gap-3 auto-rows-min">
+                                                                    {activeLinksList.map(link => (
+                                                                        <BioBlock
+                                                                            key={link.id}
+                                                                            link={link}
+                                                                            profile={currentProfile as BioProfile}
+                                                                            onRemove={() => toggleLinkSelection(link.id)}
+                                                                            onResize={handleResizeBlock}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            </SortableContext>
+                                                        </DndContext>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Available Links */}
-                                    <div className="flex flex-col h-full">
-                                        <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
-                                            Available Links ({inactiveLinksList.length})
-                                        </h4>
-                                        <div className="flex-1 overflow-y-auto max-h-[400px] custom-scrollbar space-y-2 pr-2">
-                                            {inactiveLinksList.length === 0 && <p className="text-stone-400 text-sm italic">No more links available.</p>}
-                                            {inactiveLinksList.map(link => (
-                                                <button
-                                                    key={link.id}
-                                                    onClick={() => toggleLinkSelection(link.id)}
-                                                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 hover:border-indigo-400/50 transition-all group text-left bg-white"
-                                                >
-                                                    <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                                                        <Plus className="w-4 h-4" />
-                                                    </div>
-                                                    <div className="overflow-hidden">
-                                                        <p className="text-slate-900 text-sm font-medium truncate group-hover:text-indigo-700 transition-colors">{link.title}</p>
-                                                        <p className="text-stone-500 text-xs truncate">{link.shortCode}</p>
-                                                    </div>
-                                                </button>
-                                            ))}
+                                        {/* Available Links */}
+                                        <div className="flex flex-col h-full">
+                                            <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
+                                                Available Links ({inactiveLinksList.length})
+                                            </h4>
+                                            <div className="flex-1 overflow-y-auto max-h-[400px] custom-scrollbar space-y-2 pr-2">
+                                                {inactiveLinksList.length === 0 && <p className="text-stone-400 text-sm italic">No more links available.</p>}
+                                                {inactiveLinksList.map(link => (
+                                                    <button
+                                                        key={link.id}
+                                                        onClick={() => toggleLinkSelection(link.id)}
+                                                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 hover:border-indigo-400/50 transition-all group text-left bg-white"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                                                            <Plus className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="overflow-hidden">
+                                                            <p className="text-slate-900 text-sm font-medium truncate group-hover:text-indigo-700 transition-colors">{link.title}</p>
+                                                            <p className="text-stone-500 text-xs truncate">{link.shortCode}</p>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </CollapsibleWidget>
 
                             {/* 3. Appearance Card */}
-                            <div className="md:row-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Palette className="w-5 h-5 text-indigo-500" />
-                                    <h3 className="text-slate-900 font-bold">Appearance</h3>
-                                </div>
+                            <CollapsibleWidget
+                                title="Appearance"
+                                icon={Palette}
+                                defaultOpen={true}
+                                className="md:col-span-2"
+                            >
                                 <div className="space-y-6">
                                     <div>
                                         <label className="text-xs font-bold text-stone-500 block mb-3 uppercase tracking-wider">Theme Collection</label>
@@ -518,32 +607,29 @@ const BioDashboard: React.FC = () => {
                                         )}
                                     </div>
                                 </div>
-                            </div>
+                            </CollapsibleWidget>
 
                             {/* 4. Tech Vault Card */}
-                            <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Camera className="w-5 h-5 text-indigo-500" />
-                                    <h3 className="text-slate-900 font-bold">Tech Vault</h3>
-                                </div>
+                            <CollapsibleWidget
+                                title="Tech Vault"
+                                icon={Camera}
+                                defaultOpen={false}
+                            >
                                 <TechVaultManager />
-                            </div>
+                            </CollapsibleWidget>
 
                             {/* 5. Apps Card */}
-                            <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Smartphone className="w-5 h-5 text-indigo-500" />
-                                    <h3 className="text-slate-900 font-bold">App Stack</h3>
-                                </div>
+                            <CollapsibleWidget title="App Stack" icon={Smartphone} defaultOpen={false}>
                                 <AppStackManager />
-                            </div>
+                            </CollapsibleWidget>
 
                             {/* 6. SEO & Social Card */}
-                            <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Search className="w-5 h-5 text-indigo-500" />
-                                    <h3 className="text-slate-900 font-bold">SEO & Social</h3>
-                                </div>
+                            <CollapsibleWidget
+                                title="SEO & Social"
+                                icon={Search}
+                                defaultOpen={false}
+                                className="md:col-span-2"
+                            >
                                 <div className="mt-2">
                                     {currentProfile.id && (
                                         <BioSeoEditor
@@ -552,38 +638,42 @@ const BioDashboard: React.FC = () => {
                                         />
                                     )}
                                 </div>
-                            </div>
+                            </CollapsibleWidget>
 
                             {/* 7. Newsletter Card */}
-                            <div id="newsletter-section" className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Mail className="w-5 h-5 text-indigo-500" />
-                                    <h3 className="text-slate-900 font-bold">Newsletter</h3>
-                                </div>
+                            <CollapsibleWidget
+                                title="Newsletter"
+                                icon={Mail}
+                                defaultOpen={false}
+                                className="md:col-span-2"
+                                id="newsletter-section"
+                            >
                                 <NewsletterManager />
-                            </div>
+                            </CollapsibleWidget>
 
                         </div>
 
                         {/* Right Column (Sticky Preview - Desktop Only) */}
-                        <div className="hidden lg:block lg:col-span-4 sticky top-6 self-start h-fit z-10">
-                            <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-lg shadow-stone-100">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-slate-900 font-bold">Live Preview</h3>
-                                    <div className="flex gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-red-400" />
-                                        <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                                        <div className="w-2 h-2 rounded-full bg-green-400" />
+                        <div className="hidden lg:block lg:col-span-4 relative h-full">
+                            <div className="sticky top-6 space-y-4">
+                                <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-lg shadow-stone-100">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-slate-900 font-bold">Live Preview</h3>
+                                        <div className="flex gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-red-400" />
+                                            <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                                            <div className="w-2 h-2 rounded-full bg-green-400" />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex justify-center bg-stone-50 rounded-xl p-6 border border-stone-100">
-                                    <div className="w-64 shadow-2xl rounded-[2.5rem] overflow-hidden border-8 border-slate-900 bg-white ring-1 ring-black/5 aspect-[9/19]">
-                                        {/* Removed Scale, using strict size container or responsive component */}
-                                        <BioPreview profile={currentProfile} links={availableLinks.filter(l => currentProfile.links?.includes(l.id))} />
+                                    <div className="flex justify-center bg-stone-50 rounded-xl p-6 border border-stone-100">
+                                        <div className="w-64 shadow-2xl rounded-[2.5rem] overflow-hidden border-8 border-slate-900 bg-white ring-1 ring-black/5 aspect-[9/19]">
+                                            {/* Removed Scale, using strict size container or responsive component */}
+                                            <BioPreview profile={currentProfile} links={availableLinks.filter(l => currentProfile.links?.includes(l.id))} />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="mt-4 text-center">
-                                    <p className="text-xs text-stone-400">Updates automatically as you edit</p>
+                                    <div className="mt-4 text-center">
+                                        <p className="text-xs text-stone-400">Updates automatically as you edit</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -615,8 +705,8 @@ const BioDashboard: React.FC = () => {
                         )}
 
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
         );
     }

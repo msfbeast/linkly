@@ -34,10 +34,7 @@ const BioSeoEditor: React.FC<BioSeoEditorProps> = ({ profile, onChange }) => {
             {/* Editor Input Section */}
             <div className="space-y-6">
                 <div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                        <Search className="w-5 h-5 text-indigo-500" />
-                        Search Engine Metadata
-                    </h3>
+
 
                     <div className="space-y-4">
                         <div>

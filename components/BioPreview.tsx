@@ -59,7 +59,8 @@ const BioPreview: React.FC<BioPreviewProps> = ({ profile, links }) => {
             return <CustomBioTemplate profile={previewProfile} links={previewLinks} />;
         }
 
-        switch (previewProfile.theme) {
+        switch (previewProfile.theme as any) {
+            case 'storefront': return <VibrantBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'vibrant': return <VibrantBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'glass': return <GlassBioTemplate profile={previewProfile} links={previewLinks} />;
             case 'industrial': return <IndustrialBioTemplate profile={previewProfile} links={previewLinks} />;

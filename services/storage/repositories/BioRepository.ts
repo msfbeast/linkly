@@ -42,14 +42,20 @@ export class BioRepository extends BaseRepository {
             .single();
 
         // Track view if found (fire and forget)
+        // Track view if found (fire and forget)
         if (data) {
-            // Using void and then() to handle the promise-like builder
-            const rpc = this.supabase!.rpc('increment_bio_view', { profile_id: data.id });
-            if (rpc instanceof Promise) {
-                rpc.catch(() => { });
-            } else if (typeof (rpc as any).then === 'function') {
-                (rpc as any).then((res: any) => { if (res.error) console.error(res.error) });
-            }
+            this.supabase!.rpc('increment_bio_view', { profile_id: data.id })
+                .then(async (response: any) => {
+                    if (response.error) {
+                        // Fallback: manual update if RPC missing (approximate)
+                        // console.warn('RPC missing, falling back to manual update', response.error); 
+                        const currentViews = data.views || 0;
+                        await this.supabase!
+                            .from(this.TABLES.BIO_PROFILES)
+                            .update({ views: currentViews + 1 })
+                            .eq('id', data.id);
+                    }
+                });
         }
 
         if (error || !data) return null;
@@ -89,7 +95,10 @@ export class BioRepository extends BaseRepository {
     /**
      * Update bio profile
      */
-    async updateBioProfile(userId: string, updates: Partial<BioProfile>): Promise<BioProfile | null> {
+    /**
+     * Update bio profile
+     */
+    async updateBioProfile(id: string, updates: Partial<BioProfile>): Promise<BioProfile | null> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
         const rowUpdates = bioProfileToRow(updates);
@@ -108,12 +117,14 @@ export class BioRepository extends BaseRepository {
         const { data, error } = await this.supabase!
             .from(this.TABLES.BIO_PROFILES)
             .update(rowUpdates)
-            .eq('user_id', userId)
-            .select()
-            .single();
+            .eq('id', id)
+            .select();
 
         if (error) throw error;
-        return rowToBioProfile(data as BioProfileRow);
+        // If 0 rows updated, it might be that the user doesn't own the profile or it doesn't exist.
+        // But throwing error here is better than 406.
+        if (!data || data.length === 0) return null;
+        return rowToBioProfile(data[0] as BioProfileRow);
     }
 
     async checkHandleAvailability(handle: string): Promise<boolean> {
