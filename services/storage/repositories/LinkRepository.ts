@@ -59,7 +59,7 @@ export class LinkRepository extends BaseRepository {
             .select('*')
             .in('link_id', linkIds)
             .order('timestamp', { ascending: false })
-            .range(0, 9999);
+            .range(0, 49999);
 
         if (clickError) {
             console.warn(`Failed to fetch click events: ${clickError.message}`);
