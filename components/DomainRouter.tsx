@@ -18,7 +18,7 @@ const DomainRouter: React.FC<DomainRouterProps> = ({ children }) => {
 
             // Allow list for main app domains
             // TODO: Add env var for main domain
-            const allowedDomains = ['localhost', 'linkly.ai', 'linkly-ai.vercel.app', 'gather-link.vercel.app'];
+            const allowedDomains = ['localhost', 'linkly.ai', 'linkly-ai.vercel.app', 'gather-link.vercel.app', 'links.trak.in'];
             const isAllowed = allowedDomains.some(d => hostname.includes(d));
 
             if (isAllowed) {
