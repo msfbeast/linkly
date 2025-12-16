@@ -8,7 +8,7 @@ const LoadingFallback: React.FC = () => {
                 <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 animate-bounce">
                     <Loader2 className="w-6 h-6 text-white animate-spin" />
                 </div>
-                <p className="text-stone-500 font-bold animate-pulse tracking-wide">Linkly</p>
+                <p className="text-stone-500 font-bold animate-pulse tracking-wide">Gather</p>
             </div>
         </div>
     );
