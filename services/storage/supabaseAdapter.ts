@@ -125,6 +125,10 @@ export class SupabaseAdapter {
     return this.linkRepo.getPublicLinks(ids);
   }
 
+  async getLink(id: string): Promise<LinkData | null> {
+    return this.linkRepo.getLink(id);
+  }
+
   async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData & { _isExisting?: boolean }> {
     return this.linkRepo.createLink(link);
   }

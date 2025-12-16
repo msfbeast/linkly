@@ -94,6 +94,35 @@ export class LinkRepository extends BaseRepository {
         return (linkRows || []).map((row: LinkRow) => rowToLinkData(row));
     }
 
+    async getLink(id: string): Promise<LinkData | null> {
+        if (!this.isConfigured()) return null;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('[LinkRepository] Error fetching link:', error);
+            return null;
+        }
+
+        if (!data) return null;
+
+        // Fetch click history 
+        const { data: clicks } = await this.supabase!
+            .from(this.TABLES.CLICK_EVENTS || 'click_events')
+            .select('*')
+            .eq('link_id', id)
+            .order('timestamp', { ascending: false })
+            .limit(1000); // Limit to recent 1000 for performance
+
+        const clickHistory = (clicks || []).map(rowToClickEvent);
+
+        return rowToLinkData(data as LinkRow, clickHistory);
+    }
+
     async getLinkByCode(code: string): Promise<LinkData | null> {
         if (!this.isConfigured()) return null;
 
