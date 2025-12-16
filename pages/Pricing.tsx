@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import PricingCard from '../components/PricingCard';
 import { useAuth } from '../contexts/AuthContext';
-import { createOrder, startPayment } from '../services/cashfreeService';
+// import { createOrder, startPayment } from '../services/cashfreeService'; // Removed
 import { Check, Zap, Shield, BarChart3, Globe, Users } from 'lucide-react';
 
 declare global {
@@ -28,7 +28,7 @@ const Pricing: React.FC = () => {
 
     const prices = {
         USD: { free: '$0', pro: '$12', business: '$49' },
-        INR: { free: '₹0', pro: '₹999', business: '₹3,999' }
+        INR: { free: '₹0', pro: '₹299', business: '₹2,499' }
     };
 
     const priceIds = {
@@ -46,21 +46,60 @@ const Pricing: React.FC = () => {
 
         try {
             if (currency === 'INR') {
-                // Cashfree Flow
-                const amount = tierName === 'pro' ? 999 : 3999; // Amount in INR (not paisa for Cashfree)
+                // Razorpay Flow
+                const { loadRazorpayScript, createRazorpayOrder, verifyRazorpayPayment } = await import('../services/razorpayService');
 
-                const order = await createOrder({
-                    amount,
-                    customerId: user.id,
-                    customerName: user.user_metadata?.full_name || user.email || 'User',
-                    customerPhone: (user as any).phone || '9999999999'
+                const isScriptLoaded = await loadRazorpayScript();
+                if (!isScriptLoaded) {
+                    toast.error('Failed to load payment gateway');
+                    setLoadingTier(null);
+                    return;
+                }
+
+                const amount = tierName === 'pro' ? 299 : 2499;
+
+                const order = await createRazorpayOrder(amount, 'INR');
+
+                const options = {
+                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Make sure this is in env
+                    amount: order.amount,
+                    currency: order.currency,
+                    name: "Linkly",
+                    description: `${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Subscription`,
+                    order_id: order.id,
+                    handler: async function (response: any) {
+                        try {
+                            toast.loading('Verifying payment...');
+                            await verifyRazorpayPayment({
+                                ...response,
+                                userId: user.id,
+                                tier: tierName
+                            });
+                            toast.dismiss();
+                            toast.success('Subscription activated!');
+
+                            // Force refresh user session or redirect
+                            window.location.href = '/dashboard';
+                        } catch (err) {
+                            toast.dismiss();
+                            toast.error('Payment verification failed. Please contact support.');
+                        }
+                    },
+                    prefill: {
+                        name: user.user_metadata?.full_name,
+                        email: user.email,
+                        contact: (user as any).phone
+                    },
+                    theme: {
+                        color: "#2563eb"
+                    }
+                };
+
+                const rzp = new window.Razorpay(options);
+                rzp.on('payment.failed', function (response: any) {
+                    toast.error(response.error.description || 'Payment failed');
                 });
-
-                await startPayment(order.payment_session_id);
-
-                // Payment success is handled via return_url in api/create-cashfree-order.ts
-                // But we can also handle it here if using 'seamless' mode later
-                toast.dismiss(); // Dismiss any loading toasts
+                rzp.open();
                 setLoadingTier(null);
 
             } else {
@@ -125,11 +164,12 @@ const Pricing: React.FC = () => {
                         title="Free"
                         price={prices[currency].free}
                         period="mo"
-                        description="Perfect for getting started"
+                        description="For hobbyists and beginners"
                         features={[
-                            "50 Links",
-                            "Basic Analytics",
-                            "Standard Support",
+                            "50 Active Links",
+                            "Basic Analytics (7-day History)",
+                            "Linkly Branding",
+                            "Standard QR Codes",
                             "1 Team Member"
                         ]}
                         buttonText={user ? "Current Plan" : "Sign Up Free"}
@@ -144,12 +184,13 @@ const Pricing: React.FC = () => {
                         isPopular={true}
                         isLoading={loadingTier === 'pro'}
                         features={[
-                            "Unlimited Links",
-                            "Advanced Analytics",
-                            "Custom Domains",
-                            "Priority Support",
-                            "5 Team Members",
-                            "Remove Branding"
+                            "Unlimited Active Links",
+                            "90-Day Analytics History",
+                            "Custom Bio Themes & CSS",
+                            "No Linkly Branding",
+                            "Custom QR Codes",
+                            "Password Protection",
+                            "5 Team Members"
                         ]}
                         buttonText={user?.preferences?.subscription_tier === 'pro' ? "Current Plan" : "Upgrade to Pro"}
                         onSelect={() => handleSubscribe(priceIds[currency].pro, 'pro')}
@@ -163,11 +204,12 @@ const Pricing: React.FC = () => {
                         isLoading={loadingTier === 'business'}
                         features={[
                             "Everything in Pro",
+                            "1-Year Data Retention",
+                            "Custom Domains (White-label)",
+                            "Export Data (CSV/API)",
                             "Unlimited Team Members",
-                            "SSO / SAML",
-                            "Dedicated Account Manager",
-                            "API Access",
-                            "Audit Logs"
+                            "Priority Support",
+                            "SSO / SAML (Coming Soon)"
                         ]}
                         buttonText={user?.preferences?.subscription_tier === 'business' ? "Current Plan" : "Upgrade to Business"}
                         onSelect={() => handleSubscribe(priceIds[currency].business, 'business')}
