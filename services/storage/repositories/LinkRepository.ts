@@ -116,7 +116,7 @@ export class LinkRepository extends BaseRepository {
             .select('*')
             .eq('link_id', id)
             .order('timestamp', { ascending: false })
-            .limit(1000); // Limit to recent 1000 for performance
+            .limit(50000); // Increased limit to 50k to support high-traffic links
 
         const clickHistory = (clicks || []).map(rowToClickEvent);
 
