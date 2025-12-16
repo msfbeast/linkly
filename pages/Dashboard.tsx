@@ -531,9 +531,21 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsModalOpen(true);
   };
 
-  // ... existing imports ...
-
-  // ... inside component ...
+  const handleArchiveLink = async (id: string) => {
+    try {
+      await retryExecute(
+        () => supabaseAdapter.archiveLink(id),
+        { maxRetries: 3, baseDelayMs: 1000 }
+      );
+      await loadLinks();
+      onLinksUpdate?.();
+      toast.success('Link archived successfully');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to archive link';
+      setError(errorMessage);
+      console.error('Failed to archive link:', err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] transition-all duration-300 relative overflow-hidden">
@@ -609,6 +621,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onDragEnd={handleDragEnd}
                 onEdit={openEditModal}
                 onDelete={handleDeleteLink}
+                onArchive={handleArchiveLink} // New prop for Soft Delete
                 onBulkDelete={handleBulkDelete}
                 onDuplicate={handleDuplicateLink}
                 onCreateFirstLink={() => setIsModalOpen(true)}

@@ -140,6 +140,10 @@ export class SupabaseAdapter {
     return this.linkRepo.deleteLink(id);
   }
 
+  async archiveLink(id: string): Promise<void> {
+    return this.linkRepo.archiveLink(id);
+  }
+
   async updateLinkOrder(ids: string[]): Promise<void> {
     return this.linkRepo.updateLinkOrder(ids);
   }

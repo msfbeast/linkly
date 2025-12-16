@@ -9,11 +9,13 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { LinkData } from '../types';
 import { generateSocialPost } from '../services/geminiService';
 import { checkLinkHealth, getHealthColor, getHealthTooltip } from '../services/linkHealthService';
+import ConfirmationModal from './ConfirmationModal';
 
 
 interface LinkCardProps {
   link: LinkData;
   onDelete: (id: string) => void;
+  onArchive?: (id: string) => void;
   onEdit: (link: LinkData) => void;
   onDuplicate?: (link: LinkData) => void;
   selectable?: boolean;
@@ -24,6 +26,7 @@ interface LinkCardProps {
 const LinkCard: React.FC<LinkCardProps> = ({
   link,
   onDelete,
+  onArchive,
   onEdit,
   onDuplicate,
   selectable = false,
@@ -35,6 +38,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
   const [isGeneratingPost, setIsGeneratingPost] = useState(false);
   const [generatedPost, setGeneratedPost] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<'healthy' | 'broken' | 'unknown'>('unknown');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const {
     attributes,
@@ -374,7 +378,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
                   )}
                 </button>
                 <button
-                  onClick={() => onDelete(link.id)}
+                  onClick={() => setShowDeleteConfirm(true)}
                   className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 transition-all"
                   title="Delete"
                 >
@@ -404,6 +408,28 @@ const LinkCard: React.FC<LinkCardProps> = ({
           fgColor="#000000"
         />
       </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          if (onArchive) {
+            onArchive(link.id);
+          } else {
+            // Fallback if no archive prop (shouldn't happen in updated dashboard)
+            onDelete(link.id);
+          }
+          setShowDeleteConfirm(false);
+        }}
+        onSecondary={() => {
+          onDelete(link.id);
+          setShowDeleteConfirm(false);
+        }}
+        title="Delete Link"
+        description="Would you like to archive this link instead? Archived links are hidden but can be restored."
+        confirmLabel="Archive (Recommended)"
+        secondaryLabel="Delete Permanently"
+      />
     </>
   );
 };

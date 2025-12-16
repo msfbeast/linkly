@@ -155,6 +155,7 @@ export interface LinkRow {
     layout_config?: { w: number; h: number };
     metadata?: Record<string, any>;
     ab_test_config: { variants: { id: string; url: string; weight: number }[]; enabled: boolean } | null;
+    is_archived?: boolean;
 }
 
 export interface GalleryItemRow {
@@ -373,7 +374,8 @@ export function rowToLinkData(row: LinkRow, clickHistory: ClickEvent[] = []): Li
         abTestConfig: row.ab_test_config as LinkData['abTestConfig'] ?? undefined,
         isGuest: !!row.is_guest,
         claimToken: row.claim_token ?? undefined,
-        expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined
+        expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined,
+        isArchived: !!row.is_archived
     };
 }
 
@@ -462,6 +464,7 @@ export function linkDataToRow(link: Omit<LinkData, 'id'> & { id?: string }, user
         metadata: link.metadata ?? {},
         is_guest: !!link.isGuest,
         claim_token: link.claimToken ?? null,
-        expires_at: link.expiresAt ? new Date(link.expiresAt).toISOString() : null
+        expires_at: link.expiresAt ? new Date(link.expiresAt).toISOString() : null,
+        is_archived: !!link.isArchived
     };
 }

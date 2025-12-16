@@ -197,6 +197,7 @@ export interface LinkData {
   isGuest?: boolean;
   claimToken?: string;
   expiresAt?: number;
+  isArchived?: boolean;
 }
 
 // Category color mapping for consistent styling across components
