@@ -149,6 +149,10 @@ export class SupabaseAdapter {
     return this.linkRepo.getLinkByCode(code);
   }
 
+  async createGuestLink(url: string, sessionId: string): Promise<LinkData> {
+    return this.linkRepo.createGuestLink(url, sessionId);
+  }
+
   // Tags & Folders
   async getTags(userId: string): Promise<Tag[]> {
     return this.linkRepo.getTags(userId);
@@ -195,6 +199,14 @@ export class SupabaseAdapter {
     return this.bioRepo.createBioProfile(userId, handle, displayName);
   }
 
+  async getBioProfiles(userId: string): Promise<BioProfile[]> {
+    return this.bioRepo.getBioProfiles(userId);
+  }
+
+  async deleteBioProfile(id: string): Promise<void> {
+    return this.bioRepo.deleteBioProfile(id);
+  }
+
   // ==========================================
   // Products (Storefront)
   // ==========================================
@@ -225,6 +237,10 @@ export class SupabaseAdapter {
 
   async deleteDomain(id: string): Promise<void> {
     return this.bioRepo.deleteDomain(id);
+  }
+
+  async resolveDomain(domain: string): Promise<{ handle: string; type: 'bio' | 'store' } | null> {
+    return this.bioRepo.resolveDomain(domain);
   }
 
   // ==========================================
@@ -262,6 +278,12 @@ export class SupabaseAdapter {
 
   async getAllProfiles(limit: number = 50, offset: number = 0): Promise<UserProfile[]> {
     return this.userRepo.getAllProfiles(limit, offset);
+  }
+
+  async updateNotificationSettings(settings: UserProfile['settingsNotifications']): Promise<void> {
+    const user = await this.getUser();
+    if (!user) throw new Error('User not authenticated');
+    await this.updateProfile(user.id, { settingsNotifications: settings });
   }
 
   async uploadAvatar(userId: string, file: File): Promise<string> {

@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { Domain } from '../types';
-import { Globe, Plus, Trash2, Check, AlertCircle, Loader2, X, RefreshCw, ShieldCheck, CheckCircle2, Copy } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import InfoTooltip from './InfoTooltip';
-import { UpgradeModal } from './UpgradeModal';
-import { useAuth } from '../contexts/AuthContext';
+import { Trash2, AlertCircle, CheckCircle, Globe, RefreshCw, Copy, ExternalLink, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface DomainManagerProps {
     userId: string;
@@ -14,29 +11,21 @@ interface DomainManagerProps {
 const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
     const [domains, setDomains] = useState<Domain[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isAdding, setIsAdding] = useState(false);
     const [newDomain, setNewDomain] = useState('');
-    const [targetType, setTargetType] = useState<'bio' | 'store'>('bio');
-    const [verifyingId, setVerifyingId] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-
-    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-    const { user } = useAuth();
+    const [adding, setAdding] = useState(false);
+    const [verifying, setVerifying] = useState<string | null>(null);
 
     useEffect(() => {
-        if (userId) {
-            fetchDomains();
-        }
+        fetchDomains();
     }, [userId]);
 
     const fetchDomains = async () => {
         try {
-            setLoading(true);
             const data = await supabaseAdapter.getDomains(userId);
             setDomains(data);
-        } catch (err) {
-            console.error('Error fetching domains:', err);
-            setError('Failed to load domains');
+        } catch (error) {
+            console.error('Failed to fetch domains', error);
+            toast.error('Failed to load domains');
         } finally {
             setLoading(false);
         }
@@ -44,362 +33,179 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
 
     const handleAddDomain = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        // Feature Gate: Custom domains require Starter plan or higher
-        // TEMPORARY: Disabled for Admin/Owner usage
-        /*
-        const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
-        if (isFreePlan) {
-            setIsUpgradeModalOpen(true);
-            return;
-        }
-        */
-
         if (!newDomain) return;
 
         // Basic validation
-        const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-        if (!domainRegex.test(newDomain)) {
-            setError('Please enter a valid domain name (e.g., links.example.com)');
+        // Remove protocol
+        let domain = newDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+        if (!domain.includes('.')) {
+            toast.error('Please enter a valid domain (e.g., bio.john.com)');
             return;
         }
 
+        setAdding(true);
         try {
-            setLoading(true);
-            await supabaseAdapter.addDomain(userId, newDomain, targetType);
+            const added = await supabaseAdapter.addDomain(userId, domain);
+            setDomains([...domains, added]);
             setNewDomain('');
-            setTargetType('bio');
-            setIsAdding(false);
-            setError(null);
-            fetchDomains();
-        } catch (err) {
-            console.error('Error adding domain:', err);
-            setError('Failed to add domain');
+            toast.success('Domain added! configure DNS now.');
+        } catch (error: any) {
+            console.error('Add domain failed', error);
+            toast.error(error.message || 'Failed to add domain');
         } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleVerify = async (id: string) => {
-        try {
-            setVerifyingId(id);
-            const updatedDomain = await supabaseAdapter.verifyDomain(id);
-            if (updatedDomain) {
-                setDomains(prev => prev.map(d => d.id === id ? updatedDomain : d));
-            } else {
-                setError('Verification failed. Please check your DNS records and try again.');
-            }
-        } catch (err) {
-            console.error('Error verifying domain:', err);
-            setError('Verification failed');
-        } finally {
-            setVerifyingId(null);
+            setAdding(false);
         }
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to remove this domain?')) return;
-
         try {
-            await supabaseAdapter.removeDomain(id);
-            setDomains(prev => prev.filter(d => d.id !== id));
-        } catch (err) {
-            console.error('Error removing domain:', err);
-            setError('Failed to remove domain');
+            await supabaseAdapter.deleteDomain(id);
+            setDomains(domains.filter(d => d.id !== id));
+            toast.success('Domain removed');
+        } catch (error) {
+            toast.error('Failed to remove domain');
         }
     };
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        // Could add a toast here
+    const handleVerify = async (id: string) => {
+        setVerifying(id);
+        try {
+            const verified = await supabaseAdapter.verifyDomain(id);
+            setDomains(domains.map(d => d.id === id ? verified : d));
+            toast.success('Domain verified successfully!');
+        } catch (error: any) {
+            console.error('Verification failed', error);
+            toast.error(error.message || 'Verification failed. Check your DNS records.');
+        } finally {
+            setVerifying(null);
+        }
     };
 
     return (
-        <div className="space-y-6">
-            <UpgradeModal
-                isOpen={isUpgradeModalOpen}
-                onClose={() => setIsUpgradeModalOpen(false)}
-                trigger="custom_domain"
-            />
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        Custom Domains
-                        <InfoTooltip
-                            id="domain-help"
-                            content="Connect your own domain (e.g., links.mybrand.com) to create branded short links that build trust and recognition."
+        <div className="space-y-8">
+            <div>
+                <h2 className="text-lg font-semibold text-slate-900">Custom Domains</h2>
+                <p className="text-stone-500 text-sm">Connect your own domain to your Bio Page.</p>
+            </div>
+
+            {/* Add Domain Form */}
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-6">
+                <form onSubmit={handleAddDomain} className="flex gap-3">
+                    <div className="relative flex-1">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                        <input
+                            type="text"
+                            value={newDomain}
+                            onChange={(e) => setNewDomain(e.target.value)}
+                            placeholder="e.g. bio.yourdomain.com"
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
                         />
-                    </h2>
-                    <p className="text-stone-500 text-sm">Connect your own domains to brand your links.</p>
-                </div>
-                <button
-                    onClick={() => setIsAdding(true)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-lg shadow-slate-900/20"
-                >
-                    <Plus className="w-4 h-4" />
-                    Add Domain
-                </button>
-            </div>
-
-            {/* Quick Tip Section */}
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
-                <h3 className="text-indigo-900 font-bold flex items-center gap-2 mb-3">
-                    <div className="p-1 bg-indigo-100 rounded-lg">
-                        <Globe className="w-4 h-4 text-indigo-600" />
                     </div>
-                    How Custom Domains Work
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <p className="text-indigo-900 font-semibold text-sm mb-1">1. The Root Domain</p>
-                        <p className="text-indigo-700 text-xs leading-relaxed">
-                            Visitors to <code>links.yourbrand.com</code> will see your <strong>Bio Page</strong> or <strong>Storefront</strong>.
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-indigo-900 font-semibold text-sm mb-1">2. Short Links</p>
-                        <p className="text-indigo-700 text-xs leading-relaxed">
-                            Links like <code>links.yourbrand.com/sale</code> will redirect to your destination instantly.
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-indigo-900 font-semibold text-sm mb-1">3. The Setup</p>
-                        <p className="text-indigo-700 text-xs leading-relaxed">
-                            Just add a <strong>CNAME</strong> record pointing to <code>cname.vercel-dns.com</code> in your DNS provider.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    {error}
-                    <button onClick={() => setError(null)} className="ml-auto hover:text-red-800">
-                        <X className="w-4 h-4" />
+                    <button
+                        type="submit"
+                        disabled={adding || !newDomain}
+                        className="px-6 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center gap-2"
+                    >
+                        {adding ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        Connect
                     </button>
-                </div>
-            )}
+                </form>
+                <p className="text-xs text-stone-500 mt-3 ml-1">
+                    Replaces standard linkly.ai URLs with your own brand.
+                </p>
+            </div>
 
-            <AnimatePresence>
-                {isAdding && (
-                    <motion.form
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        onSubmit={handleAddDomain}
-                        className="bg-stone-50 border border-stone-200 p-6 rounded-2xl space-y-4"
-                    >
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Domain Name</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newDomain}
-                                    onChange={(e) => setNewDomain(e.target.value.toLowerCase())}
-                                    placeholder="e.g. links.mybrand.com"
-                                    className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
-                                    autoFocus
-                                />
-                            </div>
-                            <p className="text-xs text-stone-500 mt-2 mb-4">
-                                We recommend using a subdomain like <code>links.yourdomain.com</code> or <code>go.yourdomain.com</code>.
-                            </p>
-
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Link Destination</label>
-                            <div className="flex gap-4 mb-4">
-                                <label className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all flex-1 ${targetType === 'bio' ? 'bg-white border-yellow-400 shadow-sm' : 'bg-transparent border-stone-200 hover:bg-white'}`}>
-                                    <input
-                                        type="radio"
-                                        name="targetType"
-                                        value="bio"
-                                        checked={targetType === 'bio'}
-                                        onChange={() => setTargetType('bio')}
-                                        className="text-yellow-400 focus:ring-yellow-400"
-                                    />
+            {/* Domain List */}
+            <div className="space-y-4">
+                {loading ? (
+                    <div className="text-center py-8 text-stone-400">Loading domains...</div>
+                ) : domains.length === 0 ? (
+                    <div className="text-center py-8 bg-white border border-stone-100 rounded-xl">
+                        <Globe className="w-12 h-12 text-stone-200 mx-auto mb-3" />
+                        <p className="text-stone-500">No domains connected yet.</p>
+                    </div>
+                ) : (
+                    domains.map(domain => (
+                        <div key={domain.id} className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex items-start gap-4">
+                                    <div className={`mt-1 w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${domain.status === 'active' ? 'bg-emerald-100 text-emerald-600' :
+                                        domain.status === 'failed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                        }`}>
+                                        {domain.status === 'active' ? <CheckCircle className="w-5 h-5" /> :
+                                            domain.status === 'failed' ? <AlertCircle className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
+                                    </div>
                                     <div>
-                                        <span className="block font-bold text-slate-900 text-sm">Bio Page</span>
-                                        <span className="block text-xs text-stone-500">Show your profile & links</span>
-                                    </div>
-                                </label>
-                                <label className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all flex-1 ${targetType === 'store' ? 'bg-white border-yellow-400 shadow-sm' : 'bg-transparent border-stone-200 hover:bg-white'}`}>
-                                    <input
-                                        type="radio"
-                                        name="targetType"
-                                        value="store"
-                                        checked={targetType === 'store'}
-                                        onChange={() => setTargetType('store')}
-                                        className="text-yellow-400 focus:ring-yellow-400"
-                                    />
-                                    <div>
-                                        <span className="block font-bold text-slate-900 text-sm">Storefront</span>
-                                        <span className="block text-xs text-stone-500">Show your products</span>
-                                    </div>
-                                </label>
-                            </div>
-
-                            <div className="flex gap-2 justify-end">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAdding(false)}
-                                    className="px-4 py-2 text-stone-500 hover:text-slate-900 font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading || !newDomain}
-                                    className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-6 py-2 rounded-xl font-bold transition-colors disabled:opacity-50"
-                                >
-                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Domain'}
-                                </button>
-                            </div>
-                        </div>
-                    </motion.form>
-                )}
-            </AnimatePresence>
-
-            <div className="grid gap-4">
-                {domains.map((domain) => (
-                    <div
-                        key={domain.id}
-                        className="bg-white border border-stone-200 rounded-2xl p-6 transition-all hover:shadow-md"
-                    >
-                        <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-3 rounded-xl ${domain.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
-                                    domain.status === 'failed' ? 'bg-red-50 text-red-600' :
-                                        'bg-amber-50 text-amber-600'
-                                    }`}>
-                                    <Globe className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-900 text-lg">{domain.domain}</h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        {domain.status === 'active' ? (
-                                            <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                                                <CheckCircle2 className="w-3 h-3" /> Active
+                                        <h3 className="font-bold text-slate-900 text-lg">{domain.domain}</h3>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${domain.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                                                'bg-amber-50 text-amber-700 border border-amber-100'
+                                                }`}>
+                                                {domain.status}
                                             </span>
-                                        ) : domain.status === 'failed' ? (
-                                            <span className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
-                                                <AlertCircle className="w-3 h-3" /> Verification Failed
+                                            <span className="text-xs text-stone-400 flex items-center gap-1">
+                                                <Copy className="w-3 h-3" /> {domain.status === 'active' ? 'Live' : 'DNS Setup Required'}
                                             </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                                                <Loader2 className="w-3 h-3 animate-spin" /> Pending Verification
-                                            </span>
-                                        )}
-                                        <span className="text-xs text-stone-400">
-                                            • {domain.targetType === 'store' ? 'Storefront' : 'Bio Page'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => handleDelete(domain.id)}
-                                className="text-stone-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                                <Trash2 className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {domain.status !== 'active' && (
-                            <div className="bg-stone-50 rounded-xl p-5 border border-stone-200">
-                                <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
-                                    <RefreshCw className="w-4 h-4 text-stone-400" />
-                                    DNS Configuration
-                                </h4>
-                                <p className="text-sm text-stone-500 mb-4">
-                                    Add the following DNS records to your domain provider to verify ownership.
-                                </p>
-
-                                <div className="space-y-3">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="bg-white p-3 rounded-lg border border-stone-200">
-                                            <div className="text-xs text-stone-400 font-bold mb-1">TYPE</div>
-                                            <div className="font-mono text-sm text-slate-900">CNAME</div>
-                                        </div>
-                                        <div className="bg-white p-3 rounded-lg border border-stone-200">
-                                            <div className="text-xs text-stone-400 font-bold mb-1">NAME</div>
-                                            <div className="font-mono text-sm text-slate-900 flex items-center justify-between group">
-                                                <span>{domain.domain.split('.')[0]}</span>
-                                                <button onClick={() => copyToClipboard(domain.domain.split('.')[0])} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Copy className="w-3 h-3 text-stone-400 hover:text-slate-900" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white p-3 rounded-lg border border-stone-200">
-                                            <div className="text-xs text-stone-400 font-bold mb-1">VALUE</div>
-                                            <div className="font-mono text-sm text-slate-900 flex items-center justify-between group">
-                                                <span>cname.vercel-dns.com</span>
-                                                <button onClick={() => copyToClipboard('cname.vercel-dns.com')} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Copy className="w-3 h-3 text-stone-400 hover:text-slate-900" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="bg-white p-3 rounded-lg border border-stone-200">
-                                            <div className="text-xs text-stone-400 font-bold mb-1">TYPE</div>
-                                            <div className="font-mono text-sm text-slate-900">TXT</div>
-                                        </div>
-                                        <div className="bg-white p-3 rounded-lg border border-stone-200">
-                                            <div className="text-xs text-stone-400 font-bold mb-1">NAME</div>
-                                            <div className="font-mono text-sm text-slate-900 flex items-center justify-between group">
-                                                <span>@</span>
-                                                <button onClick={() => copyToClipboard('@')} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Copy className="w-3 h-3 text-stone-400 hover:text-slate-900" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white p-3 rounded-lg border border-stone-200">
-                                            <div className="text-xs text-stone-400 font-bold mb-1">VALUE</div>
-                                            <div className="font-mono text-sm text-slate-900 flex items-center justify-between group">
-                                                <span className="truncate max-w-[150px]">{domain.verificationToken}</span>
-                                                <button onClick={() => copyToClipboard(domain.verificationToken)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Copy className="w-3 h-3 text-stone-400 hover:text-slate-900" />
-                                                </button>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-6 flex justify-end">
+                                <div className="flex items-center gap-3">
+                                    {domain.status !== 'active' && (
+                                        <button
+                                            onClick={() => handleVerify(domain.id)}
+                                            disabled={verifying === domain.id}
+                                            className="px-4 py-2 bg-white border border-stone-200 text-slate-700 font-medium rounded-lg hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm"
+                                        >
+                                            {verifying === domain.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                                            Verify DNS
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => handleVerify(domain.id)}
-                                        disabled={verifyingId === domain.id}
-                                        className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                                        onClick={() => handleDelete(domain.id)}
+                                        className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                     >
-                                        {verifyingId === domain.id ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Verifying...
-                                            </>
-                                        ) : (
-                                            'Verify DNS Records'
-                                        )}
+                                        <Trash2 className="w-5 h-5" />
                                     </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                ))}
 
-                {!loading && domains.length === 0 && !isAdding && (
-                    <div className="text-center py-12 bg-stone-50 rounded-2xl border border-dashed border-stone-200">
-                        <Globe className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-slate-900 mb-1">No custom domains yet</h3>
-                        <p className="text-stone-500 mb-6">Connect a domain to start branding your links.</p>
-                        <button
-                            onClick={() => setIsAdding(true)}
-                            className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center gap-2 mx-auto"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add your first domain
-                        </button>
-                    </div>
+                            {domain.status !== 'active' && (
+                                <div className="mt-6 p-4 bg-slate-900 rounded-lg text-slate-300 font-mono text-sm overflow-x-auto">
+                                    <div className="flex items-center justify-between border-b border-slate-700 pb-2 mb-4">
+                                        <span className="text-slate-400 text-xs uppercase tracking-wider">DNS Configuration</span>
+                                        <a href="https://support.google.com/a/answer/47283" target="_blank" rel="noreferrer" className="text-yellow-400 hover:text-yellow-300 text-xs flex items-center gap-1">
+                                            Help <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    </div>
+
+                                    <div className="mb-4 text-xs text-slate-400 space-y-1">
+                                        <p>1. Log in to your domain provider (e.g., GoDaddy, Namecheap).</p>
+                                        <p>2. Navigate to <strong>DNS Settings</strong> or <strong>DNS Management</strong>.</p>
+                                        <p>3. Add a new record with the following values:</p>
+                                    </div>
+
+                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2 bg-slate-800/50 p-2 rounded">
+                                        <span className="text-slate-500">Type</span>
+                                        <span className="font-bold text-white">CNAME</span>
+                                    </div>
+                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2">
+                                        <span className="text-slate-500">Name</span>
+                                        <span className="text-white">
+                                            {domain.domain.split('.').length > 2 ? domain.domain.split('.')[0] : '@'}
+                                            <span className="text-slate-600 italic ml-2">(subdomain)</span>
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-[80px_1fr] gap-4">
+                                        <span className="text-slate-500">Value</span>
+                                        <span className="text-emerald-400 font-bold select-all">custom.linkly.ai</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))
                 )}
             </div>
         </div>

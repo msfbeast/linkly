@@ -142,6 +142,38 @@ export class LinkRepository extends BaseRepository {
         return rowToLinkData(data as LinkRow);
     }
 
+    async createGuestLink(originalUrl: string, sessionId: string): Promise<LinkData> {
+        if (!this.isConfigured()) throw new Error('Supabase not configured');
+
+        // Generate Short Code
+        const nanoid = (await import('nanoid')).nanoid;
+        const shortCode = nanoid(7);
+
+        const newLink = {
+            id: uuidv4(),
+            original_url: originalUrl,
+            short_code: shortCode,
+            title: 'Guest Link',
+            clicks: 0,
+            created_at: new Date().toISOString(),
+            is_guest: true,
+            claim_token: uuidv4(), // Token for claiming the link later
+            // We store session ID in metadata or a specific column if needed?
+            // For now, maybe just rely on claim_token or client-side storage
+            metadata: { guest_session_id: sessionId },
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiration
+        };
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .insert(newLink)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return rowToLinkData(data as LinkRow);
+    }
+
     async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData & { _isExisting?: boolean }> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 

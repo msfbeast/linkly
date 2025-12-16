@@ -1,0 +1,44 @@
+{
+    "name": "Gather - Intelligent Link Manager",
+    "short_name": "Gather",
+    "description": "Claim your corner of the internet. Organize your links, track analytics, and grow your audience.",
+    "start_url": "/dashboard",
+    "display": "standalone",
+    "background_color": "#FDFBF7",
+    "theme_color": "#FDFBF7",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/pwa-icon.png",
+            "type": "image/png",
+            "sizes": "512x512",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/apple-touch-icon.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        }
+    ],
+    "categories": [
+        "productivity",
+        "social",
+        "utilities"
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshot-mobile.png",
+            "sizes": "1170x2532",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Gather Dashboard on Mobile"
+        },
+        {
+            "src": "/screenshot-desktop.png",
+            "sizes": "2880x1800",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "Gather Dashboard on Desktop"
+        }
+    ]
+}

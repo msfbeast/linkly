@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Microscope, Clock, Hexagon, ChevronDown, LayoutGrid, Star, Newspaper, Moon, Leaf, Aperture, Cpu, StickyNote, Gem, Gamepad2, Cloud } from 'lucide-react';
+import { Sparkles, Palette, Zap, Layers, Box, Terminal, Type, Grid, Archive, Microscope, Clock, Hexagon, ChevronDown, LayoutGrid, Star, Newspaper, Moon, Leaf, Aperture, Cpu, StickyNote, Gem, Gamepad2, Cloud, FileBox } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ThemeGalleryComponent } from './ThemeGalleryComponent';
 import { BioThemeConfig } from '../types';
@@ -26,6 +26,22 @@ const Music = ({ className }: { className?: string }) => (
 );
 
 const THEMES: ThemeDefinition[] = [
+    {
+        id: 'vibrant',
+        name: 'Vibrant',
+        description: 'Colorful & energetic',
+        colors: ['#8B5CF6', '#F472B6', '#F59E0B'],
+        icon: Zap,
+        isPremium: false
+    },
+    {
+        id: 'glass',
+        name: 'Glassmorphism',
+        description: 'Modern frosted glass',
+        colors: ['#FFFFFF', '#E2E8F0', '#94A3B8'],
+        icon: Layers,
+        isPremium: false
+    },
     {
         id: 'bento',
         name: 'Bento Grid',
@@ -87,7 +103,7 @@ const THEMES: ThemeDefinition[] = [
         name: 'Pixel',
         description: 'Retro 8-bit style',
         colors: ['#3B82F6', '#EF4444', '#FCD34D'],
-        icon: Cpu, // Imported below
+        icon: Cpu,
         isPremium: true
     },
     {
@@ -130,6 +146,78 @@ const THEMES: ThemeDefinition[] = [
         icon: Cloud,
         isPremium: true
     },
+    {
+        id: 'neubrutalism',
+        name: 'Neubrutalism',
+        description: 'Bold borders & shadows',
+        colors: ['#FEF08A', '#000000', '#FFFFFF'],
+        icon: Box,
+        isPremium: false
+    },
+    {
+        id: 'retro',
+        name: 'Retro Pop',
+        description: '90s nostalgia',
+        colors: ['#FEF3C7', '#F87171', '#60A5FA'],
+        icon: Star,
+        isPremium: false
+    },
+    {
+        id: 'cyberpunk',
+        name: 'Cyberpunk',
+        description: 'Neon & glitch',
+        colors: ['#000000', '#F472B6', '#2DD4BF'],
+        icon: Zap,
+        isPremium: false
+    },
+    {
+        id: 'lofi',
+        name: 'Lofi',
+        description: 'Chill & relaxed',
+        colors: ['#F5F5F4', '#78716C', '#D6D3D1'],
+        icon: Music,
+        isPremium: false
+    },
+    {
+        id: 'clay',
+        name: 'Clay',
+        description: 'Soft 3D pneumatic',
+        colors: ['#E0F2FE', '#BAE6FD', '#7DD3FC'],
+        icon: Cloud,
+        isPremium: false
+    },
+    {
+        id: 'bauhaus',
+        name: 'Bauhaus',
+        description: 'Geometric minimalism',
+        colors: ['#FCA5A5', '#FCD34D', '#93C5FD'],
+        icon: Grid,
+        isPremium: false
+    },
+    {
+        id: 'industrial',
+        name: 'Industrial',
+        description: 'Raw materials',
+        colors: ['#4B5563', '#9CA3AF', '#E5E7EB'],
+        icon: Archive,
+        isPremium: false
+    },
+    {
+        id: 'lab',
+        name: 'The Lab',
+        description: 'Scientific precision',
+        colors: ['#FFFFFF', '#E0F2FE', '#0EA5E9'],
+        icon: Microscope,
+        isPremium: false
+    },
+    {
+        id: 'archive',
+        name: 'Archive',
+        description: 'Digital preservation',
+        colors: ['#FDF6E3', '#002B36', '#B58900'],
+        icon: FileBox,
+        isPremium: false
+    }
 ];
 
 

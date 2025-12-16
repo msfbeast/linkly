@@ -162,15 +162,14 @@ export const authService = {
     if (data.user && username) {
       try {
         // Create bio profile for the new user
-        await supabaseAdapter.createBioProfile({
-          userId: data.user.id,
-          handle: username,
-          displayName: username,
+        // Create bio profile for the new user
+        await supabaseAdapter.createBioProfile(data.user.id, username, username);
+
+        // Set defaults
+        await supabaseAdapter.updateBioProfile(data.user.id, {
           bio: `Welcome to my Gather page!`,
           avatarUrl: `https://ui-avatars.com/api/?name=${username}&background=random`,
           theme: 'vibrant',
-          links: [],
-          customTheme: undefined,
           isPublished: true
         });
       } catch (err) {

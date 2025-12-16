@@ -56,6 +56,36 @@ export class BioRepository extends BaseRepository {
         return rowToBioProfile(data as BioProfileRow);
     }
 
+    async getBioProfiles(userId: string): Promise<BioProfile[]> {
+        if (!this.isConfigured()) return [];
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.BIO_PROFILES)
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Failed to fetch bio profiles:', error);
+            return [];
+        }
+
+        return (data || []).map((row: BioProfileRow) => rowToBioProfile(row));
+    }
+
+    async deleteBioProfile(id: string): Promise<void> {
+        if (!this.isConfigured()) return;
+
+        // Due to foreign key constraints, we might need to cascade or simply rely on DB cascade
+        // Assuming cascade is set up in DB for now
+        const { error } = await this.supabase!
+            .from(this.TABLES.BIO_PROFILES)
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    }
+
     /**
      * Update bio profile
      */
@@ -271,5 +301,41 @@ export class BioRepository extends BaseRepository {
     async deleteDomain(id: string): Promise<void> {
         if (!this.isConfigured()) return;
         await this.supabase!.from('domains').delete().eq('id', id);
+    }
+
+    async resolveDomain(domain: string): Promise<{ handle: string; type: 'bio' | 'store' } | null> {
+        if (!this.isConfigured()) return null;
+
+        const { data: domainData, error } = await this.supabase!
+            .from('domains')
+            .select('user_id, target_type')
+            .eq('domain', domain.toLowerCase())
+            .eq('status', 'active')
+            .single();
+
+        if (error || !domainData) return null;
+
+        // Provide logic for different target types
+        if (domainData.target_type === 'store') {
+            // For now, assume store uses userId or check specific store table
+            // But usually we need a handle or slug.
+            // Let's assume store also maps to the main bio profile handle for now, 
+            // or we might need a separate store handle.
+            // For MVP, we'll fetch the bio handle.
+        }
+
+        // Fetch Bio Profile Handle
+        const { data: profile } = await this.supabase!
+            .from(this.TABLES.BIO_PROFILES)
+            .select('handle')
+            .eq('user_id', domainData.user_id)
+            .single();
+
+        if (!profile) return null;
+
+        return {
+            handle: profile.handle,
+            type: (domainData.target_type as 'bio' | 'store') || 'bio'
+        };
     }
 }

@@ -31,6 +31,7 @@ import ScrollToHashElement from './components/ScrollToHashElement';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from 'sonner';
+import DomainRouter from './components/DomainRouter';
 
 // Lazy Load Non-Critical Pages
 const DashboardLayout = React.lazy(() => import('./components/DashboardLayout'));
@@ -192,7 +193,9 @@ const App: React.FC = () => {
             <LegacyHashHandler />
             <ScrollToHashElement />
             <ErrorBoundary>
-              <AnimatedRoutes />
+              <DomainRouter>
+                <AnimatedRoutes />
+              </DomainRouter>
             </ErrorBoundary>
             <InstallPrompt />
             <Toaster richColors position="top-center" />

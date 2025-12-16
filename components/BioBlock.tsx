@@ -74,12 +74,13 @@ export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, re
                 ${link.type === 'link' ? 'min-h-[72px]' : 'min-h-[160px]'}
 `}
         >
-            {/* Drag Handle (Visible on Hover) */}
+            {/* Drag Handle (Always visible for better UX, especially on touch) */}
             {!readOnly && (
                 <div
                     {...attributes}
                     {...listeners}
-                    className="absolute top-2 left-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-600 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                    className="absolute top-2 left-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-600 shadow-sm border border-stone-100/50 z-20 touch-none"
+                    style={{ touchAction: 'none' }} // Critical for touch devices
                 >
                     <GripVertical className="w-4 h-4" />
                 </div>

@@ -241,32 +241,71 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Geo Distribution */}
-                <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                        <div className="p-2 bg-indigo-50 rounded-lg">
-                            <Globe className="w-4 h-4 text-indigo-500" />
-                        </div>
-                        <h3 className="font-bold text-slate-900">Top Locations</h3>
-                    </div>
-                    <div className="space-y-4">
-                        {data.byLocation.map((loc, idx) => (
-                            <div key={idx} className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-stone-600">{loc.name}</span>
-                                <div className="flex items-center gap-3 flex-1 justify-end">
-                                    <div className="w-24 h-2 bg-stone-100 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-indigo-500 rounded-full"
-                                            style={{ width: `${(loc.value / data.overview.totalClicks) * 100}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-900 w-8 text-right">{loc.value}</span>
-                                </div>
+                {/* Geo Distribution & Devices */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Locations */}
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="p-2 bg-indigo-50 rounded-lg">
+                                <Globe className="w-4 h-4 text-indigo-500" />
                             </div>
-                        ))}
-                        {data.byLocation.length === 0 && (
-                            <p className="text-sm text-stone-400 text-center py-8">No location data yet</p>
-                        )}
+                            <h3 className="font-bold text-slate-900">Top Locations</h3>
+                        </div>
+                        <div className="space-y-4">
+                            {data.byLocation.map((loc, idx) => (
+                                <div key={idx} className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-stone-600">{loc.name}</span>
+                                    <div className="flex items-center gap-3 flex-1 justify-end">
+                                        <div className="w-24 h-2 bg-stone-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-indigo-500 rounded-full"
+                                                style={{ width: `${(loc.value / data.overview.totalClicks) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-900 w-8 text-right">{loc.value}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {data.byLocation.length === 0 && (
+                                <p className="text-sm text-stone-400 text-center py-8">No location data yet</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Devices */}
+                    <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="p-2 bg-pink-50 rounded-lg">
+                                <Smartphone className="w-4 h-4 text-pink-500" />
+                            </div>
+                            <h3 className="font-bold text-slate-900">Devices</h3>
+                        </div>
+                        <div className="h-[200px] w-full relative">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={data.byDevice}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {data.byDevice.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            {data.byDevice.length === 0 && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <p className="text-sm text-stone-400">No device data</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
