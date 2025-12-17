@@ -46,10 +46,10 @@ const SmartLinkCard: React.FC<SmartLinkCardProps> = ({ link, onCopy, onEdit, onD
                                 className="w-6 h-6 object-contain"
                                 onError={(e) => {
                                     e.currentTarget.style.display = 'none';
-                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                    e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
                                 }}
                             />
-                            <LinkIcon className="w-5 h-5 text-[#141417] hidden" />
+                            <LinkIcon className="w-5 h-5 text-[#141417] hidden fallback-icon" />
                         </div>
                         <span className="font-bold text-sm text-[#141417] opacity-60">
                             /{link.shortCode}

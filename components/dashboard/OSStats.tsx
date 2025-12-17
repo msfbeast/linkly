@@ -38,7 +38,7 @@ export const OSStats: React.FC<OSStatsProps> = ({ data }) => {
             </h3>
 
             <div className="flex-1 flex flex-col items-center justify-center min-h-0">
-                <div className="relative w-full aspect-square max-h-[220px]">
+                <div className="relative w-full h-full min-h-[220px]">
                     {/* Centered Total - Rendered FIRST (Behind Chart) */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                         <span className="text-3xl font-extrabold text-slate-900 leading-none">
