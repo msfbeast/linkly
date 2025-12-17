@@ -17,7 +17,7 @@ export class LinkRepository extends BaseRepository {
     /**
      * Get all links for a user or team
      */
-    async getLinks(teamId?: string | null, options?: { archived?: boolean, includeAnalytics?: boolean }): Promise<LinkData[]> {
+    async getLinks(teamId?: string | null, options?: { archived?: boolean }): Promise<LinkData[]> {
         if (!this.isConfigured()) {
             return [];
         }
@@ -61,30 +61,26 @@ export class LinkRepository extends BaseRepository {
             return [];
         }
 
-        // Fetch click events only if requested (for performance)
-        let clickEventsByLinkId: Record<string, ClickEvent[]> = {};
+        // Fetch all click events (N+1 optimization)
+        const linkIds = linkRows.map((row: LinkRow) => row.id);
+        const { data: allClickEvents, error: clickError } = await this.supabase!
+            .from(this.TABLES.CLICK_EVENTS || 'click_events')
+            .select('*')
+            .in('link_id', linkIds)
+            .order('timestamp', { ascending: false })
+            .range(0, 49999);
 
-        if (options?.includeAnalytics) {
-            const linkIds = linkRows.map((row: LinkRow) => row.id);
-            // Limit analysis to recent 5000 events to prevent browser crash
-            const { data: allClickEvents, error: clickError } = await this.supabase!
-                .from(this.TABLES.CLICK_EVENTS || 'click_events')
-                .select('*')
-                .in('link_id', linkIds)
-                .order('timestamp', { ascending: false })
-                .limit(5000);
-
-            if (clickError) {
-                console.warn(`Failed to fetch click events: ${clickError.message}`);
-            }
-
-            (allClickEvents || []).forEach((row: ClickEventRow) => {
-                if (!clickEventsByLinkId[row.link_id]) {
-                    clickEventsByLinkId[row.link_id] = [];
-                }
-                clickEventsByLinkId[row.link_id].push(rowToClickEvent(row));
-            });
+        if (clickError) {
+            console.warn(`Failed to fetch click events: ${clickError.message}`);
         }
+
+        const clickEventsByLinkId: Record<string, ClickEvent[]> = {};
+        (allClickEvents || []).forEach((row: ClickEventRow) => {
+            if (!clickEventsByLinkId[row.link_id]) {
+                clickEventsByLinkId[row.link_id] = [];
+            }
+            clickEventsByLinkId[row.link_id].push(rowToClickEvent(row));
+        });
 
         return linkRows.map((row: LinkRow) => {
             const clickHistory = clickEventsByLinkId[row.id] || [];

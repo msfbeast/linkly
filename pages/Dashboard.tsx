@@ -58,8 +58,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [serverOsData, setServerOsData] = useState<any[]>([]);
   const [serverBrowserData, setServerBrowserData] = useState<any[]>([]);
   const [serverReferrerData, setServerReferrerData] = useState<any[]>([]);
-  const [serverClickForecast, setServerClickForecast] = useState<any[] | null>(null);
-  const [serverTrafficSource, setServerTrafficSource] = useState<any[] | null>(null);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -149,72 +147,64 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
       }
 
-      // Load Analytics Async (Server-Side)
-      if (user?.id) {
-        try {
-          const fullAnalytics = await aggregatedAnalytics.getFullAnalytics(user.id);
+      // Fetch aggregated stats
+      // If in Team Mode, calculate client-side to ensure team isolation (Server RPC is User-bound)
+      if (currentTeam?.id) {
+        // Client-side aggregation
+        const totalClicks = fetchedLinks.reduce((sum, link) => sum + link.clicks, 0);
 
-          // Update Stats
-          if (fullAnalytics.stats) setUserClickStats(fullAnalytics.stats);
-          // Fallback for unique visitors if RPC fails:
-          // const uniqueVisitors = fullAnalytics.stats?.uniqueVisitors || 0; 
+        // Calculate unique visitors (approx based on click history if available, else 0)
+        const visitorSet = new Set<string>();
+        fetchedLinks.forEach(l => l.clickHistory.forEach(c => {
+          if (c.visitorId) visitorSet.add(c.visitorId);
+        }));
 
-          // Update Charts
-          if (fullAnalytics.cities) setServerCityData(fullAnalytics.cities);
-          if (fullAnalytics.devices) setServerBrowserData(fullAnalytics.devices); // Map devices to browser chart area or similar
-          if (fullAnalytics.referrers) {
-            setServerReferrerData(fullAnalytics.referrers);
+        // Mock UserClickStats
+        setUserClickStats({
+          totalClicks,
+          uniqueVisitors: visitorSet.size,
+          clicksToday: 0, // Not calculated for now
+          clicksThisWeek: 0,
+          clicksLastWeek: 0,
+          clicksThisMonth: 0
+        });
 
-            // Map referrers to Traffic Source Data (Donut Chart)
-            const sourceCounts: any = { direct: 0, social: 0, referral: 0 };
-            fullAnalytics.referrers.forEach((r: any) => {
-              const ref = (r.referrer || '').toLowerCase();
-              if (!ref || ref === 'direct' || ref === 'unknown') sourceCounts.direct += r.clickCount;
-              else if (['twitter', 'facebook', 'instagram', 'linkedin', 'tiktok', 'youtube'].some(s => ref.includes(s))) sourceCounts.social += r.clickCount;
-              else sourceCounts.referral += r.clickCount;
-            });
-            setServerTrafficSource([
-              { name: 'Direct', value: sourceCounts.direct, color: '#00d4ff' },
-              { name: 'Social', value: sourceCounts.social, color: '#a855f7' },
-              { name: 'Referral', value: sourceCounts.referral, color: '#ff6b6b' }
-            ]);
+        // Aggregate City Data
+        const cityMap: Record<string, number> = {};
+        fetchedLinks.forEach(l => l.clickHistory.forEach(c => {
+          if (c.city) {
+            const key = `${c.city}, ${c.country}`;
+            cityMap[key] = (cityMap[key] || 0) + 1;
           }
+        }));
 
-          if (fullAnalytics.clicksOverTime) {
-            // Map clicksOverTime to Click Forecast Data (Bar Chart)
-            // We need to map dates to Days of Week
-            const daysMap: any = { 'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0, 'Sun': 0 };
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const clientCities: CityBreakdown[] = Object.entries(cityMap).map(([key, count]) => {
+          const [city, country] = key.split(', ');
+          return { city, country, clickCount: count };
+        }).sort((a, b) => b.clickCount - a.clickCount).slice(0, 5);
 
-            fullAnalytics.clicksOverTime.forEach((c: any) => {
-              const d = new Date(c.date);
-              const dayName = days[d.getDay()];
-              daysMap[dayName] = (daysMap[dayName] || 0) + c.clickCount;
-            });
+        setServerCityData(clientCities);
 
-            // Calculate average for faux forecast
-            const total = Object.values(daysMap).reduce((a: any, b: any) => a + b, 0) as number;
-            const avg = total / 7;
-
-            setServerClickForecast(Object.entries(daysMap).map(([day, val]) => ({
-              date: day,
-              actual: val,
-              forecast: Math.round(avg * (0.8 + Math.random() * 0.4))
-            })));
-          }
-
-          // OS Data (if available)
-          // if (fullAnalytics.os) setServerOsData(fullAnalytics.os);
-
-        } catch (analyticsErr) {
-          console.error('Failed to load background analytics', analyticsErr);
-        }
+      } else if (user?.id) {
+        // Personal Mode - Use precise Server RPC
+        const [stats, cities, os, browsers, referrers] = await Promise.all([
+          aggregatedAnalytics.getUserClickStats(user.id),
+          aggregatedAnalytics.getCityBreakdown(user.id),
+          aggregatedAnalytics.getOsBreakdown(user.id),
+          aggregatedAnalytics.getBrowserBreakdown(user.id),
+          aggregatedAnalytics.getReferrerBreakdown(user.id)
+        ]);
+        setUserClickStats(stats);
+        setServerCityData(cities);
+        setServerOsData(os);
+        setServerBrowserData(browsers);
+        setServerReferrerData(referrers);
       }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load links';
       setError(errorMessage);
-      toast.error(errorMessage);
+      console.error('Failed to load links:', err);
     } finally {
       setIsLoading(false);
     }
@@ -395,13 +385,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Get top 4 performing links for performance cards
   const topLinks = getTopPerformingLinks(links, 4);
 
-  // topLinks calc ok client side (clicks are on link object)
-
   // Generate chart data with date range filtering
-  // Use serve-side data if available, else fallback to client generation (likely empty now)
-  const clickForecastData = serverClickForecast || generateClickForecastData(links, dateRange);
-  const trafficSourceData = serverTrafficSource || generateTrafficSourceData(links, dateRange);
-  // Use aggregated total if available (not capped), otherwise fall back to calculated total
+  const clickForecastData = generateClickForecastData(links, dateRange);
+  const trafficSourceData = generateTrafficSourceData(links, dateRange);
   // Use aggregated total if available (not capped), otherwise fall back to calculated total
   const trafficSourceTotal = userClickStats?.totalClicks ?? calculateTrafficTotal(trafficSourceData);
   const linkHealthData = generateLinkHealthData(links);
