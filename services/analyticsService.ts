@@ -5,7 +5,7 @@
  * Implements date filtering, click aggregation, and traffic source categorization.
  */
 
-import { ClickEvent, LinkData, ClickForecastDataPoint, TrafficSourceDataPoint, LinkHealthDataPoint, TRAFFIC_SOURCE_COLORS, TrafficSource, DeviceData } from '../types';
+import { ClickEvent, LinkData, ClickForecastDataPoint, TrafficSourceDataPoint, LinkHealthDataPoint, TRAFFIC_SOURCE_COLORS, TrafficSource, DeviceData, DailyClicks, ReferrerBreakdown } from '../types';
 
 // Date range type for filtering
 export type DateRange = '24h' | '7d' | '30d' | '90d' | 'all';
@@ -131,6 +131,36 @@ export function generateClickForecastData(
   }));
 }
 
+/**
+ * Converts aggregated DailyClicks[] to ClickForecastDataPoint[]
+ * 
+ * **Optimization**: Used by Dashboard to avoid client-side aggregation
+ */
+export function aggregateDailyClicksToForecast(dailyClicks: DailyClicks[]): ClickForecastDataPoint[] {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Initialize aggregated map
+  const dayClickCounts: Record<string, number> = {};
+  days.forEach(day => dayClickCounts[day] = 0);
+
+  // Aggregate
+  dailyClicks.forEach(item => {
+    const date = new Date(item.date);
+    const dayIndex = date.getDay();
+    const dayName = days[dayIndex === 0 ? 6 : dayIndex - 1]; // Shift Sunday to end
+    dayClickCounts[dayName] += item.clickCount;
+  });
+
+  const totalClicks = Object.values(dayClickCounts).reduce((sum, count) => sum + count, 0);
+  const avgClicks = totalClicks / 7;
+
+  return days.map(day => ({
+    date: day,
+    actual: dayClickCounts[day],
+    forecast: Math.round(avgClicks)
+  }));
+}
+
 
 /**
  * Categorizes a referrer string into a traffic source category
@@ -213,6 +243,30 @@ export function generateTrafficSourceData(
   filteredEvents.forEach(event => {
     const category = categorizeReferrer(event.referrer);
     sourceCounts[category]++;
+  });
+
+  return [
+    { name: 'Direct', value: sourceCounts.direct, color: TRAFFIC_SOURCE_COLORS.direct },
+    { name: 'Social', value: sourceCounts.social, color: TRAFFIC_SOURCE_COLORS.social },
+    { name: 'Referral', value: sourceCounts.referral, color: TRAFFIC_SOURCE_COLORS.referral },
+  ];
+}
+
+/**
+ * Converts ReferrerBreakdown[] to TrafficSourceDataPoint[]
+ * 
+ * **Optimization**: Used by Dashboard to avoid client-side categorization of thousands of events
+ */
+export function categorizeTrafficSourceFromStats(referrers: ReferrerBreakdown[]): TrafficSourceDataPoint[] {
+  const sourceCounts: Record<TrafficSource, number> = {
+    direct: 0,
+    social: 0,
+    referral: 0,
+  };
+
+  referrers.forEach(item => {
+    const category = categorizeReferrer(item.referrer);
+    sourceCounts[category] += item.clickCount;
   });
 
   return [

@@ -116,7 +116,7 @@ export class SupabaseAdapter {
   // Links
   // ==========================================
 
-  async getLinks(teamId?: string | null, options?: { archived?: boolean }): Promise<LinkData[]> {
+  async getLinks(teamId?: string | null, options?: { archived?: boolean; includeAnalytics?: boolean }): Promise<LinkData[]> {
     return this.linkRepo.getLinks(teamId, options);
   }
 

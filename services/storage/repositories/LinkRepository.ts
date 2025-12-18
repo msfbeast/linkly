@@ -17,7 +17,7 @@ export class LinkRepository extends BaseRepository {
     /**
      * Get all links for a user or team
      */
-    async getLinks(teamId?: string | null, options?: { archived?: boolean }): Promise<LinkData[]> {
+    async getLinks(teamId?: string | null, options?: { archived?: boolean; includeAnalytics?: boolean }): Promise<LinkData[]> {
         if (!this.isConfigured()) {
             return [];
         }
@@ -59,6 +59,11 @@ export class LinkRepository extends BaseRepository {
 
         if (!linkRows || linkRows.length === 0) {
             return [];
+        }
+
+        // If analytics not requested, return basic data (optimization)
+        if (!options?.includeAnalytics) {
+            return linkRows.map((row: LinkRow) => rowToLinkData(row));
         }
 
         // Fetch all click events (N+1 optimization)

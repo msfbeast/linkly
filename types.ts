@@ -713,3 +713,63 @@ export function getTopPerformingLinks(links: LinkData[], limit: number = 4): Lin
     .sort((a, b) => b.clicks - a.clicks)
     .slice(0, limit);
 }
+
+// Analytics Aggregation Types
+export interface UserClickStats {
+  totalClicks: number;
+  uniqueVisitors: number;
+  clicksToday: number;
+  clicksThisWeek: number;
+  clicksLastWeek: number;
+  clicksThisMonth: number;
+}
+
+export interface CountryBreakdown {
+  country: string;
+  clickCount: number;
+}
+
+export interface CityBreakdown {
+  city: string;
+  country: string;
+  clickCount: number;
+}
+
+export interface DeviceBreakdown {
+  device: string;
+  clickCount: number;
+}
+
+export interface ReferrerBreakdown {
+  referrer: string;
+  clickCount: number;
+}
+
+export interface OsBreakdown {
+  os: string;
+  clickCount: number;
+}
+
+export interface BrowserBreakdown {
+  browser: string;
+  clickCount: number;
+}
+
+export interface DeviceModelBreakdown {
+  deviceModel: string;
+  clickCount: number;
+}
+
+export interface DailyClicks {
+  date: string;
+  clickCount: number;
+}
+
+export interface LinkStats {
+  totalClicks: number;
+  uniqueVisitors: number;
+  topCountry: string | null;
+  topCity: string | null;
+  topReferrer: string | null;
+  clicksByDay: { day: string; count: number }[];
+}

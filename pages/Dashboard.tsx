@@ -16,12 +16,13 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import AnalyticsOverview from '../components/dashboard/AnalyticsOverview';
 import LinksList from '../components/dashboard/LinksList';
-import { LinkData, categorizeLink, generateLinkHealthData, getTopPerformingLinks } from '../types';
+import { LinkData, categorizeLink } from '../types'; // generateLinkHealthData, getTopPerformingLinks moved to analyticsService
 import { calculateTrafficTotal } from '../components/TrafficSourceChart';
 import { PriorityLink } from '../components/PriorityLinksList';
-import { DateRange, generateClickForecastData, generateTrafficSourceData } from '../services/analyticsService';
+import { DateRange, generateClickForecastData, generateTrafficSourceData, generateLinkHealthData, getTopPerformingLinks, aggregateDailyClicksToForecast, categorizeTrafficSourceFromStats } from '../services/analyticsService';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics, UserClickStats, CityBreakdown } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
+import { UserClickStats, CityBreakdown } from '../types';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
 import { toast } from 'sonner';
@@ -70,6 +71,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
   const [filterStatus, setFilterStatus] = useState<'active' | 'archived'>('active');
+  const [totalClicks, setTotalClicks] = useState(0);
+  const [clickForecastData, setClickForecastData] = useState<any[]>([]);
+  const [trafficSourceData, setTrafficSourceData] = useState<any[]>([]);
 
   const { user } = useAuth();
   const { currentTeam } = useTeam();
@@ -109,14 +113,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      // Pass filterStatus to getLinks
-      const fetchedLinks = await retryExecute(
-        () => supabaseAdapter.getLinks(currentTeam?.id, { archived: filterStatus === 'archived' }),
-        { maxRetries: 3, baseDelayMs: 1000 }
-      );
-      setLinks(fetchedLinks);
-
-      // Calculate server-side stats from fetched links (or fetch separate stats if needed)
       // Check for pending link from landing page
       const pendingLinkUrl = sessionStorage.getItem('pending_link_url');
       if (pendingLinkUrl) {
@@ -136,71 +132,52 @@ const Dashboard: React.FC<DashboardProps> = ({
             { maxRetries: 3, baseDelayMs: 1000 }
           );
           sessionStorage.removeItem('pending_link_url');
-          // Reload links to show the new one
-          const updatedLinks = await retryExecute(
-            () => supabaseAdapter.getLinks(currentTeam?.id),
-            { maxRetries: 3, baseDelayMs: 1000 }
-          );
-          setLinks(updatedLinks);
         } catch (err) {
           console.error('Failed to create pending link:', err);
         }
       }
 
-      // Fetch aggregated stats
-      // If in Team Mode, calculate client-side to ensure team isolation (Server RPC is User-bound)
-      if (currentTeam?.id) {
-        // Client-side aggregation
-        const totalClicks = fetchedLinks.reduce((sum, link) => sum + link.clicks, 0);
+      // Fetch links (Optimized: No analytics/click history)
+      const data = await retryExecute(
+        () => supabaseAdapter.getLinks(currentTeam?.id || null, { archived: filterStatus === 'archived', includeAnalytics: false }),
+        { maxRetries: 3, baseDelayMs: 1000 }
+      );
 
-        // Calculate unique visitors (approx based on click history if available, else 0)
-        const visitorSet = new Set<string>();
-        fetchedLinks.forEach(l => l.clickHistory.forEach(c => {
-          if (c.visitorId) visitorSet.add(c.visitorId);
-        }));
+      if (data) {
+        setLinks(data);
 
-        // Mock UserClickStats
-        setUserClickStats({
-          totalClicks,
-          uniqueVisitors: visitorSet.size,
-          clicksToday: 0, // Not calculated for now
-          clicksThisWeek: 0,
-          clicksLastWeek: 0,
-          clicksThisMonth: 0
-        });
+        // Calculate basic stats from link columns (not history)
+        const total = data.reduce((sum, link) => sum + link.clicks, 0);
+        setTotalClicks(total);
 
-        // Aggregate City Data
-        const cityMap: Record<string, number> = {};
-        fetchedLinks.forEach(l => l.clickHistory.forEach(c => {
-          if (c.city) {
-            const key = `${c.city}, ${c.country}`;
-            cityMap[key] = (cityMap[key] || 0) + 1;
-          }
-        }));
+        // Fetch Chart Data from Server Aggregation (Parallel)
+        // This replaces the client-side calculation from 50k+ rows
+        if (user?.id && !currentTeam) {
+          const [dailyClicks, referrerStats, cityStats, osStats, browserStats, userStats] = await Promise.all([
+            aggregatedAnalytics.getClicksOverTime(user.id, 30),
+            aggregatedAnalytics.getReferrerBreakdown(user.id),
+            aggregatedAnalytics.getCityBreakdown(user.id),
+            aggregatedAnalytics.getOsBreakdown(user.id),
+            aggregatedAnalytics.getBrowserBreakdown(user.id),
+            aggregatedAnalytics.getUserClickStats(user.id)
+          ]);
 
-        const clientCities: CityBreakdown[] = Object.entries(cityMap).map(([key, count]) => {
-          const [city, country] = key.split(', ');
-          return { city, country, clickCount: count };
-        }).sort((a, b) => b.clickCount - a.clickCount).slice(0, 5);
+          setClickForecastData(aggregateDailyClicksToForecast(dailyClicks));
+          setTrafficSourceData(categorizeTrafficSourceFromStats(referrerStats));
+          setServerCityData(cityStats);
+          setServerOsData(osStats);
+          setServerBrowserData(browserStats);
+          setServerReferrerData(referrerStats);
+          if (userStats) setUserClickStats(userStats);
 
-        setServerCityData(clientCities);
-
-      } else if (user?.id) {
-        // Personal Mode - Use precise Server RPC
-        const [stats, cities, os, browsers, referrers] = await Promise.all([
-          aggregatedAnalytics.getUserClickStats(user.id),
-          aggregatedAnalytics.getCityBreakdown(user.id),
-          aggregatedAnalytics.getOsBreakdown(user.id),
-          aggregatedAnalytics.getBrowserBreakdown(user.id),
-          aggregatedAnalytics.getReferrerBreakdown(user.id)
-        ]);
-        setUserClickStats(stats);
-        setServerCityData(cities);
-        setServerOsData(os);
-        setServerBrowserData(browsers);
-        setServerReferrerData(referrers);
+        } else {
+          // Team Mode Fallback (Client-side or empty)
+          // For team mode, we might need to rely on what we have or accept empty charts for now
+          // pending team analytics implementation
+          setClickForecastData([]);
+          setTrafficSourceData([]);
+        }
       }
-
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load links';
       setError(errorMessage);
@@ -382,15 +359,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     (link.originalUrl || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Get top 4 performing links for performance cards
-  const topLinks = getTopPerformingLinks(links, 4);
+  // Get top performing links for performance cards
+  const topLinks = getTopPerformingLinks(links);
 
-  // Generate chart data with date range filtering
-  const clickForecastData = generateClickForecastData(links, dateRange);
-  const trafficSourceData = generateTrafficSourceData(links, dateRange);
+  // Derived metrics
+  const linkHealthData = generateLinkHealthData(links);
+
   // Use aggregated total if available (not capped), otherwise fall back to calculated total
   const trafficSourceTotal = userClickStats?.totalClicks ?? calculateTrafficTotal(trafficSourceData);
-  const linkHealthData = generateLinkHealthData(links);
 
   // Generate priority links from links that need attention
   const priorityLinks: PriorityLink[] = links
