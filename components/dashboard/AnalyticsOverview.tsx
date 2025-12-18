@@ -222,7 +222,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="min-w-0 h-[400px]"
+                className="min-w-0 min-h-[400px]"
             >
                 <TrafficSourceChart
                     data={trafficSourceData}
@@ -253,7 +253,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="min-w-0 h-[400px]"
+                className="min-w-0 min-h-[400px]"
             >
                 <TopCitiesTable data={cityData} />
             </motion.div>
@@ -263,7 +263,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="min-w-0 h-[400px]"
+                className="min-w-0 min-h-[400px]"
             >
                 <BrowserStats data={browserStats} />
             </motion.div>
@@ -273,7 +273,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
-                className="min-w-0 h-[400px]"
+                className="min-w-0 min-h-[400px]"
             >
                 <OSStats data={osStats} />
             </motion.div>
@@ -283,7 +283,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8 }}
-                className="min-w-0 h-[400px]"
+                className="min-w-0 min-h-[400px]"
             >
                 <ReferrerStats data={serverReferrerData?.map((r: any) => ({ name: r.referrer, value: r.clickCount })) || []} />
             </motion.div>

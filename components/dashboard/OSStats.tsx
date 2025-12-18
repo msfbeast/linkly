@@ -32,7 +32,7 @@ export const OSStats: React.FC<OSStatsProps> = ({ data }) => {
     const totalClicks = chartData.reduce((acc, curr) => acc + curr.value, 0);
 
     return (
-        <div className="bg-white rounded-[2rem] p-6 pb-8 border border-stone-200 shadow-sm flex flex-col h-full transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 card-hover relative overflow-hidden">
+        <div className="bg-white rounded-[2rem] p-6 pb-10 border border-stone-200 shadow-sm flex flex-col min-h-full transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 card-hover relative">
             <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2 z-10">
                 Operating Systems
             </h3>
@@ -82,7 +82,7 @@ export const OSStats: React.FC<OSStatsProps> = ({ data }) => {
 
                 {/* Legend - Tighter Grid */}
                 <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-4 w-full px-4">
-                    {chartData.map((item) => (
+                    {chartData.slice(0, 8).map((item) => (
                         <div key={item.name} className="flex items-center justify-between">
                             <div className="flex items-center gap-2 min-w-0">
                                 <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
