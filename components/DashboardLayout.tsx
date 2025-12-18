@@ -8,7 +8,6 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import LoadingFallback from './LoadingFallback';
 import TeamSettings from './teams/TeamSettings';
 import { useTeam } from '../contexts/TeamContext';
-import InstallPrompt from './pwa/InstallPrompt';
 
 // Lazy Load Pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
@@ -199,10 +198,6 @@ const DashboardLayout: React.FC = () => {
         }
     };
 
-    // ... (rest of component)
-
-
-
     return (
         <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900 relative overflow-hidden">
             {/* Aurora Background */}
@@ -314,8 +309,6 @@ const DashboardLayout: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            <InstallPrompt />
         </div>
     );
 };

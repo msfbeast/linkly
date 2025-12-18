@@ -246,23 +246,30 @@ const LinkCard: React.FC<LinkCardProps> = ({
 
               <div className="flex items-start gap-3 sm:gap-4">
                 {/* Website Favicon */}
-                <div className="w-10 h-10 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-center overflow-hidden flex-shrink-0 mt-1">
+                <div className="w-10 h-10 rounded-xl bg-blend-soft-light bg-stone-100/50 border border-stone-200 flex items-center justify-center overflow-hidden flex-shrink-0 mt-1">
                   <img
                     src={(() => {
                       try {
-                        const u = new URL(link.originalUrl);
-                        if (!['http:', 'https:'].includes(u.protocol)) return undefined;
+                        const urlStr = link.originalUrl.startsWith('http') ? link.originalUrl : `https://${link.originalUrl}`;
+                        const u = new URL(urlStr);
                         return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
-                      } catch { return undefined; }
+                      } catch {
+                        return `https://www.google.com/s2/favicons?domain=oia.bio&sz=64`; // Default fallback
+                      }
                     })()}
                     alt=""
-                    className="w-6 h-6"
+                    className="w-6 h-6 object-contain"
+                    loading="lazy"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = 'none';
+                      const fallback = img.parentElement?.querySelector('.favicon-fallback');
+                      if (fallback) fallback.classList.remove('hidden');
                     }}
                   />
-                  <Globe className="w-5 h-5 text-stone-400 hidden" />
+                  <div className="favicon-fallback hidden items-center justify-center">
+                    <Globe className="w-5 h-5 text-stone-400" />
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <button

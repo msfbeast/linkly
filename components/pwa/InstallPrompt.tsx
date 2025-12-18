@@ -59,28 +59,28 @@ const InstallPrompt: React.FC = () => {
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-4 left-4 right-4 z-50 md:hidden"
+                    className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-6 md:bottom-24 md:max-w-md"
                 >
-                    <div className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl flex items-center justify-between border border-white/10">
+                    <div className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl flex items-center justify-between border border-white/10 backdrop-blur-xl bg-slate-900/90">
                         <div className="flex items-center gap-3">
-                            <div className="bg-white/10 p-2 rounded-lg">
+                            <div className="bg-white/10 p-2 rounded-lg shrink-0">
                                 <Download className="w-5 h-5 text-yellow-400" />
                             </div>
-                            <div>
-                                <h3 className="font-bold text-sm">Install Gather</h3>
-                                <p className="text-xs text-stone-400">Add to your home screen</p>
+                            <div className="min-w-0">
+                                <h3 className="font-bold text-sm truncate">Install Gather</h3>
+                                <p className="text-xs text-stone-400 truncate">Add to home screen for quick access</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 ml-4">
                             <button
                                 onClick={handleDismiss}
                                 className="p-2 text-stone-400 hover:text-white transition-colors"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="w-4 h-4" />
                             </button>
                             <button
                                 onClick={handleInstallClick}
-                                className="bg-yellow-400 text-slate-900 px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-yellow-400/20 active:scale-95 transition-transform"
+                                className="bg-yellow-400 text-slate-900 px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-yellow-400/20 active:scale-95 transition-transform whitespace-nowrap"
                             >
                                 Install
                             </button>

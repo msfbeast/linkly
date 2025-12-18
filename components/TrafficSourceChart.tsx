@@ -54,8 +54,8 @@ const TrafficSourceChart: React.FC<TrafficSourceChartProps> = ({ data, total }) 
         <p className="text-sm text-[#1F2937]/70 font-medium" data-testid="chart-subtitle">Where your clicks come from</p>
       </div>
 
-      <div className="flex-1 relative min-h-[200px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
+      <div className="flex-1 relative min-h-[250px] w-full h-full flex items-center justify-center">
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}

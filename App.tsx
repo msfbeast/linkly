@@ -18,7 +18,7 @@ import AdminRoute from './components/AdminRoute';
 import Pricing from './pages/Pricing';
 import OnboardingTour from './components/OnboardingTour';
 import { TrialCountdown } from './components/TrialCountdown';
-import InstallPrompt from './components/InstallPrompt';
+import InstallPrompt from './components/pwa/InstallPrompt';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Redirect from './pages/Redirect';
