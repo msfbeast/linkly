@@ -46,7 +46,6 @@ const Settings: React.FC = () => {
       const result = await updateProfile({ displayName });
       if (result.success) {
         // Ideally show a toast here
-        console.log('Profile updated');
       }
     } catch (error) {
       console.error('Failed to update profile', error);
@@ -63,7 +62,6 @@ const Settings: React.FC = () => {
     try {
       const result = await updateProfile({ storefrontTheme: theme });
       if (result.success) {
-        console.log('Theme updated');
       }
     } catch (error) {
       console.error('Failed to update theme', error);
@@ -166,7 +164,6 @@ const Settings: React.FC = () => {
         amazonAssociateTag: amazonTag
       });
       if (result.success) {
-        console.log('Monetization settings updated');
       }
     } catch (error) {
       console.error('Failed to update monetization settings', error);

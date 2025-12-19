@@ -417,6 +417,24 @@ export class LinkRepository extends BaseRepository {
         await this.supabase!.from(this.TABLES.TAGS).delete().eq('id', id);
     }
 
+    async updateTag(id: string, updates: { name?: string; color?: string }): Promise<Tag> {
+        if (!this.isConfigured()) throw new Error('Supabase not configured');
+
+        const updateData: Record<string, string> = {};
+        if (updates.name) updateData.name = updates.name;
+        if (updates.color) updateData.color = updates.color;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.TAGS)
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return rowToTag(data as TagRow);
+    }
+
     // Folders
 
     async getFolders(userId: string): Promise<Folder[]> {
@@ -565,5 +583,51 @@ export class LinkRepository extends BaseRepository {
         }
 
         return count || 0;
+    }
+
+    /**
+     * Get a guest link by its claim token
+     */
+    async getGuestLinkByToken(token: string): Promise<LinkData | null> {
+        if (!this.isConfigured()) return null;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .select('*')
+            .eq('claim_token', token)
+            .eq('is_guest', true)
+            .single();
+
+        if (error || !data) return null;
+        return rowToLinkData(data as LinkRow);
+    }
+
+    /**
+     * Claim a guest link - transfer ownership to authenticated user
+     */
+    async claimGuestLink(token: string, userId: string): Promise<LinkData> {
+        if (!this.isConfigured()) throw new Error('Supabase not configured');
+
+        // First verify the link exists and is claimable
+        const existingLink = await this.getGuestLinkByToken(token);
+        if (!existingLink) {
+            throw new Error('Link not found or already claimed');
+        }
+
+        // Update the link to assign it to the user and remove guest status
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .update({
+                user_id: userId,
+                is_guest: false,
+                claim_token: null,
+                expires_at: null
+            })
+            .eq('claim_token', token)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return rowToLinkData(data as LinkRow);
     }
 }

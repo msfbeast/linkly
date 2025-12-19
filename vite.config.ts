@@ -45,10 +45,12 @@ export default defineConfig(({ mode }) => {
           assetFileNames: `assets/[name]-[hash].[ext]`,
           manualChunks: {
             vendor: ['react', 'react-dom'],
+            router: ['react-router-dom'],
             framer: ['framer-motion'],
             charts: ['recharts'],
             ai: ['@google/genai'],
             icons: ['lucide-react'],
+            supabase: ['@supabase/supabase-js'],
           },
         },
       },

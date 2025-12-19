@@ -237,7 +237,6 @@ export const authService = {
    * Requirements: 2.1
    */
   async signIn(email: string, password: string, rememberMe: boolean = false): Promise<AuthResponse> {
-    console.log('[Auth] signIn started');
     const startTime = performance.now();
 
     if (!isSupabaseConfigured() || !supabase) {
@@ -248,13 +247,11 @@ export const authService = {
       };
     }
 
-    console.log('[Auth] Calling signInWithPassword...');
     const authStartTime = performance.now();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    console.log(`[Auth] signInWithPassword completed in ${(performance.now() - authStartTime).toFixed(0)}ms`);
 
     if (error) {
       return {
@@ -280,7 +277,6 @@ export const authService = {
 
     // Fetch profile in background (non-blocking) with a 3s timeout
     if (data.user && user) {
-      console.log('[Auth] Fetching profile in background...');
 
       // Don't await - let it run in background
       Promise.resolve(
@@ -290,7 +286,6 @@ export const authService = {
           .eq('id', data.user.id)
           .single()
       ).then(({ data: profile }) => {
-        console.log('[Auth] Profile fetch completed');
         if (profile) {
           user.settingsNotifications = profile.settings_notifications;
           user.preferences = {
@@ -311,7 +306,6 @@ export const authService = {
       });
     }
 
-    console.log('[Auth] signIn completed, returning user');
     return {
       user,
       session: data.session,

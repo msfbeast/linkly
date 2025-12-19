@@ -36,7 +36,6 @@ const LinkAnalytics: React.FC = () => {
                     try {
                         const stats = await aggregatedAnalytics.getLinkStats(id);
                         setLinkStats(stats);
-                        console.log('[LinkAnalytics] Stats loaded:', stats);
                     } catch (statsError) {
                         console.error('[LinkAnalytics] Failed to load stats (non-blocking):', statsError);
                     }
@@ -71,7 +70,6 @@ const LinkAnalytics: React.FC = () => {
     if (!link) return null;
 
     // Debug: log linkStats to verify it's being used
-    console.log('[LinkAnalytics] Rendering with linkStats:', linkStats, 'filteredClicksLength will be from clickHistory');
 
     // --- Data Processing ---
 

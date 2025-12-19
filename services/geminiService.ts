@@ -428,7 +428,6 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
         const fallback = possibleImages.find(img => !isBadImage(img));
         if (fallback) {
           finalImageUrl = fallback;
-          console.log("AI returned bad image, using fallback:", fallback);
         }
       }
 

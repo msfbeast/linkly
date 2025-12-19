@@ -102,7 +102,6 @@ export class SupabaseAdapter {
       this.teamRepo.configure(supabase);
       this.miscRepo.configure(supabase);
 
-      console.log('Supabase Adapter configured successfully');
     } catch (error) {
       console.error('Failed to initialize Supabase client:', error);
     }
@@ -172,6 +171,14 @@ export class SupabaseAdapter {
     return this.linkRepo.cleanupExpiredGuestLinks();
   }
 
+  async getGuestLinkByToken(token: string): Promise<LinkData | null> {
+    return this.linkRepo.getGuestLinkByToken(token);
+  }
+
+  async claimGuestLink(token: string, userId: string): Promise<LinkData> {
+    return this.linkRepo.claimGuestLink(token, userId);
+  }
+
   // Tags & Folders
   async getTags(userId: string): Promise<Tag[]> {
     return this.linkRepo.getTags(userId);
@@ -183,6 +190,10 @@ export class SupabaseAdapter {
 
   async deleteTag(id: string): Promise<void> {
     return this.linkRepo.deleteTag(id);
+  }
+
+  async updateTag(id: string, updates: { name?: string; color?: string }): Promise<Tag> {
+    return this.linkRepo.updateTag(id, updates);
   }
 
   // Folders
@@ -414,7 +425,6 @@ export class SupabaseAdapter {
       const inviteUrl = `${window.location.origin}/accept-invite?token=${invite.token}`;
 
       await emailService.sendInviteEmail(email, teamName, inviteUrl);
-      console.log('[Adapter] Invite email sent to', email);
     } catch (e) {
       console.error('[Adapter] Failed to send invite email', e);
     }

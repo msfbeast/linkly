@@ -31,11 +31,9 @@ export async function getLinkByShortCode(shortCode: string): Promise<LinkData | 
             const cached = await redis.get(cacheKey);
 
             if (cached) {
-                console.log(`[Cache HIT] ${shortCode}`);
                 return JSON.parse(cached) as LinkData;
             }
 
-            console.log(`[Cache MISS] ${shortCode}`);
         } catch (error) {
             console.error('Redis get error:', error);
             // Fall through to database
@@ -76,7 +74,6 @@ export async function setLinkCache(shortCode: string, link: LinkData): Promise<v
         };
 
         await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(cacheData));
-        console.log(`[Cache SET] ${shortCode}`);
     } catch (error) {
         console.error('Failed to set cache:', error);
     }
@@ -92,7 +89,6 @@ export async function invalidateLinkCache(shortCode: string): Promise<void> {
     try {
         const cacheKey = `${CACHE_PREFIX}${shortCode}`;
         await redis.del(cacheKey);
-        console.log(`[Cache INVALIDATE] ${shortCode}`);
     } catch (error) {
         console.error('Failed to invalidate cache:', error);
     }
@@ -105,12 +101,10 @@ export async function warmCache(links: LinkData[]): Promise<void> {
     const redis = getRedisClient();
     if (!redis) return;
 
-    console.log(`[Cache WARM] Warming cache with ${links.length} links`);
 
     const promises = links.map(link => setLinkCache(link.shortCode, link));
     await Promise.allSettled(promises);
 
-    console.log('[Cache WARM] Complete');
 }
 
 /**

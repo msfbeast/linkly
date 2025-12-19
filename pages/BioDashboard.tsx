@@ -207,7 +207,6 @@ const BioDashboard: React.FC = () => {
     };
 
     const handleSave = async () => {
-        console.log('handleSave called', currentProfile);
         if (!currentProfile.handle || !currentProfile.displayName) {
             toast.error('Please fill in the Handle and Display Name fields.');
             return;
@@ -216,7 +215,6 @@ const BioDashboard: React.FC = () => {
         try {
             // Check if we are updating an existing profile
             const isUpdating = profiles.some(p => p.id === currentProfile.id);
-            console.log('isUpdating:', isUpdating, 'id:', currentProfile.id);
 
             if (isUpdating && currentProfile.id) {
                 await supabaseAdapter.updateBioProfile(currentProfile.id, {

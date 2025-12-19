@@ -43,11 +43,9 @@ export function getRedisClient(): Redis | null {
         });
 
         redisClient.on('connect', () => {
-            // console.log('Redis Client Connected'); // Removed
         });
 
         redisClient.on('ready', () => {
-            // console.log('Redis Client Ready'); // Removed
         });
 
         return redisClient;

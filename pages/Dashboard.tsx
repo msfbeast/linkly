@@ -189,7 +189,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('Dashboard: Loading links...');
     }
     loadLinks();
   }, [user, currentTeam, filterStatus]); // Add filterStatus dependency
