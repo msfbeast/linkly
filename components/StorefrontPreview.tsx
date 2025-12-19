@@ -26,18 +26,18 @@ const StorefrontPreview: React.FC<StorefrontPreviewProps> = ({ theme }) => {
 
     const renderTemplate = () => {
         switch (theme) {
-            case 'vibrant': return <VibrantStorefront products={previewProducts} loading={false} />;
-            case 'glass': return <GlassMorphismStorefront products={previewProducts} loading={false} />;
-            case 'cyberpunk': return <CyberpunkStorefront products={previewProducts} loading={false} />;
-            case 'retro': return <RetroPopStorefront products={previewProducts} loading={false} />;
-            case 'neubrutalism': return <NeubrutalismStorefront products={previewProducts} loading={false} />;
-            case 'lofi': return <LofiStorefront products={previewProducts} loading={false} />;
-            case 'clay': return <ClaymorphismStorefront products={previewProducts} loading={false} />;
-            case 'bauhaus': return <BauhausStorefront products={previewProducts} loading={false} />;
-            case 'industrial': return <IndustrialStorefront products={previewProducts} loading={false} />;
-            case 'lab': return <LabStorefront products={previewProducts} loading={false} />;
-            case 'archive': return <ArchiveStorefront products={previewProducts} loading={false} />;
-            default: return <VibrantStorefront products={previewProducts} loading={false} />;
+            case 'vibrant': return <VibrantStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'glass': return <GlassMorphismStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'cyberpunk': return <CyberpunkStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'retro': return <RetroPopStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'neubrutalism': return <NeubrutalismStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'lofi': return <LofiStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'clay': return <ClaymorphismStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'bauhaus': return <BauhausStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'industrial': return <IndustrialStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'lab': return <LabStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            case 'archive': return <ArchiveStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
+            default: return <VibrantStorefront products={previewProducts} loading={false} onProductSelect={() => { }} />;
         }
     };
 

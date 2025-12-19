@@ -31,7 +31,7 @@ export default async function middleware(request: Request) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
     // Define allowed domains (localhost and main domain)
-    const allowedDomains = ['localhost', 'linkly.ai', 'app.linkly.ai', 'linkly-ai.vercel.app', 'links.trak.in'];
+    const allowedDomains = ['localhost', 'gather.link', 'app.gather.link', 'gather-link.vercel.app', 'links.trak.in'];
     const isMainDomain = allowedDomains.some(domain => hostname.includes(domain));
 
     // 0. Rate Limiting - ONLY for custom domains and public redirect routes

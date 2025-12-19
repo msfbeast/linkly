@@ -15,8 +15,8 @@ import { ClickEvent, LinkData, TrafficSource } from '../../types';
 const clickEventArb: fc.Arbitrary<ClickEvent> = fc.record({
   timestamp: fc.integer({ min: 1000000000000, max: 2000000000000 }),
   referrer: fc.string(),
-  device: fc.constantFrom('Mobile', 'Desktop', 'Tablet', 'Other') as fc.Arbitrary<ClickEvent['device']>,
-  os: fc.constantFrom('iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other') as fc.Arbitrary<ClickEvent['os']>,
+  device: fc.constantFrom('mobile', 'desktop', 'tablet', 'unknown') as fc.Arbitrary<ClickEvent['device']>,
+  os: fc.constantFrom('ios', 'android', 'windows', 'macos', 'linux', 'unknown') as fc.Arbitrary<ClickEvent['os']>,
   country: fc.option(fc.string(), { nil: undefined }),
 });
 

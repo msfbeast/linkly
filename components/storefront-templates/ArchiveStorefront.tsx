@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#F0F0F0] flex items-center justify-center">
@@ -93,12 +94,10 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                     {/* Items */}
                     <div className="divide-y divide-[#CCC]">
                         {products.map((product, index) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block hover:bg-white transition-colors"
+                                onClick={() => onProductSelect(product)}
+                                className="group block hover:bg-white transition-colors w-full text-left"
                             >
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center">
                                     {/* Mobile Layout */}
@@ -149,7 +148,7 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </button>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </main>

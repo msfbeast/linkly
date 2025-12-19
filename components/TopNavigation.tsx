@@ -3,6 +3,7 @@ import { Plus, TrendingUp, TrendingDown, LogOut, User, ChevronDown, Menu, Shoppi
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ViewState } from '../types';
+import { usePermission } from '../hooks/usePermission';
 
 export type TabType = 'overview' | 'links' | 'analytics' | 'settings';
 
@@ -16,11 +17,8 @@ interface TopNavigationProps {
   onMenuClick?: () => void;
 }
 
-/**
- * Top Navigation Component
- * Displays navigation tabs, click stats, and user menu
- * Requirements: 3.1 - Logout functionality
- */
+// ... (existing helper types)
+
 const TopNavigation: React.FC<TopNavigationProps> = ({
   totalClicks,
   clickChange,
@@ -31,6 +29,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   onMenuClick,
 }) => {
   const { user, signOut } = useAuth();
+  const { can } = usePermission(); // Use hook
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -137,10 +136,10 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
 
           {/* New Link Button */}
           {/* New Link Button - Hide on Dashboard since we have the Hero button */}
-          {currentView !== ViewState.DASHBOARD && (
+          {currentView !== ViewState.DASHBOARD && can('create_link') && (
             <button
               onClick={onNewLinkClick}
-              className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full transition-all duration-300 shadow-[0_4px_14px_0_rgba(15,23,42,0.39)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.23)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 text-sm"
+              className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full btn-premium shadow-[0_4px_14px_0_rgba(15,23,42,0.39)] text-sm"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden md:inline">New Link</span>
@@ -190,31 +189,33 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
             </button>
 
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-3 w-72 bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-white/50 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50 ring-1 ring-black/5">
+              <div className="absolute right-0 mt-3 w-72 glass-card rounded-2xl py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50 ring-1 ring-black/5">
                 <div className="px-4 py-3 border-b border-stone-100">
                   <p className="text-sm font-bold text-slate-900 truncate">{user?.email}</p>
-                  <p className="text-xs text-stone-500">Free Plan</p>
+                  <p className="text-xs text-stone-500 capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</p>
                 </div>
 
                 {/* Setup Checklist */}
-                <div className="px-4 py-3 border-b border-stone-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Setup Progress</span>
-                    <span className="text-xs font-bold text-purple-600">{Math.round(progress)}%</span>
-                  </div>
-                  <div className="space-y-2">
-                    {checklistItems.map((item) => (
-                      <div key={item.id} className="flex items-start gap-2">
-                        <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center border ${item.completed ? 'bg-purple-100 border-purple-200' : 'border-stone-200'}`}>
-                          {item.completed && <div className="w-2 h-2 bg-purple-500 rounded-full" />}
+                {progress < 100 && (
+                  <div className="px-4 py-3 border-b border-stone-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Setup Progress</span>
+                      <span className="text-xs font-bold text-purple-600">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="space-y-2">
+                      {checklistItems.map((item) => (
+                        <div key={item.id} className="flex items-start gap-2">
+                          <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center border ${item.completed ? 'bg-purple-100 border-purple-200' : 'border-stone-200'}`}>
+                            {item.completed && <div className="w-2 h-2 bg-purple-500 rounded-full" />}
+                          </div>
+                          <span className={`text-xs ${item.completed ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
+                            {item.label}
+                          </span>
                         </div>
-                        <span className={`text-xs ${item.completed ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
-                          {item.label}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <button
                   onClick={() => {

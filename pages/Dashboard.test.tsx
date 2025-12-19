@@ -13,8 +13,8 @@ describe('Dashboard - Property Tests', () => {
   const clickEventArbitrary: fc.Arbitrary<ClickEvent> = fc.record({
     timestamp: fc.integer({ min: 1609459200000, max: 1735689600000 }), // 2021-2025
     referrer: fc.constantFrom('direct', 'twitter.com', 'facebook.com', 'google.com', ''),
-    device: fc.constantFrom<'Mobile' | 'Desktop' | 'Tablet' | 'Other'>('Mobile', 'Desktop', 'Tablet', 'Other'),
-    os: fc.constantFrom<'iOS' | 'Android' | 'Windows' | 'MacOS' | 'Linux' | 'Other'>('iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other'),
+    device: fc.constantFrom<'mobile' | 'desktop' | 'tablet' | 'unknown'>('mobile', 'desktop', 'tablet', 'unknown'),
+    os: fc.constantFrom<'ios' | 'android' | 'windows' | 'macos' | 'linux' | 'unknown'>('ios', 'android', 'windows', 'macos', 'linux', 'unknown'),
     country: fc.option(fc.constantFrom('US', 'UK', 'DE', 'FR', 'JP'), { nil: undefined }),
   });
 
@@ -43,10 +43,10 @@ describe('Dashboard - Property Tests', () => {
           linksArrayArbitrary,
           (links) => {
             const topLinks = getTopPerformingLinks(links, 4);
-            
+
             // Property: result should never exceed 4 items
             expect(topLinks.length).toBeLessThanOrEqual(4);
-            
+
             // Property: result should not exceed input size
             expect(topLinks.length).toBeLessThanOrEqual(links.length);
           }
@@ -62,7 +62,7 @@ describe('Dashboard - Property Tests', () => {
           (links) => {
             const topLinks = getTopPerformingLinks(links, 4);
             const expectedCount = Math.min(links.length, 4);
-            
+
             expect(topLinks.length).toBe(expectedCount);
           }
         ),
@@ -76,14 +76,14 @@ describe('Dashboard - Property Tests', () => {
           linksArrayArbitrary.filter(links => links.length > 4),
           (links) => {
             const topLinks = getTopPerformingLinks(links, 4);
-            
+
             // Get the minimum click count in the top links
             const minTopClicks = Math.min(...topLinks.map(l => l.clicks));
-            
+
             // Get all links NOT in the top links
             const topLinkIds = new Set(topLinks.map(l => l.id));
             const remainingLinks = links.filter(l => !topLinkIds.has(l.id));
-            
+
             // Property: all remaining links should have clicks <= minTopClicks
             for (const remaining of remainingLinks) {
               expect(remaining.clicks).toBeLessThanOrEqual(minTopClicks);
@@ -100,7 +100,7 @@ describe('Dashboard - Property Tests', () => {
           linksArrayArbitrary.filter(links => links.length >= 2),
           (links) => {
             const topLinks = getTopPerformingLinks(links, 4);
-            
+
             // Property: each link should have >= clicks than the next one
             for (let i = 0; i < topLinks.length - 1; i++) {
               expect(topLinks[i].clicks).toBeGreaterThanOrEqual(topLinks[i + 1].clicks);
@@ -125,7 +125,7 @@ describe('Dashboard - Property Tests', () => {
           (links, limit) => {
             const topLinks = getTopPerformingLinks(links, limit);
             const expectedCount = Math.min(links.length, limit);
-            
+
             expect(topLinks.length).toBe(expectedCount);
           }
         ),

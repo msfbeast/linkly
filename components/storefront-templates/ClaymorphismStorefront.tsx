@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center">
@@ -108,12 +109,10 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                         {products.map((product) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-[#f0f4f8] rounded-[2.5rem] p-6 shadow-[12px_12px_24px_#cdd5e0,-12px_-12px_24px_#ffffff] transition-all duration-300 hover:scale-[1.02]"
+                                onClick={() => onProductSelect(product)}
+                                className="group block bg-[#f0f4f8] rounded-[2.5rem] p-6 shadow-[12px_12px_24px_#cdd5e0,-12px_-12px_24px_#ffffff] transition-all duration-300 hover:scale-[1.02] w-full text-left"
                             >
                                 <div className="aspect-square rounded-[2rem] mb-6 overflow-hidden relative bg-[#f0f4f8]"
                                     style={{
@@ -152,12 +151,12 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                         </span>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>
-            </section >
-        </div >
+            </section>
+        </div>
     );
 };
 

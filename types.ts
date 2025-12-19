@@ -123,7 +123,7 @@ export interface QnaMessage {
   isRead: boolean;
 }
 
-export type LinkType = 'link' | 'music' | 'video' | 'map' | 'social_feed' | 'newsletter' | 'contact' | 'poll' | 'qna' | 'tip_jar';
+export type LinkType = 'link' | 'map' | 'newsletter' | 'contact' | 'tip_jar' | 'qr_code';
 
 export interface LinkData {
   id: string;
@@ -132,8 +132,9 @@ export interface LinkData {
   title: string;
   description?: string;
   tags: string[];
-  folderId?: string | null;
+  userId?: string | null;
   teamId?: string | null;
+  folderId?: string | null;
   domain?: string;
   createdAt: number;
 
@@ -152,19 +153,10 @@ export interface LinkData {
     h: number; // Height in grid rows (1 or 2)
   };
   metadata?: {
-    // Music
-    platform?: 'spotify' | 'apple';
-    embedUrl?: string;
     // Map
     lat?: number;
     lng?: number;
     address?: string;
-    // Video
-    videoId?: string;
-    videoPlatform?: 'youtube' | 'vimeo';
-    // Social
-    socialPlatform?: 'instagram' | 'twitter' | 'linkedin';
-    username?: string;
     // General
     [key: string]: any;
   };
@@ -319,7 +311,10 @@ export enum ViewState {
   BIO_PAGES = 'BIO_PAGES',
   TEAM_SETTINGS = 'TEAM_SETTINGS',
   PRODUCTS = 'PRODUCTS',
-  STOREFRONT = 'STOREFRONT'
+  AFFILIATE = 'AFFILIATE',
+  STOREFRONT = 'STOREFRONT',
+  AGENCY = 'AGENCY',
+  ADD_PRODUCT = 'ADD_PRODUCT'
 }
 
 export interface Team {
@@ -390,7 +385,7 @@ export interface UserProfile {
   onboardingStep?: number;
   onboardingSkipped?: boolean;
   onboardingStartedAt?: string;
-  subscription_tier?: 'free' | 'starter' | 'pro' | 'premium' | 'business';
+  subscription_tier?: 'free' | 'pro' | 'business';
   subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
   trial_ends_at?: string;
   razorpay_customer_id?: string;
@@ -421,7 +416,7 @@ export interface User {
     onboarding_step?: number;
     onboarding_skipped?: boolean;
     onboarding_started_at?: string;
-    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium' | 'business';
+    subscription_tier?: 'free' | 'pro' | 'business';
     subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
     trial_ends_at?: string;
   };
@@ -441,6 +436,27 @@ export interface Product {
   originalUrl?: string; // For direct linking fallback
   category?: string;
   slug?: string;
+  createdAt: number;
+
+  // Digital Product Fields
+  type?: 'physical' | 'digital';
+  fileUrl?: string; // Signed URL or storage path
+  fileName?: string;
+  salesCount?: number;
+  downloadLimit?: number;
+}
+
+export interface Order {
+  id: string;
+  sellerId: string;
+  productId: string;
+  customerEmail?: string;
+  customerName?: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'paid' | 'failed' | 'refunded';
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
   createdAt: number;
 }
 

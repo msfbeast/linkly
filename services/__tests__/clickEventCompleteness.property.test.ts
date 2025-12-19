@@ -13,10 +13,10 @@ import { ClickEvent } from '../../types';
  */
 describe('Click Event Completeness Property Tests', () => {
   // Valid device types
-  const validDeviceTypes: ClickEvent['device'][] = ['Mobile', 'Desktop', 'Tablet', 'Other'];
-  
+  const validDeviceTypes: ClickEvent['device'][] = ['mobile', 'desktop', 'tablet', 'unknown'];
+
   // Valid OS types
-  const validOSTypes: ClickEvent['os'][] = ['iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other'];
+  const validOSTypes: ClickEvent['os'][] = ['ios', 'android', 'windows', 'macos', 'linux', 'unknown'];
 
   // Generator for realistic user agent strings
   const userAgentArb = fc.oneof(
@@ -79,10 +79,10 @@ describe('Click Event Completeness Property Tests', () => {
     timestamp: number
   ): ClickEvent {
     const { device, os } = parseUserAgent(userAgent);
-    
+
     // Simulate geolocation (always returns a value, "Unknown" on failure)
     const country = 'Unknown'; // Geolocation is async, we simulate the fallback
-    
+
     return {
       timestamp,
       referrer: referrer || 'direct',
@@ -105,7 +105,7 @@ describe('Click Event Completeness Property Tests', () => {
         fc.integer({ min: 0, max: Date.now() + 365 * 24 * 60 * 60 * 1000 }),
         (userAgent, referrer, ipAddress, timestamp) => {
           const event = simulateClickEventCreation(userAgent, referrer, ipAddress, timestamp);
-          
+
           expect(event.timestamp).toBeDefined();
           expect(typeof event.timestamp).toBe('number');
           expect(event.timestamp).toBe(timestamp);
@@ -128,7 +128,7 @@ describe('Click Event Completeness Property Tests', () => {
         fc.integer({ min: 0, max: Date.now() + 365 * 24 * 60 * 60 * 1000 }),
         (userAgent, referrer, ipAddress, timestamp) => {
           const event = simulateClickEventCreation(userAgent, referrer, ipAddress, timestamp);
-          
+
           expect(event.referrer).toBeDefined();
           expect(event.referrer).not.toBeNull();
           expect(typeof event.referrer).toBe('string');
@@ -155,7 +155,7 @@ describe('Click Event Completeness Property Tests', () => {
         fc.integer({ min: 0, max: Date.now() + 365 * 24 * 60 * 60 * 1000 }),
         (userAgent, referrer, ipAddress, timestamp) => {
           const event = simulateClickEventCreation(userAgent, referrer, ipAddress, timestamp);
-          
+
           expect(event.device).toBeDefined();
           expect(event.device).not.toBeNull();
           expect(validDeviceTypes).toContain(event.device);
@@ -179,7 +179,7 @@ describe('Click Event Completeness Property Tests', () => {
         fc.integer({ min: 0, max: Date.now() + 365 * 24 * 60 * 60 * 1000 }),
         (userAgent, referrer, ipAddress, timestamp) => {
           const event = simulateClickEventCreation(userAgent, referrer, ipAddress, timestamp);
-          
+
           expect(event.os).toBeDefined();
           expect(event.os).not.toBeNull();
           expect(validOSTypes).toContain(event.os);
@@ -203,7 +203,7 @@ describe('Click Event Completeness Property Tests', () => {
         fc.integer({ min: 0, max: Date.now() + 365 * 24 * 60 * 60 * 1000 }),
         (userAgent, referrer, ipAddress, timestamp) => {
           const event = simulateClickEventCreation(userAgent, referrer, ipAddress, timestamp);
-          
+
           expect(event.country).toBeDefined();
           expect(event.country).not.toBeNull();
           expect(typeof event.country).toBe('string');
@@ -227,21 +227,21 @@ describe('Click Event Completeness Property Tests', () => {
         fc.integer({ min: 0, max: Date.now() + 365 * 24 * 60 * 60 * 1000 }),
         (userAgent, referrer, ipAddress, timestamp) => {
           const event = simulateClickEventCreation(userAgent, referrer, ipAddress, timestamp);
-          
+
           // All fields must be defined and non-null
           expect(event.timestamp).toBeDefined();
           expect(event.referrer).toBeDefined();
           expect(event.device).toBeDefined();
           expect(event.os).toBeDefined();
           expect(event.country).toBeDefined();
-          
+
           // All fields must have valid types
           expect(typeof event.timestamp).toBe('number');
           expect(typeof event.referrer).toBe('string');
           expect(typeof event.device).toBe('string');
           expect(typeof event.os).toBe('string');
           expect(typeof event.country).toBe('string');
-          
+
           // Device and OS must be from valid sets
           expect(validDeviceTypes).toContain(event.device);
           expect(validOSTypes).toContain(event.os);
@@ -264,7 +264,7 @@ describe('Click Event Completeness Property Tests', () => {
         fc.integer({ min: 0, max: Date.now() + 365 * 24 * 60 * 60 * 1000 }),
         (userAgent, referrer, ipAddress, timestamp) => {
           const event = simulateClickEventCreation(userAgent, referrer || '', ipAddress, timestamp);
-          
+
           expect(event.referrer).toBe('direct');
         }
       ),

@@ -134,6 +134,6 @@ export function downloadCSV(content: string, filename: string): void {
  */
 export function exportAndDownload(data: ExportData, filename?: string): void {
   const csvContent = generateCSVExport(data);
-  const defaultFilename = `linkly-export-${new Date().toISOString().split('T')[0]}.csv`;
+  const defaultFilename = `gather-export-${new Date().toISOString().split('T')[0]}.csv`;
   downloadCSV(csvContent, filename || defaultFilename);
 }

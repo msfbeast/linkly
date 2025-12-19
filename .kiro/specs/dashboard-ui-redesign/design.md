@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design document outlines the architecture and implementation approach for redesigning the Linkly AI dashboard with a modern dark theme visual style. The redesign introduces a new navigation system, color-coded link performance cards, multiple chart types (bar, donut, radar), and a priority links list, all while maintaining the core link shortener functionality.
+This design document outlines the architecture and implementation approach for redesigning the Gather AI dashboard with a modern dark theme visual style. The redesign introduces a new navigation system, color-coded link performance cards, multiple chart types (bar, donut, radar), and a priority links list, all while maintaining the core link shortener functionality.
 
 ## Architecture
 

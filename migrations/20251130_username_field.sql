@@ -8,7 +8,7 @@ ALTER TABLE profiles
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
 
 -- Add comment
-COMMENT ON COLUMN profiles.username IS 'Unique handle for the user (e.g. linkly.ai/username)';
+COMMENT ON COLUMN profiles.username IS 'Unique handle for the user (e.g. gather.link/username)';
 
 -- Add constraint to ensure valid username format (alphanumeric, underscores, hyphens)
 ALTER TABLE profiles

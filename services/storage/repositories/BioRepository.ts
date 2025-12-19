@@ -4,6 +4,7 @@ import {
     rowToBioProfile,
     bioProfileToRow,
     rowToProduct,
+    rowToOrder,
     ProductRow,
     BioProfileRow,
     DomainRow,
@@ -28,6 +29,8 @@ export class BioRepository extends BaseRepository {
         if (error || !data) return null;
         return rowToBioProfile(data as BioProfileRow);
     }
+
+
 
     /**
      * Get bio profile by Handle
@@ -171,6 +174,33 @@ export class BioRepository extends BaseRepository {
     // Products
     // =================================
 
+
+    async getProductById(id: string): Promise<Product | null> {
+        if (!this.isConfigured()) return null;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.PRODUCTS)
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) return null;
+        return rowToProduct(data as ProductRow);
+    }
+
+    async getProductBySlug(slug: string): Promise<Product | null> {
+        if (!this.isConfigured()) return null;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.PRODUCTS)
+            .select('*')
+            .eq('slug', slug)
+            .single();
+
+        if (error || !data) return null;
+        return rowToProduct(data as ProductRow);
+    }
+
     async getProducts(userId: string): Promise<Product[]> {
         if (!this.isConfigured()) return [];
 
@@ -208,6 +238,11 @@ export class BioRepository extends BaseRepository {
             category: null,
             created_at: now,
             slug: product.slug ?? null,
+            type: product.type ?? 'physical',
+            file_url: product.fileUrl ?? null,
+            file_name: product.fileName ?? null,
+            sales_count: product.salesCount ?? 0,
+            download_limit: product.downloadLimit ?? null,
         };
 
         const { data, error } = await this.supabase!
@@ -218,6 +253,74 @@ export class BioRepository extends BaseRepository {
 
         if (error) throw error;
         return rowToProduct(data as ProductRow);
+    }
+
+    async updateProduct(id: string, updates: Partial<Product>): Promise<Product> {
+        if (!this.isConfigured()) throw new Error('Supabase is not configured');
+
+        // Map updates to row format
+        const rowUpdates: Partial<ProductRow> = {};
+        if (updates.name !== undefined) rowUpdates.name = updates.name;
+        if (updates.description !== undefined) rowUpdates.description = updates.description;
+        if (updates.price !== undefined) rowUpdates.price = updates.price;
+        if (updates.currency !== undefined) rowUpdates.currency = updates.currency;
+        if (updates.imageUrl !== undefined) rowUpdates.image_url = updates.imageUrl;
+        if (updates.linkId !== undefined) rowUpdates.link_id = updates.linkId; // Careful with null
+        if (updates.shortCode !== undefined) rowUpdates.short_code = updates.shortCode;
+        if (updates.originalUrl !== undefined) rowUpdates.original_url = updates.originalUrl;
+        if (updates.category !== undefined) rowUpdates.category = updates.category;
+        if (updates.slug !== undefined) rowUpdates.slug = updates.slug;
+        if (updates.type !== undefined) rowUpdates.type = updates.type;
+        if (updates.fileUrl !== undefined) rowUpdates.file_url = updates.fileUrl;
+        if (updates.fileName !== undefined) rowUpdates.file_name = updates.fileName;
+        if (updates.salesCount !== undefined) rowUpdates.sales_count = updates.salesCount;
+        if (updates.downloadLimit !== undefined) rowUpdates.download_limit = updates.downloadLimit;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.PRODUCTS)
+            .update(rowUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return rowToProduct(data as ProductRow);
+    }
+
+    async deleteProduct(id: string): Promise<void> {
+        if (!this.isConfigured()) throw new Error('Supabase is not configured');
+
+        const { error } = await this.supabase!
+            .from(this.TABLES.PRODUCTS)
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    }
+
+    async uploadDigitalFile(file: File, userId: string): Promise<string> {
+        if (!this.isConfigured()) throw new Error('Supabase is not configured');
+
+        // Simple path: userId/timestamp-filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+        // Assume we have a 'digital-products' bucket.
+        // In a real app we would use signed URLs for private access.
+        // For MVP, if we want to secure it, we should use a private bucket and generate signed URLs on download.
+        // For now, let's assume standard upload.
+
+        const { error: uploadError } = await this.supabase!.storage
+            .from('digital-products')
+            .upload(fileName, file, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        // Return the path or signed URL? 
+        // For now, let's return the path, and we'll generate signed URLs on demand or make it public for MVP (not secure but easier).
+        // Actually, let's try to get a public URL for simplicity if it's an MVP, OR just the path.
+        // Best practice: Return path, generate signed URL when "buying".
+        return fileName;
     }
 
     // =================================
@@ -270,8 +373,8 @@ export class BioRepository extends BaseRepository {
         if (!domainData) throw new Error('Domain not found');
 
         // Perform DNS check via Google DoH (Client-side safe)
-        // We expect a CNAME to 'custom.linkly.ai' (or app domain)
-        const EXPECTED_CNAME = 'custom.linkly.ai';
+        // We expect a CNAME to 'custom.gather.link' (or app domain)
+        const EXPECTED_CNAME = 'custom.gather.link';
         let isVerified = false;
 
         try {
@@ -284,7 +387,7 @@ export class BioRepository extends BaseRepository {
                     isVerified = true;
                 }
             } else {
-                // Fallback or additional check for TXT record linkly-verification=...
+                // Fallback or additional check for TXT record gather-verification=...
             }
         } catch (e) {
             console.error('DNS Check failed', e);
@@ -348,5 +451,21 @@ export class BioRepository extends BaseRepository {
             handle: profile.handle,
             type: (domainData.target_type as 'bio' | 'store') || 'bio'
         };
+    }
+    async getOrders(sellerId: string): Promise<any[]> {
+        if (!this.isConfigured()) return [];
+
+        const { data, error } = await this.supabase!
+            .from('orders')
+            .select('*')
+            .eq('seller_id', sellerId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Failed to fetch orders:', error);
+            return [];
+        }
+
+        return (data || []).map(rowToOrder);
     }
 }

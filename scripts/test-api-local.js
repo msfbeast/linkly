@@ -32,7 +32,8 @@ async function testApi() {
     console.log(`👤 Using user: ${user.email} (${user.id})`);
 
     // Generate a real key
-    const prefix = 'pk_live_';
+    const API_KEY = 'ga_live_test_key_123';
+    const prefix = 'ga_live_';
     const randomBytes = new Uint8Array(24);
     crypto.getRandomValues(randomBytes);
     const secretPart = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');

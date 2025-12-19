@@ -1,5 +1,5 @@
 {
-  "name": "Linkly AI",
+  "name": "Gather",
   "description": "A smart URL shortener and link management platform powered by Gemini to analyze content, auto-generate tags, and provide predictive analytics.",
   "requestFramePermissions": []
 }

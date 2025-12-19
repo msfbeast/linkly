@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design adds user authentication to Linkly using Supabase Auth. The implementation provides email/password authentication, session management, protected routes, and Row Level Security (RLS) to ensure users can only access their own data.
+This design adds user authentication to Gather using Supabase Auth. The implementation provides email/password authentication, session management, protected routes, and Row Level Security (RLS) to ensure users can only access their own data.
 
 The design prioritizes:
 - **Security**: Proper session handling, password requirements, and data isolation

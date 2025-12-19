@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This feature adds user authentication to Linkly, enabling multi-user support where each user can only access their own links and analytics. The implementation uses Supabase Auth for authentication and Row Level Security (RLS) for data isolation. This is foundational for future features like teams, API access, and billing.
+This feature adds user authentication to Gather, enabling multi-user support where each user can only access their own links and analytics. The implementation uses Supabase Auth for authentication and Row Level Security (RLS) for data isolation. This is foundational for future features like teams, API access, and billing.
 
 ## Glossary
 

@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FFF4E0] flex items-center justify-center">
@@ -83,12 +84,10 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product, i) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:-translate-x-1 transition-all duration-200"
+                                onClick={() => onProductSelect(product)}
+                                className="group block bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:-translate-x-1 transition-all duration-200 w-full text-left"
                             >
                                 <div className="aspect-square bg-white border-2 border-black mb-4 overflow-hidden relative">
                                     {product.imageUrl ? (
@@ -119,7 +118,7 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                         </div>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>

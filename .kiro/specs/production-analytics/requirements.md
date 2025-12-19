@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This feature transforms the Linkly link shortener from a demo/prototype with placeholder data into a production-ready analytics platform. The current implementation uses localStorage and generates fake demo data. This spec covers implementing real data persistence, server-side click tracking, accurate analytics collection, and removing all placeholder/demo data dependencies.
+This feature transforms the Gather link shortener from a demo/prototype with placeholder data into a production-ready analytics platform. The current implementation uses localStorage and generates fake demo data. This spec covers implementing real data persistence, server-side click tracking, accurate analytics collection, and removing all placeholder/demo data dependencies.
 
 ## Glossary
 

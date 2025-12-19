@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
@@ -91,12 +92,10 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl p-4 hover:bg-white/10 transition-all duration-300 hover:-translate-y-2 shadow-xl shadow-black/20"
+                                onClick={() => onProductSelect(product)}
+                                className="group block bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl p-4 hover:bg-white/10 transition-all duration-300 hover:-translate-y-2 shadow-xl shadow-black/20 w-full text-left"
                             >
                                 <div className="aspect-square bg-white rounded-2xl mb-4 overflow-hidden relative flex items-center justify-center">
                                     {product.imageUrl ? (
@@ -123,7 +122,7 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                                         </div>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>

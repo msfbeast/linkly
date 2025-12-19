@@ -17,23 +17,24 @@ export interface LinkHealthDataPoint {
 
 export interface LinkHealthChartProps {
   data: LinkHealthDataPoint[];
+  trendData?: { name: string; value: number }[];
 }
 
-const LinkHealthChart: React.FC<LinkHealthChartProps> = ({ data }) => {
+const LinkHealthChart: React.FC<LinkHealthChartProps> = ({ data, trendData = [] }) => {
   // Calculate an overall score based on the data
   const overallScore = Math.round(
     data.reduce((acc, curr) => acc + curr.value, 0) / (data.length || 1)
   );
 
-  // Mock trend data for the mini chart
-  const trendData = [
-    { name: 'Mon', value: 65 },
-    { name: 'Tue', value: 59 },
-    { name: 'Wed', value: 80 },
-    { name: 'Thu', value: 81 },
-    { name: 'Fri', value: 56 },
-    { name: 'Sat', value: 55 },
-    { name: 'Sun', value: 40 },
+  // Use provided trend data or empty default
+  const chartData = trendData.length > 0 ? trendData : [
+    { name: 'Mon', value: 0 },
+    { name: 'Tue', value: 0 },
+    { name: 'Wed', value: 0 },
+    { name: 'Thu', value: 0 },
+    { name: 'Fri', value: 0 },
+    { name: 'Sat', value: 0 },
+    { name: 'Sun', value: 0 },
   ];
 
   return (
@@ -86,7 +87,7 @@ const LinkHealthChart: React.FC<LinkHealthChartProps> = ({ data }) => {
         {/* Chart Area */}
         <div className="relative h-32 w-full mt-2 min-h-[128px]">
           <ResponsiveContainer width="100%" height="100%" debounce={50}>
-            <AreaChart data={trendData}>
+            <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="healthGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#a3e635" stopOpacity={0.3} />

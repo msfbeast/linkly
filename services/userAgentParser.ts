@@ -5,8 +5,8 @@
  * Used for click tracking analytics.
  */
 
-export type DeviceType = 'Mobile' | 'Desktop' | 'Tablet' | 'Other';
-export type OSType = 'iOS' | 'Android' | 'Windows' | 'MacOS' | 'Linux' | 'Other';
+export type DeviceType = 'mobile' | 'desktop' | 'tablet' | 'unknown';
+export type OSType = 'ios' | 'android' | 'windows' | 'macos' | 'linux' | 'unknown';
 export type BrowserType = 'Chrome' | 'Firefox' | 'Safari' | 'Edge' | 'Opera' | 'Other';
 
 export interface ParsedUserAgent {
@@ -41,20 +41,20 @@ export function parseUserAgent(userAgent: string): ParsedUserAgent {
 function detectDevice(ua: string): DeviceType {
   // Check for tablets first (before mobile, as some tablets include mobile keywords)
   if (isTablet(ua)) {
-    return 'Tablet';
+    return 'tablet';
   }
 
   // Check for mobile devices
   if (isMobile(ua)) {
-    return 'Mobile';
+    return 'mobile';
   }
 
   // Check for desktop indicators
   if (isDesktop(ua)) {
-    return 'Desktop';
+    return 'desktop';
   }
 
-  return 'Other';
+  return 'unknown';
 }
 
 /**
@@ -140,30 +140,30 @@ function isDesktop(ua: string): boolean {
 function detectOS(ua: string): OSType {
   // iOS detection (iPhone, iPad, iPod)
   if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
-    return 'iOS';
+    return 'ios';
   }
 
   // Android detection
   if (ua.includes('android')) {
-    return 'Android';
+    return 'android';
   }
 
   // Windows detection
   if (ua.includes('windows') || ua.includes('win32') || ua.includes('win64')) {
-    return 'Windows';
+    return 'windows';
   }
 
   // MacOS detection (but not iOS devices)
   if (ua.includes('macintosh') || ua.includes('mac os x')) {
-    return 'MacOS';
+    return 'macos';
   }
 
   // Linux detection (but not Android)
   if (ua.includes('linux') || ua.includes('x11')) {
-    return 'Linux';
+    return 'linux';
   }
 
-  return 'Other';
+  return 'unknown';
 }
 
 /**

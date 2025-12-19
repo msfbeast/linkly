@@ -18,7 +18,7 @@ const BioSeoEditor: React.FC<BioSeoEditorProps> = ({ profile, onChange }) => {
     const title = seo.title || profile.displayName || 'My Profile';
     const description = seo.description || profile.bio || 'Check out my links!';
     const image = seo.ogImage || profile.avatarUrl || 'https://via.placeholder.com/1200x630?text=No+Image';
-    const url = `linkly.ai/${profile.handle}`;
+    const url = `gather.link/${profile.handle}`;
 
     const handleUpdate = (field: keyof typeof seo, value: string) => {
         onChange({
@@ -160,7 +160,7 @@ const BioSeoEditor: React.FC<BioSeoEditorProps> = ({ profile, onChange }) => {
                                     {profile.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <Globe className="w-4 h-4 text-stone-500" />}
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-sm text-slate-800 leading-none">Linkly</span>
+                                    <span className="text-sm text-slate-800 leading-none">Gather</span>
                                     <span className="text-xs text-stone-500 leading-none mt-0.5">{url}</span>
                                 </div>
                                 <div className="ml-auto">
@@ -189,7 +189,7 @@ const BioSeoEditor: React.FC<BioSeoEditorProps> = ({ profile, onChange }) => {
                                 )}
                             </div>
                             <div className="p-3">
-                                <span className="text-xs text-stone-500 uppercase font-medium mb-1 block">linkly.ai</span>
+                                <span className="text-xs text-stone-500 uppercase font-medium mb-1 block">gather.link</span>
                                 <p className="text-slate-900 font-medium leading-snug truncate mb-1">{title}</p>
                                 <p className="text-stone-500 text-sm leading-snug line-clamp-2">{description}</p>
                             </div>
@@ -205,7 +205,7 @@ const BioSeoEditor: React.FC<BioSeoEditorProps> = ({ profile, onChange }) => {
                                 </div>
                                 <div className="p-2 bg-white">
                                     <h4 className="text-sm font-semibold text-slate-900 truncate">{title}</h4>
-                                    <p className="text-xs text-stone-500 truncate mt-0.5">linkly.ai</p>
+                                    <p className="text-xs text-stone-500 truncate mt-0.5">gather.link</p>
                                 </div>
                             </div>
                         </div>

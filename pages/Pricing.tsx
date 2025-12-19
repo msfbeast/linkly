@@ -64,7 +64,7 @@ const Pricing: React.FC = () => {
                     key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Make sure this is in env
                     amount: order.amount,
                     currency: order.currency,
-                    name: "Linkly",
+                    name: "Gather",
                     description: `${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Subscription`,
                     order_id: order.id,
                     handler: async function (response: any) {
@@ -168,7 +168,7 @@ const Pricing: React.FC = () => {
                         features={[
                             "50 Active Links",
                             "Basic Analytics (7-day History)",
-                            "Linkly Branding",
+                            "Gather Branding",
                             "Standard QR Codes",
                             "1 Team Member"
                         ]}
@@ -185,9 +185,11 @@ const Pricing: React.FC = () => {
                         isLoading={loadingTier === 'pro'}
                         features={[
                             "Unlimited Active Links",
+                            "Digital Storefront (Sell Products)",
+                            "0% Transaction Fees",
                             "90-Day Analytics History",
                             "Custom Bio Themes & CSS",
-                            "No Linkly Branding",
+                            "No Gather Branding",
                             "Custom QR Codes",
                             "Password Protection",
                             "5 Team Members"

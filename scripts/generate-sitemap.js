@@ -123,13 +123,13 @@ async function generateSitemap() {
 
     xml += `</urlset>`;
 
-    const publicDir = path.resolve(__dirname, '../public');
-    if (!fs.existsSync(publicDir)) {
-        fs.mkdirSync(publicDir);
+    const outputDir = path.join(__dirname, '../dist');
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
     }
-
-    fs.writeFileSync(path.join(publicDir, 'sitemap.xml'), xml);
-    console.log('Sitemap generated successfully at public/sitemap.xml');
+    const outputPath = path.join(outputDir, 'sitemap.xml');
+    fs.writeFileSync(outputPath, xml);
+    console.log(`✅ Sitemap generated at ${outputPath}`);
 }
 
 generateSitemap().catch(console.error);

@@ -12,12 +12,13 @@ const InstallPrompt: React.FC = () => {
     const [showPrompt, setShowPrompt] = useState(false);
 
     useEffect(() => {
+        // Check if user has already dismissed the prompt
+        const isDismissed = localStorage.getItem('pwa-prompt-dismissed');
+        if (isDismissed) return;
+
         const handler = (e: Event) => {
-            // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             setDeferredPrompt(e as BeforeInstallPromptEvent);
-            // Update UI notify the user they can install the PWA
             setShowPrompt(true);
         };
 
@@ -31,60 +32,44 @@ const InstallPrompt: React.FC = () => {
     const handleInstallClick = async () => {
         if (!deferredPrompt) return;
 
-        // Show the install prompt
         deferredPrompt.prompt();
 
-        // Wait for the user to respond to the prompt
         const { outcome } = await deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
             console.log('User accepted the install prompt');
-        } else {
-            console.log('User dismissed the install prompt');
         }
 
-        // We've used the prompt, and can't use it again, throw it away
         setDeferredPrompt(null);
         setShowPrompt(false);
     };
 
     const handleDismiss = () => {
         setShowPrompt(false);
+        // Remember dismissal for this session/browser
+        localStorage.setItem('pwa-prompt-dismissed', 'true');
     };
 
     return (
         <AnimatePresence>
             {showPrompt && (
                 <motion.div
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-6 md:bottom-24 md:max-w-md"
+                    initial={{ y: 20, opacity: 0, scale: 0.9 }}
+                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                    exit={{ y: 20, opacity: 0, scale: 0.9 }}
+                    className="fixed bottom-6 right-6 z-50"
                 >
-                    <div className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl flex items-center justify-between border border-white/10 backdrop-blur-xl bg-slate-900/90">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-white/10 p-2 rounded-lg shrink-0">
-                                <Download className="w-5 h-5 text-yellow-400" />
-                            </div>
-                            <div className="min-w-0">
-                                <h3 className="font-bold text-sm truncate">Install Gather</h3>
-                                <p className="text-xs text-stone-400 truncate">Add to home screen for quick access</p>
-                            </div>
+                    <div className="bg-slate-900/90 backdrop-blur-md text-white pl-4 pr-2 py-2 rounded-full shadow-lg border border-white/10 flex items-center gap-3">
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={handleInstallClick}>
+                            <Download className="w-4 h-4 text-yellow-400" />
+                            <span className="text-sm font-bold pr-2 border-r border-white/10">Install App</span>
                         </div>
-                        <div className="flex items-center gap-2 ml-4">
-                            <button
-                                onClick={handleDismiss}
-                                className="p-2 text-stone-400 hover:text-white transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={handleInstallClick}
-                                className="bg-yellow-400 text-slate-900 px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-yellow-400/20 active:scale-95 transition-transform whitespace-nowrap"
-                            >
-                                Install
-                            </button>
-                        </div>
+                        <button
+                            onClick={handleDismiss}
+                            className="p-1 text-stone-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
                     </div>
                 </motion.div>
             )}

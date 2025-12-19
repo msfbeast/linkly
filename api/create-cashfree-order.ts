@@ -6,10 +6,12 @@ import { Cashfree } from 'cashfree-pg';
 Cashfree.XClientId = process.env.CASHFREE_APP_ID!;
 // @ts-ignore
 Cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY!;
-// @ts-ignore
+// @ts-ignore - Cashfree SDK typing issue
 Cashfree.XEnvironment = process.env.VITE_APP_ENV === 'production'
-    ? Cashfree.Environment.PRODUCTION
-    : Cashfree.Environment.SANDBOX;
+    // @ts-ignore
+    ? Cashfree.Environment?.PRODUCTION
+    // @ts-ignore
+    : Cashfree.Environment?.SANDBOX;
 
 export default async function handler(
     req: VercelRequest,

@@ -13,10 +13,10 @@ import { ClickEvent } from '../../types';
  */
 describe('Click Deduplication Property Tests', () => {
   // Valid device types
-  const deviceTypes: ClickEvent['device'][] = ['Mobile', 'Desktop', 'Tablet', 'Other'];
+  const deviceTypes: ClickEvent['device'][] = ['mobile', 'desktop', 'tablet', 'unknown'];
   
   // Valid OS types
-  const osTypes: ClickEvent['os'][] = ['iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other'];
+  const osTypes: ClickEvent['os'][] = ['ios', 'android', 'windows', 'macos', 'linux', 'unknown'];
 
   // Generator for valid linkIds
   const linkIdArb = fc.uuid();
@@ -142,8 +142,8 @@ describe('Click Deduplication Property Tests', () => {
             linkId: linkIdArb,
             timestamp: timestampArb,
             referrer: fc.constant('direct'),
-            device: fc.constant('Desktop' as const),
-            os: fc.constant('Windows' as const),
+            device: fc.constant('desktop' as const),
+            os: fc.constant('windows' as const),
             country: fc.constant('US'),
           }),
           { minLength: 1, maxLength: 20 }
@@ -192,8 +192,8 @@ describe('Click Deduplication Property Tests', () => {
             linkId,
             timestamp: ts,
             referrer: 'direct',
-            device: 'Desktop',
-            os: 'Windows',
+            device: 'desktop',
+            os: 'windows',
             country: 'US',
           }));
           
@@ -224,8 +224,8 @@ describe('Click Deduplication Property Tests', () => {
             linkId: id,
             timestamp,
             referrer: 'direct',
-            device: 'Desktop',
-            os: 'Windows',
+            device: 'desktop',
+            os: 'windows',
             country: 'US',
           }));
           
@@ -255,8 +255,8 @@ describe('Click Deduplication Property Tests', () => {
             linkId,
             timestamp,
             referrer: ref,
-            device: 'Desktop',
-            os: 'Windows',
+            device: 'desktop',
+            os: 'windows',
             country: 'US',
           }));
           

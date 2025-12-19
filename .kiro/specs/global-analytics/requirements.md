@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This feature adds Global Analytics capabilities to Linkly, enabling aggregated reporting across all links and users. While the existing production-analytics spec handles individual link tracking and per-user analytics, Global Analytics provides platform-wide insights, comparative benchmarks, and aggregated reports that help users understand their performance relative to overall platform trends. This is a foundational feature for version 2.0.
+This feature adds Global Analytics capabilities to Gather, enabling aggregated reporting across all links and users. While the existing production-analytics spec handles individual link tracking and per-user analytics, Global Analytics provides platform-wide insights, comparative benchmarks, and aggregated reports that help users understand their performance relative to overall platform trends. This is a foundational feature for version 2.0.
 
 ## Glossary
 

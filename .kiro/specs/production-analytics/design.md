@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design transforms Linkly from a demo application with localStorage and placeholder data into a production-ready analytics platform. The architecture introduces a backend service layer that handles persistent storage, server-side click tracking with accurate geolocation, and real-time data aggregation.
+This design transforms Gather from a demo application with localStorage and placeholder data into a production-ready analytics platform. The architecture introduces a backend service layer that handles persistent storage, server-side click tracking with accurate geolocation, and real-time data aggregation.
 
 The design prioritizes:
 - **Reliability**: Persistent storage with retry logic and error handling

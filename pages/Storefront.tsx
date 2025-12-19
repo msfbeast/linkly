@@ -15,6 +15,7 @@ import BauhausStorefront from '../components/storefront-templates/BauhausStorefr
 import IndustrialStorefront from '../components/storefront-templates/IndustrialStorefront';
 import LabStorefront from '../components/storefront-templates/LabStorefront';
 import ArchiveStorefront from '../components/storefront-templates/ArchiveStorefront';
+import CheckoutModal from '../components/CheckoutModal';
 
 const Storefront: React.FC = () => {
     const { userId } = useParams<{ userId: string }>();
@@ -80,35 +81,66 @@ const Storefront: React.FC = () => {
     }
 
     // Render the selected template
-    const templateProps = { products, loading, storeProfile };
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-    switch (theme) {
-        case 'vibrant':
-            return <VibrantStorefront {...templateProps} />;
-        case 'glass':
-            return <GlassMorphismStorefront {...templateProps} />;
-        case 'cyberpunk':
-            return <CyberpunkStorefront {...templateProps} />;
-        case 'retro':
-            return <RetroPopStorefront {...templateProps} />;
-        case 'neubrutalism':
-            return <NeubrutalismStorefront {...templateProps} />;
-        case 'lofi':
-            return <LofiStorefront {...templateProps} />;
-        case 'clay':
-            return <ClaymorphismStorefront {...templateProps} />;
-        case 'bauhaus':
-            return <BauhausStorefront {...templateProps} />;
-        case 'industrial':
-            return <IndustrialStorefront {...templateProps} />;
-        case 'lab':
-            return <LabStorefront {...templateProps} />;
-        case 'archive':
-            return <ArchiveStorefront {...templateProps} />;
-        default:
-            // Default fallback to Vibrant
-            return <VibrantStorefront {...templateProps} />;
-    }
+    // Render the selected template
+    const handleProductSelect = (product: Product) => {
+        if (product.type === 'digital') {
+            setSelectedProduct(product);
+        } else if (product.originalUrl) {
+            // Physical/Affiliate Link
+            window.open(product.originalUrl, '_blank');
+        }
+    };
+
+    const templateProps = {
+        products,
+        loading,
+        storeProfile,
+        onProductSelect: handleProductSelect
+    };
+
+    const renderTemplate = () => {
+        switch (theme) {
+            case 'vibrant':
+                return <VibrantStorefront {...templateProps} />;
+            case 'glass':
+                return <GlassMorphismStorefront {...templateProps} />;
+            case 'cyberpunk':
+                return <CyberpunkStorefront {...templateProps} />;
+            case 'retro':
+                return <RetroPopStorefront {...templateProps} />;
+            case 'neubrutalism':
+                return <NeubrutalismStorefront {...templateProps} />;
+            case 'lofi':
+                return <LofiStorefront {...templateProps} />;
+            case 'clay':
+                return <ClaymorphismStorefront {...templateProps} />;
+            case 'bauhaus':
+                return <BauhausStorefront {...templateProps} />;
+            case 'industrial':
+                return <IndustrialStorefront {...templateProps} />;
+            case 'lab':
+                return <LabStorefront {...templateProps} />;
+            case 'archive':
+                return <ArchiveStorefront {...templateProps} />;
+            default:
+                return <VibrantStorefront {...templateProps} />;
+        }
+    };
+
+    return (
+        <>
+            {renderTemplate()}
+            {selectedProduct && (
+                <CheckoutModal
+                    product={selectedProduct}
+                    onClose={() => setSelectedProduct(null)}
+                    storeName={storeProfile?.storeName || 'Store'}
+                />
+            )}
+        </>
+    );
 };
 
 export default Storefront;

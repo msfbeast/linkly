@@ -1,7 +1,7 @@
 import { LinkData, ClickEvent, BioProfile } from '../types';
 
-const STORAGE_KEY = 'linkly_db_v2';
-const BIO_STORAGE_KEY = 'linkly_bios_v1';
+const STORAGE_KEY = 'gather_db_v2';
+const BIO_STORAGE_KEY = 'gather_bios_v1';
 
 // --- LINKS ---
 

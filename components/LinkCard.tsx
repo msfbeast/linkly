@@ -368,25 +368,6 @@ const LinkCard: React.FC<LinkCardProps> = ({
                   </button>
                 )}
                 <button
-                  onClick={handleGeneratePost}
-                  disabled={isGeneratingPost}
-                  className="p-2 rounded-lg text-stone-400 hover:text-sky-500 hover:bg-sky-50 transition-all relative"
-                  title="AI Tweet"
-                >
-                  {isGeneratingPost ? <Loader2 className="w-4 h-4 animate-spin" /> : <Twitter className="w-4 h-4" />}
-                  {generatedPost && (
-                    <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-white border border-stone-200 rounded-xl shadow-xl z-50 text-left">
-                      <p className="text-xs text-slate-600 mb-2 whitespace-pre-wrap font-sans leading-relaxed">{generatedPost}</p>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(generatedPost); }}
-                        className="text-[10px] bg-sky-100 text-sky-600 px-2 py-1.5 rounded-md w-full hover:bg-sky-200 font-medium transition-colors"
-                      >
-                        Copy Tweet
-                      </button>
-                    </div>
-                  )}
-                </button>
-                <button
                   onClick={() => onDelete(link.id)} // This triggers showDeleteConfirm now
                   className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 transition-all"
                   title="Delete"

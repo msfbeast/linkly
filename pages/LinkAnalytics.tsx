@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check, Split, Download, TrendingUp, TrendingDown, Clock } from 'lucide-react';
-import { LinkData, ClickEvent, getCategoryColor } from '../types';
+import { LinkData, ClickEvent, getCategoryColor, LinkStats } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics, LinkStats } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie

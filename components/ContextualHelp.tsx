@@ -81,7 +81,7 @@ const HELP_CONTENT: Record<ViewState, HelpContent> = {
                 ]
             }
         ],
-        tips: ['Preview your bio page changes in real-time.', 'Share your unique handle (e.g., linkly.ai/p/yourname).']
+        tips: ['Preview your bio page changes in real-time.', 'Share your unique handle (e.g., gather.link/p/yourname).']
     },
     [ViewState.PRODUCTS]: {
         title: 'Product Manager',
@@ -114,7 +114,7 @@ const HELP_CONTENT: Record<ViewState, HelpContent> = {
     },
     [ViewState.API]: {
         title: 'Developer API',
-        description: 'Integrate Linkly features directly into your applications.',
+        description: 'Integrate Gather features directly into your applications.',
         sections: [
             {
                 title: 'Resources',
@@ -135,6 +135,58 @@ const HELP_CONTENT: Record<ViewState, HelpContent> = {
                 items: [
                     { icon: Zap, text: 'Browse products' },
                     { icon: BookOpen, text: 'View product details' }
+                ]
+            }
+        ]
+    },
+    [ViewState.TEAM_SETTINGS]: {
+        title: 'Team Settings',
+        description: 'Manage your team members and roles.',
+        sections: [
+            {
+                title: 'Features',
+                items: [
+                    { icon: Zap, text: 'Invite members' },
+                    { icon: BookOpen, text: 'Assign roles' }
+                ]
+            }
+        ]
+    },
+    [ViewState.AFFILIATE]: {
+        title: 'Affiliate Program',
+        description: 'Manage your affiliate links and earnings.',
+        sections: [
+            {
+                title: 'Features',
+                items: [
+                    { icon: Zap, text: 'Track referrals' },
+                    { icon: BookOpen, text: 'View earnings' }
+                ]
+            }
+        ]
+    },
+    [ViewState.AGENCY]: {
+        title: 'Agency Dashboard',
+        description: 'Manage multiple client accounts from one place.',
+        sections: [
+            {
+                title: 'Features',
+                items: [
+                    { icon: Zap, text: 'Switch between accounts' },
+                    { icon: BookOpen, text: 'Centralized billing' }
+                ]
+            }
+        ]
+    },
+    [ViewState.ADD_PRODUCT]: {
+        title: 'Add Product',
+        description: 'Create a new product for your storefront.',
+        sections: [
+            {
+                title: 'Features',
+                items: [
+                    { icon: Zap, text: 'Upload product images' },
+                    { icon: BookOpen, text: 'Set price and stock' }
                 ]
             }
         ]

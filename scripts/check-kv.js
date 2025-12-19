@@ -6,7 +6,7 @@ const kv = createClient({
 });
 
 async function checkKey() {
-    const key = 'linkly:link:trshorts';
+    const key = 'gather:link:trshorts';
     console.log(`Checking key: ${key}...`);
     try {
         const data = await kv.get(key);

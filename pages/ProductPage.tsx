@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, ShoppingBag, ExternalLink, Loader2, AlertCircle, Check, Share2, Zap } from 'lucide-react';
 import { Product } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { toast } from 'sonner';
 
 const ProductPage: React.FC = () => {
     const { productId } = useParams<{ productId: string }>();
@@ -11,6 +12,7 @@ const ProductPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [buying, setBuying] = useState(false);
+    const [purchased, setPurchased] = useState(false);
 
     useEffect(() => {
         if (productId) {
@@ -51,12 +53,61 @@ const ProductPage: React.FC = () => {
         if (!product) return;
         setBuying(true);
         try {
-            const link = await supabaseAdapter.getLink(product.linkId);
-            if (link) {
-                // Simulate tracking click
-                // In production, we'd hit the tracking endpoint
-                window.open(`/r/${link.shortCode}`, '_blank');
-            }
+            // 1. Create Store Order (DB + Razorpay)
+            const response = await fetch('/api/create-store-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productId: product.id,
+                    sellerId: product.userId,
+                    amount: product.price,
+                    currency: product.currency,
+                    // Optional: Collect email if we had a form
+                })
+            });
+            const orderData = await response.json();
+
+            if (!response.ok) throw new Error(orderData.error || 'Failed to create order');
+
+            // 2. Open Razorpay Checkout
+            const options = {
+                key: orderData.key_id,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: "Gather Store",
+                description: product.name,
+                image: product.imageUrl,
+                order_id: orderData.rz_id, // Razorpay Order ID
+                handler: async function (response: any) {
+                    // 3. Verify Payment
+                    try {
+                        const verifyRes = await fetch('/api/verify-store-purchase', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                                orderId: orderData.id, // Internal Order ID from Step 1
+                                productId: product.id
+                            })
+                        });
+                        const verifyData = await verifyRes.json();
+                        if (verifyData.success) {
+                            toast.success('Payment Successful!');
+                            setPurchased(true);
+                        }
+                    } catch (e) {
+                        console.error("Verification failed", e);
+                        alert("Payment successful but verification failed. Please contact support.");
+                    }
+                },
+                theme: { color: "#FACC15" }
+            };
+
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+
         } catch (err) {
             console.error('Error handling buy click:', err);
         } finally {
@@ -101,6 +152,15 @@ const ProductPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Success Confetti Animation */}
+            {purchased && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                    <div className="bg-emerald-500 text-white px-6 py-3 rounded-full font-bold shadow-lg animate-[bounce_1s_infinite]">
+                        Payment Successful!
+                    </div>
+                </div>
+            )}
 
             <div className="max-w-7xl mx-auto px-6 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-start">
@@ -161,14 +221,24 @@ const ProductPage: React.FC = () => {
                         </div>
 
                         <div className="flex gap-4 sticky bottom-6 z-30 bg-[#FDFBF7]/90 backdrop-blur p-4 -m-4 rounded-t-[2rem] lg:static lg:bg-transparent lg:p-0 lg:m-0">
-                            <button
-                                onClick={handleBuyNow}
-                                disabled={buying}
-                                className="flex-1 bg-slate-900 text-white font-bold py-5 rounded-[2rem] hover:bg-slate-800 transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 text-lg shadow-xl shadow-slate-900/20"
-                            >
-                                {buying ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShoppingBag className="w-6 h-6" />}
-                                Add to Cart
-                            </button>
+                            {purchased && product.type === 'digital' ? (
+                                <button
+                                    onClick={() => window.open(product.fileUrl || '#', '_blank')}
+                                    className="flex-1 bg-emerald-500 text-white font-bold py-5 rounded-[2rem] hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 text-lg shadow-xl shadow-emerald-500/20"
+                                >
+                                    <ShoppingBag className="w-6 h-6" />
+                                    Download File
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleBuyNow}
+                                    disabled={buying || purchased}
+                                    className="flex-1 bg-slate-900 text-white font-bold py-5 rounded-[2rem] hover:bg-slate-800 transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 text-lg shadow-xl shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {buying ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShoppingBag className="w-6 h-6" />}
+                                    {purchased ? 'Purchased' : 'Buy Now'}
+                                </button>
+                            )}
                             <button className="w-16 h-16 bg-white text-slate-900 rounded-[2rem] hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm flex items-center justify-center">
                                 <Share2 className="w-6 h-6" />
                             </button>

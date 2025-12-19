@@ -11,10 +11,10 @@ import { LinkData, ClickEvent, LinkCategory } from '../../types';
  */
 describe('LinkData Round-Trip Property Tests', () => {
   // Generator for valid device types
-  const deviceTypeArb = fc.constantFrom('Mobile', 'Desktop', 'Tablet', 'Other') as fc.Arbitrary<ClickEvent['device']>;
+  const deviceTypeArb = fc.constantFrom('mobile', 'desktop', 'tablet', 'unknown') as fc.Arbitrary<ClickEvent['device']>;
   
   // Generator for valid OS types
-  const osTypeArb = fc.constantFrom('iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other') as fc.Arbitrary<ClickEvent['os']>;
+  const osTypeArb = fc.constantFrom('ios', 'android', 'windows', 'macos', 'linux', 'unknown') as fc.Arbitrary<ClickEvent['os']>;
   
   // Generator for valid link categories
   const categoryArb = fc.constantFrom('social', 'marketing', 'product', 'other') as fc.Arbitrary<LinkCategory>;

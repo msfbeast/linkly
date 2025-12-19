@@ -83,7 +83,7 @@ const LandingPage: React.FC = () => {
 
             setLoading(true);
             try {
-                const sessionId = localStorage.getItem('linkly_guest_session')!;
+                const sessionId = localStorage.getItem('gather_guest_session')!;
                 const newLink = await supabaseAdapter.createGuestLink(finalUrl, sessionId);
                 setResult(newLink);
                 setInputValue('');
@@ -271,25 +271,54 @@ const LandingPage: React.FC = () => {
                                     </button>
                                 </div>
 
-                                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 mb-6 flex items-center justify-between gap-4">
-                                    <span className="font-bold text-xl text-slate-900 truncate">
-                                        {window.location.host}/{result.shortCode}
-                                    </span>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={handleCopy}
-                                            className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-200 shadow-sm"
-                                            title="Copy Link"
-                                        >
-                                            {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-stone-400" />}
-                                        </button>
-                                        <button
-                                            onClick={() => setShowQR(!showQR)}
-                                            className={`p-2 rounded-lg transition-colors border shadow-sm ${showQR ? 'bg-white border-stone-200 text-slate-900' : 'border-transparent hover:bg-white hover:border-stone-200 text-stone-400'}`}
-                                            title="Show QR Code"
-                                        >
-                                            <QrCode className="w-5 h-5" />
-                                        </button>
+                                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 mb-6 space-y-4">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="font-bold text-xl text-slate-900 truncate">
+                                            {window.location.host}/{result.shortCode}
+                                        </span>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handleCopy}
+                                                className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-200 shadow-sm"
+                                                title="Copy Link"
+                                            >
+                                                {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-stone-400" />}
+                                            </button>
+                                            <button
+                                                onClick={() => setShowQR(!showQR)}
+                                                className={`p-2 rounded-lg transition-colors border shadow-sm ${showQR ? 'bg-white border-stone-200 text-slate-900' : 'border-transparent hover:bg-white hover:border-stone-200 text-stone-400'}`}
+                                                title="Show QR Code"
+                                            >
+                                                <QrCode className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Optional Guest Email collection for reminders */}
+                                    <div className="pt-4 border-t border-stone-200/50">
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[10px] uppercase font-bold text-stone-400 tracking-wider text-left">Get link expiry reminders (Optional)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="email"
+                                                    placeholder="Enter email..."
+                                                    className="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 transition-all"
+                                                    onChange={async (e) => {
+                                                        const email = e.target.value;
+                                                        if (email.includes('@') && email.includes('.')) {
+                                                            try {
+                                                                await (supabaseAdapter as any).supabase!
+                                                                    .from('links')
+                                                                    .update({ metadata: { ...result.metadata, guest_email: email } })
+                                                                    .eq('id', result.id);
+                                                            } catch (err) {
+                                                                console.warn('Failed to save guest email:', err);
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

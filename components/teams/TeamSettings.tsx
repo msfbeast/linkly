@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTeam } from '../../contexts/TeamContext';
+import { usePermission } from '../../hooks/usePermission';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Users, Mail, X, Shield, Trash2, Check, Copy } from 'lucide-react';
+import { Plus, Users, Mail, X, Shield, Trash2, Check, Copy, ChevronDown } from 'lucide-react';
 
 const TeamSettings: React.FC = () => {
     const { currentTeam, createTeam, userRole, createInvite } = useTeam();
+    const { can } = usePermission();
     const [searchParams] = useSearchParams();
     const action = searchParams.get('action');
 
@@ -79,44 +81,51 @@ const TeamSettings: React.FC = () => {
                         <Users className="w-5 h-5 text-indigo-500" />
                         Members
                     </h2>
-                    <button
-                        className="bg-stone-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-stone-800 transition-colors flex items-center gap-2"
-                        onClick={() => {/* Open invite modal or focus input */ }}
-                    >
-                        <Plus className="w-4 h-4" />
-                        Invite Member
-                    </button>
+                    {can('invite_members') && (
+                        <button
+                            className="bg-stone-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-stone-800 transition-colors flex items-center gap-2"
+                            onClick={() => {/* Open invite modal or focus input */ }}
+                        >
+                            <Plus className="w-4 h-4" />
+                            Invite Member
+                        </button>
+                    )}
                 </div>
 
                 {/* Invite Form */}
-                <form onSubmit={handleInvite} className="bg-stone-50 p-4 rounded-xl mb-6 flex gap-4 items-end">
-                    <div className="flex-1">
-                        <label className="block text-xs font-bold text-stone-500 mb-1">EMAIL ADDRESS</label>
-                        <input
-                            type="email"
-                            value={inviteEmail}
-                            onChange={e => setInviteEmail(e.target.value)}
-                            placeholder="colleague@company.com"
-                            className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            required
-                        />
-                    </div>
-                    <div className="w-32">
-                        <label className="block text-xs font-bold text-stone-500 mb-1">ROLE</label>
-                        <select
-                            value={inviteRole}
-                            onChange={e => setInviteRole(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="admin">Admin</option>
-                            <option value="editor">Editor</option>
-                            <option value="viewer">Viewer</option>
-                        </select>
-                    </div>
-                    <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold h-[42px]">
-                        Send
-                    </button>
-                </form>
+                {can('invite_members') && (
+                    <form onSubmit={handleInvite} className="bg-stone-50 p-4 rounded-xl mb-6 flex gap-4 items-end">
+                        <div className="flex-1">
+                            <label className="block text-xs font-bold text-stone-500 mb-1">EMAIL ADDRESS</label>
+                            <input
+                                type="email"
+                                value={inviteEmail}
+                                onChange={e => setInviteEmail(e.target.value)}
+                                placeholder="colleague@company.com"
+                                className="w-full input-premium px-4 py-2"
+                                required
+                            />
+                        </div>
+                        <div className="w-40">
+                            <label className="block text-[10px] font-bold text-stone-400 mb-1.5 tracking-widest uppercase">Role</label>
+                            <div className="relative">
+                                <select
+                                    value={inviteRole}
+                                    onChange={e => setInviteRole(e.target.value)}
+                                    className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm font-bold text-slate-900 appearance-none transition-all cursor-pointer shadow-sm hover:border-stone-300"
+                                >
+                                    <option value="admin">Admin</option>
+                                    <option value="editor">Editor</option>
+                                    <option value="viewer">Viewer</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+                        <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold h-[42px] btn-premium">
+                            Send
+                        </button>
+                    </form>
+                )}
 
                 {/* Member List (Placeholder for now, would map over real members) */}
                 <div className="space-y-4">

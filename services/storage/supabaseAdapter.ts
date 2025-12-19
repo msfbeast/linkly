@@ -24,7 +24,8 @@ import {
   TechVaultItem,
   Tag,
   Folder,
-  ClickEvent
+  ClickEvent,
+  Order
 } from '../../types';
 
 // Re-export specific types if needed by consumers, though ideally they should import from types directly
@@ -40,6 +41,8 @@ const isServer = typeof window === 'undefined';
 
 // Helper to check configuration
 const isSupabaseConfigured = () => !!supabase;
+
+import { emailService } from '../emailService';
 
 export class SupabaseAdapter {
   private linkRepo: LinkRepository;
@@ -132,6 +135,11 @@ export class SupabaseAdapter {
     return this.linkRepo.createLink(link);
   }
 
+  async bulkCreateLinks(links: Omit<LinkData, 'id' | 'createdAt' | 'clicks' | 'clickHistory'>[]): Promise<LinkData[]> {
+    return this.linkRepo.bulkCreateLinks(links);
+  }
+
+
   async updateLink(id: string, updates: Partial<LinkData>): Promise<LinkData> {
     return this.linkRepo.updateLink(id, updates);
   }
@@ -160,6 +168,10 @@ export class SupabaseAdapter {
     return this.linkRepo.createGuestLink(url, sessionId);
   }
 
+  async cleanupExpiredGuestLinks(): Promise<number> {
+    return this.linkRepo.cleanupExpiredGuestLinks();
+  }
+
   // Tags & Folders
   async getTags(userId: string): Promise<Tag[]> {
     return this.linkRepo.getTags(userId);
@@ -173,14 +185,30 @@ export class SupabaseAdapter {
     return this.linkRepo.deleteTag(id);
   }
 
-  // Filters? The original adapter didn't export generic filters logic, but if consumers need it, 
-  // they should likely use the repo or we delegate?
-  // I didn't implement 'getFolders' etc in LinkRepo? 
-  // Checking LinkRepo... I implemented getTags/createTag/deleteTag. I missed Folder methods?
-  // I will check if I missed Folder methods in LinkRepo.
-  // Assuming for now I might have. 
-  // If I did, I should add them to LinkRepo. 
-  // But for now keeping Facade structure.
+  // Folders
+  async getFolders(userId: string): Promise<Folder[]> {
+    return this.linkRepo.getFolders(userId);
+  }
+
+  async createFolder(folder: { userId: string; name: string; parentId: string | null }): Promise<Folder> {
+    return this.linkRepo.createFolder(folder);
+  }
+
+  async updateFolder(id: string, updates: { name?: string; parentId?: string | null }): Promise<Folder> {
+    return this.linkRepo.updateFolder(id, updates);
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    return this.linkRepo.deleteFolder(id);
+  }
+
+  async moveFolder(id: string, newParentId: string | null): Promise<void> {
+    return this.linkRepo.moveFolder(id, newParentId);
+  }
+
+  async recordClick(linkId: string, event: ClickEvent): Promise<void> {
+    return this.linkRepo.recordClick(linkId, event);
+  }
 
   // ==========================================
   // Bio Profile
@@ -222,8 +250,32 @@ export class SupabaseAdapter {
     return this.bioRepo.getProducts(userId);
   }
 
+  async getProductById(id: string): Promise<Product | null> {
+    return this.bioRepo.getProductById(id);
+  }
+
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    return this.bioRepo.getProductBySlug(slug);
+  }
+
   async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
     return this.bioRepo.createProduct(product);
+  }
+
+  async updateProduct(id: string, updates: Partial<Product>): Promise<Product> {
+    return this.bioRepo.updateProduct(id, updates);
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    return this.bioRepo.deleteProduct(id);
+  }
+
+  async getOrders(sellerId: string): Promise<Order[]> {
+    return this.bioRepo.getOrders(sellerId);
+  }
+
+  async uploadDigitalFile(file: File, userId: string): Promise<string> {
+    return this.bioRepo.uploadDigitalFile(file, userId);
   }
 
   // ==========================================
@@ -330,8 +382,10 @@ export class SupabaseAdapter {
     return this.userRepo.revokeApiKey(id);
   }
 
-  // ==========================================
-  // Teams
+
+
+  // =================================
+  // Team Management
   // ==========================================
 
   async getTeams(): Promise<Team[]> {
@@ -351,7 +405,21 @@ export class SupabaseAdapter {
   }
 
   async createInvite(teamId: string, email: string, role: string): Promise<TeamInvite> {
-    return this.teamRepo.createInvite(teamId, email, role);
+    const invite = await this.teamRepo.createInvite(teamId, email, role);
+
+    // Send Invite Email
+    try {
+      const teams = await this.getTeams();
+      const teamName = teams.find(t => t.id === teamId)?.name || 'a team';
+      const inviteUrl = `${window.location.origin}/accept-invite?token=${invite.token}`;
+
+      await emailService.sendInviteEmail(email, teamName, inviteUrl);
+      console.log('[Adapter] Invite email sent to', email);
+    } catch (e) {
+      console.error('[Adapter] Failed to send invite email', e);
+    }
+
+    return invite;
   }
 
   async acceptInvite(token: string, userId: string): Promise<void> {

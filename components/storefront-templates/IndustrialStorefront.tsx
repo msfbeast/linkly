@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#E2E2E2] flex items-center justify-center">
@@ -103,12 +104,10 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product, index) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-[#F0F0F0] border border-slate-300 hover:border-slate-800 transition-colors"
+                                onClick={() => onProductSelect(product)}
+                                className="group block bg-[#F0F0F0] border border-slate-300 hover:border-slate-800 transition-colors w-full text-left"
                             >
                                 <div className="p-4 border-b border-slate-300 flex justify-between items-center text-[10px] text-slate-500 uppercase">
                                     <span>ID: {product.id.substring(0, 6)}</span>
@@ -144,7 +143,7 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
                                         </div>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>

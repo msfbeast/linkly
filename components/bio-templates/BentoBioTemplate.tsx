@@ -135,7 +135,7 @@ const BentoBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, products
 
                     <div className="md:col-span-3 text-center py-12">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-stone-200 shadow-sm text-xs font-bold text-stone-400 uppercase tracking-widest hover:text-slate-900 transition-colors cursor-pointer">
-                            Powered by Linkly
+                            Powered by Gather
                         </div>
                     </div>
 

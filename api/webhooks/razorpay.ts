@@ -30,15 +30,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (userId && tier) {
                 // Update user subscription
-                // Note: This is a simplified update. In a real app, we'd store the subscription ID etc.
-                // We need to extend supabaseAdapter or use supabase client directly here if adapter doesn't support partial update
-                // For now, let's assume we can use a direct supabase call or add a method to adapter
-
-                // Mocking the update for now as we don't have direct access to supabase client here without import
                 console.log(`Processing upgrade for user ${userId} to ${tier}`);
 
-                // TODO: Implement actual DB update
-                // await supabase.from('profiles').update({ subscription_tier: tier }).eq('id', userId);
+                try {
+                    await supabaseAdapter.updateProfile(userId, {
+                        subscription_tier: tier as any,
+                        // Cast to any for the value if necessary because tier comes from untyped req.body,
+                        // but do not cast the whole object to any.
+                        // Actually tier in req.body.notes might be string, but UserProfile expects literal type.
+                    });
+                } catch (err) {
+                    console.error('Failed to update user tier:', err);
+                    throw err; // Re-throw to trigger 500
+                }
             }
         }
 

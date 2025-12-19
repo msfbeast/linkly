@@ -1,34 +1,48 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { useLocation } from 'react-router-dom';
-import { ViewState, LinkData } from '../types';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { ViewState, LinkData } from '../types';
 import TopNavigation from './TopNavigation';
-import { TrialCountdown } from './TrialCountdown';
+import { useAuth } from '../contexts/AuthContext';
+import { useTeam } from '../contexts/TeamContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import CreateLinkModal from './CreateLinkModal';
+import LinkAnalytics from '../pages/LinkAnalytics';
+import Settings from '../pages/Settings';
+import { TrialCountdown } from './TrialCountdown';
 import LoadingFallback from './LoadingFallback';
 import TeamSettings from './teams/TeamSettings';
-import { useTeam } from '../contexts/TeamContext';
+import { execute as retryExecute } from '../services/retryService';
+import { toast } from 'sonner';
 
 // Lazy Load Pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
 const Links = React.lazy(() => import('../pages/Links'));
 const BioDashboard = React.lazy(() => import('../pages/BioDashboard'));
-const Settings = React.lazy(() => import('../pages/Settings'));
 const GlobalAnalytics = React.lazy(() => import('../pages/GlobalAnalytics'));
 const ProductManager = React.lazy(() => import('../pages/ProductManager'));
 const ApiPage = React.lazy(() => import('../pages/ApiPage'));
+const AffiliateManager = React.lazy(() => import('../pages/AffiliateManager'));
+const AgencyDashboard = React.lazy(() => import('../pages/AgencyDashboard'));
+const AddProduct = React.lazy(() => import('../pages/AddProduct'));
 
 const DashboardLayout: React.FC = () => {
     const { currentTeam } = useTeam();
+    const { user } = useAuth(); // Added useAuth hook
+    const navigate = useNavigate(); // Added useNavigate hook
+    const location = useLocation(); // Added useLocation hook
     const [view, setView] = useState<ViewState>(() => {
         const path = window.location.pathname;
         if (path.includes('/team/settings')) return ViewState.TEAM_SETTINGS;
         if (path.includes('/settings')) return ViewState.SETTINGS;
         if (path.includes('/analytics')) return ViewState.ANALYTICS;
+        if (path.includes('/products/add')) return ViewState.ADD_PRODUCT;
         if (path.includes('/products')) return ViewState.PRODUCTS;
+        if (path.includes('/affiliate')) return ViewState.AFFILIATE;
         if (path.includes('/api')) return ViewState.API;
         if (path.includes('/bio')) return ViewState.BIO_PAGES;
         if (path.includes('/links')) return ViewState.LINKS;
+        if (path.includes('/agency')) return ViewState.AGENCY;
         return ViewState.DASHBOARD;
     });
     const [activeSidebarItem, setActiveSidebarItem] = useState<string>('dashboard');
@@ -88,15 +102,24 @@ const DashboardLayout: React.FC = () => {
         if (path.includes('/team/settings')) {
             setView(ViewState.TEAM_SETTINGS);
             setActiveSidebarItem('settings');
-        } else if (path.includes('/settings')) {
-            setView(ViewState.SETTINGS);
-            setActiveSidebarItem('settings');
+        } else if (path.includes('/products/add')) {
+            setView(ViewState.ADD_PRODUCT);
+            setActiveSidebarItem('products');
+        } else if (path.includes('/products')) {
+            setView(ViewState.PRODUCTS);
+            setActiveSidebarItem('products');
         } else if (path.includes('/analytics')) {
             setView(ViewState.ANALYTICS);
             setActiveSidebarItem('analytics');
         } else if (path.includes('/products')) {
             setView(ViewState.PRODUCTS);
             setActiveSidebarItem('products');
+        } else if (path.includes('/affiliate')) {
+            setView(ViewState.AFFILIATE);
+            setActiveSidebarItem('affiliate');
+        } else if (path.includes('/agency')) {
+            setView(ViewState.AGENCY);
+            setActiveSidebarItem('agency');
         } else if (path === '/dashboard' || path === '/') {
             setView(ViewState.DASHBOARD);
             setActiveSidebarItem('dashboard');
@@ -185,16 +208,73 @@ const DashboardLayout: React.FC = () => {
             case 'products':
                 setView(ViewState.PRODUCTS);
                 break;
+            case 'add_product':
+                setView(ViewState.ADD_PRODUCT);
+                break;
+            case 'affiliate':
+                setView(ViewState.AFFILIATE);
+                break;
+            case 'agency':
+                setView(ViewState.AGENCY);
+                break;
         }
     };
 
-    // Refresh links when modal closes (for new link creation)
     const handleLinksUpdate = async () => {
         try {
-            const realLinks = await supabaseAdapter.getLinks();
+            const realLinks = await supabaseAdapter.getLinks(currentTeam?.id);
             setLinks(realLinks);
         } catch (error) {
             console.error('Failed to refresh links:', error);
+        }
+    };
+
+    const handleCreateLink = async (link: LinkData) => {
+        try {
+            await retryExecute(
+                () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
+                { maxRetries: 3, baseDelayMs: 1000 }
+            );
+            toast.success('Link created successfully!');
+            await handleLinksUpdate();
+            setIsModalOpen(false);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to create link';
+            toast.error(errorMessage);
+            console.error('Failed to create link:', err);
+        }
+    };
+
+    const handleBulkCreate = async (newLinks: LinkData[]) => {
+        try {
+            await Promise.all(
+                newLinks.map((link) =>
+                    retryExecute(
+                        () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
+                        { maxRetries: 3, baseDelayMs: 1000 }
+                    )
+                )
+            );
+            toast.success('Links created successfully!');
+            await handleLinksUpdate();
+            setIsModalOpen(false);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to create links';
+            toast.error(errorMessage);
+            console.error('Failed to bulk create links:', err);
+        }
+    };
+
+    const handleUpdateLink = async (id: string, updates: Partial<LinkData>) => {
+        // This is mainly for the modal if it needs it, though global create usually doesn't update
+        try {
+            await retryExecute(
+                () => supabaseAdapter.updateLink(id, updates),
+                { maxRetries: 3, baseDelayMs: 1000 }
+            );
+            await handleLinksUpdate();
+        } catch (err) {
+            console.error('Failed to update link:', err);
         }
     };
 
@@ -211,6 +291,7 @@ const DashboardLayout: React.FC = () => {
                 <Sidebar
                     currentView={view}
                     onChangeView={(newView) => {
+                        // Agency is now handled internally, no need for special return
                         setView(newView);
                         // Update URL when view changes
                         const pathMap: Record<string, string> = {
@@ -218,13 +299,17 @@ const DashboardLayout: React.FC = () => {
                             [ViewState.LINKS]: '/links',
                             [ViewState.ANALYTICS]: '/analytics',
                             [ViewState.SETTINGS]: '/settings',
-                            [ViewState.PRODUCTS]: '/products',
+                            [ViewState.PRODUCTS]: '/dashboard/products',
+                            [ViewState.ADD_PRODUCT]: '/dashboard/products/add',
+                            [ViewState.AFFILIATE]: '/affiliate',
                             [ViewState.BIO_PAGES]: '/bio',
                             [ViewState.API]: '/api-access',
-                            [ViewState.TEAM_SETTINGS]: '/team/settings'
+                            [ViewState.TEAM_SETTINGS]: '/team/settings',
+                            [ViewState.AGENCY]: '/agency'
                         };
                         if (pathMap[newView]) {
-                            window.history.pushState({}, '', pathMap[newView]);
+                            // Use navigate instead of manual pushState for better router sync
+                            navigate(pathMap[newView]);
                         }
                     }}
                     isOpen={isSidebarOpen}
@@ -268,6 +353,9 @@ const DashboardLayout: React.FC = () => {
                             {view === ViewState.API && <ApiPage />}
                             {view === ViewState.ANALYTICS && <GlobalAnalytics />}
                             {view === ViewState.PRODUCTS && <ProductManager />}
+                            {view === ViewState.ADD_PRODUCT && <AddProduct />}
+                            {view === ViewState.AFFILIATE && <AffiliateManager />}
+                            {view === ViewState.AGENCY && <AgencyDashboard />}
                             {view === ViewState.SETTINGS && <Settings />}
                             {view === ViewState.TEAM_SETTINGS && <TeamSettings />}
                         </Suspense>
@@ -309,6 +397,14 @@ const DashboardLayout: React.FC = () => {
                     </div>
                 </div>
             )}
+            {/* Global Create Link Modal */}
+            <CreateLinkModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onCreate={handleCreateLink}
+                onUpdate={handleUpdateLink}
+                onBulkCreate={handleBulkCreate}
+            />
         </div>
     );
 };

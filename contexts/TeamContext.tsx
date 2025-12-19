@@ -14,7 +14,10 @@ interface TeamContextType {
     fetchTeams: () => Promise<void>;
     createInvite: (email: string, role: string) => Promise<void>;
     acceptInvite: (token: string) => Promise<void>;
+    can: (action: PermissionAction) => boolean;
 }
+
+export type PermissionAction = 'edit_links' | 'manage_team' | 'view_analytics' | 'manage_billing';
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
@@ -135,6 +138,25 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await fetchTeams(); // Refresh list
     };
 
+    const can = useCallback((action: PermissionAction): boolean => {
+        if (!currentTeam) return true; // Personal workspace has full access
+        if (userRole === 'owner') return true;
+        if (userRole === 'admin') return true;
+
+        switch (action) {
+            case 'edit_links':
+                return userRole === 'editor';
+            case 'view_analytics':
+                return userRole === 'editor' || userRole === 'viewer';
+            case 'manage_team':
+                return false; // Only admin/owner
+            case 'manage_billing':
+                return false; // Only owner (handled above)
+            default:
+                return false;
+        }
+    }, [currentTeam, userRole]);
+
     return (
         <TeamContext.Provider value={{
             currentTeam,
@@ -145,7 +167,8 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             switchTeam,
             fetchTeams,
             createInvite,
-            acceptInvite
+            acceptInvite,
+            can
         }}>
             {children}
         </TeamContext.Provider>

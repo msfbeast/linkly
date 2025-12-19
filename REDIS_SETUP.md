@@ -2,19 +2,24 @@
 
 ## Overview
 
-Linkly uses Redis for high-performance caching of link redirects. This dramatically improves redirect speed from ~200ms to ~20ms.
+Gather uses Redis for high-performance caching of link redirects. This dramatically improves redirect speed from ~200ms to ~20ms.
 
 ## Local Development
 
-### Option 1: Docker (Recommended)
+### 1. Local Setup (Docker)
 
 ```bash
-# Start Redis container
-docker run -d -p 6379:6379 --name linkly-redis redis:alpine
-
-# Verify it's running
-docker ps | grep linkly-redis
+docker run -d -p 6379:6379 --name gather-redis redis:alpine
 ```
+
+### 2. Verify Connection
+
+```bash
+docker ps | grep gather-redis
+```
+
+### 3. Key Strategy
+We use the following key pattern: `gather:link:{shortCode}`
 
 ### Option 2: Install Locally
 
@@ -85,12 +90,12 @@ VITE_REDIS_URL=redis://default:YOUR_PASSWORD@YOUR_ENDPOINT.cloud.redislabs.com:1
 
 ### Cache Keys
 ```
-linkly:link:{shortCode}
+gather:link:{shortCode}
 ```
 
 ### Example
 ```
-Key: linkly:link:abc123
+Key: gather:link:abc123
 Value: {
   "id": "uuid",
   "destination_url": "https://example.com",

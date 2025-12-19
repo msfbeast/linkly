@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#000080] flex items-center justify-center">
@@ -114,12 +115,10 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
                 <div className="max-w-6xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
+                                onClick={() => onProductSelect(product)}
+                                className="block w-full text-left"
                             >
                                 <div className="bg-[#C0C0C0] border-t-2 border-l-2 border-white border-b-2 border-r-2 border-black p-1 hover:bg-[#dcdcdc] transition-colors">
                                     <div className="bg-[#000080] text-white px-2 py-0.5 font-bold text-xs flex justify-between items-center mb-1">
@@ -160,7 +159,7 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
                                         </div>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>

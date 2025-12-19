@@ -1,6 +1,6 @@
 # Database Migrations
 
-This folder contains SQL migrations for the Linkly database schema.
+This folder contains SQL migrations for the Gather database schema.
 
 ## Migrations
 

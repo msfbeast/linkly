@@ -23,7 +23,7 @@ Email templates for guest link conversion funnel.
         Your link is doing great! 🎉
       </h1>
       <p style="color: #475569; font-size: 16px; margin: 0;">
-        linkly.co/{shortCode}
+        gather.link/{shortCode}
       </p>
     </div>
 
@@ -92,7 +92,7 @@ Email templates for guest link conversion funnel.
         Free forever. No credit card required.
       </p>
       <p style="color: #A8A29E; font-size: 12px; margin: 0;">
-        © 2025 Linkly. All rights reserved.
+        © 2025 Gather. All rights reserved.
       </p>
     </div>
 
@@ -105,7 +105,7 @@ Email templates for guest link conversion funnel.
 ```
 Your link is doing great! 🎉
 
-linkly.co/{shortCode} has been clicked {clicks} times!
+gather.link/{shortCode} has been clicked {clicks} times!
 
 Sign up now to:
 ✓ Keep your link forever (no expiration)
@@ -116,7 +116,7 @@ Claim your link: {claimUrl}
 
 Your link expires in 2 days.
 
-- The Linkly Team
+- The Gather Team
 ```
 
 ---
@@ -142,7 +142,7 @@ Your link expires in 2 days.
         ⏰ Your link expires today
       </h1>
       <p style="color: rgba(255,255,255,0.9); font-size: 16px; margin: 0;">
-        linkly.co/{shortCode}
+        gather.link/{shortCode}
       </p>
     </div>
 
@@ -183,7 +183,7 @@ Your link expires in 2 days.
         Free forever. No credit card required.
       </p>
       <p style="color: #A8A29E; font-size: 12px; margin: 0;">
-        © 2025 Linkly. All rights reserved.
+        © 2025 Gather. All rights reserved.
       </p>
     </div>
 
@@ -196,7 +196,7 @@ Your link expires in 2 days.
 ```
 ⏰ Your link expires today
 
-linkly.co/{shortCode} will stop working in 24 hours.
+gather.link/{shortCode} will stop working in 24 hours.
 
 {clicks > 0 && "Don't lose your {clicks} clicks of data!"}
 
@@ -204,7 +204,7 @@ Sign up now to save your link: {claimUrl}
 
 This is your last chance.
 
-- The Linkly Team
+- The Gather Team
 ```
 
 ---
@@ -230,14 +230,14 @@ This is your last chance.
         ✅ Link claimed successfully!
       </h1>
       <p style="color: rgba(255,255,255,0.9); font-size: 16px; margin: 0;">
-        Welcome to Linkly
+        Welcome to Gather
       </p>
     </div>
 
     <!-- Content -->
     <div style="padding: 32px 24px; text-align: center;">
       <p style="color: #78716C; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-        Your link <strong>linkly.co/{shortCode}</strong> has been added to your account!
+        Your link <strong>gather.link/{shortCode}</strong> has been added to your account!
       </p>
 
       <!-- Next Steps -->
@@ -275,7 +275,7 @@ This is your last chance.
         Need help? Reply to this email or visit our help center.
       </p>
       <p style="color: #A8A29E; font-size: 12px; margin: 0;">
-        © 2025 Linkly. All rights reserved.
+        © 2025 Gather. All rights reserved.
       </p>
     </div>
 
@@ -333,7 +333,7 @@ AND expires_at::date = (CURRENT_DATE + INTERVAL '1 day')::date;
 Replace these in templates:
 - `{shortCode}` - Link short code
 - `{clicks}` - Total click count
-- `{claimUrl}` - Claim link URL (`https://linkly.co/claim/{claimToken}`)
+- `{claimUrl}` - Claim link URL (`https://gather.link/claim/{claimToken}`)
 - `{dashboardUrl}` - Dashboard URL
 - `{analyticsUrl}` - Analytics URL
 - `{bioUrl}` - Bio page URL

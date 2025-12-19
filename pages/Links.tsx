@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Wifi } from 'lucide-react';
+import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Wifi, Upload, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import LinkCard from '../components/LinkCard';
 import SmartLinkCard from '../components/SmartLinkCard';
 import CreateLinkModal from '../components/CreateLinkModal';
 import { FolderTree } from '../components/FolderTree';
 import { useAuth } from '../contexts/AuthContext';
+import { BulkActionsModal } from '../components/BulkActionsModal';
 import { LinkData, Folder } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { execute as retryExecute } from '../services/retryService';
@@ -39,8 +41,29 @@ const Links: React.FC<LinksProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false); // Add state
+
   const isModalOpen = externalModalOpen !== undefined ? externalModalOpen : internalModalOpen;
   const setIsModalOpen = setExternalModalOpen || setInternalModalOpen;
+
+  // ... existing code ...
+
+  <div className="flex gap-2">
+    <button
+      onClick={() => setIsBulkImportOpen(true)}
+      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-stone-200 text-slate-900 font-bold rounded-xl hover:bg-stone-50 transition-colors shadow-sm"
+    >
+      <Upload className="w-5 h-5" />
+      Import
+    </button>
+    <button
+      onClick={() => setIsModalOpen(true)}
+      className="flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
+    >
+      <Plus className="w-5 h-5" />
+      Create Link
+    </button>
+  </div>
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -69,11 +92,11 @@ const Links: React.FC<LinksProps> = ({
 
   // Set up real-time subscriptions
   useEffect(() => {
-    console.log('[Links] Setting up real-time subscriptions...');
+
 
     // Subscribe to new click events
     const unsubscribeClicks = subscribeToClickEvents((event: RealtimeClickEvent) => {
-      console.log('[Links] Real-time click received:', event);
+
       setIsRealtimeConnected(true);
 
       // Update the link's click history in state
@@ -94,7 +117,7 @@ const Links: React.FC<LinksProps> = ({
 
     // Subscribe to link updates (click count changes)
     const unsubscribeLinks = subscribeToLinkUpdates((update: RealtimeLinkUpdate) => {
-      console.log('[Links] Real-time link update received:', update);
+
       setIsRealtimeConnected(true);
 
       // Update the link's click count in state
@@ -119,7 +142,7 @@ const Links: React.FC<LinksProps> = ({
 
     // Cleanup subscriptions on unmount
     return () => {
-      console.log('[Links] Cleaning up real-time subscriptions...');
+
       unsubscribeClicks();
       unsubscribeLinks();
       clearTimeout(connectionTimer);
@@ -297,6 +320,33 @@ const Links: React.FC<LinksProps> = ({
     setIsModalOpen(true);
   };
 
+  const handleDuplicate = async (link: LinkData) => {
+    try {
+      const duplicatedLink: LinkData = {
+        ...link,
+        id: crypto.randomUUID(),
+        shortCode: Math.random().toString(36).substring(2, 8),
+        title: `${link.title} (Copy)`,
+        clicks: 0,
+        createdAt: Date.now(),
+        userId: user?.id,
+        // Keep other data same
+      };
+
+      await retryExecute(
+        () => supabaseAdapter.createLink(duplicatedLink),
+        { maxRetries: 3, baseDelayMs: 1000 }
+      );
+      toast.success('Link duplicated successfully!');
+      await loadData();
+      onLinksUpdate?.();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to duplicate link';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    }
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingLink(null);
@@ -428,6 +478,7 @@ const Links: React.FC<LinksProps> = ({
                       link={link}
                       onDelete={handleDeleteLink}
                       onEdit={openEditModal}
+                      onDuplicate={handleDuplicate}
                     />
                   </motion.div>
                 ))
@@ -473,6 +524,15 @@ const Links: React.FC<LinksProps> = ({
           onUpdate={handleUpdateLink}
           onBulkCreate={handleBulkCreate}
           editingLink={editingLink}
+        />
+
+        <BulkActionsModal
+          isOpen={isBulkImportOpen}
+          onClose={() => setIsBulkImportOpen(false)}
+          onSuccess={() => {
+            loadData();
+            onLinksUpdate?.();
+          }}
         />
 
         <TagManager

@@ -235,10 +235,9 @@ const ApiPage: React.FC = () => {
                         exit={{ opacity: 0, y: -10 }}
                         className="space-y-8"
                     >
-                        {/* Intro */}
                         <div className="prose max-w-none">
                             <p className="text-stone-600">
-                                The Linkly API allows you to programmatically create shortened links, track analytics (coming soon), and manage your resources.
+                                The Gather API allows you to programmatically create shortened links, track analytics (coming soon), and manage your resources.
                                 All API requests must be authenticated using a Bearer Token.
                             </p>
                         </div>
@@ -302,7 +301,7 @@ const ApiPage: React.FC = () => {
                                             </div>
                                             <div className="space-y-1">
                                                 <span className="text-purple-400">curl</span> <span className="text-yellow-300">-X POST</span> {window.location.origin}/api/v1/links \<br />
-                                                &nbsp;&nbsp;<span className="text-yellow-300">-H</span> <span className="text-green-300">"Authorization: Bearer pk_live_..."</span> \<br />
+                                                &nbsp;&nbsp;<span className="text-yellow-300">-H</span> <span className="text-green-300">"Authorization: Bearer ga_live_..."</span> \<br />
                                                 &nbsp;&nbsp;<span className="text-yellow-300">-H</span> <span className="text-green-300">"Content-Type: application/json"</span> \<br />
                                                 &nbsp;&nbsp;<span className="text-yellow-300">-d</span> <span className="text-green-300">{`'{ "url": "https://example.com/my-long-url", "tags": ["campaign"] }'`}</span>
                                             </div>

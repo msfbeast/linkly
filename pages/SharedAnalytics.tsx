@@ -17,19 +17,8 @@ interface SharedAnalyticsData {
     browsers: { browser: string; clickCount: number }[];
 }
 
-// Country code to name mapping
-const COUNTRY_NAMES: Record<string, string> = {
-    'IN': 'India', 'US': 'United States', 'GB': 'United Kingdom', 'CA': 'Canada',
-    'AU': 'Australia', 'DE': 'Germany', 'FR': 'France', 'NP': 'Nepal', 'BD': 'Bangladesh',
-    'PK': 'Pakistan', 'AE': 'UAE', 'SG': 'Singapore', 'MY': 'Malaysia', 'ID': 'Indonesia',
-    'JP': 'Japan', 'KR': 'South Korea', 'BR': 'Brazil', 'MX': 'Mexico', 'SA': 'Saudi Arabia',
-};
-
-const getCountryName = (code: string): string => {
-    if (!code) return 'Unknown';
-    if (code.length > 3) return code;
-    return COUNTRY_NAMES[code.toUpperCase()] || code;
-};
+// Use getCountryName from constants
+import { getCountryName } from '../utils/constants';
 
 const calculateGrowth = (current: number, previous: number) => {
     if (previous === 0) return { percentage: current > 0 ? 100 : 0, isPositive: current > 0 };
@@ -253,7 +242,7 @@ const SharedAnalytics: React.FC = () => {
 
                 {/* Footer */}
                 <div className="text-center py-8 text-stone-400 text-sm">
-                    <p>Powered by <a href="/" className="text-yellow-600 hover:underline font-medium">Linkly</a></p>
+                    <p>Powered by <a href="/" className="text-yellow-600 hover:underline font-medium">Gather</a></p>
                 </div>
             </div>
         </div>

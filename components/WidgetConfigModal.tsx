@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Music, MapPin, Video, BarChart2, MessageSquare, Check } from 'lucide-react';
+import { X, MapPin, Check } from 'lucide-react';
 import { BlockType } from './BlockGalleryModal';
 
 interface WidgetConfigModalProps {
@@ -28,37 +28,7 @@ export const WidgetConfigModal: React.FC<WidgetConfigModalProps> = ({ isOpen, on
 
         let metadata = {};
 
-        if (type === 'music') {
-            if (!inputValue.includes('spotify') && !inputValue.includes('apple')) {
-                setError('Please enter a valid Spotify or Apple Music URL');
-                return;
-            }
-            metadata = {
-                platform: inputValue.includes('apple') ? 'apple' : 'spotify',
-                embedUrl: inputValue
-            };
-        } else if (type === 'video') {
-            const isYoutube = inputValue.includes('youtube') || inputValue.includes('youtu.be');
-            const isVimeo = inputValue.includes('vimeo');
-
-            if (!isYoutube && !isVimeo) {
-                setError('Please enter a valid YouTube or Vimeo URL');
-                return;
-            }
-
-            let videoId = '';
-            if (isYoutube) {
-                const url = new URL(inputValue);
-                videoId = url.searchParams.get('v') || url.pathname.split('/').pop() || '';
-            } else if (isVimeo) {
-                videoId = inputValue.split('/').pop() || '';
-            }
-
-            metadata = {
-                videoPlatform: isVimeo ? 'vimeo' : 'youtube',
-                videoId
-            };
-        } else if (type === 'map') {
+        if (type === 'map') {
             if (inputValue.length < 3) {
                 setError('Please enter a valid location');
                 return;
@@ -69,24 +39,6 @@ export const WidgetConfigModal: React.FC<WidgetConfigModalProps> = ({ isOpen, on
                 lat: 40.7128, // Default fallback
                 lng: -74.0060
             };
-        } else if (type === 'poll') {
-            if (!inputValue) {
-                setError('Question is required');
-                return;
-            }
-            metadata = {
-                question: inputValue,
-                options: [
-                    { id: '1', text: 'Yes', votes: 0 },
-                    { id: '2', text: 'No', votes: 0 }
-                ]
-            };
-        } else if (type === 'qna') {
-            if (!inputValue) {
-                setError('Title is required');
-                return;
-            }
-            metadata = { title: inputValue };
         }
 
         onSubmit(metadata);
@@ -95,22 +47,14 @@ export const WidgetConfigModal: React.FC<WidgetConfigModalProps> = ({ isOpen, on
 
     const getIcon = () => {
         switch (type) {
-            case 'music': return <Music className="w-6 h-6 text-pink-500" />;
             case 'map': return <MapPin className="w-6 h-6 text-green-500" />;
-            case 'video': return <Video className="w-6 h-6 text-red-500" />;
-            case 'poll': return <BarChart2 className="w-6 h-6 text-orange-500" />;
-            case 'qna': return <MessageSquare className="w-6 h-6 text-purple-500" />;
             default: return null;
         }
     };
 
     const getLabels = () => {
         switch (type) {
-            case 'music': return { title: 'Add Music', label: 'Spotify or Apple Music URL', placeholder: 'https://open.spotify.com/track/...' };
-            case 'video': return { title: 'Add Video', label: 'YouTube or Vimeo URL', placeholder: 'https://youtube.com/watch?v=...' };
             case 'map': return { title: 'Add Location', label: 'Address or Place Name', placeholder: 'New York City, NY' };
-            case 'poll': return { title: 'Create Poll', label: 'Question', placeholder: 'What should I post next?' };
-            case 'qna': return { title: 'Q&A Section', label: 'Section Title', placeholder: 'Ask me anything' };
             default: return { title: 'Configure Widget', label: 'URL', placeholder: 'https://...' };
         }
     };

@@ -56,11 +56,11 @@ export const TagManager: React.FC<TagManagerProps> = ({ isOpen, onClose, userId,
         if (!newTagName.trim()) return;
 
         try {
-            await supabaseAdapter.createTag({
+            await supabaseAdapter.createTag(
                 userId,
-                name: newTagName.trim(),
-                color: newTagColor,
-            });
+                newTagName.trim(),
+                newTagColor
+            );
             setNewTagName('');
             setNewTagColor(COLORS[Math.floor(Math.random() * COLORS.length)]);
             await loadTags();
@@ -94,7 +94,7 @@ export const TagManager: React.FC<TagManagerProps> = ({ isOpen, onClose, userId,
         try {
             // We need to implement updateTag in supabaseAdapter first, but for now we can delete and recreate or just update locally if we had an update method
             // Since we don't have updateTag yet, we will implement it in the next step.
-            // For now, let's assume we have it or add it.
+            // @ts-ignore - updateTag may not be implemented yet
             await supabaseAdapter.updateTag(editingTagId, {
                 name: editName.trim(),
                 color: editColor

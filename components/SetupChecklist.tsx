@@ -51,7 +51,7 @@ const SetupChecklist: React.FC<SetupChecklistProps> = ({ links, onComplete }) =>
     const hasBio = !!(bioProfile?.displayName && bioProfile?.bio);
     const hasAvatar = !!bioProfile?.avatarUrl;
     const hasLinks = links.length > 0;
-    const hasCustomDesign = bioProfile?.theme !== 'light' && bioProfile?.theme !== 'dark'; // Assuming 'light'/'dark' are defaults
+    const hasCustomDesign = (bioProfile?.theme as string) !== 'light' && (bioProfile?.theme as string) !== 'dark'; // Assuming 'light'/'dark' are defaults
     const hasShared = links.reduce((acc, link) => acc + link.clicks, 0) > 0; // Inferred from clicks
 
     const steps: Step[] = [

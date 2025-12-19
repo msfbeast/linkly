@@ -173,7 +173,7 @@ const CustomBioTemplate: React.FC<BioTemplateProps> = ({ profile, links }) => {
                 <div className="mt-12 text-center">
                     <div className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">
                         <Star className="w-4 h-4 fill-current" />
-                        <span>Powered by Linkly</span>
+                        <span>Powered by Gather</span>
                     </div>
                 </div>
 

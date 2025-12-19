@@ -11,7 +11,8 @@ import {
     BioProfile,
     Domain,
     Product,
-    UserProfile
+    UserProfile,
+    Order
 } from '../../types';
 
 export interface NewsletterSubscriberRow {
@@ -46,6 +47,26 @@ export interface ProductRow {
     original_url: string | null;
     category: string | null;
     slug: string | null;
+    created_at: string;
+    // Digital Fields
+    type: string | null;
+    file_url: string | null;
+    file_name: string | null;
+    sales_count: number | null;
+    download_limit: number | null;
+}
+
+export interface OrderRow {
+    id: string;
+    seller_id: string;
+    product_id: string;
+    customer_email: string | null;
+    customer_name: string | null;
+    amount: number;
+    currency: string;
+    status: string;
+    razorpay_order_id: string | null;
+    razorpay_payment_id: string | null;
     created_at: string;
 }
 
@@ -221,6 +242,12 @@ export function userProfileToRow(profile: Partial<UserProfile>): any {
     if (profile.onboardingSkipped !== undefined) row.onboarding_skipped = profile.onboardingSkipped;
     if (profile.onboardingStartedAt !== undefined) row.onboarding_started_at = profile.onboardingStartedAt;
     if (profile.role !== undefined) row.role = profile.role;
+    // Subscription Fields
+    if (profile.subscription_tier !== undefined) row.subscription_tier = profile.subscription_tier;
+    if (profile.subscription_status !== undefined) row.subscription_status = profile.subscription_status;
+    if (profile.trial_ends_at !== undefined) row.trial_ends_at = profile.trial_ends_at;
+    if (profile.razorpay_customer_id !== undefined) row.razorpay_customer_id = profile.razorpay_customer_id;
+    if (profile.razorpay_subscription_id !== undefined) row.razorpay_subscription_id = profile.razorpay_subscription_id;
     return row;
 }
 
@@ -250,6 +277,12 @@ export function rowToUserProfile(row: any): UserProfile {
         onboardingSkipped: row.onboarding_skipped,
         onboardingStartedAt: row.onboarding_started_at,
         role: row.role,
+        // Subscription Fields
+        subscription_tier: row.subscription_tier,
+        subscription_status: row.subscription_status,
+        trial_ends_at: row.trial_ends_at,
+        razorpay_customer_id: row.razorpay_customer_id,
+        razorpay_subscription_id: row.razorpay_subscription_id,
     };
 }
 
@@ -394,6 +427,28 @@ export function rowToProduct(row: ProductRow): Product {
         category: row.category ?? undefined,
         slug: row.slug ?? undefined,
         createdAt: new Date(row.created_at).getTime(),
+        // Digital Fields
+        type: (row.type as Product['type']) ?? 'physical',
+        fileUrl: row.file_url ?? undefined,
+        fileName: row.file_name ?? undefined,
+        salesCount: row.sales_count ?? 0,
+        downloadLimit: row.download_limit ?? undefined,
+    };
+}
+
+export function rowToOrder(row: OrderRow): Order {
+    return {
+        id: row.id,
+        sellerId: row.seller_id,
+        productId: row.product_id,
+        customerEmail: row.customer_email || undefined,
+        customerName: row.customer_name || undefined,
+        amount: row.amount,
+        currency: row.currency,
+        status: row.status as Order['status'],
+        razorpayOrderId: row.razorpay_order_id || undefined,
+        razorpayPaymentId: row.razorpay_payment_id || undefined,
+        createdAt: new Date(row.created_at).getTime()
     };
 }
 

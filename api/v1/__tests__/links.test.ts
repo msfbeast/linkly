@@ -53,7 +53,7 @@ describe('API v1/links', () => {
 
         const req = new Request('http://localhost/api/v1/links', {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer pk_live_invalid' },
+            headers: { 'Authorization': 'Bearer ga_live_invalid' },
             body: JSON.stringify({ url: 'https://google.com' })
         });
 
@@ -87,7 +87,7 @@ describe('API v1/links', () => {
 
         const req = new Request('http://localhost/api/v1/links', {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer pk_live_valid' },
+            headers: { 'Authorization': 'Bearer ga_live_valid' },
             body: JSON.stringify({ url: 'https://google.com' })
         });
 

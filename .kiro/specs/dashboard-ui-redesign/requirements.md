@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document specifies the requirements for redesigning the Linkly AI dashboard UI to adopt a modern dark theme visual style while maintaining link shortener functionality. The new UI features color-coded link performance cards, click forecasting charts, traffic source visualization, link health metrics, and a priority links list. The redesign enhances the existing link management experience with improved data visualization and a cohesive dark theme.
+This document specifies the requirements for redesigning the Gather AI dashboard UI to adopt a modern dark theme visual style while maintaining link shortener functionality. The new UI features color-coded link performance cards, click forecasting charts, traffic source visualization, link health metrics, and a priority links list. The redesign enhances the existing link management experience with improved data visualization and a cohesive dark theme.
 
 ## Glossary
 
@@ -22,7 +22,7 @@ This document specifies the requirements for redesigning the Linkly AI dashboard
 
 #### Acceptance Criteria
 
-1. WHEN the dashboard loads THEN the System SHALL display a top navigation bar with the Linkly logo, navigation tabs (Overview, Links, Analytics, Settings), total clicks display, and a "New Link" button
+1. WHEN the dashboard loads THEN the System SHALL display a top navigation bar with the Gather logo, navigation tabs (Overview, Links, Analytics, Settings), total clicks display, and a "New Link" button
 2. WHEN a user clicks a navigation tab THEN the System SHALL visually indicate the active tab with distinct styling
 3. WHEN the dashboard loads THEN the System SHALL display a vertical icon sidebar on the left for quick access to main features
 4. WHEN a user hovers over sidebar icons THEN the System SHALL provide visual feedback indicating interactivity

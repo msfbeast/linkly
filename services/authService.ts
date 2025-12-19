@@ -18,11 +18,11 @@ export interface User {
     onboarding_step?: number;
     onboarding_skipped?: boolean;
     onboarding_started_at?: string;
-    subscription_tier?: 'free' | 'starter' | 'pro' | 'premium' | 'business';
+    subscription_tier?: 'free' | 'pro' | 'business';
     subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled';
     trial_ends_at?: string;
-    stripe_customer_id?: string;
-    stripe_subscription_id?: string;
+    razorpay_customer_id?: string;
+    razorpay_subscription_id?: string;
   };
   user_metadata?: {
     full_name?: string;
@@ -194,7 +194,7 @@ export const authService = {
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
+        .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, razorpay_customer_id, razorpay_subscription_id')
         .eq('id', data.user.id)
         .single();
 
@@ -207,8 +207,8 @@ export const authService = {
         subscription_tier: profile?.subscription_tier,
         subscription_status: profile?.subscription_status,
         trial_ends_at: profile?.trial_ends_at,
-        stripe_customer_id: profile?.stripe_customer_id,
-        stripe_subscription_id: profile?.stripe_subscription_id,
+        razorpay_customer_id: profile?.razorpay_customer_id,
+        razorpay_subscription_id: profile?.razorpay_subscription_id,
       };
     }
 
@@ -286,7 +286,7 @@ export const authService = {
       Promise.resolve(
         supabase
           .from('profiles')
-          .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
+          .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, razorpay_customer_id, razorpay_subscription_id')
           .eq('id', data.user.id)
           .single()
       ).then(({ data: profile }) => {
@@ -302,8 +302,8 @@ export const authService = {
             subscription_tier: profile.subscription_tier,
             subscription_status: profile.subscription_status,
             trial_ends_at: profile.trial_ends_at,
-            stripe_customer_id: profile.stripe_customer_id,
-            stripe_subscription_id: profile.stripe_subscription_id,
+            razorpay_customer_id: profile.razorpay_customer_id,
+            razorpay_subscription_id: profile.razorpay_subscription_id,
           };
         }
       }).catch((err: Error) => {
@@ -357,7 +357,7 @@ export const authService = {
     }
 
     await supabase.auth.signOut();
-    sessionStorage.removeItem('linkly_session_temp');
+    sessionStorage.removeItem('gather_session_temp');
   },
 
   /**
@@ -503,7 +503,7 @@ export const authService = {
       try {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, role')
+          .select('settings_notifications, onboarding_completed, onboarding_step, onboarding_skipped, onboarding_started_at, subscription_tier, subscription_status, trial_ends_at, razorpay_customer_id, razorpay_subscription_id, role')
           .eq('id', data.user.id)
           .single();
 
@@ -517,8 +517,8 @@ export const authService = {
             subscription_tier: profile.subscription_tier,
             subscription_status: profile.subscription_status,
             trial_ends_at: profile.trial_ends_at,
-            stripe_customer_id: profile.stripe_customer_id,
-            stripe_subscription_id: profile.stripe_subscription_id,
+            razorpay_customer_id: profile.razorpay_customer_id,
+            razorpay_subscription_id: profile.razorpay_subscription_id,
           };
           // Map role directly to user object later
           if (profile.role) {

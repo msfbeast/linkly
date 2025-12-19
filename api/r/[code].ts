@@ -62,7 +62,7 @@ export default async function handler(request: Request) {
 
                 console.log('[Edge API] Sending to QStash via fetch...');
 
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://linkly-ai.vercel.app';
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gather.link';
                 const qstashRes = await fetch(`${process.env.QSTASH_URL}/v2/publish/${appUrl}/api/queue/process-click`, {
                     method: 'POST',
                     headers: {
@@ -97,8 +97,8 @@ export default async function handler(request: Request) {
 
                 // SOLUTION: We need to tell the middleware NOT to rewrite this request.
                 // Or, we redirect to the main domain?
-                // If we redirect to app.linkly.ai/r/[code], it works.
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://linkly-ai.vercel.app';
+                // If we redirect to app.gather.link/r/[code], it works.
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gather.link';
                 return Response.redirect(`${appUrl}/r/${code}`, 307);
             }
 
@@ -107,7 +107,7 @@ export default async function handler(request: Request) {
             const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
 
             if (isMobile) {
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://linkly-ai.vercel.app';
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gather.link';
                 const encodedTarget = encodeURIComponent(linkData.url);
                 return Response.redirect(`${appUrl}/open/${encodedTarget}`, 307);
             }

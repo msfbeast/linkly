@@ -191,30 +191,46 @@ export class LinkRepository extends BaseRepository {
     async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData & { _isExisting?: boolean }> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
-        const { data: { session } } = await this.supabase!.auth.getSession();
-        const userId = session?.user?.id;
+        // Check for existing link with same original URL (optional de-duplication)
+        // For now, we allow duplicates as requested by some users, but typically we might want to return existing.
+        // Let's stick to creating new for now, or check for slug collision.
 
-        if (!userId) throw new Error('User not authenticated');
+        const id = uuidv4();
+        const now = Date.now();
 
-        // Check existing URL to prevent duplicates if desired
-        // (Implementation of checkExisting omitted for brevity unless needed)
+        if (link.userId) {
+            const { data: profile } = await this.supabase!
+                .from(this.TABLES.PROFILES)
+                .select('subscription_tier')
+                .eq('id', link.userId)
+                .single();
 
-        // Generate Short Code if missing
-        let shortCode = link.shortCode;
-        if (!shortCode) {
-            const nanoid = (await import('nanoid')).nanoid;
-            shortCode = nanoid(7);
+            if (profile?.subscription_tier === 'free' || !profile?.subscription_tier) {
+                const { count } = await this.supabase!
+                    .from(this.TABLES.LINKS)
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', link.userId)
+                    .is('team_id', null);
+
+                if (count && count >= 50) {
+                    throw new Error('Link limit reached for Free Tier. Please upgrade to create more links.');
+                }
+            }
         }
 
-        const newLink = {
+        const newLink: LinkData = {
             ...link,
-            id: uuidv4(),
-            shortCode,
-            createdAt: Date.now(),
-            clicks: 0
+            id,
+            createdAt: now,
+            clicks: 0,
+            clickHistory: [],
+            tags: link.tags || [], // Ensure tags array
+            geoRedirects: link.geoRedirects || undefined,
+            smartRedirects: link.smartRedirects || undefined,
+            aiAnalysis: undefined
         };
 
-        const row = linkDataToRow(newLink, userId);
+        const row = linkDataToRow(newLink, link.userId);
 
         const { data, error } = await this.supabase!
             .from(this.TABLES.LINKS)
@@ -222,26 +238,61 @@ export class LinkRepository extends BaseRepository {
             .select()
             .single();
 
-        if (error) {
-            // Handle unique constraint violation on short_code
-            if (error.code === '23505' && error.message.includes('short_code')) {
-                // Retry with new code
-                const nanoid = (await import('nanoid')).nanoid;
-                newLink.shortCode = nanoid(8);
-                const retryRow = linkDataToRow(newLink, userId);
-                const { data: retryData, error: retryError } = await this.supabase!
-                    .from(this.TABLES.LINKS)
-                    .insert(retryRow)
-                    .select()
-                    .single();
+        if (error) throw error;
+        return rowToLinkData(data as LinkRow);
+    }
 
-                if (retryError) throw retryError;
-                return rowToLinkData(retryData as LinkRow);
+    async bulkCreateLinks(links: Omit<LinkData, 'id' | 'createdAt' | 'clicks' | 'clickHistory'>[]): Promise<LinkData[]> {
+        if (!this.isConfigured()) throw new Error('Supabase not configured');
+
+        const now = Date.now();
+
+        // Enforce link limits for free users
+        if (links.length > 0 && (links[0] as any).userId) {
+            const userId = (links[0] as any).userId;
+            const { data: profile } = await this.supabase!
+                .from(this.TABLES.PROFILES)
+                .select('subscription_tier')
+                .eq('id', userId)
+                .single();
+
+            if (profile?.subscription_tier === 'free' || !profile?.subscription_tier) {
+                const { count } = await this.supabase!
+                    .from(this.TABLES.LINKS)
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', userId)
+                    .is('team_id', null);
+
+                const totalAfterBulk = (count || 0) + links.length;
+                if (totalAfterBulk > 50) {
+                    throw new Error(`Bulk creation would exceed the 50-link limit for Free Tier. Remaining capacity: ${Math.max(0, 50 - (count || 0))}`);
+                }
             }
-            throw error;
         }
 
-        return rowToLinkData(data as LinkRow);
+        const rows = links.map(link => {
+            const id = uuidv4();
+            const newLink: LinkData = {
+                ...link,
+                id,
+                createdAt: now,
+                clicks: 0,
+                clickHistory: [],
+                tags: link.tags || [],
+                geoRedirects: link.geoRedirects || undefined,
+                smartRedirects: link.smartRedirects || undefined,
+                aiAnalysis: undefined
+            };
+            return linkDataToRow(newLink, link.userId);
+        });
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .insert(rows)
+            .select();
+
+        if (error) throw error;
+        return (data || []).map((row: LinkRow) => rowToLinkData(row));
     }
 
     async updateLink(id: string, updates: Partial<LinkData>): Promise<LinkData> {
@@ -364,5 +415,155 @@ export class LinkRepository extends BaseRepository {
     async deleteTag(id: string): Promise<void> {
         if (!this.isConfigured()) return;
         await this.supabase!.from(this.TABLES.TAGS).delete().eq('id', id);
+    }
+
+    // Folders
+
+    async getFolders(userId: string): Promise<Folder[]> {
+        if (!this.isConfigured()) return [];
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.FOLDERS || 'folders')
+            .select('*')
+            .eq('user_id', userId)
+            .order('name');
+
+        if (error) return [];
+        return (data || []).map((row: any) => rowToFolder(row));
+    }
+
+    async createFolder(folder: { userId: string; name: string; parentId: string | null }): Promise<Folder> {
+        if (!this.isConfigured()) throw new Error('Supabase not configured');
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.FOLDERS || 'folders')
+            .insert({
+                id: uuidv4(),
+                user_id: folder.userId,
+                name: folder.name,
+                parent_id: folder.parentId
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return rowToFolder(data);
+    }
+
+    async updateFolder(id: string, updates: { name?: string; parentId?: string | null }): Promise<Folder> {
+        if (!this.isConfigured()) throw new Error('Supabase not configured');
+
+        const rowUpdates: any = {};
+        if (updates.name !== undefined) rowUpdates.name = updates.name;
+        if (updates.parentId !== undefined) rowUpdates.parent_id = updates.parentId;
+
+        const { data, error } = await this.supabase!
+            .from(this.TABLES.FOLDERS || 'folders')
+            .update(rowUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return rowToFolder(data);
+    }
+
+    async deleteFolder(id: string): Promise<void> {
+        if (!this.isConfigured()) return;
+        // Recursive delete or cascade should handle children if DB configured, 
+        // but here we just delete the folder.
+        await this.supabase!.from(this.TABLES.FOLDERS || 'folders').delete().eq('id', id);
+    }
+
+    async moveFolder(id: string, newParentId: string | null): Promise<void> {
+        if (!this.isConfigured()) return;
+        await this.supabase!
+            .from(this.TABLES.FOLDERS || 'folders')
+            .update({ parent_id: newParentId })
+            .eq('id', id);
+    }
+
+    async recordClick(linkId: string, event: ClickEvent): Promise<void> {
+        if (!this.isConfigured()) return;
+
+        // 1. Insert click event
+        const { error } = await this.supabase!
+            .from(this.TABLES.CLICK_EVENTS || 'click_events')
+            .insert({
+                link_id: linkId,
+                timestamp: event.timestamp,
+                referrer: event.referrer,
+                device: event.device,
+                os: event.os,
+                browser: event.browser,
+                country: event.country,
+                // Enhanced fields
+                country_code: event.countryCode,
+                region: event.region,
+                city: event.city,
+                latitude: event.latitude,
+                longitude: event.longitude,
+                isp: event.isp,
+                timezone: event.timezone,
+                // Marketing
+                utm_source: event.utm_source,
+                utm_medium: event.utm_medium,
+                utm_campaign: event.utm_campaign,
+                utm_term: event.utm_term,
+                utm_content: event.utm_content,
+                trigger_source: event.trigger_source,
+                // Advanced
+                browser_version: event.browserVersion,
+                os_version: event.osVersion,
+                screen_width: event.screenWidth,
+                screen_height: event.screenHeight,
+                language: event.language,
+                visitor_id: event.visitorId,
+                fingerprint: event.fingerprint,
+                destination_url: event.destinationUrl,
+                device_model: event.deviceModel
+            });
+
+        if (error) console.error('[LinkRepository] Failed to record click event:', error);
+
+        // 2. Increment link click count (can be done via RPC or simple update)
+        // Using RPC 'increment_clicks' is safer for concurrency if available, else standard update.
+        // For now, standard update is easier to implement without checking RPCs.
+        // ACTUALLY, we should use RPC if possible. Let's try simple update first as fallback is usually needed.
+        // But better: use upsert or rpc.
+        // Let's stick to simple update + 1 for MVP speed, risking slight race condition on high concurrency.
+        // Or better: let Supabase handle it via TRIGGER?
+        // Let's assume the trigger handles it? No, usually explicit.
+        // Let's do a simple RPC call if we had it, but I'll do a read-modify-write or just a separate increment call?
+        // Actually, let's just insert the event. The analytics service aggregates clicks from the events table usually.
+        // BUT `getLinks` uses `clicks` column cached on the link row.
+        // So we MUST increment.
+
+        // 2. Increment link click count
+        const { error: rpcError } = await this.supabase!.rpc('increment_clicks', { row_id: linkId });
+
+        if (rpcError) {
+            // Fallback if RPC missing
+            const { data } = await this.supabase!.from(this.TABLES.LINKS).select('clicks').eq('id', linkId).single();
+            if (data) {
+                await this.supabase!.from(this.TABLES.LINKS).update({ clicks: (data.clicks || 0) + 1 }).eq('id', linkId);
+            }
+        }
+    }
+    async cleanupExpiredGuestLinks(): Promise<number> {
+        if (!this.isConfigured()) return 0;
+
+        const now = new Date().toISOString();
+        const { data, error, count } = await this.supabase!
+            .from(this.TABLES.LINKS)
+            .delete({ count: 'exact' })
+            .eq('is_guest', true)
+            .lt('expires_at', now);
+
+        if (error) {
+            console.error('[LinkRepository] Cleanup failed:', error);
+            throw error;
+        }
+
+        return count || 0;
     }
 }

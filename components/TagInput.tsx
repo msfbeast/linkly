@@ -60,11 +60,11 @@ export const TagInput: React.FC<TagInputProps> = ({ userId, selectedTags, onChan
         if (!tag) {
             // Create new tag
             try {
-                tag = await supabaseAdapter.createTag({
+                tag = await supabaseAdapter.createTag(
                     userId,
-                    name: tagName,
-                    color: getRandomColor(),
-                });
+                    tagName,
+                    getRandomColor()
+                );
                 setAllTags([...allTags, tag]);
             } catch (error) {
                 console.error('Failed to create tag:', error);

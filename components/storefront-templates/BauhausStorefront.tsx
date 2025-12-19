@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#f4f1ea] flex items-center justify-center">
@@ -75,12 +76,10 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {products.map((product, index) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block"
+                                onClick={() => onProductSelect(product)}
+                                className="group block w-full text-left"
                             >
                                 <div className="border-4 border-[#1d1d1d] bg-white transition-transform duration-300 hover:-translate-y-2 hover:shadow-[10px_10px_0px_#1d3557]">
                                     <div className="aspect-square border-b-4 border-[#1d1d1d] overflow-hidden relative">
@@ -112,7 +111,7 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </div>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>

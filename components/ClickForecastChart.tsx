@@ -11,12 +11,15 @@ import {
 } from 'recharts';
 import { useTheme } from '../contexts/ThemeContext';
 
+export interface ClickForecastDataPoint {
+  day?: string;
+  date?: string;
+  actual: number;
+  forecast: number;
+}
+
 export interface ClickForecastChartProps {
-  data: {
-    date: string;
-    actual: number;
-    forecast: number;
-  }[];
+  data: ClickForecastDataPoint[];
 }
 
 const ClickForecastChart: React.FC<ClickForecastChartProps> = ({ data }) => {

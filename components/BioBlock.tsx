@@ -69,10 +69,10 @@ export const BioBlock: React.FC<BioBlockProps> = ({ link, onRemove, onResize, re
             ref={setNodeRef}
             style={style}
             className={`
-                group relative bg - white rounded - 2xl border border - stone - 200 shadow - sm overflow - hidden
+                group relative bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden
                 ${isDragging ? 'ring-2 ring-yellow-400 z-50' : 'hover:border-yellow-400/50'}
                 ${link.type === 'link' ? 'min-h-[72px]' : 'min-h-[160px]'}
-`}
+            `}
         >
             {/* Drag Handle (Always visible for better UX, especially on touch) */}
             {!readOnly && (

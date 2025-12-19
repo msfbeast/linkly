@@ -11,8 +11,8 @@ import { parseUserAgent, DeviceType, OSType } from '../userAgentParser';
  * 'iOS', 'Android', 'Windows', 'MacOS', 'Linux', or 'Other'.
  */
 describe('UserAgentParser Property Tests', () => {
-  const validDeviceTypes: DeviceType[] = ['Mobile', 'Desktop', 'Tablet', 'Other'];
-  const validOSTypes: OSType[] = ['iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other'];
+  const validDeviceTypes: DeviceType[] = ['mobile', 'desktop', 'tablet', 'unknown'];
+  const validOSTypes: OSType[] = ['ios', 'android', 'windows', 'macos', 'linux', 'unknown'];
 
   /**
    * Property 5: Device type validity

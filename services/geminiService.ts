@@ -51,7 +51,7 @@ export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisR
 
     if (apiKey && (error.message === 'API_FAILED' || error.name === 'SyntaxError')) {
       try {
-        console.log("Attempting Client-Side Analysis...");
+
         const ai = new GoogleGenAI({ apiKey });
 
         const prompt = `
@@ -459,8 +459,8 @@ export const generateBackgroundImage = async (prompt: string): Promise<string> =
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey) throw new Error("Missing API Key");
 
-  // 1. Generate Image with Imagen 3
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`, {
+  // 1. Generate Image with Nano Banana (Gemini 2.5 Flash Image)
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:predict?key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

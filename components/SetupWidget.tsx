@@ -37,7 +37,7 @@ const SetupWidget: React.FC<SetupWidgetProps> = ({ links }) => {
     const hasBio = !!(bioProfile?.displayName && bioProfile?.bio);
     const hasAvatar = !!bioProfile?.avatarUrl;
     const hasLinks = links.length > 0;
-    const hasCustomDesign = bioProfile?.theme !== 'light' && bioProfile?.theme !== 'dark';
+    const hasCustomDesign = (bioProfile?.theme as string) !== 'light' && (bioProfile?.theme as string) !== 'dark';
     const hasShared = links.reduce((acc, link) => acc + link.clicks, 0) > 0;
 
     const steps = [

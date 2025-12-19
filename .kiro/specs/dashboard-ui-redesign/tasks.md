@@ -8,7 +8,7 @@
     - _Requirements: 1.3, 1.4_
   - [x] 1.2 Create TopNavigation component with tabs and actions
     - Create `components/TopNavigation.tsx` with horizontal layout
-    - Add Linkly logo, navigation tabs (Overview, Links, Analytics, Settings)
+    - Add Gather logo, navigation tabs (Overview, Links, Analytics, Settings)
     - Add total clicks display with percentage change indicator
     - Add "New Link" button with styling
     - _Requirements: 1.1, 1.2_

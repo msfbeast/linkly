@@ -225,7 +225,7 @@ export class AnalyticsRepository extends BaseRepository {
         ]);
 
         // Revenue Calculation (Estimate)
-        const PRICES = { 'starter': 9, 'pro': 29, 'premium': 49, 'business': 99 };
+        const PRICES = { 'free': 0, 'pro': 12, 'business': 49 };
         let totalRevenue = 0;
         revenueProfiles?.forEach((p: any) => {
             const tier = p.subscription_tier as keyof typeof PRICES;

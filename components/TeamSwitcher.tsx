@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Plus, Check, User, Settings } from 'lucide-react';
 import { Team } from '../types';
 import { useTeam } from '../contexts/TeamContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const TeamSwitcher: React.FC = () => {
+    const { user } = useAuth();
     const { teams, currentTeam, switchTeam } = useTeam();
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
@@ -27,11 +29,11 @@ const TeamSwitcher: React.FC = () => {
                     {currentTeam ? currentTeam.name.substring(0, 2).toUpperCase() : 'ME'}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                    <div className="text-sm font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
-                        {currentTeam ? currentTeam.name : 'Personal Workspace'}
+                    <div className="text-sm font-bold text-slate-900 truncate transition-colors">
+                        {currentTeam ? currentTeam.name : 'Personal'}
                     </div>
-                    <div className="text-xs text-stone-500 truncate">
-                        {currentTeam ? 'Team Plan' : 'Free Plan'}
+                    <div className="text-xs text-stone-500 truncate capitalize">
+                        {currentTeam ? 'Team Plan' : `${user?.preferences?.subscription_tier || 'Free'} Plan`}
                     </div>
                 </div>
                 {/* Only show Settings for Teams, or maybe allow Personal Settings too? keeping clear separation */}

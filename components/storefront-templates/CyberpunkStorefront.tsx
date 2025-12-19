@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center font-mono">
@@ -101,12 +102,10 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {products.map((product, i) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-black border border-[#00ff00] p-4 relative overflow-hidden hover:shadow-[0_0_20px_rgba(0,255,0,0.5)] transition-all duration-300"
+                                onClick={() => onProductSelect(product)}
+                                className="group block bg-black border border-[#00ff00] p-4 relative overflow-hidden hover:shadow-[0_0_20px_rgba(0,255,0,0.5)] transition-all duration-300 w-full text-left"
                             >
                                 {/* Corner Accents */}
                                 <div className="absolute top-0 left-0 w-0 h-0 border-t-[20px] border-l-[20px] border-t-[#00ff00] border-l-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -143,7 +142,7 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
                                         <span className="group-hover:translate-x-1 transition-transform">&gt;&gt; ACQUIRE</span>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>

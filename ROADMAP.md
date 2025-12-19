@@ -1,8 +1,8 @@
-# Linkly Product Roadmap
+# Gather Product Roadmap
 
 ## Platform Overview
 
-Linkly is a link management and analytics platform for creators, marketers, and businesses. This roadmap outlines planned features organized by development priority and pricing tier.
+Gather is a link management and analytics platform for creators, marketers, and businesses. This roadmap outlines planned features organized by development priority and pricing tier.
 
 ---
 

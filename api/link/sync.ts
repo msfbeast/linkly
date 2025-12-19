@@ -16,10 +16,9 @@ export default async function handler(request: Request) {
             return new Response('Missing required fields', { status: 400 });
         }
 
-        // Write to KV
-        // Key: linkly:link:{shortCode}
-        // We store id and restrictions for Edge API checks
-        await kv.set(`linkly:link:${shortCode}`, {
+        // Redis Setup for Gather AI:link:{shortCode}
+        // We store id and restrictions        // Key: gather:link:{shortCode}
+        await kv.set(`gather:link:${shortCode}`, {
             url: originalUrl,
             id,
             password,

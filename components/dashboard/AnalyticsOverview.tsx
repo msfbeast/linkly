@@ -10,8 +10,7 @@ import ClickForecastChart from '../ClickForecastChart';
 import TrafficSourceChart, { calculateTrafficTotal } from '../TrafficSourceChart';
 import { HealthScoreCard } from '../HealthScoreCard';
 import { InsightsCard, Insight } from '../InsightsCard';
-import { LinkData, generateLinkHealthData } from '../../types';
-import { CityBreakdown } from '../../services/aggregatedAnalyticsService';
+import { LinkData, generateLinkHealthData, CityBreakdown } from '../../types';
 
 interface AnalyticsOverviewProps {
     links: LinkData[];
@@ -52,20 +51,35 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
     const { browserStats, osStats } = useMemo(() => {
         // Use server data if available
         if (serverOsData?.length && serverBrowserData?.length) {
-            // Transform server OS data
-            const osData = serverOsData.map((item: any) => ({
-                name: item.os === 'ios' ? 'iOS' :
+            // Transform and aggregate server OS data
+            const osMap = new Map<string, number>();
+
+            serverOsData.forEach((item: any) => {
+                const name = item.os === 'ios' ? 'iOS' :
                     item.os === 'macos' ? 'macOS' :
-                        item.os.charAt(0).toUpperCase() + item.os.slice(1),
-                value: item.clickCount,
+                        (item.os || 'Unknown').charAt(0).toUpperCase() + (item.os || 'Unknown').slice(1);
+
+                osMap.set(name, (osMap.get(name) || 0) + item.clickCount);
+            });
+
+            const osData = Array.from(osMap.entries()).map(([name, value]) => ({
+                name,
+                value,
                 color: '' // Will be handled by component
             }));
 
-            // Transform server Browser data
-            const browserData = serverBrowserData.map((item: any) => ({
-                name: item.browser,
-                value: item.clickCount
-            })).slice(0, 5);
+            // Transform and aggregate server Browser data
+            const browserMap = new Map<string, number>();
+
+            serverBrowserData.forEach((item: any) => {
+                const name = item.browser || 'Unknown';
+                browserMap.set(name, (browserMap.get(name) || 0) + item.clickCount);
+            });
+
+            const browserData = Array.from(browserMap.entries())
+                .map(([name, value]) => ({ name, value }))
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 5);
 
             return { browserStats: browserData, osStats: osData };
         }

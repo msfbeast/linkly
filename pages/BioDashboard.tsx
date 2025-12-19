@@ -4,7 +4,7 @@ import {
     UserCircle2, ExternalLink, Edit, Search, Sparkles, Wand2, Loader2,
     Music, MapPin, Play, Plus, Trash2, GripVertical, Save, X, Eye, ChevronDown, Upload
 } from 'lucide-react';
-import { BioProfile, LinkData } from '../types';
+import { BioProfile, LinkData, LinkType } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { generateBio } from '../services/geminiService';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ import BioPreview from '../components/BioPreview';
 import BioAppearanceEditor from '../components/BioAppearanceEditor';
 import BioSeoEditor from '../components/BioSeoEditor';
 import { SortableBioLinkItem } from '../components/SortableBioLinkItem';
-import { GalleryManager } from '../components/GalleryManager';
+
 import { TechVaultManager } from '../components/TechVaultManager';
 import { NewsletterManager } from '../components/NewsletterManager';
 import { AppStackManager } from '../components/AppStackManager';
@@ -95,18 +95,23 @@ const BioDashboard: React.FC = () => {
     );
 
     const handleAddWidget = async (type: BlockType) => {
+        // Enforce Free Tier Limits
+        const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
+
+        if (isFreePlan && (type === 'map' || type === 'tip_jar')) {
+            toast.error("That is a Pro feature. Please upgrade.");
+            return;
+        }
+
         // Handle types that don't need configuration first
         if (type === 'newsletter') {
             document.getElementById('newsletter-section')?.scrollIntoView({ behavior: 'smooth' });
             return;
-        } else if (type === 'social_feed') {
-            toast.info("Social Feed integration coming soon!");
-            return;
         } else if (type === 'link') {
             setShowLinkModal(true);
             return;
-        } else if (type === 'tip_jar') {
-            handleWidgetConfigSubmit({}, 'tip_jar'); // No config needed
+        } else if (type === 'tip_jar' || type === 'qr_code') {
+            handleWidgetConfigSubmit({}, type); // No config needed
             return;
         }
 
@@ -119,12 +124,9 @@ const BioDashboard: React.FC = () => {
         if (!type || !user) return;
 
         let title = 'New Widget';
-        if (type === 'music') title = 'Music Player';
-        if (type === 'video') title = 'Video';
-        if (type === 'poll') title = 'Poll';
-        if (type === 'qna') title = 'Q&A';
         if (type === 'map') title = 'Location';
         if (type === 'tip_jar') title = 'Support Me';
+        if (type === 'qr_code') title = 'Share Profile';
 
 
         try {
@@ -136,8 +138,8 @@ const BioDashboard: React.FC = () => {
                 createdAt: Date.now(),
                 clicks: 0,
                 clickHistory: [],
-                type,
-                layoutConfig: { w: type === 'music' ? 2 : 1, h: 1 }, // Default music to full width
+                type: type as LinkType,
+                layoutConfig: { w: 1, h: 1 },
                 metadata
             });
             setAvailableLinks([newLink, ...availableLinks]);
@@ -610,17 +612,47 @@ const BioDashboard: React.FC = () => {
                             </CollapsibleWidget>
 
                             {/* 4. Tech Vault Card */}
+                            {/* 4. Tech Vault Card (Creator Feature) */}
                             <CollapsibleWidget
                                 title="Tech Vault"
                                 icon={Camera}
                                 defaultOpen={false}
                             >
-                                <TechVaultManager />
+                                {!['pro', 'business'].includes(user?.preferences?.subscription_tier || '') ? (
+                                    <div className="p-6 text-center">
+                                        <Camera className="w-12 h-12 text-stone-200 mx-auto mb-3" />
+                                        <h3 className="text-slate-900 font-bold mb-1">Showcase Your Gear</h3>
+                                        <p className="text-stone-500 text-sm mb-4">Share your equipment and setup with Tech Vault.</p>
+                                        <button
+                                            // Trigger upgrade modal via a global event or prop if available, or just toast for now
+                                            onClick={() => toast("Upgrade to Pro tier to use Tech Vault")}
+                                            className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-amber-500/20"
+                                        >
+                                            Upgrade to Unlock
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <TechVaultManager />
+                                )}
                             </CollapsibleWidget>
 
-                            {/* 5. Apps Card */}
+                            {/* 5. App Stack Card (Pro Feature) */}
                             <CollapsibleWidget title="App Stack" icon={Smartphone} defaultOpen={false}>
-                                <AppStackManager />
+                                {!['pro', 'business'].includes(user?.preferences?.subscription_tier || '') ? (
+                                    <div className="p-6 text-center">
+                                        <Smartphone className="w-12 h-12 text-stone-200 mx-auto mb-3" />
+                                        <h3 className="text-slate-900 font-bold mb-1">Share Your Apps</h3>
+                                        <p className="text-stone-500 text-sm mb-4">List your favorite apps and software stack.</p>
+                                        <button
+                                            onClick={() => toast("Upgrade to Pro tier to use App Stack")}
+                                            className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-amber-500/20"
+                                        >
+                                            Upgrade to Unlock
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <AppStackManager />
+                                )}
                             </CollapsibleWidget>
 
                             {/* 6. SEO & Social Card */}
@@ -812,11 +844,17 @@ const BioDashboard: React.FC = () => {
                 </div>
 
                 {/* Block Gallery Modal */}
-                <BlockGalleryModal
-                    isOpen={showBlockGallery}
-                    onClose={() => setShowBlockGallery(false)}
-                    onSelect={handleBlockSelect}
-                />
+                {showBlockGallery && (
+                    <BlockGalleryModal
+                        isOpen={showBlockGallery}
+                        onClose={() => setShowBlockGallery(false)}
+                        onSelect={(type) => {
+                            handleAddWidget(type);
+                            setShowBlockGallery(false);
+                        }}
+                        subscriptionTier={user?.preferences?.subscription_tier as any}
+                    />
+                )}
 
                 {/* Analytics Modal */}
                 {showAnalytics && user && (

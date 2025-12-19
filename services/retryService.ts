@@ -56,8 +56,13 @@ export async function execute<T>(
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+    } catch (error: any) {
+      // Handle Supabase error objects which might look like { message: "...", details: "..." }
+      if (error && typeof error === 'object' && !Array.isArray(error) && !(error instanceof Error)) {
+        lastError = new Error(error.message || error.details || JSON.stringify(error));
+      } else {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
 
       // If this was the last attempt, throw immediately
       if (attempt === config.maxRetries) {

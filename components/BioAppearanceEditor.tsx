@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { BioProfile, BioThemeConfig } from '../types';
-import { Layout, Type, Palette as PaletteIcon, Shapes, Check, ChevronDown, Monitor } from 'lucide-react';
+import { Layout, Type, Palette as PaletteIcon, Shapes, Check, ChevronDown, Monitor, Image as ImageIcon, Sparkles, Loader2, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { generateBackgroundImage } from '../services/geminiService';
 
 interface BioAppearanceEditorProps {
     profile: BioProfile;
@@ -27,6 +29,12 @@ const BUTTON_STYLES = [
 ];
 
 const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onChange }) => {
+    const { user } = useAuth();
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [bgPrompt, setBgPrompt] = useState('');
+
+    const isPro = ['pro', 'business', 'lifetime'].includes(user?.preferences?.subscription_tier || 'free');
+
     // Helper to get or init custom theme config
     const getConfig = (): BioThemeConfig => {
         return profile.customTheme || {
@@ -64,8 +72,8 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                             key={font.name}
                             onClick={() => updateConfig('font', font.family)}
                             className={`p-3 text-left rounded-xl border transition-all ${config.font === font.family
-                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500/20'
-                                    : 'border-stone-200 hover:border-indigo-300 hover:bg-stone-50'
+                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500/20'
+                                : 'border-stone-200 hover:border-indigo-300 hover:bg-stone-50'
                                 }`}
                         >
                             <span className="block text-sm font-medium mb-1" style={{ fontFamily: font.family }}>{font.name}</span>
@@ -85,27 +93,116 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                 </div>
 
                 <div className="space-y-6">
-                    {/* Background Color */}
+                    {/* Background Settings */}
                     <div>
-                        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 block">Background</label>
-                        <div className="flex items-center gap-3">
-                            <div className="relative w-12 h-12 rounded-full overflow-hidden ring-1 ring-black/10 shadow-sm">
-                                <input
-                                    type="color"
-                                    value={config.backgroundValue.startsWith('#') ? config.backgroundValue : '#ffffff'}
-                                    onChange={(e) => updateConfig('backgroundValue', e.target.value)}
-                                    className="absolute inset-0 w-[150%] h-[150%] -top-[25%] -left-[25%] cursor-pointer p-0 border-0"
-                                />
-                            </div>
-                            <div className="flex-1">
-                                <input
-                                    type="text"
-                                    value={config.backgroundValue}
-                                    onChange={(e) => updateConfig('backgroundValue', e.target.value)}
-                                    className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                />
+                        <div className="flex items-center justify-between mb-3">
+                            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider">Background</label>
+                            <div className="flex bg-stone-100 p-1 rounded-lg">
+                                <button
+                                    onClick={() => updateConfig('backgroundType', 'solid')}
+                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${config.backgroundType === 'solid' ? 'bg-white shadow-sm text-slate-900' : 'text-stone-500 hover:text-slate-900'}`}
+                                >
+                                    Color
+                                </button>
+                                <button
+                                    onClick={() => updateConfig('backgroundType', 'image')}
+                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${config.backgroundType === 'image' ? 'bg-white shadow-sm text-slate-900' : 'text-stone-500 hover:text-slate-900'}`}
+                                >
+                                    Image
+                                </button>
                             </div>
                         </div>
+
+                        {/* Solid Color Mode */}
+                        {config.backgroundType === 'solid' && (
+                            <div className="flex items-center gap-3 animate-fadeIn">
+                                <div className="relative w-12 h-12 rounded-full overflow-hidden ring-1 ring-black/10 shadow-sm">
+                                    <input
+                                        type="color"
+                                        value={config.backgroundValue.startsWith('#') ? config.backgroundValue : '#ffffff'}
+                                        onChange={(e) => updateConfig('backgroundValue', e.target.value)}
+                                        className="absolute inset-0 w-[150%] h-[150%] -top-[25%] -left-[25%] cursor-pointer p-0 border-0"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <input
+                                        type="text"
+                                        value={config.backgroundValue}
+                                        onChange={(e) => updateConfig('backgroundValue', e.target.value)}
+                                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Image Mode */}
+                        {config.backgroundType === 'image' && (
+                            <div className="space-y-3 animate-fadeIn">
+                                {/* Current Image Input */}
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-stone-100 rounded-lg border border-stone-200 flex items-center justify-center overflow-hidden">
+                                        {config.backgroundValue.startsWith('http') ? (
+                                            <img src={config.backgroundValue} alt="Bg" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <ImageIcon className="w-5 h-5 text-stone-400" />
+                                        )}
+                                    </div>
+                                    <input
+                                        type="url"
+                                        placeholder="https://example.com/image.jpg"
+                                        value={config.backgroundValue}
+                                        onChange={(e) => updateConfig('backgroundValue', e.target.value)}
+                                        className="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    />
+                                </div>
+
+                                {/* AI Generator (Nano Banana) */}
+                                <div className={`p-4 rounded-xl border ${isPro ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-stone-50 border-stone-200 opacity-75'}`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                                            <span className="text-xs font-bold text-indigo-900">Generate with Nano Banana</span>
+                                        </div>
+                                        {!isPro && <Lock className="w-3 h-3 text-stone-400" />}
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="E.g., minimal tropical sunset..."
+                                            value={bgPrompt}
+                                            onChange={(e) => setBgPrompt(e.target.value)}
+                                            disabled={!isPro || isGenerating}
+                                            className="flex-1 bg-white border border-stone-200/50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-transparent"
+                                        />
+                                        <button
+                                            onClick={async () => {
+                                                if (!bgPrompt) return;
+                                                setIsGenerating(true);
+                                                try {
+                                                    const url = await generateBackgroundImage(bgPrompt);
+                                                    updateConfig('backgroundValue', url);
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    alert('Failed to generate image. Please try again.');
+                                                } finally {
+                                                    setIsGenerating(false);
+                                                }
+                                            }}
+                                            disabled={!isPro || isGenerating || !bgPrompt}
+                                            className="bg-indigo-600 text-white px-3 rounded-lg font-bold text-xs hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[32px] transition-colors"
+                                        >
+                                            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Go'}
+                                        </button>
+                                    </div>
+                                    {!isPro && (
+                                        <p className="text-[10px] text-stone-500 mt-2">
+                                            Upgrade to Pro to generate unlimited AI backgrounds.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Text Color */}

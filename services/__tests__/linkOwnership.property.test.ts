@@ -38,7 +38,7 @@ vi.mock('../storage/supabaseClient', () => ({
 describe('Link Ownership Property Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Setup chain: from().insert().select().single()
     mockSingle.mockImplementation(() => Promise.resolve({ data: null, error: null }));
     mockSelect.mockReturnValue({ single: mockSingle });
@@ -67,7 +67,7 @@ describe('Link Ownership Property Tests', () => {
     category: fc.constantFrom('social', 'marketing', 'product', 'other', undefined),
     createdAt: fc.integer({ min: 1577836800000, max: Date.now() }), // Valid timestamp range
     clicks: fc.nat({ max: 10000 }),
-    clickHistory: fc.constant([]),
+    clickHistory: fc.constant([] as any[]),
   });
 
   /**
@@ -86,7 +86,7 @@ describe('Link Ownership Property Tests', () => {
           mockSelect.mockReset();
           mockSingle.mockReset();
           mockFrom.mockReset();
-          
+
           // Setup: Mock an authenticated session with the generated user ID
           mockGetSession.mockResolvedValue({
             data: {
@@ -96,15 +96,15 @@ describe('Link Ownership Property Tests', () => {
               },
             },
           });
-          
+
           // Capture the inserted data
           let capturedInsertData: Record<string, unknown> | null = null;
-          
+
           mockInsert.mockImplementation((data: Record<string, unknown>) => {
             capturedInsertData = data;
             return { select: mockSelect };
           });
-          
+
           mockSelect.mockReturnValue({ single: mockSingle });
           mockSingle.mockResolvedValue({
             data: {
@@ -129,16 +129,16 @@ describe('Link Ownership Property Tests', () => {
             },
             error: null,
           });
-          
+
           mockFrom.mockReturnValue({ insert: mockInsert });
-          
+
           // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
           const adapter = new SupabaseAdapter();
-          
+
           // Create the link
           await adapter.createLink(linkData);
-          
+
           // Verify the inserted data contains the correct user_id
           expect(capturedInsertData).not.toBeNull();
           expect(capturedInsertData!.user_id).toBe(userId);
@@ -163,20 +163,20 @@ describe('Link Ownership Property Tests', () => {
           mockSelect.mockReset();
           mockSingle.mockReset();
           mockFrom.mockReset();
-          
+
           // Setup: Mock no authenticated session
           mockGetSession.mockResolvedValue({
             data: { session: null },
           });
-          
+
           // Capture the inserted data
           let capturedInsertData: Record<string, unknown> | null = null;
-          
+
           mockInsert.mockImplementation((data: Record<string, unknown>) => {
             capturedInsertData = data;
             return { select: mockSelect };
           });
-          
+
           mockSelect.mockReturnValue({ single: mockSingle });
           mockSingle.mockResolvedValue({
             data: {
@@ -201,16 +201,16 @@ describe('Link Ownership Property Tests', () => {
             },
             error: null,
           });
-          
+
           mockFrom.mockReturnValue({ insert: mockInsert });
-          
+
           // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
           const adapter = new SupabaseAdapter();
-          
+
           // Create the link
           await adapter.createLink(linkData);
-          
+
           // Verify the inserted data has null user_id
           expect(capturedInsertData).not.toBeNull();
           expect(capturedInsertData!.user_id).toBeNull();

@@ -17,8 +17,8 @@ const clickEventArb = (timestampArb: fc.Arbitrary<number>): fc.Arbitrary<ClickEv
   fc.record({
     timestamp: timestampArb,
     referrer: fc.string(),
-    device: fc.constantFrom('Mobile', 'Desktop', 'Tablet', 'Other') as fc.Arbitrary<ClickEvent['device']>,
-    os: fc.constantFrom('iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other') as fc.Arbitrary<ClickEvent['os']>,
+    device: fc.constantFrom('mobile', 'desktop', 'tablet', 'unknown') as fc.Arbitrary<ClickEvent['device']>,
+    os: fc.constantFrom('ios', 'android', 'windows', 'macos', 'linux', 'unknown') as fc.Arbitrary<ClickEvent['os']>,
     country: fc.option(fc.string(), { nil: undefined }),
   });
 

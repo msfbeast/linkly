@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Globe, MousePointer2, TrendingUp, TrendingDown, Loader2, MapPin, Monitor, Smartphone, Share2, Check, Copy } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics, UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, BrowserBreakdown, DeviceModelBreakdown, DailyClicks } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
-import { LinkData, ClickEvent } from '../types';
+import {
+  LinkData,
+  ClickEvent,
+  UserClickStats,
+  CountryBreakdown,
+  CityBreakdown,
+  DeviceBreakdown,
+  ReferrerBreakdown,
+  BrowserBreakdown,
+  DeviceModelBreakdown,
+  DailyClicks
+} from '../types';
 import LiveWorldMap from '../components/LiveWorldMap';
+import { getCountryName } from '../utils/constants';
 
 interface ServerAnalytics {
   stats: UserClickStats | null;
@@ -36,26 +48,8 @@ interface AnalyticsSummary {
 }
 
 // Country code to full name mapping
-const COUNTRY_NAMES: Record<string, string> = {
-  'IN': 'India', 'US': 'United States', 'GB': 'United Kingdom', 'CA': 'Canada',
-  'AU': 'Australia', 'DE': 'Germany', 'FR': 'France', 'NP': 'Nepal', 'BD': 'Bangladesh',
-  'PK': 'Pakistan', 'AE': 'UAE', 'SG': 'Singapore', 'MY': 'Malaysia', 'ID': 'Indonesia',
-  'TH': 'Thailand', 'VN': 'Vietnam', 'PH': 'Philippines', 'JP': 'Japan', 'KR': 'South Korea',
-  'CN': 'China', 'BR': 'Brazil', 'MX': 'Mexico', 'SA': 'Saudi Arabia', 'QA': 'Qatar',
-  'KW': 'Kuwait', 'OM': 'Oman', 'BH': 'Bahrain', 'LK': 'Sri Lanka', 'MM': 'Myanmar',
-  'NZ': 'New Zealand', 'ZA': 'South Africa', 'NG': 'Nigeria', 'KE': 'Kenya', 'EG': 'Egypt',
-  'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'BE': 'Belgium', 'SE': 'Sweden',
-  'NO': 'Norway', 'DK': 'Denmark', 'FI': 'Finland', 'PL': 'Poland', 'RU': 'Russia',
-  'UA': 'Ukraine', 'TR': 'Turkey', 'IL': 'Israel', 'IE': 'Ireland', 'PT': 'Portugal',
-  'CH': 'Switzerland', 'AT': 'Austria', 'CZ': 'Czech Republic', 'GR': 'Greece', 'HU': 'Hungary',
-};
-
-const getCountryName = (code: string): string => {
-  if (!code) return 'Unknown';
-  // Already a full name
-  if (code.length > 3) return code;
-  return COUNTRY_NAMES[code.toUpperCase()] || code;
-};
+// Country code to full name mapping
+// Removed local definition, using import from ../utils/constants
 
 // Calculate week-over-week growth percentage
 const calculateGrowth = (current: number, previous: number): { percentage: number; isPositive: boolean } => {
@@ -92,13 +86,19 @@ const GlobalAnalytics: React.FC = () => {
     loadAnalytics();
   }, [dateRange, user?.id]);
 
+  // Helper to check if user has access to premium features
+  const tier = user?.preferences?.subscription_tier as string | undefined;
+  const isPro = tier === 'pro' || tier === 'business' || tier === 'premium';
+
   const loadAnalytics = async () => {
     setIsLoading(true);
     try {
+      const days = dateRange === '90d' ? 90 : dateRange === '30d' ? 30 : 7;
+
       // Fetch both links data and server-side aggregations in parallel
       const [links, fullAnalytics] = await Promise.all([
         supabaseAdapter.getLinks(),
-        user?.id ? aggregatedAnalytics.getFullAnalytics(user.id) : null
+        user?.id ? aggregatedAnalytics.getFullAnalytics(user.id, days) : null
       ]);
 
       // Process client-side data (for map visualization)
@@ -115,6 +115,9 @@ const GlobalAnalytics: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // ... (processAnalytics remains the same) ...
+
 
   const processAnalytics = (links: LinkData[]): AnalyticsSummary => {
     const allClicks: ClickEvent[] = [];
@@ -285,12 +288,20 @@ const GlobalAnalytics: React.FC = () => {
     );
   }
 
-  // Use server data for accurate counts, client data for max bar width calculations
-  const topCountries = serverData?.countries || [];
-  const topCities = serverData?.cities || [];
-  const topDevices = serverData?.devices || [];
-  const topReferrers = serverData?.referrers || [];
-  const topBrowsers = serverData?.browsers || [];
+  // Use server data for accurate counts, fallback to client data if server data is empty (RPC failure or not ready)
+  const topCountries = (serverData?.countries && serverData.countries.length > 0)
+    ? serverData.countries
+    : (analytics?.topCountries.map(c => ({ country: c.country, clickCount: c.clicks })) || []);
+
+  const topCities = (serverData?.cities && serverData.cities.length > 0)
+    ? serverData.cities
+    : (analytics?.topCities.map(c => ({ city: c.city, country: c.country, clickCount: c.clicks })) || []);
+
+  const topDevices = (serverData?.devices && serverData.devices.length > 0)
+    ? serverData.devices
+    : (analytics?.topDevices.map(d => ({ device: d.device, clickCount: d.clicks })) || []);
+  const topReferrers = serverData?.referrers || []; // No client fallback for detailed referrers yet
+  const topBrowsers = (serverData?.browsers && serverData.browsers.length > 0) ? serverData.browsers : (analytics?.topBrowsers.map(b => ({ browser: b.browser, clickCount: b.clicks })) || []);
   const topDeviceModels = serverData?.deviceModels || [];
   const maxClicks = Math.max(...(topCountries.map(c => c.clickCount) || [1]));
 
@@ -304,16 +315,34 @@ const GlobalAnalytics: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl p-1 shadow-sm">
-              {['7d', '30d', '90d'].map((range) => (
+              {['7d', '30d'].map((range) => (
                 <button
                   key={range}
                   onClick={() => setDateRange(range)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === range ? 'bg-yellow-100 text-slate-900' : 'text-stone-500 hover:text-slate-900'
                     }`}
                 >
-                  {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
+                  {range === '7d' ? '7 Days' : '30 Days'}
                 </button>
               ))}
+              <div className="relative group">
+                <button
+                  onClick={() => isPro && setDateRange('90d')}
+                  disabled={!isPro}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === '90d' ? 'bg-yellow-100 text-slate-900' :
+                    !isPro ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:text-slate-900'
+                    }`}
+                >
+                  90 Days
+                  {!isPro && <div className="p-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-400">PRO</div>}
+                </button>
+                {/* Tooltip for non-pro users */}
+                {!isPro && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 bg-slate-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                    Upgrade to Pro for 90-day history
+                  </div>
+                )}
+              </div>
             </div>
             <button
               onClick={generateShareLink}

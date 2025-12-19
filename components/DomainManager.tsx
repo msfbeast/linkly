@@ -113,8 +113,20 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                     </button>
                 </form>
                 <p className="text-xs text-stone-500 mt-3 ml-1">
-                    Replaces standard linkly.ai URLs with your own brand.
+                    Replaces standard gather.link URLs with your own brand.
                 </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                    <h3 className="text-lg font-bold text-white mb-4">Step 1: Add CNAME Record</h3>
+                    <p className="text-slate-200 text-sm mb-4">
+                        In your DNS provider, create a CNAME record for your subdomain (e.g., <span className="text-emerald-400 font-bold">links</span>.yourdomain.com) pointing to:
+                    </p>
+                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                        <span className="text-emerald-400 font-bold select-all">custom.gather.link</span>
+                    </div>
+                </div>
             </div>
 
             {/* Domain List */}
@@ -181,7 +193,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                                         </a>
                                     </div>
 
-                                    <div className="mb-4 text-xs text-slate-400 space-y-1">
+                                    <div className="mb-4 text-xs text-slate-200 space-y-1">
                                         <p>1. Log in to your domain provider (e.g., GoDaddy, Namecheap).</p>
                                         <p>2. Navigate to <strong>DNS Settings</strong> or <strong>DNS Management</strong>.</p>
                                         <p>3. Add a new record with the following values:</p>
@@ -200,7 +212,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                                     </div>
                                     <div className="grid grid-cols-[80px_1fr] gap-4">
                                         <span className="text-slate-500">Value</span>
-                                        <span className="text-emerald-400 font-bold select-all">custom.linkly.ai</span>
+                                        <span className="text-emerald-400 font-bold select-all">custom.gather.link</span>
                                     </div>
                                 </div>
                             )}

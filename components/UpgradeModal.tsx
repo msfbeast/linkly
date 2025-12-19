@@ -36,7 +36,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, tri
         general: {
             icon: Crown,
             title: "Upgrade your experience",
-            description: "Unlock the full potential of Linkly with Pro features.",
+            description: "Unlock the full potential of Gather with Pro features.",
             feature: "Pro Features",
         },
     }[trigger];

@@ -177,16 +177,16 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
   const recordClick = async (link: LinkData, destinationUrl?: string): Promise<void> => {
     const fingerprint = await captureDeviceFingerprint();
 
-    console.log('[Click Tracking] Starting click recording for link:', link.id);
-    console.log('[Click Tracking] Device fingerprint:', fingerprint);
-    console.log('[Click Tracking] Supabase configured:', isSupabaseConfigured());
+
+
+
 
     try {
       // Try Edge Function first for detailed analytics with IP geolocation
       const edgeFunctionUrl = import.meta.env.VITE_SUPABASE_URL?.replace('.supabase.co', '.supabase.co/functions/v1/track-click');
 
       if (edgeFunctionUrl && isSupabaseConfigured()) {
-        console.log('[Click Tracking] Calling Edge Function...');
+
 
         const response = await fetch(edgeFunctionUrl, {
           method: 'POST',
@@ -204,7 +204,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('[Click Tracking] Edge Function success:', result);
+
           return;
         } else {
           console.warn('[Click Tracking] Edge Function failed, falling back to direct insert');
@@ -213,7 +213,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
       // Fallback to direct Supabase insert
       if (isSupabaseConfigured()) {
-        console.log('[Click Tracking] Recording click via Supabase directly...');
+
 
         // Extract UTM and QR params
         const searchParams = new URLSearchParams(window.location.search);
@@ -237,10 +237,10 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           destinationUrl, // Pass destination URL for A/B testing
         }, Date.now());
 
-        await supabaseAdapter.recordClick(link.id, clickEventInput);
-        console.log('[Click Tracking] Click recorded successfully!');
+        await supabaseAdapter.recordClick(link.id, { ...clickEventInput, country: 'Unknown', device: clickEventInput.device as any, os: clickEventInput.os as any });
+
       } else {
-        console.log('[Click Tracking] Supabase not configured, using localStorage');
+
         incrementClicks(link.id);
       }
     } catch (recordError) {
@@ -262,7 +262,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
             visitorId: fingerprint.visitorId,
             destinationUrl, // Pass destination URL for A/B testing
           }, Date.now());
-          await supabaseAdapter.recordClick(link.id, clickEventInput);
+          await supabaseAdapter.recordClick(link.id, { ...clickEventInput, country: 'Unknown', device: clickEventInput.device as any, os: clickEventInput.os as any });
         }
       } catch {
         console.error('[Click Tracking] All tracking methods failed');
@@ -348,7 +348,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
     const deepLink = getAppDeepLink(finalUrl, navigator.userAgent);
 
     if (deepLink) {
-      console.log('Attempting deep link:', deepLink);
+
       setRedirectMsg("Opening App...");
 
       // Try to open the app

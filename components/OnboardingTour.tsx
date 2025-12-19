@@ -96,7 +96,7 @@ const OnboardingTour: React.FC = () => {
                         ...user.preferences,
                         onboarding_step: nextStep
                     }
-                });
+                } as any);
             }
         } else {
             handleComplete();
@@ -117,7 +117,7 @@ const OnboardingTour: React.FC = () => {
                     ...user.preferences,
                     onboarding_skipped: true
                 }
-            });
+            } as any);
         }
     };
 
@@ -139,7 +139,7 @@ const OnboardingTour: React.FC = () => {
                     onboarding_completed: true,
                     onboarding_step: TOUR_STEPS.length
                 }
-            });
+            } as any);
         }
     };
 

@@ -17,8 +17,8 @@ const DomainRouter: React.FC<DomainRouterProps> = ({ children }) => {
             const hostname = window.location.hostname;
 
             // Allow list for main app domains
-            // TODO: Add env var for main domain
-            const allowedDomains = ['localhost', 'linkly.ai', 'linkly-ai.vercel.app', 'gather-link.vercel.app', 'links.trak.in'];
+            const mainDomain = import.meta.env.VITE_APP_DOMAIN || 'gather.link';
+            const allowedDomains = ['localhost', mainDomain, 'gather-link.vercel.app', 'links.trak.in'];
             const isAllowed = allowedDomains.some(d => hostname.includes(d));
 
             if (isAllowed) {
@@ -26,7 +26,7 @@ const DomainRouter: React.FC<DomainRouterProps> = ({ children }) => {
                 return;
             }
 
-            console.log('[DomainRouter] Checking custom domain:', hostname);
+
             setIsCustomDomain(true);
 
             try {
@@ -65,7 +65,7 @@ const DomainRouter: React.FC<DomainRouterProps> = ({ children }) => {
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-gray-900 mb-4">Domain Not Connected</h1>
-                    <p className="text-gray-600">This domain is pointed to Linkly but not connected to a profile.</p>
+                    <p className="text-gray-600">This domain is pointed to Gather but not connected to a profile.</p>
                 </div>
             </div>
         )

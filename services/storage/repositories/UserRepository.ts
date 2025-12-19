@@ -35,16 +35,7 @@ export class UserRepository extends BaseRepository {
     async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
-        const rowUpdates = userProfileToRow(updates); // Need to verify userProfileToRow implementation in mappers.ts
-        // Wait, I didn't add userProfileToRow to mappers.ts yet!
-        // I only added rowToUserProfile.
-        // I need to add userProfileToRow to mappers.ts!
-
-        // I'll leave a TODO or implement internal helper if small.
-        // It's likely small.
-
-        // For now, let's assume I fix mappers.ts or do it locally here.
-        // I'll do it locally here to speed up.
+        const rowUpdates = userProfileToRow(updates);
 
         const row: any = { ...rowUpdates, updated_at: new Date().toISOString() };
 
@@ -85,7 +76,7 @@ export class UserRepository extends BaseRepository {
         const { data: { user } } = await this.supabase!.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
-        const prefix = 'pk_live_';
+        const prefix = 'ga_live_';
         const randomBytes = new Uint8Array(24);
         crypto.getRandomValues(randomBytes);
         const secretPart = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');

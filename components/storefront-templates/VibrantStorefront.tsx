@@ -8,9 +8,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: UserProfile | null;
+    onProductSelect: (product: Product) => void;
 }
 
-const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FF3366] flex items-center justify-center">
@@ -117,7 +118,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                 key={product.id}
                                 className={`group bg-white rounded-[2rem] border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all ${i % 2 === 0 ? 'rotate-1' : '-rotate-1'} hover:rotate-0 flex flex-col`}
                             >
-                                <Link to={`/store/product/${product.id}`} className="block aspect-square bg-white rounded-[1.5rem] mb-4 overflow-hidden relative border-2 border-black">
+                                <button onClick={() => onProductSelect(product)} className="block aspect-square bg-white rounded-[1.5rem] mb-4 overflow-hidden relative border-2 border-black w-full text-left">
                                     {product.imageUrl ? (
                                         <img
                                             src={product.imageUrl}
@@ -132,7 +133,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                     <div className="absolute top-4 right-4 bg-yellow-300 px-3 py-1 rounded-full border-2 border-black font-black text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                                         {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
                                     </div>
-                                </Link>
+                                </button>
 
                                 <div className="px-2 flex-1 flex flex-col">
                                     <h3 className="text-xl font-black mb-2 uppercase tracking-tight line-clamp-2">{product.name}</h3>
@@ -141,11 +142,11 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         <button
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                handleVisit(product);
+                                                onProductSelect(product);
                                             }}
                                             className="h-10 px-4 bg-[#FF3366] rounded-full border-2 border-black flex items-center gap-2 text-white font-bold hover:bg-black hover:text-white transition-colors"
                                         >
-                                            <span>Visit Site</span>
+                                            <span>{product.type === 'digital' ? 'Buy Now' : 'Visit Site'}</span>
                                             <ExternalLink className="w-4 h-4" />
                                         </button>
                                     </div>

@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const regenerateApiKey = useCallback(async (): Promise<AuthResult> => {
     // Generate a new key (lk_live_ + random string)
-    const newKey = 'lk_live_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const newKey = 'ga_live_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
     const response = await authService.updateApiKey(newKey);
 

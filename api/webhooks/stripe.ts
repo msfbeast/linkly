@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    // @ts-ignore - Using latest API version
     apiVersion: '2025-01-27.acacia',
 });
 

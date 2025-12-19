@@ -14,11 +14,11 @@ import { generateCSVExport } from '../csvExportService';
  */
 describe('CSV Export Property Tests', () => {
   // Generator for valid device types
-  const deviceTypeArb = fc.constantFrom('Mobile', 'Desktop', 'Tablet', 'Other') as fc.Arbitrary<ClickEvent['device']>;
-  
+  const deviceTypeArb = fc.constantFrom('mobile', 'desktop', 'tablet', 'unknown') as fc.Arbitrary<ClickEvent['device']>;
+
   // Generator for valid OS types
-  const osTypeArb = fc.constantFrom('iOS', 'Android', 'Windows', 'MacOS', 'Linux', 'Other') as fc.Arbitrary<ClickEvent['os']>;
-  
+  const osTypeArb = fc.constantFrom('ios', 'android', 'windows', 'macos', 'linux', 'unknown') as fc.Arbitrary<ClickEvent['os']>;
+
   // Generator for valid link categories
   const categoryArb = fc.constantFrom('social', 'marketing', 'product', 'other') as fc.Arbitrary<LinkCategory>;
 
@@ -91,7 +91,7 @@ describe('CSV Export Property Tests', () => {
         exportDataArb,
         (data) => {
           const csv = generateCSVExport(data);
-          
+
           // Check that link headers are present
           expect(csv).toContain('title');
           expect(csv).toContain('originalUrl');
@@ -114,7 +114,7 @@ describe('CSV Export Property Tests', () => {
         exportDataArb,
         (data) => {
           const csv = generateCSVExport(data);
-          
+
           // Check that click event headers are present (in the Click Events section)
           const clickEventsSection = csv.split('# Click Events')[1];
           expect(clickEventsSection).toBeDefined();
@@ -140,7 +140,7 @@ describe('CSV Export Property Tests', () => {
         exportDataArb.filter(d => d.links.length > 0),
         (data) => {
           const csv = generateCSVExport(data);
-          
+
           // Each link's data should be present in the CSV
           for (const link of data.links) {
             // Title should be present (may be escaped if contains special chars)
@@ -167,7 +167,7 @@ describe('CSV Export Property Tests', () => {
         (data) => {
           const csv = generateCSVExport(data);
           const clickEventsSection = csv.split('# Click Events')[1];
-          
+
           // Each click event's data should be present in the CSV
           for (const event of data.clickEvents) {
             // Device should be present
@@ -194,13 +194,13 @@ describe('CSV Export Property Tests', () => {
         (data) => {
           const csv = generateCSVExport(data);
           const sections = csv.split('# Click Events');
-          
+
           // Links section (includes header row)
           const linksSection = sections[0].split('# Links')[1].trim();
           const linkRows = linksSection.split('\n').filter(row => row.trim().length > 0);
           // +1 for header row
           expect(linkRows.length).toBe(data.links.length + 1);
-          
+
           // Click events section (includes header row)
           const clickEventsSection = sections[1].trim();
           const clickRows = clickEventsSection.split('\n').filter(row => row.trim().length > 0);
@@ -226,7 +226,7 @@ describe('CSV Export Property Tests', () => {
         }),
         (data) => {
           const csv = generateCSVExport(data);
-          
+
           // Should still have section markers and headers
           expect(csv).toContain('# Links');
           expect(csv).toContain('# Click Events');

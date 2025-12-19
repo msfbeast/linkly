@@ -71,33 +71,33 @@ describe('Session Clearing Property Tests', () => {
           mockSignOut.mockReset();
           mockGetSession.mockReset();
           sessionStorage.clear();
-          
+
           // Setup: Mock an authenticated session
           mockGetSession.mockResolvedValueOnce({ data: { session } });
           mockSignOut.mockResolvedValueOnce({ error: null });
-          
+
           // After signOut, getSession should return null
           mockGetSession.mockResolvedValueOnce({ data: { session: null } });
-          
+
           // Import authService fresh to use mocked supabase
           const { authService } = await import('../authService');
-          
+
           // Verify initial session exists
           const initialSession = await authService.getSession();
           expect(initialSession).not.toBeNull();
-          
+
           // Call signOut
           await authService.signOut();
-          
+
           // Verify signOut was called
           expect(mockSignOut).toHaveBeenCalled();
-          
+
           // Verify session is now null
           const finalSession = await authService.getSession();
           expect(finalSession).toBeNull();
-          
+
           // Verify sessionStorage temp flag is cleared
-          expect(sessionStorage.getItem('linkly_session_temp')).toBeNull();
+          expect(sessionStorage.getItem('gather_session_temp')).toBeNull();
         }
       ),
       { numRuns: 100 }
@@ -116,21 +116,21 @@ describe('Session Clearing Property Tests', () => {
           // Reset mocks
           mockSignOut.mockReset();
           sessionStorage.clear();
-          
+
           // Setup: Set temp flag if applicable
           if (hadTempFlag) {
-            sessionStorage.setItem('linkly_session_temp', 'true');
+            sessionStorage.setItem('gather_session_temp', 'true');
           }
-          
+
           mockSignOut.mockResolvedValueOnce({ error: null });
-          
+
           const { authService } = await import('../authService');
-          
+
           // Call signOut
           await authService.signOut();
-          
+
           // Verify temp flag is cleared regardless of initial state
-          expect(sessionStorage.getItem('linkly_session_temp')).toBeNull();
+          expect(sessionStorage.getItem('gather_session_temp')).toBeNull();
         }
       ),
       { numRuns: 100 }
@@ -149,17 +149,17 @@ describe('Session Clearing Property Tests', () => {
           // Reset mocks
           mockSignOut.mockReset();
           sessionStorage.clear();
-          
+
           mockSignOut.mockResolvedValue({ error: null });
           mockGetSession.mockResolvedValue({ data: { session: null } });
-          
+
           const { authService } = await import('../authService');
-          
+
           // Call signOut multiple times
           for (let i = 0; i < numCalls; i++) {
             await authService.signOut();
           }
-          
+
           // Should not throw and session should be null
           const session = await authService.getSession();
           expect(session).toBeNull();

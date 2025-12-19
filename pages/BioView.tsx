@@ -27,7 +27,7 @@ import PaperBioTemplate from '../components/bio-templates/PaperBioTemplate';
 import LuxuryBioTemplate from '../components/bio-templates/LuxuryBioTemplate';
 import GamerBioTemplate from '../components/bio-templates/GamerBioTemplate';
 import AirBioTemplate from '../components/bio-templates/AirBioTemplate';
-import AskMyAI from '../components/AskMyAI';
+
 import { BioSkeleton } from '../components/skeletons/BioSkeleton';
 import { BioError } from '../components/BioError';
 
@@ -215,7 +215,6 @@ const BioView: React.FC<BioViewProps> = ({ handle: propHandle }) => {
     <>
       {content}
       {TabSwitcher}
-      <AskMyAI profile={profile} links={links} />
     </>
   );
 };

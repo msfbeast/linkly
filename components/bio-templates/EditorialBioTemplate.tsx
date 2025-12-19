@@ -119,7 +119,7 @@ const EditorialBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, prod
                         )}
 
                         <div className="mt-24 text-center text-xs font-sans uppercase tracking-[0.3em] opacity-30 hover:opacity-100 transition-opacity">
-                            Editorially Curated by Linkly
+                            Editorially Curated by Gather
                         </div>
 
                     </div>

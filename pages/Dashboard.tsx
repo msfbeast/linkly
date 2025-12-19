@@ -309,6 +309,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         password: link.password,
         expirationDate: link.expirationDate,
         startDate: link.startDate,
+        userId: user?.id,
       };
 
       await retryExecute(

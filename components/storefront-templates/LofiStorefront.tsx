@@ -7,9 +7,10 @@ interface StorefrontTemplateProps {
     products: Product[];
     loading: boolean;
     storeProfile?: any;
+    onProductSelect: (product: Product) => void;
 }
 
-const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile }) => {
+const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, storeProfile, onProductSelect }) => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#F7F2E8] flex items-center justify-center">
@@ -85,12 +86,10 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, 
                 <div className="max-w-5xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {products.map((product) => (
-                            <a
+                            <button
                                 key={product.id}
-                                href={product.shortCode ? `/r/${product.shortCode}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group block bg-white border border-stone-200 rounded-lg p-4 hover:border-stone-400 transition-colors"
+                                onClick={() => onProductSelect(product)}
+                                className="group block bg-white border border-stone-200 rounded-lg p-4 hover:border-stone-400 transition-colors w-full text-left"
                             >
                                 <div className="aspect-square bg-[#F7F2E8] rounded-xl mb-3 overflow-hidden relative border-2 border-[#5C4B51]/10">
                                     {product.imageUrl ? (
@@ -121,7 +120,7 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, 
                                         </span>
                                     </div>
                                 </div>
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>

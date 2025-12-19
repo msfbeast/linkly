@@ -10,6 +10,7 @@ import { TagInput } from './TagInput';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import InfoTooltip from './InfoTooltip';
+import { COUNTRY_NAMES } from '../utils/constants';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -75,7 +76,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       });
 
       const geoArray = editingLink.geoRedirects
-        ? Object.entries(editingLink.geoRedirects).map(([k, v]) => ({ country: k, url: v }))
+        ? Object.entries(editingLink.geoRedirects).map(([k, v]) => ({ country: k, url: v as string }))
         : [];
       setGeoRedirects(geoArray);
 
@@ -293,7 +294,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           throw new Error('No valid links found in CSV.');
         }
 
-        await supabaseAdapter.createLinks(linksToCreate);
+        await supabaseAdapter.bulkCreateLinks(linksToCreate);
         onBulkCreate(linksToCreate); // Optimistic UI update
         resetAndClose();
 
@@ -686,14 +687,16 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
                         {geoRedirects.map((rule, idx) => (
                           <div key={idx} className="flex gap-2 mb-2">
-                            <input
-                              type="text"
-                              placeholder="US"
-                              className="w-20 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl uppercase text-center font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
-                              maxLength={2}
+                            <select
+                              className="w-[140px] bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium appearance-none cursor-pointer"
                               value={rule.country}
                               onChange={e => updateGeoRule(idx, 'country', e.target.value)}
-                            />
+                            >
+                              <option value="">Select Country</option>
+                              {Object.entries(COUNTRY_NAMES).map(([code, name]) => (
+                                <option key={code} value={code}>{name} ({code})</option>
+                              ))}
+                            </select>
                             <input
                               type="text"
                               placeholder="https://us.example.com"
@@ -830,6 +833,56 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                             >
                               <Split className="w-3 h-3" /> Add Variant
                             </button>
+
+                            {/* Traffic Distribution Visualizer */}
+                            <div className="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200">
+                              <div className="flex justify-between items-center mb-2">
+                                <h5 className="text-xs font-bold uppercase text-stone-500">Traffic Distribution</h5>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const count = variants.length + 1; // +1 for Original
+                                    const evenSplit = Math.floor(100 / count);
+                                    const newVariants = variants.map(v => ({ ...v, weight: evenSplit }));
+                                    setVariants(newVariants);
+                                  }}
+                                  className="text-[10px] text-amber-600 font-bold hover:underline"
+                                >
+                                  Balance Evenly
+                                </button>
+                              </div>
+
+                              <div className="h-4 bg-stone-200 rounded-full overflow-hidden flex w-full">
+                                {/* Variants Segments */}
+                                {variants.map((v, i) => (
+                                  <div
+                                    key={i}
+                                    style={{ width: `${v.weight}%` }}
+                                    className={`h-full ${['bg-amber-400', 'bg-blue-400', 'bg-green-400', 'bg-purple-400'][i % 4]} hover:opacity-90 transition-all`}
+                                    title={`Variant ${String.fromCharCode(65 + i)}: ${v.weight}%`}
+                                  />
+                                ))}
+                                {/* Original URL Segment (Remaining) */}
+                                <div
+                                  style={{ width: `${Math.max(0, 100 - variants.reduce((s, v) => s + v.weight, 0))}%` }}
+                                  className="h-full bg-slate-400 hover:opacity-90 transition-all pattern-diagonal-lines"
+                                  title={`Original URL (Control): ${Math.max(0, 100 - variants.reduce((s, v) => s + v.weight, 0))}%`}
+                                />
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <div className="flex items-center gap-1 text-[10px] text-stone-500">
+                                  <div className="w-2 h-2 rounded-full bg-slate-400" />
+                                  <span>Original ({Math.max(0, 100 - variants.reduce((s, v) => s + v.weight, 0))}%)</span>
+                                </div>
+                                {variants.map((v, i) => (
+                                  <div key={i} className="flex items-center gap-1 text-[10px] text-stone-500">
+                                    <div className={`w-2 h-2 rounded-full ${['bg-amber-400', 'bg-blue-400', 'bg-green-400', 'bg-purple-400'][i % 4]}`} />
+                                    <span>Var {String.fromCharCode(65 + i)} ({v.weight}%)</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>

@@ -125,7 +125,7 @@ const NeoPopBioTemplate: React.FC<BioTemplateProps> = ({ profile, links, product
                 )}
 
                 <div className="mt-12 text-center pb-8">
-                    <p className="font-black uppercase tracking-widest text-xs opacity-50">Built with Linkly</p>
+                    <p className="font-black uppercase tracking-widest text-xs opacity-50">Built with Gather</p>
                 </div>
             </div>
         </div>

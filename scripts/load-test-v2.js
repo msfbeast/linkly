@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import https from 'https';
 
-const BASE_URL = 'https://linkly-30dfgjvz5-arunpds-projects.vercel.app'; // Production URL
+const BASE_URL = 'https://gather.link'; // Production URL
 const CUSTOM_DOMAIN = 'links.trak.in';
 const TOTAL_REQUESTS = 30; // Enough to trigger the 20/10s limit
 const CONCURRENCY = 5;

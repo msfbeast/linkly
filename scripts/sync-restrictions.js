@@ -65,7 +65,7 @@ async function syncAllLinks() {
 
                 // Write directly to Redis
                 // Note: We must stringify the payload as ioredis expects a string for the value
-                await redis.set(`linkly:link:${link.short_code}`, JSON.stringify(payload));
+                await redis.set(`gather:link:${link.short_code}`, JSON.stringify(payload));
 
                 // console.log(`Synced ${link.short_code}`);
                 totalSynced++;
@@ -91,7 +91,7 @@ async function syncAllLinks() {
             .single();
 
         if (lastLink) {
-            const val = await redis.get(`linkly:link:${lastLink.short_code}`);
+            const val = await redis.get(`gather:link:${lastLink.short_code}`);
             if (val) {
                 console.log(`✅ Verification SUCCESS: Retrieved data for ${lastLink.short_code}`);
             } else {

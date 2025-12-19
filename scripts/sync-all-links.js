@@ -58,8 +58,8 @@ async function syncAllLinks() {
     for (const link of links) {
         if (link.short_code && link.original_url) {
             try {
-                // Key: linkly:link:{shortCode}
-                await kv.set(`linkly:link:${link.short_code}`, {
+                // Key: gather:link:{shortCode}
+                await kv.set(`gather:link:${link.short_code}`, {
                     url: link.original_url,
                     id: link.id
                 });

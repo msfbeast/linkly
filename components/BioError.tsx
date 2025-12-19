@@ -37,7 +37,7 @@ export const BioError: React.FC<BioErrorProps> = ({ message = "Profile not found
             </div>
 
             <div className="mt-12 text-stone-400 text-sm">
-                Powered by <strong>Linkly</strong>
+                Powered by <strong>Gather</strong>
             </div>
         </div>
     );

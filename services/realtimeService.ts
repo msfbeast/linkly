@@ -65,7 +65,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
 
   // Create channel if not exists
   if (!clickEventsChannel) {
-    console.log('[Realtime] Creating click_events subscription...');
+
 
     clickEventsChannel = supabase
       .channel('click_events_changes')
@@ -77,7 +77,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
           table: TABLES.CLICK_EVENTS,
         },
         (payload) => {
-          console.log('[Realtime] New click event received:', payload);
+
           const row = payload.new as Record<string, unknown>;
           const clickEvent: RealtimeClickEvent = {
             linkId: row.link_id as string,
@@ -89,7 +89,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
         }
       )
       .subscribe((status) => {
-        console.log('[Realtime] Click events subscription status:', status);
+
       });
   }
 
@@ -99,7 +99,7 @@ export function subscribeToClickEvents(callback: ClickEventCallback): () => void
 
     // If no more callbacks, unsubscribe from channel
     if (clickEventCallbacks.size === 0 && clickEventsChannel) {
-      console.log('[Realtime] Unsubscribing from click_events...');
+
       supabase?.removeChannel(clickEventsChannel);
       clickEventsChannel = null;
     }
@@ -119,7 +119,7 @@ export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void
 
   // Create channel if not exists
   if (!linksChannel) {
-    console.log('[Realtime] Creating links subscription...');
+
 
     linksChannel = supabase
       .channel('links_changes')
@@ -131,7 +131,7 @@ export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void
           table: TABLES.LINKS,
         },
         (payload) => {
-          console.log('[Realtime] Link update received:', payload);
+
           const row = payload.new as Record<string, unknown>;
           const update: RealtimeLinkUpdate = {
             linkId: row.id as string,
@@ -146,7 +146,7 @@ export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void
         }
       )
       .subscribe((status) => {
-        console.log('[Realtime] Links subscription status:', status);
+
       });
   }
 
@@ -156,7 +156,7 @@ export function subscribeToLinkUpdates(callback: LinkUpdateCallback): () => void
 
     // If no more callbacks, unsubscribe from channel
     if (linkUpdateCallbacks.size === 0 && linksChannel) {
-      console.log('[Realtime] Unsubscribing from links...');
+
       supabase?.removeChannel(linksChannel);
       linksChannel = null;
     }

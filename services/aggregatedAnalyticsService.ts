@@ -133,8 +133,7 @@ class AggregatedAnalyticsService {
      */
     async getOsBreakdown(userId: string): Promise<OsBreakdown[]> {
         if (!isSupabaseConfigured() || !supabase) return [];
-        return []; // RPC 'get_user_os_breakdown' not yet deployed
-        /*
+
         try {
             const { data, error } = await supabase.rpc('get_user_os_breakdown', {
                 p_user_id: userId
@@ -149,7 +148,6 @@ class AggregatedAnalyticsService {
         } catch {
             return [];
         }
-        */
     }
 
     /**
@@ -249,7 +247,7 @@ class AggregatedAnalyticsService {
     /**
      * Get ALL analytics data for Global Analytics page
      */
-    async getFullAnalytics(userId: string) {
+    async getFullAnalytics(userId: string, days: number = 30) {
         const [
             stats,
             countries,
@@ -267,7 +265,7 @@ class AggregatedAnalyticsService {
             this.getReferrerBreakdown(userId),
             this.getBrowserBreakdown(userId),
             this.getDeviceModelBreakdown(userId),
-            this.getClicksOverTime(userId, 30)
+            this.getClicksOverTime(userId, days)
         ]);
 
         return {

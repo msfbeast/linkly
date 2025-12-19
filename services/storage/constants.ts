@@ -17,8 +17,8 @@ export const BUCKETS = {
 };
 
 export const STORAGE_KEYS = {
-    LINKS: 'linkly_links',
-    THEME: 'linkly_theme',
-    USER: 'linkly_user',
+    LINKS: 'gather_links',
+    THEME: 'gather_theme',
+    USER: 'gather_user',
     CLICKS: 'click_events'
 };

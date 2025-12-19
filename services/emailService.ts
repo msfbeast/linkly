@@ -8,9 +8,9 @@ export interface EmailProvider {
 // Console Provider (for Development)
 class ConsoleEmailProvider implements EmailProvider {
     async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-        console.log('📧 [Email Mock] To:', to);
-        console.log('📧 [Email Mock] Subject:', subject);
-        console.log('📧 [Email Mock] Body:', html.substring(0, 100) + '...');
+
+
+
         return true;
     }
 }
@@ -50,22 +50,37 @@ class EmailService {
     private provider: EmailProvider;
 
     constructor() {
-        // Use API provider in production, or Console in dev if preferred
-        // For now, we'll use API provider if not in strictly offline mode
-        // But to be safe and allow testing the API flow, we default to ApiEmailProvider
-        // unless we want to force console for local dev without backend.
-        // Let's use ApiEmailProvider as default for "Resend" replacement.
-
+        // Use Real API Provider for production/launch
         this.provider = new ApiEmailProvider();
+    }
+
+    async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+        return this.provider.sendEmail(to, subject, html);
     }
 
     async sendWelcomeEmail(email: string, username: string) {
         const subject = 'Welcome to Gather! 🎉';
         const html = `
-      <h1>Welcome to Gather, ${username}!</h1>
-      <p>We're excited to have you on board.</p>
-      <p>Start creating your links and sharing your bio page today.</p>
-    `;
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1>Welcome, ${username}!</h1>
+                <p>We're thrilled to have you onboard.</p>
+                <p>Get started by setting up your bio page.</p>
+            </div>
+        `;
+        return this.provider.sendEmail(email, subject, html);
+    }
+
+    async sendInviteEmail(email: string, teamName: string, inviteUrl: string) {
+        const subject = `You've been invited to join ${teamName} on Gather`;
+        const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1>Team Invitation</h1>
+                <p>You have been invited to join the <strong>${teamName}</strong> team.</p>
+                <p>Click the link below to accept the invitation:</p>
+                <a href="${inviteUrl}" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Accept Invitation</a>
+                <p style="font-size: 12px; color: #666;">This link expires in 7 days.</p>
+            </div>
+        `;
         return this.provider.sendEmail(email, subject, html);
     }
 

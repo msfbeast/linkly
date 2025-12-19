@@ -306,7 +306,7 @@ const Settings: React.FC = () => {
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="Enter your name"
-                      className="w-full bg-white border border-stone-200 text-slate-900 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+                      className="w-full input-premium"
                     />
                   </div>
 
@@ -314,12 +314,21 @@ const Settings: React.FC = () => {
                     <label className="block text-sm text-stone-500 mb-2">Plan</label>
                     <div className="flex items-center justify-between bg-stone-50 border border-stone-200 px-4 py-3 rounded-xl">
                       <div>
-                        <span className="text-slate-900 font-medium">Free Plan</span>
-                        <p className="text-stone-500 text-sm">100 links, basic analytics</p>
+                        <span className="text-slate-900 font-medium capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</span>
+                        <p className="text-stone-500 text-sm">
+                          {user?.preferences?.subscription_tier === 'business' ? 'Unlimited links, priority support' :
+                            user?.preferences?.subscription_tier === 'pro' ? 'Unlimited links, storefront access' :
+                              '50 links, basic analytics'}
+                        </p>
                       </div>
-                      <button className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-semibold rounded-lg text-sm transition-colors shadow-sm shadow-yellow-400/20">
-                        Upgrade
-                      </button>
+                      {(user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier) && (
+                        <button
+                          onClick={() => navigate('/pricing')}
+                          className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-semibold rounded-lg text-sm btn-premium shadow-sm shadow-yellow-400/20"
+                        >
+                          Upgrade
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -328,8 +337,8 @@ const Settings: React.FC = () => {
                   <button
                     onClick={handleSave}
                     disabled={isLoading || displayName === user?.displayName}
-                    className={`px-6 py-2.5 rounded-xl font-semibold transition-all ${isLoading || displayName === user?.displayName
-                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                    className={`px-6 py-2.5 rounded-xl font-semibold btn-premium ${isLoading || displayName === user?.displayName
+                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed scale-100 translate-y-0 shadow-none'
                       : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20'
                       }`}
                   >
@@ -460,13 +469,13 @@ const Settings: React.FC = () => {
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="Enter new password"
-                            className="w-full mb-3 px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+                            className="w-full mb-3 input-premium"
                           />
                           <div className="flex gap-2">
                             <button
                               onClick={handleChangePassword}
                               disabled={isLoading || !newPassword}
-                              className="px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                              className="px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg btn-premium disabled:opacity-50"
                             >
                               {isLoading ? 'Updating...' : 'Update Password'}
                             </button>
@@ -607,36 +616,17 @@ const Settings: React.FC = () => {
                   </div>
 
                   <div className="flex gap-3">
-                    {user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier ? (
+                    {(user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier) ? (
                       <button
-                        onClick={() => window.location.href = '/pricing'}
-                        className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+                        onClick={() => navigate('/pricing')}
+                        className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-medium btn-premium"
                       >
                         Upgrade Plan
                       </button>
                     ) : (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const response = await fetch('/api/create-portal-session', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                customerId: user?.preferences?.stripe_customer_id,
-                                returnUrl: window.location.href
-                              }),
-                            });
-                            const data = await response.json();
-                            if (data.url) window.location.href = data.url;
-                          } catch (err) {
-                            console.error('Failed to open portal:', err);
-                            toast.error('Failed to load billing portal.');
-                          }
-                        }}
-                        className="px-4 py-2 bg-white border border-stone-300 text-slate-700 hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Manage Subscription
-                      </button>
+                      <div className="text-sm text-stone-500 italic">
+                        Managed via Razorpay. Contact support for changes.
+                      </div>
                     )}
                   </div>
                 </div>
@@ -657,7 +647,7 @@ const Settings: React.FC = () => {
                       value={flipkartId}
                       onChange={(e) => setFlipkartId(e.target.value)}
                       placeholder="e.g. yourname"
-                      className="w-full bg-white border border-stone-200 text-slate-900 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+                      className="w-full input-premium"
                     />
                   </div>
 
@@ -668,7 +658,7 @@ const Settings: React.FC = () => {
                       value={amazonTag}
                       onChange={(e) => setAmazonTag(e.target.value)}
                       placeholder="e.g. yourname-21"
-                      className="w-full bg-white border border-stone-200 text-slate-900 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+                      className="w-full input-premium"
                     />
                   </div>
                 </div>
@@ -677,8 +667,8 @@ const Settings: React.FC = () => {
                   <button
                     onClick={handleSaveMonetization}
                     disabled={isSavingMonetization}
-                    className={`px-6 py-2.5 rounded-xl font-semibold transition-all ${isSavingMonetization
-                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                    className={`px-6 py-2.5 rounded-xl font-semibold btn-premium ${isSavingMonetization
+                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed scale-100 translate-y-0 shadow-none'
                       : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20'
                       }`}
                   >
