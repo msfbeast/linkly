@@ -907,8 +907,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                   </div>
                 </form>
               </>
-            ) : (
-              <div className="flex flex-col h-full">
+            ) : mode === 'bulk' ? (
+              <div className="flex flex-col h-full bg-white">
                 <div className="mb-4">
                   <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Paste URLs (One per line)</label>
                   <textarea
@@ -929,6 +929,73 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                     className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-amber-400/20"
                   >
                     <Layers className="w-4 h-4" /> Bulk Generate
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col h-full bg-white">
+                {/* CSV Import Mode */}
+                <div className="flex-1 flex flex-col items-center justify-center p-8 border-2 border-dashed border-stone-200 rounded-2xl bg-stone-50/50 hover:bg-amber-50/30 hover:border-amber-300 transition-all text-center">
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-stone-100 mb-4 text-emerald-500">
+                    <Calendar className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">Import Links via CSV</h3>
+                  <p className="text-stone-500 text-sm max-w-xs mb-6">
+                    Upload a CSV file with columns for <code>url</code>, <code>slug</code>, and <code>title</code>.
+                  </p>
+
+                  <label className="relative cursor-pointer">
+                    <span className="bg-slate-900 text-white font-bold px-6 py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Select CSV File
+                    </span>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+
+                  {csvFile && (
+                    <div className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 animate-fadeIn">
+                      <Tag className="w-4 h-4" />
+                      {csvFile.name}
+                    </div>
+                  )}
+
+                  {csvError && (
+                    <div className="mt-4 flex items-center gap-2 text-sm font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 animate-fadeIn">
+                      <AlertCircle className="w-4 h-4" />
+                      {csvError}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-blue-500 font-bold text-xs border border-blue-100 shadow-sm">
+                      CSV
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-blue-900 text-sm">Template Format</h4>
+                      <p className="text-xs text-blue-600 font-mono">url, slug (opt), title (opt), tags (opt)</p>
+                    </div>
+                  </div>
+                  <a href="/template.csv" download className="text-xs font-bold text-blue-600 hover:underline">
+                    Download Sample
+                  </a>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-6 border-t border-stone-100 mt-auto">
+                  <button onClick={resetAndClose} className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold hover:bg-stone-50 rounded-xl">Cancel</button>
+                  <button
+                    onClick={handleCsvSubmit}
+                    disabled={!csvFile || isProcessingCsv}
+                    className="bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                  >
+                    {isProcessingCsv ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Import {csvFile ? 'File' : 'CSV'}
                   </button>
                 </div>
               </div>

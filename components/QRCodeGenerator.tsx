@@ -36,6 +36,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ url, title = 'qrcode'
     const [frame, setFrame] = useState<'none' | 'simple' | 'scan-me' | 'phone' | 'polaroid'>('none');
     const [showLogoInput, setShowLogoInput] = useState(false);
     const [logoSize, setLogoSize] = useState(40);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const qrId = `qr - ${Math.random().toString(36).substr(2, 9)} `;
     const hiddenCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -232,8 +233,8 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ url, title = 'qrcode'
                 <div
                     id={qrId}
                     className={`relative transition-all duration-300 transform group-hover:scale-[1.02] ${frame === 'phone' ? 'bg-slate-800 p-3 rounded-[3rem] shadow-2xl border-4 border-slate-700' :
-                            frame === 'polaroid' ? 'bg-white p-4 pb-32 shadow-xl rotate-[-2deg] hover:rotate-0' :
-                                'p-6'
+                        frame === 'polaroid' ? 'bg-white p-4 pb-32 shadow-xl rotate-[-2deg] hover:rotate-0' :
+                            'p-6'
                         }`}
                     style={frame === 'polaroid' ? { width: 'fit-content', minWidth: '300px' } : undefined}
                 >
@@ -248,8 +249,8 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ url, title = 'qrcode'
                     )}
 
                     <div className={`relative ${frame === 'simple' ? 'p-6 bg-white rounded-2xl shadow-lg ring-1 ring-black/5' :
-                            frame === 'scan-me' ? 'bg-slate-900 p-5 pb-16 rounded-2xl shadow-xl' :
-                                'rounded-xl overflow-hidden'
+                        frame === 'scan-me' ? 'bg-slate-900 p-5 pb-16 rounded-2xl shadow-xl' :
+                            'rounded-xl overflow-hidden'
                         } ${frame === 'phone' ? 'bg-white rounded-[2rem] overflow-hidden p-6 mt-1 mb-1 mx-1' : ''} ${frame === 'polaroid' ? 'border border-stone-100' : ''}`}>
 
                         {/* The QR Container */}
@@ -306,121 +307,141 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ url, title = 'qrcode'
             {/* Controls */}
             <div className="flex-1 space-y-8 max-w-md">
 
-                {/* Style Section */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
-                        <Palette className="w-4 h-4 text-amber-500" /> appearance
-                    </h3>
-
-                    {/* Gradients */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-stone-500">Gradients</label>
-                        <div className="grid grid-cols-6 gap-2">
-                            {GRADIENTS.map((g, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setActiveGradient(g.value ? g : null)}
-                                    className={`w - full aspect - square rounded - lg border transition - all ${activeGradient?.name === g.name ? 'ring-2 ring-amber-500 ring-offset-2 border-transparent' : 'border-stone-200 hover:border-amber-300'} `}
-                                    style={{ background: g.value || '#fff' }}
-                                    title={g.name}
-                                >
-                                    {!g.value && <div className="w-full h-full flex items-center justify-center text-stone-300"><X className="w-4 h-4" /></div>}
-                                </button>
-                            ))}
+                {/* Simple Mode - Toggle for Advanced */}
+                <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900">Customization</h3>
+                            <p className="text-xs text-stone-500">Colors, frames, and branding</p>
                         </div>
-                    </div>
-
-                    {/* Solid Colors (Only if no gradient) */}
-                    {!activeGradient && (
-                        <div className="space-y-2 animate-fadeIn">
-                            <label className="text-xs font-bold text-stone-500">Solid Color</label>
-                            <div className="flex gap-2">
-                                {DOT_COLORS.map(c => (
-                                    <button
-                                        key={c}
-                                        onClick={() => setColor(c)}
-                                        className={`w - 8 h - 8 rounded - full border border - stone - 200 transition - transform hover: scale - 110 ${color === c ? 'ring-2 ring-stone-400 ring-offset-2' : ''} `}
-                                        style={{ backgroundColor: c }}
-                                    />
-                                ))}
-                                <input
-                                    type="color"
-                                    value={color}
-                                    onChange={(e) => setColor(e.target.value)}
-                                    className="w-8 h-8 rounded-full overflow-hidden cursor-pointer border-none p-0"
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Frames Section */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
-                        <Layout className="w-4 h-4 text-amber-500" /> Frame Style
-                    </h3>
-                    <div className="grid grid-cols-3 gap-3">
-                        {FRAMES.map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => setFrame(f.id as any)}
-                                className={`flex flex - col items - center gap - 2 p - 3 rounded - xl border transition - all ${frame === f.id ? 'bg-amber-50 border-amber-500 text-amber-900' : 'bg-white border-stone-200 text-stone-500 hover:border-amber-300 hover:bg-amber-50/50'} `}
-                            >
-                                <f.icon className="w-5 h-5" />
-                                <span className="text-xs font-bold">{f.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Logo Section */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
-                        <ImageIcon className="w-4 h-4 text-amber-500" /> Branding
-                    </h3>
-
-                    {!showLogoInput && !logoUrl ? (
                         <button
-                            onClick={() => setShowLogoInput(true)}
-                            className="w-full py-3 border-2 border-dashed border-stone-200 rounded-xl text-stone-500 text-sm font-bold hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-all flex items-center justify-center gap-2"
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${showAdvanced ? 'bg-slate-200 text-slate-700' : 'bg-slate-900 text-white hover:bg-slate-700'}`}
                         >
-                            <Zap className="w-4 h-4" /> Add Logo
+                            {showAdvanced ? 'Hide Options' : 'Customize'}
                         </button>
-                    ) : (
-                        <div className="space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-200">
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={logoUrl}
-                                    onChange={(e) => setLogoUrl(e.target.value)}
-                                    placeholder="https://example.com/logo.png"
-                                    className="flex-1 text-sm bg-white border border-stone-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                />
-                                <button
-                                    onClick={() => { setLogoUrl(''); setShowLogoInput(false); }}
-                                    className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
+                    </div>
+                </div>
+
+                {showAdvanced && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-300">
+                        {/* Style Section */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                                <Palette className="w-4 h-4 text-amber-500" /> appearance
+                            </h3>
+
+                            {/* Gradients */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-stone-500">Gradients</label>
+                                <div className="grid grid-cols-6 gap-2">
+                                    {GRADIENTS.map((g, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setActiveGradient(g.value ? g : null)}
+                                            className={`w-full aspect-square rounded-lg border transition-all ${activeGradient?.name === g.name ? 'ring-2 ring-amber-500 ring-offset-2 border-transparent' : 'border-stone-200 hover:border-amber-300'}`}
+                                            style={{ background: g.value || '#fff' }}
+                                            title={g.name}
+                                        >
+                                            {!g.value && <div className="w-full h-full flex items-center justify-center text-stone-300"><X className="w-4 h-4" /></div>}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            <div className="space-y-1">
-                                <div className="flex justify-between text-xs font-medium text-stone-500">
-                                    <span>Size</span>
-                                    <span>{logoSize}px</span>
+                            {/* Solid Colors (Only if no gradient) */}
+                            {!activeGradient && (
+                                <div className="space-y-2 animate-fadeIn">
+                                    <label className="text-xs font-bold text-stone-500">Solid Color</label>
+                                    <div className="flex gap-2">
+                                        {DOT_COLORS.map(c => (
+                                            <button
+                                                key={c}
+                                                onClick={() => setColor(c)}
+                                                className={`w-8 h-8 rounded-full border border-stone-200 transition-transform hover:scale-110 ${color === c ? 'ring-2 ring-stone-400 ring-offset-2' : ''}`}
+                                                style={{ backgroundColor: c }}
+                                            />
+                                        ))}
+                                        <input
+                                            type="color"
+                                            value={color}
+                                            onChange={(e) => setColor(e.target.value)}
+                                            className="w-8 h-8 rounded-full overflow-hidden cursor-pointer border-none p-0"
+                                        />
+                                    </div>
                                 </div>
-                                <input
-                                    type="range"
-                                    min="20"
-                                    max="80"
-                                    value={logoSize}
-                                    onChange={(e) => setLogoSize(Number(e.target.value))}
-                                    className="w-full accent-amber-500"
-                                />
+                            )}
+                        </div>
+
+                        {/* Frames Section */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                                <Layout className="w-4 h-4 text-amber-500" /> Frame Style
+                            </h3>
+                            <div className="grid grid-cols-3 gap-3">
+                                {FRAMES.map(f => (
+                                    <button
+                                        key={f.id}
+                                        onClick={() => setFrame(f.id as any)}
+                                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${frame === f.id ? 'bg-amber-50 border-amber-500 text-amber-900' : 'bg-white border-stone-200 text-stone-500 hover:border-amber-300 hover:bg-amber-50/50'}`}
+                                    >
+                                        <f.icon className="w-5 h-5" />
+                                        <span className="text-xs font-bold">{f.label}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    )}
-                </div>
+
+                        {/* Logo Section */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                                <ImageIcon className="w-4 h-4 text-amber-500" /> Branding
+                            </h3>
+
+                            {!showLogoInput && !logoUrl ? (
+                                <button
+                                    onClick={() => setShowLogoInput(true)}
+                                    className="w-full py-3 border-2 border-dashed border-stone-200 rounded-xl text-stone-500 text-sm font-bold hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Zap className="w-4 h-4" /> Add Logo
+                                </button>
+                            ) : (
+                                <div className="space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-200">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={logoUrl}
+                                            onChange={(e) => setLogoUrl(e.target.value)}
+                                            placeholder="https://example.com/logo.png"
+                                            className="flex-1 text-sm bg-white border border-stone-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                                        />
+                                        <button
+                                            onClick={() => { setLogoUrl(''); setShowLogoInput(false); }}
+                                            className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between text-xs font-medium text-stone-500">
+                                            <span>Size</span>
+                                            <span>{logoSize}px</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="20"
+                                            max="80"
+                                            value={logoSize}
+                                            onChange={(e) => setLogoSize(Number(e.target.value))}
+                                            className="w-full accent-amber-500"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Download Button */}
                 <button
