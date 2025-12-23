@@ -41,11 +41,23 @@ export async function extractProductMetadata(url: string): Promise<ExtractedMeta
 
         // Process Jina Response
         if (jinaRes.status === 'fulfilled' && jinaRes.value.ok) {
-            markdown = await jinaRes.value.text();
-            const imgRegex = /!\[.*?\]\((https?:\/\/.*?)\)/g;
-            let match;
-            while ((match = imgRegex.exec(markdown)) !== null) {
-                possibleImages.push(match[1]);
+            const rawText = await jinaRes.value.text();
+
+            // Critical Check: Detect Amazon/Server blocking responses
+            // Amazon often returns 200 OK with "Service Unavailable" text via proxies
+            const isBlocked = rawText.includes("Experiencing temporary service unavailability") ||
+                rawText.includes("Type the characters you see in this image") ||
+                rawText.includes("503 - Service Unavailable Error");
+
+            if (!isBlocked) {
+                markdown = rawText;
+                const imgRegex = /!\[.*?\]\((https?:\/\/.*?)\)/g;
+                let match;
+                while ((match = imgRegex.exec(markdown)) !== null) {
+                    possibleImages.push(match[1]);
+                }
+            } else {
+                console.warn("Jina AI blocked by target site (Amazon 503/Captcha detected). Falling back to Microlink.");
             }
         }
 
