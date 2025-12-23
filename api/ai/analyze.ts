@@ -70,7 +70,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const response = await fetch(jinaUrl, { signal: AbortSignal.timeout(8000) });
             if (response.ok) {
                 const text = await response.text();
-                pageContent = text.substring(0, 10000);
+
+                // Critical Check: Detect Amazon/Server blocking responses
+                const isBlocked = text.includes("Experiencing temporary service unavailability") ||
+                    text.includes("Type the characters you see in this image") ||
+                    text.includes("503 - Service Unavailable Error");
+
+                if (!isBlocked) {
+                    pageContent = text.substring(0, 10000);
+                } else {
+                    console.warn('[AI] Jina blocked by target (Amazon 503/Captcha), falling back...');
+                    // pageContent remains empty, triggering Microlink fallback
+                }
             }
         } catch (e) {
             console.error('[AI] Jina fetch failed:', e);
