@@ -149,8 +149,19 @@ export class BioRepository extends BaseRepository {
     async createBioProfile(userId: string, handle: string, displayName?: string): Promise<BioProfile> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
+        // Robust Fallback: Verify userId or get from session
+        let finalUserId = userId;
+        if (!finalUserId) {
+            const { data: { session } } = await this.supabase!.auth.getSession();
+            finalUserId = session?.user?.id as string;
+        }
+
+        if (!finalUserId) {
+            throw new Error('User ID is required to create a bio profile.');
+        }
+
         const newProfile = {
-            user_id: userId,
+            user_id: finalUserId,
             handle,
             display_name: displayName || handle,
             bio: '',
@@ -221,12 +232,23 @@ export class BioRepository extends BaseRepository {
     async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
         if (!this.isConfigured()) throw new Error('Supabase is not configured');
 
+        // Robust Fallback: Verify userId or get from session
+        let userId = product.userId;
+        if (!userId) {
+            const { data: { session } } = await this.supabase!.auth.getSession();
+            userId = session?.user?.id as string;
+        }
+
+        if (!userId) {
+            throw new Error('User ID is required to create a product.');
+        }
+
         const id = uuidv4();
         const now = new Date().toISOString();
 
         const row: ProductRow = {
             id,
-            user_id: product.userId,
+            user_id: userId,
             name: product.name,
             description: product.description,
             price: product.price,

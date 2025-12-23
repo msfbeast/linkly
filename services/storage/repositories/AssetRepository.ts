@@ -10,9 +10,17 @@ export class AssetRepository extends BaseRepository {
     async uploadAvatar(userId: string, file: File): Promise<string> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
+        // Robust Fallback
+        let finalUserId = userId;
+        if (!finalUserId) {
+            const { data: { session } } = await this.supabase!.auth.getSession();
+            finalUserId = session?.user?.id as string;
+        }
+        if (!finalUserId) throw new Error('User ID required for upload');
+
         const optimizedFile = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.8 });
         const fileExt = file.name.split('.').pop();
-        const fileName = `${userId}/avatar.${fileExt}`;
+        const fileName = `${finalUserId}/avatar.${fileExt}`;
         const filePath = fileName;
 
         const { error: uploadError } = await this.supabase!.storage
@@ -31,9 +39,17 @@ export class AssetRepository extends BaseRepository {
     async uploadGalleryImage(file: File, userId: string): Promise<string> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
+        // Robust Fallback
+        let finalUserId = userId;
+        if (!finalUserId) {
+            const { data: { session } } = await this.supabase!.auth.getSession();
+            finalUserId = session?.user?.id as string;
+        }
+        if (!finalUserId) throw new Error('User ID required for upload');
+
         const optimizedFile = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.85 });
         const fileExt = file.name.split('.').pop();
-        const fileName = `${userId}/${uuidv4()}.${fileExt}`;
+        const fileName = `${finalUserId}/${uuidv4()}.${fileExt}`;
 
         const { error: uploadError } = await this.supabase!.storage
             .from(BUCKETS.GALLERY)
@@ -102,8 +118,16 @@ export class AssetRepository extends BaseRepository {
     ): Promise<GalleryItem> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
+        // Robust Fallback
+        let finalUserId = userId;
+        if (!finalUserId) {
+            const { data: { session } } = await this.supabase!.auth.getSession();
+            finalUserId = session?.user?.id as string;
+        }
+        if (!finalUserId) throw new Error('User ID required for gallery item');
+
         const newItem = {
-            user_id: userId,
+            user_id: finalUserId,
             url,
             caption,
             exif_data: exifData,
