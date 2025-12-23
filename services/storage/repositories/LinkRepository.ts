@@ -191,6 +191,17 @@ export class LinkRepository extends BaseRepository {
     async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData & { _isExisting?: boolean }> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
+        // Resolve userId: Priority 1: passed in link, Priority 2: current session
+        let userId = link.userId;
+        if (!userId) {
+            const { data: { session } } = await this.supabase!.auth.getSession();
+            userId = session?.user?.id;
+        }
+
+        if (!userId) {
+            throw new Error('User ID is required to create a link.');
+        }
+
         // Check for existing link with same original URL (optional de-duplication)
         // For now, we allow duplicates as requested by some users, but typically we might want to return existing.
         // Let's stick to creating new for now, or check for slug collision.
@@ -198,18 +209,18 @@ export class LinkRepository extends BaseRepository {
         const id = uuidv4();
         const now = Date.now();
 
-        if (link.userId) {
+        if (userId) {
             const { data: profile } = await this.supabase!
                 .from(this.TABLES.PROFILES)
                 .select('subscription_tier')
-                .eq('id', link.userId)
+                .eq('id', userId)
                 .single();
 
             if (profile?.subscription_tier === 'free' || !profile?.subscription_tier) {
                 const { count } = await this.supabase!
                     .from(this.TABLES.LINKS)
                     .select('*', { count: 'exact', head: true })
-                    .eq('user_id', link.userId)
+                    .eq('user_id', userId)
                     .is('team_id', null);
 
                 if (count && count >= 15) {
@@ -221,6 +232,7 @@ export class LinkRepository extends BaseRepository {
         const newLink: LinkData = {
             ...link,
             id,
+            userId: userId, // Ensure userId is set in the object
             createdAt: now,
             clicks: 0,
             clickHistory: [],
@@ -230,7 +242,7 @@ export class LinkRepository extends BaseRepository {
             aiAnalysis: undefined
         };
 
-        const row = linkDataToRow(newLink, link.userId);
+        const row = linkDataToRow(newLink, userId);
 
         const { data, error } = await this.supabase!
             .from(this.TABLES.LINKS)
@@ -245,11 +257,23 @@ export class LinkRepository extends BaseRepository {
     async bulkCreateLinks(links: Omit<LinkData, 'id' | 'createdAt' | 'clicks' | 'clickHistory'>[]): Promise<LinkData[]> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
+        if (links.length === 0) return [];
+
         const now = Date.now();
 
+        // Get User ID from first link or session
+        let userId: string | null | undefined = (links[0] as any).userId;
+        if (!userId) {
+            const { data: { session } } = await this.supabase!.auth.getSession();
+            userId = session?.user?.id;
+        }
+
+        if (!userId) {
+            throw new Error('User ID is required to create links.');
+        }
+
         // Enforce link limits for free users
-        if (links.length > 0 && (links[0] as any).userId) {
-            const userId = (links[0] as any).userId;
+        if (userId) {
             const { data: profile } = await this.supabase!
                 .from(this.TABLES.PROFILES)
                 .select('subscription_tier')
@@ -264,7 +288,8 @@ export class LinkRepository extends BaseRepository {
                     .is('team_id', null);
 
                 const totalAfterBulk = (count || 0) + links.length;
-                if (totalAfterBulk > 50) {
+                if (totalAfterBulk > 15) {
+                    // Corrected limit check to 15 (was 50 in logging)
                     throw new Error(`Bulk creation would exceed the 15-link limit for Free Tier. Remaining capacity: ${Math.max(0, 15 - (count || 0))}`);
                 }
             }
@@ -272,9 +297,13 @@ export class LinkRepository extends BaseRepository {
 
         const rows = links.map(link => {
             const id = uuidv4();
+            // Use the resolved userId if link doesn't have one
+            const finalUserId = link.userId || userId;
+
             const newLink: LinkData = {
                 ...link,
                 id,
+                userId: finalUserId,
                 createdAt: now,
                 clicks: 0,
                 clickHistory: [],
@@ -283,7 +312,7 @@ export class LinkRepository extends BaseRepository {
                 smartRedirects: link.smartRedirects || undefined,
                 aiAnalysis: undefined
             };
-            return linkDataToRow(newLink, link.userId);
+            return linkDataToRow(newLink, finalUserId);
         });
 
         const { data, error } = await this.supabase!
