@@ -86,7 +86,7 @@ const LinkHealthChart: React.FC<LinkHealthChartProps> = ({ data, trendData = [] 
 
         {/* Chart Area */}
         <div className="relative h-32 w-full mt-2 min-h-[128px]">
-          <ResponsiveContainer width="100%" height="100%" debounce={50}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="healthGradient" x1="0" y1="0" x2="0" y2="1">

@@ -130,7 +130,7 @@ export class SupabaseAdapter {
     return this.linkRepo.getLink(id);
   }
 
-  async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData & { _isExisting?: boolean }> {
+  async createLink(link: Omit<LinkData, 'id'> & { id?: string }): Promise<LinkData & { _isExisting?: boolean }> {
     return this.linkRepo.createLink(link);
   }
 

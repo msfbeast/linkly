@@ -188,7 +188,7 @@ export class LinkRepository extends BaseRepository {
         return rowToLinkData(data as LinkRow);
     }
 
-    async createLink(link: Omit<LinkData, 'id'>): Promise<LinkData & { _isExisting?: boolean }> {
+    async createLink(link: Omit<LinkData, 'id'> & { id?: string }): Promise<LinkData & { _isExisting?: boolean }> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
         // Resolve userId: Priority 1: passed in link, Priority 2: current session
@@ -202,11 +202,8 @@ export class LinkRepository extends BaseRepository {
             throw new Error('User ID is required to create a link.');
         }
 
-        // Check for existing link with same original URL (optional de-duplication)
-        // For now, we allow duplicates as requested by some users, but typically we might want to return existing.
-        // Let's stick to creating new for now, or check for slug collision.
-
-        const id = uuidv4();
+        // Use passed ID (for idempotency) or generate new
+        const id = link.id || uuidv4();
         const now = Date.now();
 
         if (userId) {
@@ -217,14 +214,24 @@ export class LinkRepository extends BaseRepository {
                 .single();
 
             if (profile?.subscription_tier === 'free' || !profile?.subscription_tier) {
-                const { count } = await this.supabase!
+                // Check if specific link already exists (idempotency check) before counting limit
+                // This prevents limit errors on retry
+                const { data: existingLink } = await this.supabase!
                     .from(this.TABLES.LINKS)
-                    .select('*', { count: 'exact', head: true })
-                    .eq('user_id', userId)
-                    .is('team_id', null);
+                    .select('id')
+                    .eq('id', id)
+                    .single();
 
-                if (count && count >= 15) {
-                    throw new Error('Link limit reached for Free Tier. Please upgrade to create more links.');
+                if (!existingLink) {
+                    const { count } = await this.supabase!
+                        .from(this.TABLES.LINKS)
+                        .select('*', { count: 'exact', head: true })
+                        .eq('user_id', userId)
+                        .is('team_id', null);
+
+                    if (count && count >= 15) {
+                        throw new Error('Link limit reached for Free Tier. Please upgrade to create more links.');
+                    }
                 }
             }
         }
@@ -232,11 +239,11 @@ export class LinkRepository extends BaseRepository {
         const newLink: LinkData = {
             ...link,
             id,
-            userId: userId, // Ensure userId is set in the object
+            userId: userId,
             createdAt: now,
             clicks: 0,
             clickHistory: [],
-            tags: link.tags || [], // Ensure tags array
+            tags: link.tags || [],
             geoRedirects: link.geoRedirects || undefined,
             smartRedirects: link.smartRedirects || undefined,
             aiAnalysis: undefined
@@ -250,7 +257,30 @@ export class LinkRepository extends BaseRepository {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            // Handle Unique Violation (Duplicate Key)
+            if (error.code === '23505') {
+                // Check if it's the exact same link (id check)
+                const { data: existing } = await this.supabase!
+                    .from(this.TABLES.LINKS)
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                // If ID matches and User matches, return existing (Success)
+                // Or if ShortCode matches and User matches, maybe return existing?
+                // Safer to only trust ID match for idempotency.
+                if (existing && existing.user_id === userId) {
+                    return { ...rowToLinkData(existing as LinkRow), _isExisting: true };
+                }
+
+                // If ID didn't match, it might be short_code collision
+                if (error.message.includes('links_short_code_key')) {
+                    throw new Error('This short code is already taken. Please try another one.');
+                }
+            }
+            throw error;
+        }
         return rowToLinkData(data as LinkRow);
     }
 
