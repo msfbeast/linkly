@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save } from 'lucide-react';
 import UTMBuilderModal from './UTMBuilderModal';
 import { analyzeUrlWithGemini, GeminiAnalysisResult, generateLinkMetadata } from '../services/geminiService';
+import { monetizeUrl } from '../utils/affiliateUtils';
 import { LinkData, SmartRedirects, Folder, Domain } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { TagInput } from './TagInput';
@@ -163,8 +164,14 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       }
     });
 
+    // Clean and Monetize URL
+    const cleanUrl = monetizeUrl(url.trim(), {
+      amazonAssociateTag: user?.amazonAssociateTag,
+      flipkartAffiliateId: user?.flipkartAffiliateId
+    });
+
     const commonData = {
-      originalUrl: url,
+      originalUrl: cleanUrl,
       shortCode: slug,
       title: title, // Use title from state
       description: description, // Use description from state
@@ -219,19 +226,25 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
   const handleBulkSubmit = () => {
     const urls = bulkUrls.split('\n').filter(u => u.trim().length > 0);
-    const newLinks: LinkData[] = urls.map(u => ({
-      id: uuidv4(),
-      originalUrl: u.trim(),
-      shortCode: Math.random().toString(36).substring(2, 8),
-      title: u.trim(),
-      description: 'Bulk created link',
-      tags: ['bulk'],
-      clicks: 0,
-      clickHistory: [],
-      createdAt: Date.now(),
-      smartRedirects: {},
-      aiAnalysis: undefined
-    }));
+    const newLinks: LinkData[] = urls.map(u => {
+      const cleanUrl = monetizeUrl(u.trim(), {
+        amazonAssociateTag: user?.amazonAssociateTag,
+        flipkartAffiliateId: user?.flipkartAffiliateId
+      });
+      return {
+        id: uuidv4(),
+        originalUrl: cleanUrl,
+        shortCode: Math.random().toString(36).substring(2, 8),
+        title: u.trim(),
+        description: 'Bulk created link',
+        tags: ['bulk'],
+        clicks: 0,
+        clickHistory: [],
+        createdAt: Date.now(),
+        smartRedirects: {},
+        aiAnalysis: undefined
+      };
+    });
 
     onBulkCreate(newLinks);
     resetAndClose();
@@ -278,10 +291,17 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           const title = titleIndex !== -1 ? values[titleIndex] : 'Untitled Link';
           const tags = tagsIndex !== -1 ? values[tagsIndex]?.split('|') : [];
 
+          // Clean and Monetize
+          const rawUrl = url.startsWith('http') ? url : `https://${url}`;
+          const cleanUrl = monetizeUrl(rawUrl, {
+            amazonAssociateTag: user?.amazonAssociateTag,
+            flipkartAffiliateId: user?.flipkartAffiliateId
+          });
+
           linksToCreate.push({
             id: uuidv4(),
             userId: user.id, // Inject User ID
-            originalUrl: url.startsWith('http') ? url : `https://${url}`,
+            originalUrl: cleanUrl,
             shortCode: slug || uuidv4().slice(0, 8),
             title: title,
             tags: tags,

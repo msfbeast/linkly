@@ -46,14 +46,16 @@ export const monetizeUrl = (url: string, config: AffiliateConfig): string => {
 
         // Amazon
         if (hostname === 'amazon.com' || hostname === 'amazon.in' || hostname.endsWith('.amazon.com') || hostname.endsWith('.amazon.in')) {
-            // Extract ASIN
-            const asinMatch = url.match(/\/([A-Z0-9]{10})(?:[/?]|$)/);
+            // Robust ASIN extraction: /dp/ASIN or /gp/product/ASIN
+            // Supports URLs with or without query params
+            const asinMatch = url.match(/(?:\/dp\/|\/gp\/product\/)([A-Z0-9]{10})(?:[/?]|$)/);
 
             if (asinMatch) {
                 const asin = asinMatch[1];
                 // Strip www. for cleaner URL, but keep the TLD (com, in, co.uk)
                 const cleanHostname = urlObj.hostname.replace('www.', '');
-                const cleanUrl = new URL(`https://${cleanHostname}/dp/${asin}`);
+                const cleanUrl = new URL(`https://${cleanHostname}/dp/${asin}`); // Force clean path
+
                 if (config.amazonAssociateTag) {
                     cleanUrl.searchParams.set('tag', config.amazonAssociateTag);
                 }
