@@ -232,7 +232,7 @@ const DashboardLayout: React.FC = () => {
     const handleCreateLink = async (link: LinkData) => {
         try {
             await retryExecute(
-                () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
+                () => supabaseAdapter.createLink({ ...link, userId: user?.id, teamId: currentTeam?.id }),
                 { maxRetries: 3, baseDelayMs: 1000 }
             );
             toast.success('Link created successfully!');
@@ -250,7 +250,7 @@ const DashboardLayout: React.FC = () => {
             await Promise.all(
                 newLinks.map((link) =>
                     retryExecute(
-                        () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
+                        () => supabaseAdapter.createLink({ ...link, userId: user?.id, teamId: currentTeam?.id }),
                         { maxRetries: 3, baseDelayMs: 1000 }
                     )
                 )

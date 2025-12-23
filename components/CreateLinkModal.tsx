@@ -280,6 +280,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
           linksToCreate.push({
             id: uuidv4(),
+            userId: user.id, // Inject User ID
             originalUrl: url.startsWith('http') ? url : `https://${url}`,
             shortCode: slug || uuidv4().slice(0, 8),
             title: title,
@@ -294,8 +295,26 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           throw new Error('No valid links found in CSV.');
         }
 
+        // We delegate the actual creation to the parent via onBulkCreate to ensure consistency
+        // and avoid double-calling the API (since handleBulkCreate in parent does the calls).
+        // If we want to use the optimized bulkCreateLinks, we should change the parent handler.
+        // For now, let's stick to the parent handler to ensure UI updates and consistency.
+        // But wait, parent loops createLink. The adapter has bulkCreateLinks.
+        // Better approach: Call adapter here (optimized), then tell parent to just refresh.
+
         await supabaseAdapter.bulkCreateLinks(linksToCreate);
-        onBulkCreate(linksToCreate); // Optimistic UI update
+
+        // We pass empty array or a special flag if we could, but onBulkCreate expects links.
+        // If we call onBulkCreate, it will try to create them again unless we modify parent.
+        // Let's modify the flow: We'll just call the prop to update UI if possible, 
+        // BUT current parent implementation WILL re-create.
+        // So we MUST NOT call onBulkCreate(linksToCreate).
+        // Instead we should reload valid data.
+
+        window.location.reload(); // Brute force refresh for now to ensure state sync, or we need a prop
+        // Actually, let's trust the adapter call here and just close. 
+        // The parent's list might be stale until refresh.
+
         resetAndClose();
 
       } catch (err: any) {
