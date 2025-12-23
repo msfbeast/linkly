@@ -64,6 +64,32 @@ export const createRazorpayOrder = async (amount: number, currency: string = 'IN
     }
 };
 
+export const createRazorpaySubscription = async (planId: string, notes: any) => {
+    try {
+        const response = await fetch('/api/create-razorpay-subscription', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                planId,
+                total_count: 120, // 10 years
+                notes
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create subscription');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error creating Razorpay subscription:', error);
+        throw error;
+    }
+};
+
 export const verifyRazorpayPayment = async (paymentData: any) => {
     try {
         const response = await fetch('/api/verify-razorpay-payment', {

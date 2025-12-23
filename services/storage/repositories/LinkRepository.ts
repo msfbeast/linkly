@@ -212,7 +212,7 @@ export class LinkRepository extends BaseRepository {
                     .eq('user_id', link.userId)
                     .is('team_id', null);
 
-                if (count && count >= 50) {
+                if (count && count >= 15) {
                     throw new Error('Link limit reached for Free Tier. Please upgrade to create more links.');
                 }
             }
@@ -265,7 +265,7 @@ export class LinkRepository extends BaseRepository {
 
                 const totalAfterBulk = (count || 0) + links.length;
                 if (totalAfterBulk > 50) {
-                    throw new Error(`Bulk creation would exceed the 50-link limit for Free Tier. Remaining capacity: ${Math.max(0, 50 - (count || 0))}`);
+                    throw new Error(`Bulk creation would exceed the 15-link limit for Free Tier. Remaining capacity: ${Math.max(0, 15 - (count || 0))}`);
                 }
             }
         }

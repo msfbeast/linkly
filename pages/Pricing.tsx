@@ -18,6 +18,7 @@ const Pricing: React.FC = () => {
     const navigate = useNavigate();
     const [loadingTier, setLoadingTier] = useState<string | null>(null);
     const [currency, setCurrency] = useState<'USD' | 'INR'>('USD');
+    const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
 
     useEffect(() => {
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -27,13 +28,26 @@ const Pricing: React.FC = () => {
     }, []);
 
     const prices = {
-        USD: { free: '$0', pro: '$12', business: '$49' },
-        INR: { free: '₹0', pro: '₹299', business: '₹2,499' }
+        USD: {
+            monthly: { free: '$0', pro: '$12', business: '$49' },
+            yearly: { free: '$0', pro: '$120', business: '$490' }
+        },
+        INR: {
+            monthly: { free: '₹0', pro: '₹399', business: '₹2,499' },
+            yearly: { free: '₹0', pro: '₹3,999', business: '₹24,999' }
+        }
     };
 
+    // Placeholder IDs - To be filled by User
     const priceIds = {
-        USD: { pro: 'price_pro_usd_test', business: 'price_business_usd_test' },
-        INR: { pro: 'price_pro_inr_test', business: 'price_business_inr_test' }
+        USD: {
+            monthly: { pro: 'price_pro_usd_m', business: 'price_biz_usd_m' },
+            yearly: { pro: 'price_pro_usd_y', business: 'price_biz_usd_y' }
+        },
+        INR: {
+            monthly: { pro: 'plan_RuwgZWy5U7TtRf', business: 'plan_RuwhIlSY4xmePl' },
+            yearly: { pro: 'plan_Ruwh4kaj1GtTia', business: 'plan_RuwhesYYL42H6Q' }
+        }
     };
 
     const handleSubscribe = async (priceId: string, tierName: string) => {
@@ -46,8 +60,8 @@ const Pricing: React.FC = () => {
 
         try {
             if (currency === 'INR') {
-                // Razorpay Flow
-                const { loadRazorpayScript, createRazorpayOrder, verifyRazorpayPayment } = await import('../services/razorpayService');
+                // Razorpay Subscription Flow
+                const { loadRazorpayScript, createRazorpaySubscription, verifyRazorpayPayment } = await import('../services/razorpayService');
 
                 const isScriptLoaded = await loadRazorpayScript();
                 if (!isScriptLoaded) {
@@ -56,30 +70,42 @@ const Pricing: React.FC = () => {
                     return;
                 }
 
-                const amount = tierName === 'pro' ? 299 : 2499;
-
-                const order = await createRazorpayOrder(amount, 'INR');
+                // Create Subscription
+                const subscription = await createRazorpaySubscription(priceId, {
+                    userId: user.id,
+                    tier: tierName
+                });
 
                 const options = {
-                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Make sure this is in env
-                    amount: order.amount,
-                    currency: order.currency,
+                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+                    subscription_id: subscription.id,
                     name: "Gather",
-                    description: `${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Subscription`,
-                    order_id: order.id,
+                    description: `${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Subscription (${billingPeriod})`,
                     handler: async function (response: any) {
                         try {
-                            toast.loading('Verifying payment...');
-                            await verifyRazorpayPayment({
-                                ...response,
-                                userId: user.id,
-                                tier: tierName
-                            });
-                            toast.dismiss();
-                            toast.success('Subscription activated!');
+                            // Check if it's a subscription response (has razorpay_subscription_id)
+                            if (response.razorpay_subscription_id) {
+                                toast.loading('Verifying subscription...');
+                                // Call specialized verify endpoint
+                                const verifyResponse = await fetch('/api/verify-razorpay-subscription', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        ...response,
+                                        userId: user.id,
+                                        tier: tierName
+                                    })
+                                });
 
-                            // Force refresh user session or redirect
-                            window.location.href = '/dashboard';
+                                if (!verifyResponse.ok) throw new Error('Verification failed');
+
+                                toast.dismiss();
+                                toast.success('Subscription activated!');
+                                window.location.href = '/dashboard';
+                            } else {
+                                // Fallback or Error
+                                throw new Error('Invalid response from payment gateway');
+                            }
                         } catch (err) {
                             toast.dismiss();
                             toast.error('Payment verification failed. Please contact support.');
@@ -146,31 +172,53 @@ const Pricing: React.FC = () => {
                         Start free, upgrade as you grow. No hidden fees. Cancel anytime.
                     </p>
 
+                </div>
+
+                {/* Toggles Container */}
+                <div className="flex flex-col items-center gap-6 mb-16">
                     {/* Currency Toggle */}
-                    <div className="flex justify-center items-center gap-4">
-                        <span className={`text-sm font-bold ${currency === 'USD' ? 'text-slate-900' : 'text-slate-400'}`}>USD</span>
+                    <div className="flex items-center gap-4 bg-white p-1.5 rounded-full border border-stone-200 shadow-sm">
                         <button
-                            onClick={() => setCurrency(prev => prev === 'USD' ? 'INR' : 'USD')}
-                            className={`w-14 h-8 rounded-full p-1 transition-colors duration-200 ease-in-out ${currency === 'INR' ? 'bg-blue-600' : 'bg-slate-200'}`}
+                            onClick={() => setCurrency('USD')}
+                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${currency === 'USD' ? 'bg-slate-900 text-white shadow-md' : 'text-stone-500 hover:text-stone-900'}`}
                         >
-                            <div className={`w-6 h-6 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${currency === 'INR' ? 'translate-x-6' : 'translate-x-0'}`} />
+                            USD ($)
                         </button>
-                        <span className={`text-sm font-bold ${currency === 'INR' ? 'text-slate-900' : 'text-slate-400'}`}>INR (UPI)</span>
+                        <button
+                            onClick={() => setCurrency('INR')}
+                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${currency === 'INR' ? 'bg-blue-600 text-white shadow-md' : 'text-stone-500 hover:text-stone-900'}`}
+                        >
+                            INR (₹)
+                        </button>
+                    </div>
+
+                    {/* Billing Period Toggle */}
+                    <div className="flex items-center gap-3">
+                        <span className={`text-sm font-bold ${billingPeriod === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>Monthly</span>
+                        <button
+                            onClick={() => setBillingPeriod(prev => prev === 'monthly' ? 'yearly' : 'monthly')}
+                            className={`w-14 h-8 rounded-full p-1 transition-colors duration-200 ease-in-out ${billingPeriod === 'yearly' ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                        >
+                            <div className={`w-6 h-6 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${billingPeriod === 'yearly' ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                        <span className={`text-sm font-bold ${billingPeriod === 'yearly' ? 'text-slate-900' : 'text-slate-400'}`}>
+                            Yearly <span className="text-emerald-500 text-xs ml-1">(2 Months Free)</span>
+                        </span>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-8">
                     <PricingCard
                         title="Free"
-                        price={prices[currency].free}
-                        period="mo"
+                        price={prices[currency][billingPeriod].free}
+                        period={billingPeriod === 'monthly' ? 'mo' : 'yr'}
                         description="For hobbyists and beginners"
                         features={[
-                            "50 Active Links",
+                            "15 Active Links",
                             "Basic Analytics (7-day History)",
                             "Gather Branding",
-                            "Standard QR Codes",
-                            "1 Team Member"
+                            "Basic QR Codes (B&W)",
+                            "No Team Collaboration"
                         ]}
                         buttonText={user ? "Current Plan" : "Sign Up Free"}
                         onSelect={() => user ? navigate('/dashboard') : navigate('/register')}
@@ -178,8 +226,8 @@ const Pricing: React.FC = () => {
 
                     <PricingCard
                         title="Pro"
-                        price={prices[currency].pro}
-                        period="mo"
+                        price={prices[currency][billingPeriod].pro}
+                        period={billingPeriod === 'monthly' ? 'mo' : 'yr'}
                         description="For creators and professionals"
                         isPopular={true}
                         isLoading={loadingTier === 'pro'}
@@ -195,13 +243,13 @@ const Pricing: React.FC = () => {
                             "5 Team Members"
                         ]}
                         buttonText={user?.preferences?.subscription_tier === 'pro' ? "Current Plan" : "Upgrade to Pro"}
-                        onSelect={() => handleSubscribe(priceIds[currency].pro, 'pro')}
+                        onSelect={() => handleSubscribe(priceIds[currency][billingPeriod].pro, 'pro')}
                     />
 
                     <PricingCard
                         title="Business"
-                        price={prices[currency].business}
-                        period="mo"
+                        price={prices[currency][billingPeriod].business}
+                        period={billingPeriod === 'monthly' ? 'mo' : 'yr'}
                         description="For agencies and large teams"
                         isLoading={loadingTier === 'business'}
                         features={[
@@ -214,7 +262,7 @@ const Pricing: React.FC = () => {
                             "SSO / SAML (Coming Soon)"
                         ]}
                         buttonText={user?.preferences?.subscription_tier === 'business' ? "Current Plan" : "Upgrade to Business"}
-                        onSelect={() => handleSubscribe(priceIds[currency].business, 'business')}
+                        onSelect={() => handleSubscribe(priceIds[currency][billingPeriod].business, 'business')}
                     />
                 </div>
             </div>

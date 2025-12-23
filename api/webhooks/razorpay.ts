@@ -35,13 +35,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 try {
                     await supabaseAdapter.updateProfile(userId, {
                         subscription_tier: tier as any,
-                        // Cast to any for the value if necessary because tier comes from untyped req.body,
-                        // but do not cast the whole object to any.
-                        // Actually tier in req.body.notes might be string, but UserProfile expects literal type.
                     });
                 } catch (err) {
                     console.error('Failed to update user tier:', err);
-                    throw err; // Re-throw to trigger 500
+                    throw err;
+                }
+            }
+        } else if (event.event === 'subscription.charged' || event.event === 'subscription.activated') {
+            // Handle recurring payments
+            const subscription = event.payload.subscription.entity;
+            // Notes are passed from the subscription entity
+            const userId = subscription.notes.userId;
+            const tier = subscription.notes.tier;
+
+            if (userId && tier) {
+                console.log(`Processing subscription renewal/activation for user ${userId} to ${tier}`);
+                try {
+                    await supabaseAdapter.updateProfile(userId, {
+                        subscription_tier: tier as any,
+                        // Could also store subscription_id in profile if needed for cancellation later
+                    });
+                } catch (err) {
+                    console.error('Failed to update user tier (subscription):', err);
+                    throw err;
                 }
             }
         }
