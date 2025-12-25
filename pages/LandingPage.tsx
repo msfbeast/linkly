@@ -307,10 +307,7 @@ const LandingPage: React.FC = () => {
                                                         const email = e.target.value;
                                                         if (email.includes('@') && email.includes('.')) {
                                                             try {
-                                                                await (supabaseAdapter as any).supabase!
-                                                                    .from('links')
-                                                                    .update({ metadata: { ...result.metadata, guest_email: email } })
-                                                                    .eq('id', result.id);
+                                                                await supabaseAdapter.updateGuestEmail(result.id, email);
                                                             } catch (err) {
                                                                 console.warn('Failed to save guest email:', err);
                                                             }

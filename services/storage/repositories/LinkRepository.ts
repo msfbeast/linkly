@@ -163,29 +163,41 @@ export class LinkRepository extends BaseRepository {
         const nanoid = (await import('nanoid')).nanoid;
         const shortCode = nanoid(7);
 
-        const newLink = {
-            id: uuidv4(),
-            original_url: originalUrl,
-            short_code: shortCode,
-            title: 'Guest Link',
-            clicks: 0,
-            created_at: new Date().toISOString(),
-            is_guest: true,
-            claim_token: uuidv4(), // Token for claiming the link later
-            // We store session ID in metadata or a specific column if needed?
-            // For now, maybe just rely on claim_token or client-side storage
-            metadata: { guest_session_id: sessionId },
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiration
-        };
+        // Call Security Definer RPC instead of direct insert to bypass RLS
+        const { data, error } = await this.supabase!.rpc('create_guest_link', {
+            p_original_url: originalUrl,
+            p_short_code: shortCode,
+            p_guest_session_id: sessionId
+        });
 
-        const { data, error } = await this.supabase!
-            .from(this.TABLES.LINKS)
-            .insert(newLink)
-            .select()
-            .single();
+        if (error) {
+            console.error('[LinkRepository] Error creating guest link via RPC:', error);
+            throw error;
+        }
 
-        if (error) throw error;
-        return rowToLinkData(data as LinkRow);
+        // Fetch the full link data after creation
+        const link = await this.getLink(data.id);
+        if (!link) throw new Error('Failed to fetch created guest link');
+
+        return link;
+    }
+
+    /**
+     * Update guest email for a link (uses specialized rpc or logic)
+     */
+    async updateGuestEmail(linkId: string, email: string): Promise<void> {
+        if (!this.isConfigured()) return;
+
+        const { error } = await this.supabase!.rpc('update_guest_link_metadata', {
+            p_link_id: linkId,
+            p_email: email
+        });
+
+        if (error) {
+            console.warn('[LinkRepository] Failed to update guest email via RPC:', error);
+            // Fallback: This might fail if RPC not yet deployed, we'll handle in migration
+            throw error;
+        }
     }
 
     async createLink(link: Omit<LinkData, 'id'> & { id?: string }): Promise<LinkData & { _isExisting?: boolean }> {

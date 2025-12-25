@@ -179,6 +179,10 @@ export class SupabaseAdapter {
     return this.linkRepo.claimGuestLink(token, userId);
   }
 
+  async updateGuestEmail(linkId: string, email: string): Promise<void> {
+    return this.linkRepo.updateGuestEmail(linkId, email);
+  }
+
   // Tags & Folders
   async getTags(userId: string): Promise<Tag[]> {
     return this.linkRepo.getTags(userId);
