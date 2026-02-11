@@ -9,8 +9,28 @@ interface AffiliateConfig {
 
 const sanitizeAffiliateId = (id: string | undefined): string | undefined => {
     if (!id) return undefined;
-    // Strip common prefixes like ?tag=, &tag=, ?affid=, &affid=
-    return id.replace(/^[?&](tag|affid)=/, '').trim();
+
+    let cleanId = id.trim();
+
+    // Aggressive removal of common prefixes, including encoded variants
+    const patterns = [
+        /^[?&]+(tag|affid)=/i,
+        /^%(3F|26)(tag|affid)%(3D|26)/i,
+        /^(tag|affid)=/i
+    ];
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const pattern of patterns) {
+            if (pattern.test(cleanId)) {
+                cleanId = cleanId.replace(pattern, '');
+                changed = true;
+            }
+        }
+    }
+
+    return cleanId.trim();
 };
 
 export const monetizeUrl = (url: string, config: AffiliateConfig): string => {

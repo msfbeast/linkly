@@ -41,7 +41,7 @@ const saveToCache = (url: string, result: HealthCheckResult) => {
     }
 };
 
-// Queue Implementation to prevent 429s
+// Queue Implementation with Global Cooldown to prevent 429s
 interface QueueItem {
     url: string;
     resolve: (result: HealthCheckResult) => void;
@@ -49,14 +49,24 @@ interface QueueItem {
 
 const queue: QueueItem[] = [];
 let isProcessing = false;
-const CONCURRENCY = 2;
-const DELAY_BETWEEN_REQUESTS = 1000; // 1 second
+let globalCooldownUntil = 0;
+const CONCURRENCY = 1; // Extremely conservative
+const DELAY_BETWEEN_REQUESTS = 3000; // 3 seconds between requests
+const COOLDOWN_DURATION = 60000; // 1 minute pause on 429
 
 const processQueue = async () => {
     if (isProcessing || queue.length === 0) return;
     isProcessing = true;
 
     while (queue.length > 0) {
+        // Check global cooldown
+        if (Date.now() < globalCooldownUntil) {
+            const waitTime = globalCooldownUntil - Date.now();
+            console.warn(`Health check queue paused for ${Math.round(waitTime / 1000)}s due to cooldown`);
+            await new Promise(r => setTimeout(r, Math.min(waitTime, 5000)));
+            continue;
+        }
+
         const itemsToProcess = queue.splice(0, CONCURRENCY);
 
         await Promise.all(itemsToProcess.map(async (item) => {
@@ -81,8 +91,8 @@ const performHealthCheck = async (url: string): Promise<HealthCheckResult> => {
         const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}&meta=false&filter=statusCode`);
 
         if (response.status === 429) {
-            console.warn(`Microlink rate limit hit for ${url}`);
-            // If we hit 429, we should return unknown and let the requester wait for next refresh
+            console.error(`Microlink API 429: Global cooldown triggered for ${COOLDOWN_DURATION / 1000}s`);
+            globalCooldownUntil = Date.now() + COOLDOWN_DURATION;
             return { status: 'unknown', lastChecked: Date.now() };
         }
 
@@ -115,6 +125,15 @@ export const checkLinkHealth = async (url: string): Promise<HealthCheckResult> =
 
     if (url.startsWith('widget://')) return { status: 'healthy', lastChecked: Date.now() };
     if (!url.startsWith('http://') && !url.startsWith('https://')) return { status: 'unknown', lastChecked: Date.now() };
+
+    // Skip health checks for problematic/high-traffic domains that Microlink struggle with
+    const skipDomains = ['drive.google.com', 'trends.withgoogle.com', 'canva.com', 'elevenlabs.io'];
+    try {
+        const hostname = new URL(url).hostname;
+        if (skipDomains.some(d => hostname.includes(d))) {
+            return { status: 'healthy', lastChecked: Date.now() }; // Assume healthy to avoid wasting quota
+        }
+    } catch { /* ignore */ }
 
     // Check persistent cache
     const cache = getStoredCache();
