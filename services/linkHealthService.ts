@@ -6,36 +6,86 @@ interface HealthCheckResult {
     lastChecked: number;
 }
 
-// Simple in-memory cache to avoid hitting API limits
-const healthCache: Record<string, HealthCheckResult> = {};
-const CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
+// Persistent cache to avoid hitting API limits across sessions
+const CACHE_KEY = 'gather_health_cache';
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour for persistence
 
-export const checkLinkHealth = async (url: string): Promise<HealthCheckResult> => {
-    if (!url) return { status: 'unknown', lastChecked: Date.now() };
+interface HealthCacheEntry extends HealthCheckResult {
+    expiry: number;
+}
 
-    // Skip health checks for internal widget URLs - they're not real links
-    if (url.startsWith('widget://')) {
-        return { status: 'healthy', lastChecked: Date.now() };
+const getStoredCache = (): Record<string, HealthCacheEntry> => {
+    try {
+        const stored = localStorage.getItem(CACHE_KEY);
+        return stored ? JSON.parse(stored) : {};
+    } catch {
+        return {};
     }
+};
 
-    // Skip health checks for obviously invalid URLs
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        return { status: 'unknown', lastChecked: Date.now() };
-    }
+const saveToCache = (url: string, result: HealthCheckResult) => {
+    const cache = getStoredCache();
+    cache[url] = { ...result, expiry: Date.now() + CACHE_DURATION };
 
-    // Check cache
-    const cached = healthCache[url];
-    if (cached && (Date.now() - cached.lastChecked < CACHE_DURATION)) {
-        return cached;
-    }
+    // Cleanup expired entries while we're at it
+    const now = Date.now();
+    const cleanCache: Record<string, HealthCacheEntry> = {};
+    Object.entries(cache).forEach(([key, val]) => {
+        if (val.expiry > now) cleanCache[key] = val;
+    });
 
     try {
-        // Use Microlink API to check if the URL is reachable
-        // We request 'statusCode' to get the HTTP status code
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanCache));
+    } catch (e) {
+        console.warn('Failed to save health cache to localStorage', e);
+    }
+};
+
+// Queue Implementation to prevent 429s
+interface QueueItem {
+    url: string;
+    resolve: (result: HealthCheckResult) => void;
+}
+
+const queue: QueueItem[] = [];
+let isProcessing = false;
+const CONCURRENCY = 2;
+const DELAY_BETWEEN_REQUESTS = 1000; // 1 second
+
+const processQueue = async () => {
+    if (isProcessing || queue.length === 0) return;
+    isProcessing = true;
+
+    while (queue.length > 0) {
+        const itemsToProcess = queue.splice(0, CONCURRENCY);
+
+        await Promise.all(itemsToProcess.map(async (item) => {
+            try {
+                const result = await performHealthCheck(item.url);
+                item.resolve(result);
+            } catch (error) {
+                item.resolve({ status: 'unknown', lastChecked: Date.now() });
+            }
+        }));
+
+        if (queue.length > 0) {
+            await new Promise(r => setTimeout(r, DELAY_BETWEEN_REQUESTS));
+        }
+    }
+
+    isProcessing = false;
+};
+
+const performHealthCheck = async (url: string): Promise<HealthCheckResult> => {
+    try {
         const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}&meta=false&filter=statusCode`);
 
-        // If Microlink API itself fails (400, 500, etc.), don't mark link as broken
-        // This happens when Microlink can't fetch the URL (blocked by site, rate limited, etc.)
+        if (response.status === 429) {
+            console.warn(`Microlink rate limit hit for ${url}`);
+            // If we hit 429, we should return unknown and let the requester wait for next refresh
+            return { status: 'unknown', lastChecked: Date.now() };
+        }
+
         if (!response.ok) {
             console.warn(`Microlink API returned ${response.status} for ${url}, marking as unknown`);
             return { status: 'unknown', lastChecked: Date.now() };
@@ -44,37 +94,40 @@ export const checkLinkHealth = async (url: string): Promise<HealthCheckResult> =
         const data = await response.json();
 
         if (data.status === 'success') {
-            // Check the actual HTTP status code of the target URL
-            // Microlink returns it at the top level when using filter=statusCode
             const statusCode = data.statusCode || 200;
-
-            if (statusCode >= 400) {
-                const result: HealthCheckResult = {
-                    status: 'broken',
-                    statusCode: statusCode,
-                    lastChecked: Date.now()
-                };
-                healthCache[url] = result;
-                return result;
-            }
-
             const result: HealthCheckResult = {
-                status: 'healthy',
+                status: statusCode >= 400 ? 'broken' : 'healthy',
                 statusCode: statusCode,
                 lastChecked: Date.now()
             };
-            healthCache[url] = result;
+            saveToCache(url, result);
             return result;
-        } else {
-            // If Microlink returns fail status, mark as unknown (not broken)
-            // The link might still be working - Microlink just couldn't check it
-            console.warn(`Microlink failed to check ${url}, marking as unknown`);
-            return { status: 'unknown', lastChecked: Date.now() };
         }
+
+        return { status: 'unknown', lastChecked: Date.now() };
     } catch (error) {
-        console.error('Error checking link health:', error);
         return { status: 'unknown', lastChecked: Date.now() };
     }
+};
+
+export const checkLinkHealth = async (url: string): Promise<HealthCheckResult> => {
+    if (!url) return { status: 'unknown', lastChecked: Date.now() };
+
+    if (url.startsWith('widget://')) return { status: 'healthy', lastChecked: Date.now() };
+    if (!url.startsWith('http://') && !url.startsWith('https://')) return { status: 'unknown', lastChecked: Date.now() };
+
+    // Check persistent cache
+    const cache = getStoredCache();
+    const cached = cache[url];
+    if (cached && cached.expiry > Date.now()) {
+        return cached;
+    }
+
+    // Add to queue
+    return new Promise((resolve) => {
+        queue.push({ url, resolve });
+        processQueue();
+    });
 };
 
 export const getHealthColor = (status: 'healthy' | 'broken' | 'unknown') => {

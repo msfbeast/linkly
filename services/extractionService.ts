@@ -99,7 +99,7 @@ export async function extractProductMetadata(url: string): Promise<ExtractedMeta
     `;
 
         const result = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
+            model: "gemini-2.0-flash",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",

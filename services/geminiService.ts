@@ -68,7 +68,7 @@ export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisR
            `;
 
         const result = await ai.models.generateContent({
-          model: "gemini-2.0-flash-exp",
+          model: "gemini-2.0-flash",
           contents: prompt,
           config: {
             responseMimeType: "application/json",
@@ -167,7 +167,7 @@ export const generateLinkMetadata = async (url: string, currentTitle?: string): 
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -220,7 +220,7 @@ export const generateBio = async (keywords: string, currentBio?: string): Promis
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       contents: prompt,
     });
 
@@ -263,7 +263,7 @@ export const chatWithProfile = async (context: ProfileContext, query: string, hi
     // Fallback to flash if exp not available or for speed. Using 2.0-flash-exp as per prev setup.
 
     const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       contents: [
         { role: 'user', parts: [{ text: systemPrompt }] }, // System instruction disguised as first user msg for simple API
         ...history.map(msg => ({ role: 'user', parts: [{ text: msg }] })), // Simplified history for now
@@ -398,7 +398,7 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

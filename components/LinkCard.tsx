@@ -59,19 +59,37 @@ const LinkCard: React.FC<LinkCardProps> = ({
 
   const fullShortUrl = `${window.location.origin}/r/${link.shortCode}`;
 
+  const [isVisible, setIsVisible] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const checkHealth = async () => {
-      if (link.originalUrl) {
+      if (isVisible && link.originalUrl) {
         const result = await checkLinkHealth(link.originalUrl);
         setHealthStatus(result.status);
       }
     };
 
-    // Initial check
     checkHealth();
-
-    // Re-check when URL changes
-  }, [link.originalUrl]);
+  }, [isVisible, link.originalUrl]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullShortUrl);
@@ -105,7 +123,10 @@ const LinkCard: React.FC<LinkCardProps> = ({
   return (
     <>
       <motion.div
-        ref={setNodeRef}
+        ref={(node) => {
+          setNodeRef(node);
+          (cardRef as any).current = node;
+        }}
         style={style}
         layout
         initial={{ opacity: 0, scale: 0.9 }}

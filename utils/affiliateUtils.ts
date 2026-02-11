@@ -7,10 +7,18 @@ interface AffiliateConfig {
     amazonAssociateTag?: string;
 }
 
+const sanitizeAffiliateId = (id: string | undefined): string | undefined => {
+    if (!id) return undefined;
+    // Strip common prefixes like ?tag=, &tag=, ?affid=, &affid=
+    return id.replace(/^[?&](tag|affid)=/, '').trim();
+};
+
 export const monetizeUrl = (url: string, config: AffiliateConfig): string => {
     try {
         const urlObj = new URL(url);
         const hostname = urlObj.hostname.replace('www.', '');
+        const amazonTag = sanitizeAffiliateId(config.amazonAssociateTag);
+        const flipkartId = sanitizeAffiliateId(config.flipkartAffiliateId);
 
         // Flipkart
         if (hostname === 'flipkart.com' || hostname.endsWith('.flipkart.com')) {
@@ -21,8 +29,8 @@ export const monetizeUrl = (url: string, config: AffiliateConfig): string => {
             if (itmMatch) {
                 const pid = itmMatch[1];
                 const cleanUrl = new URL(`https://www.flipkart.com/product/p/${pid}`);
-                if (config.flipkartAffiliateId) {
-                    cleanUrl.searchParams.set('affid', config.flipkartAffiliateId);
+                if (flipkartId) {
+                    cleanUrl.searchParams.set('affid', flipkartId);
                 }
                 return cleanUrl.toString();
             }
@@ -31,15 +39,15 @@ export const monetizeUrl = (url: string, config: AffiliateConfig): string => {
             const pid = urlObj.searchParams.get('pid');
             if (pid) {
                 const cleanUrl = new URL(`https://www.flipkart.com/product/p/${pid}`);
-                if (config.flipkartAffiliateId) {
-                    cleanUrl.searchParams.set('affid', config.flipkartAffiliateId);
+                if (flipkartId) {
+                    cleanUrl.searchParams.set('affid', flipkartId);
                 }
                 return cleanUrl.toString();
             }
 
             // Fallback: Just append affid
-            if (config.flipkartAffiliateId) {
-                urlObj.searchParams.set('affid', config.flipkartAffiliateId);
+            if (flipkartId) {
+                urlObj.searchParams.set('affid', flipkartId);
                 return urlObj.toString();
             }
         }
@@ -56,15 +64,15 @@ export const monetizeUrl = (url: string, config: AffiliateConfig): string => {
                 const cleanHostname = urlObj.hostname.replace('www.', '');
                 const cleanUrl = new URL(`https://${cleanHostname}/dp/${asin}`); // Force clean path
 
-                if (config.amazonAssociateTag) {
-                    cleanUrl.searchParams.set('tag', config.amazonAssociateTag);
+                if (amazonTag) {
+                    cleanUrl.searchParams.set('tag', amazonTag);
                 }
                 return cleanUrl.toString();
             }
 
             // Fallback: Just append tag if ASIN not found
-            if (config.amazonAssociateTag) {
-                urlObj.searchParams.set('tag', config.amazonAssociateTag);
+            if (amazonTag) {
+                urlObj.searchParams.set('tag', amazonTag);
                 return urlObj.toString();
             }
         }
