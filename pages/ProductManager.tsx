@@ -140,6 +140,7 @@ const ProductManager: React.FC = () => {
                 fileUrl: currentProduct.fileUrl,
                 fileName: currentProduct.fileName,
                 salesCount: currentProduct.salesCount || 0,
+                originalUrl: currentProduct.type !== 'digital' ? destinationUrl : undefined,
                 // If it's physical, we might need a link. If digital, we might not need a tracked link immediately or we use a different mechanism.
                 // For now, let's keep the link creation logic but only if destinationUrl is present (Physical).
                 linkId: (currentProduct.type !== 'digital' && destinationUrl) ? (await supabaseAdapter.createLink({
@@ -328,8 +329,8 @@ const ProductManager: React.FC = () => {
 
                                 <div className="flex items-center justify-between pt-4 border-t border-stone-100 mt-auto">
                                     <div className="flex items-center gap-2 text-stone-400 text-sm">
-                                        <Package className="w-4 h-4" />
-                                        <span>Physical Item</span>
+                                        {product.type === 'digital' ? <Zap className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+                                        <span>{product.type === 'digital' ? 'Digital Asset' : 'Physical Item'}</span>
                                     </div>
                                     <button className="text-yellow-600 hover:text-yellow-700 text-sm font-bold flex items-center gap-1">
                                         Analytics <ExternalLink className="w-3 h-3" />
@@ -674,6 +675,17 @@ const ProductManager: React.FC = () => {
                                                 onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })}
                                                 className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
                                                 placeholder="e.g. Premium T-Shirt"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Category</label>
+                                            <input
+                                                type="text"
+                                                value={currentProduct.category || ''}
+                                                onChange={e => setCurrentProduct({ ...currentProduct, category: e.target.value })}
+                                                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
+                                                placeholder="e.g. Digital, Physical, Course..."
                                             />
                                         </div>
 

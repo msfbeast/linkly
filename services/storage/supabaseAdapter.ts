@@ -532,7 +532,7 @@ export class SupabaseAdapter {
     if (!user) throw new Error('User not authenticated');
 
     const [links, clickEvents] = await Promise.all([
-      this.linkRepo.getLinks(user.id),
+      this.linkRepo.getLinks(null),
       this.analyticsRepo.getAllUserClickEvents(user.id)
     ]);
 

@@ -48,9 +48,7 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                     </div>
 
                     <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
-                        <a href="#" className="hover:text-white transition-colors hover:bg-white/5 px-3 py-1 rounded-lg">Collections</a>
-                        <a href="#" className="hover:text-white transition-colors hover:bg-white/5 px-3 py-1 rounded-lg">About</a>
-                        <a href="#" className="hover:text-white transition-colors hover:bg-white/5 px-3 py-1 rounded-lg">Contact</a>
+                        <span className="text-white/50">{products.length} Products</span>
                     </nav>
 
                     <div className="flex items-center gap-4">

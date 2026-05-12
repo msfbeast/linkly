@@ -24,11 +24,6 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeBanner = storeProfile?.storeBannerUrl;
 
-    const handleVisit = (product: Product) => {
-        if (product.originalUrl) {
-            window.open(product.originalUrl, '_blank');
-        }
-    };
 
     return (
         <div className="min-h-screen bg-[#F0F0F0] text-slate-900 font-sans selection:bg-[#FF3366] selection:text-white overflow-x-hidden">
@@ -47,9 +42,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                     </div>
 
                     <nav className="hidden md:flex items-center gap-8 font-bold text-sm uppercase tracking-wide">
-                        <a href="#" className="hover:text-[#FF3366] transition-colors">New</a>
-                        <a href="#" className="hover:text-[#FF3366] transition-colors">Trending</a>
-                        <a href="#" className="hover:text-[#FF3366] transition-colors">Sale</a>
+                        <span className="text-[#FF3366]">{products.length} Products</span>
                     </nav>
 
                     <a
@@ -164,11 +157,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                         {storeName}
                     </h2>
                     <div className="flex flex-wrap justify-center gap-6 mb-10">
-                        {['Instagram', 'TikTok', 'Twitter', 'Discord'].map((social) => (
-                            <a key={social} href="#" className="text-xl font-bold hover:text-yellow-300 transition-colors uppercase">
-                                {social}
-                            </a>
-                        ))}
+                        <span className="text-xl font-bold text-yellow-300 uppercase">Powered by Gather</span>
                     </div>
                     <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">
                         © {new Date().getFullYear()} {storeName}. All rights reserved.

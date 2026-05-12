@@ -146,16 +146,15 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, s
                         <div>
                             <h4 className="font-bold mb-4">DATA</h4>
                             <ul className="space-y-2 text-gray-500">
-                                <li><a href="#" className="hover:text-black">Research</a></li>
-                                <li><a href="#" className="hover:text-black">Methodology</a></li>
-                                <li><a href="#" className="hover:text-black">Results</a></li>
+                                <li>Research</li>
+                                <li>Methodology</li>
+                                <li>Results</li>
                             </ul>
                         </div>
                         <div>
                             <h4 className="font-bold mb-4">ACCESS</h4>
                             <ul className="space-y-2 text-gray-500">
-                                <li><a href="#" className="hover:text-black">Login</a></li>
-                                <li><a href="#" className="hover:text-black">Request Invite</a></li>
+                                <li>Authorized Personnel Only</li>
                             </ul>
                         </div>
                     </div>

@@ -62,10 +62,10 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
                 </div>
 
                 <nav className="flex gap-4 px-2 py-1 text-sm border-t border-gray-400 mt-1">
-                    <a href="#" className="underline hover:text-blue-600">File</a>
-                    <a href="#" className="underline hover:text-blue-600">Edit</a>
-                    <a href="#" className="underline hover:text-blue-600">View</a>
-                    <a href="#" className="underline hover:text-blue-600">Help</a>
+                    <span className="underline">File</span>
+                    <span className="underline">Edit</span>
+                    <span className="underline">View</span>
+                    <span className="underline">Help</span>
                 </nav>
             </header>
 

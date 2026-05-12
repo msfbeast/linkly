@@ -127,7 +127,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        return res.status(200).json({ success: true, message: 'Purchase verified' });
+        // Generate download URL for the client response
+        let clientDownloadUrl: string | undefined;
+        if (product?.file_url && !product.file_url.startsWith('http')) {
+            const { data: signedData, error: signError } = await supabase
+                .storage
+                .from('digital-products')
+                .createSignedUrl(product.file_url, 60 * 60 * 24 * 7); // 7 days
+
+            if (!signError && signedData) {
+                clientDownloadUrl = signedData.signedUrl;
+            }
+        }
+
+        return res.status(200).json({ success: true, message: 'Purchase verified', downloadUrl: clientDownloadUrl });
 
     } catch (error: any) {
         console.error('Verify Purchase Error:', error);

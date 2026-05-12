@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, Download, Loader2, CreditCard } from 'lucide-react';
 import { Product } from '@/types';
-import { loadRazorpayScript, createRazorpayOrder, verifyRazorpayPayment } from '@/services/razorpayService';
+import { loadRazorpayScript, createRazorpayOrder } from '@/services/razorpayService';
 import { toast } from 'sonner';
 
 interface CheckoutModalProps {
@@ -54,14 +54,28 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
                             product_id: product.id
                         };
 
-                        // 4. Verify Payment
-                        const result = await verifyRazorpayPayment(verifyData);
+                        // 4. Verify Payment via store purchase endpoint
+                        const verifyResponse = await fetch('/api/verify-store-purchase', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...verifyData,
+                                orderId: order.id,
+                                productId: product.id
+                            })
+                        });
+
+                        const result = await verifyResponse.json();
 
                         if (result.success) {
                             setStep('success');
-                            // Use signed URL logic if available, for now basic path
-                            const signedUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/digital-products/${product.fileUrl}`;
-                            setDownloadUrl(signedUrl);
+                            // Use signed URL from server if available, fallback to constructing one
+                            if (result.downloadUrl) {
+                                setDownloadUrl(result.downloadUrl);
+                            } else if (product.fileUrl) {
+                                // Fallback: construct URL (less secure but functional)
+                                setDownloadUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/digital-products/${product.fileUrl}`);
+                            }
                             toast.success('Payment successful!');
                         } else {
                             toast.error('Payment verification failed');

@@ -22,8 +22,8 @@ const Storefront: React.FC = () => {
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
 
-    // Use theme from URL param, or from user profile if viewing own storefront, or default to vibrant
-    const theme = searchParams.get('theme') || (user?.id === userId ? user?.storefrontTheme : 'vibrant') || 'vibrant';
+    // Use theme from URL param, or from fetched store profile, or from own profile, or default to vibrant
+    const theme = searchParams.get('theme') || storeProfile?.storefrontTheme || (user?.id === userId ? user?.storefrontTheme : null) || 'vibrant';
 
     const [products, setProducts] = useState<Product[]>([]);
     const [storeProfile, setStoreProfile] = useState<any>(null); // Use any or UserProfile if imported

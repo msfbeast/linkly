@@ -40,7 +40,6 @@ export class LinkRepository extends BaseRepository {
             query = query.eq('team_id', teamId);
         } else {
             query = query.eq('user_id', userId).is('team_id', null);
-            query = query.eq('user_id', userId).is('team_id', null);
         }
 
         // Filter based on archived status

@@ -42,9 +42,7 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, 
                     </div>
 
                     <nav className="hidden md:flex gap-8 text-sm font-medium">
-                        <a href="#" className="hover:text-[#F0A6CA] transition-colors">study</a>
-                        <a href="#" className="hover:text-[#F0A6CA] transition-colors">relax</a>
-                        <a href="#" className="hover:text-[#F0A6CA] transition-colors">vibe</a>
+                        <span className="text-[#F0A6CA]">{products.length} items</span>
                     </nav>
 
                     <div className="flex items-center gap-4">

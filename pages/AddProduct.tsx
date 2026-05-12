@@ -93,6 +93,7 @@ const AddProduct: React.FC = () => {
                 ...product,
                 userId: user.id,
                 salesCount: product.salesCount || 0,
+                originalUrl: product.type !== 'digital' ? destinationUrl : undefined,
                 // Logic for physical vs digital
                 linkId: (product.type !== 'digital' && destinationUrl) ? (await supabaseAdapter.createLink({
                     originalUrl: destinationUrl,
@@ -281,6 +282,17 @@ const AddProduct: React.FC = () => {
                                         onChange={e => setProduct({ ...product, name: e.target.value })}
                                         className="w-full input-premium px-4 py-3 text-lg font-bold placeholder:font-normal"
                                         placeholder="e.g. Design System Kit"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Category</label>
+                                    <input
+                                        type="text"
+                                        value={product.category || ''}
+                                        onChange={e => setProduct({ ...product, category: e.target.value })}
+                                        className="w-full input-premium px-4 py-3"
+                                        placeholder="e.g. Digital, Physical, Course..."
                                     />
                                 </div>
 
