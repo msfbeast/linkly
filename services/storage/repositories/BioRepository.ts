@@ -191,12 +191,17 @@ export class BioRepository extends BaseRepository {
 
         const { data, error } = await this.supabase!
             .from(this.TABLES.PRODUCTS)
-            .select('*')
+            .select('*, links(original_url)')
             .eq('id', id)
             .single();
 
         if (error || !data) return null;
-        return rowToProduct(data as ProductRow);
+        
+        const product = rowToProduct(data as ProductRow);
+        if (!product.originalUrl && (data as any).links?.original_url) {
+            product.originalUrl = (data as any).links.original_url;
+        }
+        return product;
     }
 
     async getProductBySlug(slug: string): Promise<Product | null> {
@@ -204,12 +209,17 @@ export class BioRepository extends BaseRepository {
 
         const { data, error } = await this.supabase!
             .from(this.TABLES.PRODUCTS)
-            .select('*')
+            .select('*, links(original_url)')
             .eq('slug', slug)
             .single();
 
         if (error || !data) return null;
-        return rowToProduct(data as ProductRow);
+        
+        const product = rowToProduct(data as ProductRow);
+        if (!product.originalUrl && (data as any).links?.original_url) {
+            product.originalUrl = (data as any).links.original_url;
+        }
+        return product;
     }
 
     async getProducts(userId: string): Promise<Product[]> {
@@ -217,7 +227,7 @@ export class BioRepository extends BaseRepository {
 
         const { data, error } = await this.supabase!
             .from(this.TABLES.PRODUCTS)
-            .select('*')
+            .select('*, links(original_url)')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
@@ -226,7 +236,14 @@ export class BioRepository extends BaseRepository {
             return [];
         }
 
-        return (data || []).map((row: ProductRow) => rowToProduct(row));
+        return (data || []).map((row: any) => {
+            const product = rowToProduct(row as ProductRow);
+            // Data Repair: If originalUrl is missing but exists in the joined links table, recover it
+            if (!product.originalUrl && row.links?.original_url) {
+                product.originalUrl = row.links.original_url;
+            }
+            return product;
+        });
     }
 
     async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
