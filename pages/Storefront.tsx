@@ -26,6 +26,7 @@ const Storefront: React.FC = () => {
     const [storeProfile, setStoreProfile] = useState<any>(null); // Use any or UserProfile if imported
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
     // Use theme from URL param, or from fetched store profile, or from own profile, or default to vibrant
     const theme = searchParams.get('theme') || storeProfile?.storefrontTheme || (user?.id === userId ? user?.storefrontTheme : null) || 'vibrant';
@@ -89,7 +90,6 @@ const Storefront: React.FC = () => {
     }
 
     // Render the selected template
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
     // Render the selected template
     const handleProductSelect = (product: Product) => {
