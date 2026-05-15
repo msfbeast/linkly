@@ -19,6 +19,7 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, s
         );
     }
 
+    const storeName = storeProfile?.storeName || 'LAB.SYS';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Experimental design meets rigorous testing. Our products are engineered to perform under any condition.';
     const storeButtonText = storeProfile?.storeButtonText || 'INITIATE SEQUENCE';

@@ -19,6 +19,7 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
         );
     }
 
+    const storeName = storeProfile?.storeName || 'IND.SUPPLY';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Precision-crafted goods for the modern workspace. Durable materials, functional design, and industrial aesthetics.';
     const storeButtonText = storeProfile?.storeButtonText || 'Access Catalog';

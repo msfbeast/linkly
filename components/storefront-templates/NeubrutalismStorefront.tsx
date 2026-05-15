@@ -21,6 +21,7 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
         );
     }
 
+    const storeName = storeProfile?.storeName || 'Neu.Store';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Stop blending in. Start standing out. Grab the gear that screams personality.';
     const storeButtonText = storeProfile?.storeButtonText || 'Shop Now ->';

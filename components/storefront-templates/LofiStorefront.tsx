@@ -22,6 +22,7 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, 
         );
     }
 
+    const storeName = storeProfile?.storeName || 'lofi.shop';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'A curated collection of things that make you feel at home.\nPut on some headphones, grab a tea, and browse.';
     const storeButtonText = storeProfile?.storeButtonText || 'Start Browsing';

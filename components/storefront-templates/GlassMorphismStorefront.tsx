@@ -21,6 +21,7 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
         );
     }
 
+    const storeName = storeProfile?.storeName || 'Glass.BW';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Minimalist design meets depth. A storefront that puts your products in focus without the noise.';
     const storeButtonText = storeProfile?.storeButtonText || 'Start Exploring';

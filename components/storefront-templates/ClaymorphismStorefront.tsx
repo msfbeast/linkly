@@ -25,6 +25,7 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
         );
     }
 
+    const storeName = storeProfile?.storeName || 'Clay.io';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Experience a shopping interface that feels real. Soft shadows, rounded corners, and a touch of playfulness.';
     const storeButtonText = storeProfile?.storeButtonText || 'Start Shopping';

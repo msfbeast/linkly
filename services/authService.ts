@@ -39,6 +39,8 @@ export interface User {
   storeName?: string;
   storeLogoUrl?: string;
   storeBannerUrl?: string;
+  storeDescription?: string;
+  storeButtonText?: string;
   flipkartAffiliateId?: string;
   amazonAssociateTag?: string;
   upiId?: string;
@@ -85,6 +87,8 @@ function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
     storeName: supabaseUser.user_metadata?.store_name,
     storeLogoUrl: supabaseUser.user_metadata?.store_logo_url,
     storeBannerUrl: supabaseUser.user_metadata?.store_banner_url,
+    storeDescription: supabaseUser.user_metadata?.store_description,
+    storeButtonText: supabaseUser.user_metadata?.store_button_text,
     upiId: supabaseUser.user_metadata?.upi_id,
     flipkartAffiliateId: supabaseUser.user_metadata?.flipkart_affiliate_id,
     amazonAssociateTag: supabaseUser.user_metadata?.amazon_associate_tag,
@@ -412,6 +416,8 @@ export const authService = {
     storeName?: string;
     storeLogoUrl?: string;
     storeBannerUrl?: string;
+    storeDescription?: string;
+    storeButtonText?: string;
     flipkartAffiliateId?: string;
     amazonAssociateTag?: string;
   }): Promise<AuthResponse> {
@@ -430,6 +436,8 @@ export const authService = {
         store_name: updates.storeName,
         store_logo_url: updates.storeLogoUrl,
         store_banner_url: updates.storeBannerUrl,
+        store_description: updates.storeDescription,
+        store_button_text: updates.storeButtonText,
         flipkart_affiliate_id: updates.flipkartAffiliateId,
         amazon_associate_tag: updates.amazonAssociateTag,
       },

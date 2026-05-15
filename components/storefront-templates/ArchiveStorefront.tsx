@@ -19,6 +19,7 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
         );
     }
 
+    const storeName = storeProfile?.storeName || 'ARCHIVE_DB_V2';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'A digital repository of curated goods. Preserving design history through commerce.';
 

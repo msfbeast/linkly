@@ -23,6 +23,7 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
         );
     }
 
+    const storeName = storeProfile?.storeName || 'Bau Haus';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Design is not just what it looks like and feels like. Design is how it works.';
     const storeButtonText = storeProfile?.storeButtonText || 'View Catalog';
