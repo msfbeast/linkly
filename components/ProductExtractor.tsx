@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { extractProductMetadata } from '../services/extractionService';
+import { extractProductDetails } from '../services/geminiService';
 import { Loader2, Sparkles, Check, X, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,10 +28,17 @@ export const ProductExtractor: React.FC<ProductExtractorProps> = ({
             setLoading(true);
             setError(null);
 
-            const data = await extractProductMetadata(url);
+            const data = await extractProductDetails(url);
 
             if (data) {
-                onMetadataExtracted(data);
+                onMetadataExtracted({
+                    title: data.name,
+                    price: data.price,
+                    currency: data.currency,
+                    description: data.description,
+                    images: [data.imageUrl],
+                    originalUrl: url
+                });
             } else {
                 setError('Could not extract data from this URL.');
             }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Package, Zap, DollarSign, Image as ImageIcon, Loader2, Save, ArrowLeft, ExternalLink, Sparkles, Link as LinkIcon, Upload } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { extractProductMetadata } from '../services/extractionService';
+import { extractProductDetails } from '../services/geminiService';
 import { toast } from 'sonner';
 import { Product } from '../types';
 
@@ -35,7 +35,7 @@ const AddProduct: React.FC = () => {
         if (!importUrl) return;
         setIsImporting(true);
         try {
-            const details = await extractProductMetadata(importUrl);
+            const details = await extractProductDetails(importUrl);
             if (!details) {
                 toast.error('Could not extract details automatically');
                 return;
@@ -43,10 +43,10 @@ const AddProduct: React.FC = () => {
 
             setProduct(prev => ({
                 ...prev,
-                name: details.title,
+                name: details.name,
                 price: details.price,
                 currency: details.currency,
-                imageUrl: details.images[0],
+                imageUrl: details.imageUrl,
                 description: details.description,
                 originalUrl: importUrl
             }));

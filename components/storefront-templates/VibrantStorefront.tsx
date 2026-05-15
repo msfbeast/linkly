@@ -23,6 +23,8 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
     const storeName = storeProfile?.storeName || 'POP!';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeBanner = storeProfile?.storeBannerUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Stand out from the crowd with our boldest collection yet. Colors that pop, styles that rock.';
+    const storeButtonText = storeProfile?.storeButtonText || 'SHOP THE DROP';
 
 
     return (
@@ -80,11 +82,11 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                             <h1 className="text-5xl md:text-6xl font-black text-white mb-8 leading-none tracking-tighter drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] uppercase">
                                 {storeName}
                             </h1>
-                            <p className="text-white font-bold text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed drop-shadow-md">
-                                Stand out from the crowd with our boldest collection yet. Colors that pop, styles that rock.
+                            <p className="text-white font-bold text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed drop-shadow-md whitespace-pre-line">
+                                {storeDescription}
                             </p>
                             <button className="bg-[#FF3366] text-white px-10 py-4 rounded-full font-black text-lg border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
-                                SHOP THE DROP
+                                {storeButtonText}
                             </button>
                         </div>
                     </div>

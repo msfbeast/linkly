@@ -80,6 +80,14 @@ const Storefront: React.FC = () => {
         );
     }
 
+    if (loading && !searchParams.get('theme')) {
+        return (
+            <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-stone-400 animate-spin" />
+            </div>
+        );
+    }
+
     // Render the selected template
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 

@@ -19,8 +19,8 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
         );
     }
 
-    const storeName = storeProfile?.storeName || 'ARCHIVE_DB_V2';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'A digital repository of curated goods. Preserving design history through commerce.';
 
     return (
         <div className="min-h-screen bg-[#F0F0F0] font-mono text-[#333] selection:bg-[#333] selection:text-[#F0F0F0]">
@@ -75,7 +75,7 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
 
                     <div className="p-4 bg-[#E5E5E5] text-[10px] leading-relaxed">
                         <p className="mb-2 font-bold">ABOUT THIS ARCHIVE</p>
-                        <p>A digital repository of curated goods. Preserving design history through commerce.</p>
+                        <p className="whitespace-pre-line">{storeDescription}</p>
                     </div>
                 </aside>
 

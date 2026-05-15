@@ -21,8 +21,9 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
         );
     }
 
-    const storeName = storeProfile?.storeName || 'Neu.Store';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Stop blending in. Start standing out. Grab the gear that screams personality.';
+    const storeButtonText = storeProfile?.storeButtonText || 'Shop Now ->';
 
     return (
         <div className="min-h-screen bg-[#FFF4E0] font-sans text-black selection:bg-[#FF6B6B] selection:text-white">
@@ -59,11 +60,11 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                             <h1 className="text-5xl md:text-6xl font-black mb-8 uppercase leading-none text-white drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                                 {storeName} <br /> Collection
                             </h1>
-                            <p className="text-xl font-bold mb-8 max-w-xl bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                Stop blending in. Start standing out. Grab the gear that screams personality.
+                            <p className="text-xl font-bold mb-8 max-w-xl bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] whitespace-pre-line">
+                                {storeDescription}
                             </p>
                             <button className="bg-black text-white border-4 border-transparent px-8 py-4 text-xl font-black uppercase hover:bg-white hover:text-black hover:border-black shadow-[8px_8px_0px_0px_#4ECDC4] hover:shadow-[4px_4px_0px_0px_#4ECDC4] hover:translate-x-[4px] hover:translate-y-[4px] transition-all">
-                                Shop Now -&gt;
+                                {storeButtonText}
                             </button>
                         </div>
 

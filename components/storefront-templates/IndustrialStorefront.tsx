@@ -19,8 +19,9 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
         );
     }
 
-    const storeName = storeProfile?.storeName || 'IND.SUPPLY';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Precision-crafted goods for the modern workspace. Durable materials, functional design, and industrial aesthetics.';
+    const storeButtonText = storeProfile?.storeButtonText || 'Access Catalog';
 
     return (
         <div className="min-h-screen bg-[#E2E2E2] font-mono text-slate-800 selection:bg-slate-800 selection:text-white">
@@ -75,11 +76,11 @@ const IndustrialStorefront: React.FC<StorefrontTemplateProps> = ({ products, loa
                             <h2 className="text-4xl md:text-6xl font-bold uppercase mb-6 tracking-tight text-slate-900">
                                 Engineered <br /> for Utility.
                             </h2>
-                            <p className="text-slate-600 text-sm mb-8 max-w-md leading-relaxed">
-                                Precision-crafted goods for the modern workspace. Durable materials, functional design, and industrial aesthetics.
+                            <p className="text-slate-600 text-sm mb-8 max-w-md leading-relaxed whitespace-pre-line">
+                                {storeDescription}
                             </p>
                             <button className="border border-slate-800 px-8 py-3 text-xs font-bold uppercase hover:bg-slate-800 hover:text-white transition-colors">
-                                Access Catalog
+                                {storeButtonText}
                             </button>
                         </div>
                         <div className="h-64 bg-slate-300 flex items-center justify-center relative overflow-hidden">

@@ -23,8 +23,9 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
         );
     }
 
-    const storeName = storeProfile?.storeName || 'Bau Haus';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Design is not just what it looks like and feels like. Design is how it works.';
+    const storeButtonText = storeProfile?.storeButtonText || 'View Catalog';
 
     return (
         <div className="min-h-screen bg-[#f4f1ea] font-sans text-[#1d1d1d] selection:bg-[#e63946] selection:text-white">
@@ -55,8 +56,8 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                             <h2 className="text-5xl md:text-7xl font-black uppercase mb-6 relative z-10">
                                 Form <br /> Follows <br /> Function
                             </h2>
-                            <p className="text-xl font-medium max-w-md relative z-10">
-                                Design is not just what it looks like and feels like. Design is how it works.
+                            <p className="text-xl font-medium max-w-md relative z-10 whitespace-pre-line">
+                                {storeDescription}
                             </p>
                         </div>
                         <div className="p-12 md:p-20 bg-[#f1faee] flex flex-col justify-center items-start relative overflow-hidden">
@@ -64,7 +65,7 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                             <div className="w-20 h-20 bg-[#1d3557] rounded-full mb-8"></div>
                             <h3 className="text-3xl font-bold mb-8">Essential Collection</h3>
                             <button className="bg-[#1d1d1d] text-white px-8 py-4 font-bold uppercase tracking-widest hover:bg-[#e63946] transition-colors">
-                                View Catalog
+                                {storeButtonText}
                             </button>
                         </div>
                     </div>

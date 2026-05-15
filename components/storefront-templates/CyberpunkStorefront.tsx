@@ -22,6 +22,8 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
     const storeName = storeProfile?.storeName || 'CYBER.MARKET_V2';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeBanner = storeProfile?.storeBannerUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Access high-grade tech components and enhancements. Authorized personnel only.';
+    const storeButtonText = storeProfile?.storeButtonText || 'Initialize Access';
 
     return (
         <div className="min-h-screen bg-[#050505] text-[#00ff00] font-mono selection:bg-[#00ff00] selection:text-black overflow-x-hidden">
@@ -81,11 +83,11 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
                                 {storeName} <br />
                                 <span className="text-white bg-[#00ff00]/20 px-2">System</span>
                             </h1>
-                            <p className="text-[#00ff00]/70 max-w-xl mb-8 text-sm md:text-base">
-                                Access high-grade tech components and enhancements. Authorized personnel only.
+                            <p className="text-[#00ff00]/70 max-w-xl mb-8 text-sm md:text-base whitespace-pre-line">
+                                {storeDescription}
                             </p>
                             <button className="bg-[#00ff00] text-black px-8 py-3 font-bold uppercase hover:bg-[#ff00ff] hover:text-white transition-colors clip-path-polygon w-fit">
-                                Initialize Access
+                                {storeButtonText}
                             </button>
                         </div>
                     </div>

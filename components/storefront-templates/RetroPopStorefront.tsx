@@ -32,6 +32,8 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
 
     const storeName = storeProfile?.storeName || 'RetroStore';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Surfing the world wide web for the raddest gear? You found it!';
+    const storeButtonText = storeProfile?.storeButtonText || 'Click Here!';
 
     return (
         <div className="min-h-screen bg-[#FFCC00] font-mono text-black selection:bg-[#FF00FF] selection:text-white overflow-x-hidden"
@@ -83,12 +85,12 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
                                     <h1 className="text-4xl md:text-6xl font-bold mb-4 text-[#FF00FF] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]" style={{ fontFamily: '"Comic Sans MS", "Chalkboard SE", sans-serif' }}>
                                         Cool Stuff <br /> Inside!
                                     </h1>
-                                    <p className="mb-6 text-lg">
-                                        Surfing the world wide web for the raddest gear? You found it!
+                                    <p className="mb-6 text-lg whitespace-pre-line">
+                                        {storeDescription}
                                     </p>
                                     <button className="bg-[#C0C0C0] border-t-2 border-l-2 border-white border-b-2 border-r-2 border-black px-6 py-2 font-bold active:border-t-black active:border-l-black active:border-b-white active:border-r-white active:translate-y-1 flex items-center gap-2 mx-auto md:mx-0">
                                         <MousePointer className="w-4 h-4" />
-                                        Click Here!
+                                        {storeButtonText}
                                     </button>
                                 </div>
                                 <div className="w-48 h-48 bg-blue-200 border-2 border-black flex items-center justify-center relative">

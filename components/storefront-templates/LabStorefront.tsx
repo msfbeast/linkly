@@ -19,8 +19,9 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, s
         );
     }
 
-    const storeName = storeProfile?.storeName || 'LAB.SYS';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Experimental design meets rigorous testing. Our products are engineered to perform under any condition.';
+    const storeButtonText = storeProfile?.storeButtonText || 'INITIATE SEQUENCE';
 
     return (
         <div className="min-h-screen bg-white font-mono text-black selection:bg-black selection:text-white">
@@ -61,12 +62,12 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, s
                                 FORMULA <br />
                                 FOR FUTURE.
                             </h1>
-                            <p className="text-sm text-gray-600 mb-8 max-w-md">
-                                Experimental design meets rigorous testing. Our products are engineered to perform under any condition.
+                            <p className="text-sm text-gray-600 mb-8 max-w-md whitespace-pre-line">
+                                {storeDescription}
                             </p>
                             <div className="flex gap-4">
                                 <button className="bg-black text-white px-6 py-3 text-xs font-bold hover:bg-gray-800 transition-colors">
-                                    INITIATE SEQUENCE
+                                    {storeButtonText}
                                 </button>
                             </div>
                         </div>

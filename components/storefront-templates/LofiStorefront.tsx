@@ -22,8 +22,9 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, 
         );
     }
 
-    const storeName = storeProfile?.storeName || 'lofi.shop';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'A curated collection of things that make you feel at home.\nPut on some headphones, grab a tea, and browse.';
+    const storeButtonText = storeProfile?.storeButtonText || 'Start Browsing';
 
     return (
         <div className="min-h-screen bg-[#F7F2E8] font-mono text-[#5C4B51] selection:bg-[#F0A6CA] selection:text-white">
@@ -63,12 +64,11 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, 
                                 {storeName} <br />
                                 <span className="text-[#99C1B9]">Collection</span>
                             </h1>
-                            <p className="text-lg mb-8 leading-relaxed opacity-80">
-                                A curated collection of things that make you feel at home.
-                                Put on some headphones, grab a tea, and browse.
+                            <p className="text-lg mb-8 leading-relaxed opacity-80 whitespace-pre-line">
+                                {storeDescription}
                             </p>
                             <button className="bg-[#F2D7EE] text-[#5C4B51] px-6 py-3 rounded-xl font-bold border-2 border-[#5C4B51] shadow-[4px_4px_0px_#5C4B51] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#5C4B51] transition-all">
-                                Start Browsing
+                                {storeButtonText}
                             </button>
                         </div>
 

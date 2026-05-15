@@ -25,8 +25,9 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
         );
     }
 
-    const storeName = storeProfile?.storeName || 'Clay.io';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Experience a shopping interface that feels real. Soft shadows, rounded corners, and a touch of playfulness.';
+    const storeButtonText = storeProfile?.storeButtonText || 'Start Shopping';
 
     return (
         <div className="min-h-screen bg-[#f0f4f8] font-sans text-slate-700 selection:bg-[#7b61ff] selection:text-white">
@@ -80,11 +81,11 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                 {storeName} <br />
                                 <span className="text-[#7b61ff]">Real Comfort</span>
                             </h1>
-                            <p className="text-xl text-slate-500 mb-10 leading-relaxed">
-                                Experience a shopping interface that feels real. Soft shadows, rounded corners, and a touch of playfulness.
+                            <p className="text-xl text-slate-500 mb-10 leading-relaxed whitespace-pre-line">
+                                {storeDescription}
                             </p>
                             <button className="bg-[#7b61ff] text-white px-10 py-5 rounded-2xl font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#7b61ff]/30">
-                                Start Shopping
+                                {storeButtonText}
                             </button>
                         </div>
 

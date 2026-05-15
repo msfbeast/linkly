@@ -21,8 +21,9 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
         );
     }
 
-    const storeName = storeProfile?.storeName || 'Glass.BW';
     const storeLogo = storeProfile?.storeLogoUrl;
+    const storeDescription = storeProfile?.storeDescription || 'Minimalist design meets depth. A storefront that puts your products in focus without the noise.';
+    const storeButtonText = storeProfile?.storeButtonText || 'Start Exploring';
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] font-sans text-white selection:bg-white/30">
@@ -76,11 +77,11 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                         {storeName} <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">Collection</span>
                     </h1>
-                    <p className="text-lg text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
-                        Minimalist design meets depth. A storefront that puts your products in focus without the noise.
+                    <p className="text-lg text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed whitespace-pre-line">
+                        {storeDescription}
                     </p>
                     <button className="bg-white text-black px-8 py-4 rounded-xl font-bold transition-all hover:scale-105 hover:bg-gray-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                        Start Exploring
+                        {storeButtonText}
                     </button>
                 </div>
             </section>

@@ -377,6 +377,8 @@ export interface UserProfile {
   storeName?: string;
   storeLogoUrl?: string;
   storeBannerUrl?: string;
+  storeDescription?: string;
+  storeButtonText?: string;
   upiId?: string;
 
 
