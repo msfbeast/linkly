@@ -12,6 +12,9 @@ const supabase = (supabaseUrl && supabaseAnonKey)
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null;
 
+const JINA_API_KEY = process.env.JINA_API_KEY;
+const COMMON_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 interface ProductDetails {
     name: string;
     description: string;
@@ -50,8 +53,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 1. Fetch content via Jina (Markdown)
         // High Priority: Extract images from content
         try {
+        try {
+            const isTargetSite = url.includes('amazon') || url.includes('flipkart') || url.includes('myntra');
             const jinaUrl = `https://r.jina.ai/${url}`;
-            const response = await fetch(jinaUrl, { signal: AbortSignal.timeout(8000) });
+            const headers: Record<string, string> = {
+                'Accept': 'text/plain',
+                'User-Agent': COMMON_USER_AGENT
+            };
+            if (JINA_API_KEY) headers['Authorization'] = `Bearer ${JINA_API_KEY}`;
+
+            const response = await fetch(jinaUrl, {
+                headers,
+                signal: AbortSignal.timeout(isTargetSite ? 12000 : 8000)
+            });
             if (response.ok) {
                 const text = await response.text();
                 pageContent = text.substring(0, 20000);
@@ -70,8 +84,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // 2. Fallback/Supplement with Microlink
         try {
-            const microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}`;
-            const response = await fetch(microlinkUrl, { signal: AbortSignal.timeout(6000) });
+            const isTargetSite = url.includes('amazon') || url.includes('flipkart') || url.includes('myntra');
+            let microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}&palette=true`;
+
+            // Use prerender for heavy sites like Amazon/Flipkart to ensure JS content is loaded
+            if (isTargetSite) {
+                microlinkUrl += '&prerender=true';
+            }
+
+            const response = await fetch(microlinkUrl, { signal: AbortSignal.timeout(isTargetSite ? 10000 : 6000) });
             if (response.ok) {
                 const data = await response.json();
                 if (data.status === 'success' && data.data) {
@@ -147,7 +168,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const text = response.text;
         if (!text) throw new Error("No response from Gemini");
-        const result = JSON.parse(text) as ProductDetails;
+
+        // CLEANUP: Gemini sometimes wraps JSON in markdown blocks
+        const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim();
+        const result = JSON.parse(cleanJson) as ProductDetails;
 
         // 4. Robust Fallbacks (Sync with Client-Side Logic)
 

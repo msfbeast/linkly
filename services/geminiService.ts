@@ -303,6 +303,9 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
       console.warn('Product API error:', apiError);
     }
 
+    const COMMON_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    const JINA_API_KEY = process.env.JINA_API_KEY;
+
     // 2. Client-Side Fallback (Jina AI Scrape + Gemini)
     const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
     if (!apiKey) return null;
@@ -315,7 +318,16 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
       // 1. Jina AI (Content) - High Priority for Product Images
       (async () => {
         try {
-          const jinaResponse = await fetch(`https://r.jina.ai/${url}`, { headers: { 'x-respond-with': 'markdown' } });
+          const isTargetSite = url.includes('amazon') || url.includes('flipkart') || url.includes('myntra');
+          const jinaUrl = `https://r.jina.ai/${url}`;
+          const headers: Record<string, string> = {
+            'Accept': 'text/plain',
+            'User-Agent': COMMON_USER_AGENT,
+            'x-respond-with': 'markdown'
+          };
+          if (JINA_API_KEY) headers['Authorization'] = `Bearer ${JINA_API_KEY}`;
+
+          const jinaResponse = await fetch(jinaUrl, { headers });
           if (jinaResponse.ok) {
             const text = await jinaResponse.text();
             pageContext = text.substring(0, 20000); // 20k chars
@@ -335,7 +347,10 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
       // 2. Microlink (Metadata) - Fallback
       (async () => {
         try {
-          const microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}`;
+          const isTargetSite = url.includes('amazon') || url.includes('flipkart') || url.includes('myntra');
+          let microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}&palette=true`;
+          if (isTargetSite) microlinkUrl += '&prerender=true';
+
           const response = await fetch(microlinkUrl);
           if (response.ok) {
             const data = await response.json();
@@ -417,7 +432,8 @@ export const extractProductDetails = async (url: string): Promise<ProductDetails
 
     const text = result.text || "";
     if (text) {
-      const parsed = JSON.parse(text);
+      const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
 
       // Robust Image Fallback: If AI fails or returns a filtered image, try the next best
       let finalImageUrl = parsed.imageUrl;
