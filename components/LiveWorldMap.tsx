@@ -206,15 +206,27 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, serverCityDat
     const getProjectionConfig = () => {
         switch (viewMode) {
             case 'usa':
-                return { projection: "geoAlbersUsa", config: { scale: 1000 } };
+                return { 
+                    projection: "geoAlbersUsa", 
+                    config: { scale: 1000 },
+                    center: null // geoAlbersUsa doesn't use center like this
+                };
             case 'india':
-                return { projection: "geoMercator", config: { center: [80, 22] as [number, number], scale: 800 } };
+                return { 
+                    projection: "geoMercator", 
+                    config: { scale: 800 },
+                    center: [80, 22] as [number, number]
+                };
             default:
-                return { projection: "geoMercator", config: { scale: 140 } };
+                return { 
+                    projection: "geoMercator", 
+                    config: { scale: 140 },
+                    center: [0, 0] as [number, number]
+                };
         }
     };
 
-    const { projection, config } = getProjectionConfig();
+    const { projection, config, center } = getProjectionConfig();
 
     return (
         <div className={`relative bg-white border border-stone-200 rounded-2xl overflow-hidden transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : 'h-[500px]'} ${className}`}>
@@ -273,7 +285,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, serverCityDat
                 projectionConfig={config}
                 className="w-full h-full bg-[#FAFAFA]" // Very light grey background
             >
-                <ZoomableGroup center={[0, 0]} zoom={1} minZoom={1} maxZoom={4}>
+                <ZoomableGroup center={center || [0, 0]} zoom={1} minZoom={1} maxZoom={4}>
                     <Geographies geography={viewMode === 'world' ? GEO_URL_WORLD : viewMode === 'usa' ? GEO_URL_US : GEO_URL_INDIA}>
                         {({ geographies }) =>
                             geographies.map((geo) => {

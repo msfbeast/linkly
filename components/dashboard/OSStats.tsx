@@ -37,8 +37,8 @@ export const OSStats: React.FC<OSStatsProps> = ({ data }) => {
                 Operating Systems
             </h3>
 
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full h-full">
-                <div className="relative w-full h-[250px] flex items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[250px] w-full h-full">
+                <div className="relative w-full h-full min-h-[250px] flex items-center justify-center">
                     {/* Centered Total - Rendered FIRST (Behind Chart) */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                         <span className="text-3xl font-extrabold text-slate-900 leading-none">
