@@ -53,7 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 1. Fetch content via Jina (Markdown)
         // High Priority: Extract images from content
         try {
-        try {
             const isTargetSite = url.includes('amazon') || url.includes('flipkart') || url.includes('myntra');
             const jinaUrl = `https://r.jina.ai/${url}`;
             const headers: Record<string, string> = {
