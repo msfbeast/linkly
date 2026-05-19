@@ -16,8 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
         const { data, error } = await resend.emails.send({
-            from: 'Gather <notifications@gather.link>', // Ensure this domain is verified in Resend
+            from: `Gather <${fromEmail}>`,
             to,
             subject,
             html,
