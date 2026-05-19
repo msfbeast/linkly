@@ -281,7 +281,7 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
                             <h3 className="font-bold text-slate-900">Devices</h3>
                         </div>
                         <div className="h-[200px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <PieChart>
                                     <Pie
                                         data={data.byDevice}
