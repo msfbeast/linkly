@@ -25,6 +25,8 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Stop blending in. Start standing out. Grab the gear that screams personality.';
     const storeButtonText = storeProfile?.storeButtonText || 'Shop Now ->';
+    const storeHeroBadge = storeProfile?.storeHeroBadge || 'New Collection Drop';
+    const storeMarqueeText = storeProfile?.storeMarqueeText || 'Fresh Drops';
 
     return (
         <div className="min-h-screen bg-[#FFF4E0] font-sans text-black selection:bg-[#FF6B6B] selection:text-white">
@@ -56,7 +58,7 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                     <div className="bg-[#FF6B6B] border-4 border-black p-8 md:p-10 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
                         <div className="relative z-10">
                             <div className="inline-block bg-white border-2 border-black px-4 py-1 font-bold uppercase mb-6 transform -rotate-2">
-                                New Collection Drop
+                                {storeHeroBadge}
                             </div>
                             <h1 className="text-5xl md:text-6xl font-black mb-8 uppercase leading-none text-white drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                                 {storeName} <br /> Collection
@@ -81,7 +83,7 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                 <div className="max-w-6xl mx-auto">
                     <div className="mb-12 flex items-center gap-4">
                         <Star className="w-8 h-8 fill-black" />
-                        <h2 className="text-4xl font-black uppercase">Fresh Drops</h2>
+                        <h2 className="text-4xl font-black uppercase">{storeMarqueeText}</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

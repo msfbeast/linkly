@@ -238,6 +238,9 @@ export function userProfileToRow(profile: Partial<UserProfile>): any {
     if (profile.storeBannerUrl !== undefined) row.store_banner_url = profile.storeBannerUrl;
     if (profile.storeDescription !== undefined) row.store_description = profile.storeDescription;
     if (profile.storeButtonText !== undefined) row.store_button_text = profile.storeButtonText;
+    if (profile.storeHeroBadge !== undefined) row.store_hero_badge = profile.storeHeroBadge;
+    if (profile.storeMarqueeText !== undefined) row.store_marquee_text = profile.storeMarqueeText;
+    if (profile.storeSocialUrl !== undefined) row.store_social_url = profile.storeSocialUrl;
     if (profile.upiId !== undefined) row.upi_id = profile.upiId;
     if (profile.onboardingCompleted !== undefined) row.onboarding_completed = profile.onboardingCompleted;
     if (profile.onboardingStep !== undefined) row.onboarding_step = profile.onboardingStep;
@@ -275,6 +278,9 @@ export function rowToUserProfile(row: any): UserProfile {
         storeBannerUrl: row.store_banner_url,
         storeDescription: row.store_description,
         storeButtonText: row.store_button_text,
+        storeHeroBadge: row.store_hero_badge,
+        storeMarqueeText: row.store_marquee_text,
+        storeSocialUrl: row.store_social_url,
         upiId: row.upi_id,
         onboardingCompleted: row.onboarding_completed,
         onboardingStep: row.onboarding_step,

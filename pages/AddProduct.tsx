@@ -14,6 +14,7 @@ const AddProduct: React.FC = () => {
     const [importUrl, setImportUrl] = useState('');
     const [isImporting, setIsImporting] = useState(false);
     const [uploadingFile, setUploadingFile] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     // Form State
     const [product, setProduct] = useState<Partial<Product>>({
@@ -77,6 +78,25 @@ const AddProduct: React.FC = () => {
             toast.error('File upload failed');
         } finally {
             setUploadingFile(false);
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0 || !user?.id) return;
+        setUploadingImage(true);
+        try {
+            const file = e.target.files[0];
+            const publicUrl = await supabaseAdapter.uploadProductImage(file, user.id);
+            setProduct(prev => ({
+                ...prev,
+                imageUrl: publicUrl
+            }));
+            toast.success('Image uploaded successfully');
+        } catch (error) {
+            console.error('Image upload failed:', error);
+            toast.error('Image upload failed');
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -173,19 +193,40 @@ const AddProduct: React.FC = () => {
                         <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
                             <label className="block text-sm font-bold text-slate-700 mb-4">Product Image</label>
                             <div className="aspect-square bg-stone-50 rounded-2xl border-2 border-dashed border-stone-200 flex flex-col items-center justify-center relative overflow-hidden group hover:border-yellow-400 transition-colors">
-                                {product.imageUrl ? (
-                                    <img
-                                        src={product.imageUrl}
-                                        alt="Preview"
-                                        className="w-full h-full object-contain p-4"
-                                        referrerPolicy="no-referrer"
-                                    />
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    disabled={uploadingImage}
+                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                />
+                                {uploadingImage ? (
+                                    <Loader2 className="w-8 h-8 text-stone-400 animate-spin" />
+                                ) : product.imageUrl ? (
+                                    <>
+                                        <img
+                                            src={product.imageUrl}
+                                            alt="Preview"
+                                            className="w-full h-full object-contain p-4"
+                                            referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity pointer-events-none">
+                                            <span className="text-white text-xs font-bold bg-black/60 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                                                <Upload className="w-3.5 h-3.5" />
+                                                Change Image
+                                            </span>
+                                        </div>
+                                    </>
                                 ) : (
-                                    <ImageIcon className="w-12 h-12 text-stone-300 group-hover:text-yellow-400 transition-colors" />
+                                    <div className="text-center pointer-events-none p-4">
+                                        <ImageIcon className="w-12 h-12 text-stone-300 mx-auto mb-2 group-hover:text-yellow-400 transition-colors" />
+                                        <span className="text-xs font-bold text-slate-500 block">Click to upload image</span>
+                                        <span className="text-[10px] text-stone-400 block mt-1">or paste URL below</span>
+                                    </div>
                                 )}
                             </div>
                             <div className="mt-4">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Image URL</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Image URL (or upload above)</label>
                                 <input
                                     type="text"
                                     value={product.imageUrl || ''}

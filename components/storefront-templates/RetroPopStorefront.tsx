@@ -34,6 +34,7 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeDescription = storeProfile?.storeDescription || 'Surfing the world wide web for the raddest gear? You found it!';
     const storeButtonText = storeProfile?.storeButtonText || 'Click Here!';
+    const storeHeroBadge = storeProfile?.storeHeroBadge || 'Cool Stuff';
 
     return (
         <div className="min-h-screen bg-[#FFCC00] font-mono text-black selection:bg-[#FF00FF] selection:text-white overflow-x-hidden"
@@ -83,7 +84,7 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
                             <div className="flex flex-col md:flex-row gap-8 items-center">
                                 <div className="flex-1 text-center md:text-left">
                                     <h1 className="text-4xl md:text-6xl font-bold mb-4 text-[#FF00FF] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]" style={{ fontFamily: '"Comic Sans MS", "Chalkboard SE", sans-serif' }}>
-                                        Cool Stuff <br /> Inside!
+                                        {storeHeroBadge} <br /> Inside!
                                     </h1>
                                     <p className="mb-6 text-lg whitespace-pre-line">
                                         {storeDescription}

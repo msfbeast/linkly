@@ -293,6 +293,10 @@ export class SupabaseAdapter {
     return this.bioRepo.uploadDigitalFile(file, userId);
   }
 
+  async uploadProductImage(file: File, userId: string): Promise<string> {
+    return this.bioRepo.uploadProductImage(file, userId);
+  }
+
   // ==========================================
   // Domains
   // ==========================================

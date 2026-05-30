@@ -25,6 +25,9 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
     const storeBanner = storeProfile?.storeBannerUrl;
     const storeDescription = storeProfile?.storeDescription || 'Stand out from the crowd with our boldest collection yet. Colors that pop, styles that rock.';
     const storeButtonText = storeProfile?.storeButtonText || 'SHOP THE DROP';
+    const storeHeroBadge = storeProfile?.storeHeroBadge || 'Fresh Drop';
+    const storeMarqueeText = storeProfile?.storeMarqueeText || 'New Arrivals';
+    const storeSocialUrl = storeProfile?.storeSocialUrl;
 
 
     return (
@@ -47,15 +50,17 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                         <span className="text-[#FF3366]">{products.length} Products</span>
                     </nav>
 
-                    <a
-                        href="https://instagram.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-yellow-300 hover:bg-yellow-400 text-black px-4 py-1.5 rounded-full border-2 border-black font-bold text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-2"
-                    >
-                        <Star className="w-4 h-4" />
-                        <span>Follow Us</span>
-                    </a>
+                    {storeSocialUrl ? (
+                        <a
+                            href={storeSocialUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-yellow-300 hover:bg-yellow-400 text-black px-4 py-1.5 rounded-full border-2 border-black font-bold text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-2"
+                        >
+                            <Star className="w-4 h-4" />
+                            <span>Follow Us</span>
+                        </a>
+                    ) : null}
                 </div>
             </header>
 
@@ -77,7 +82,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
 
                         <div className="relative z-20">
                             <div className="inline-block bg-white border-2 border-black px-4 py-1 rounded-full font-black uppercase tracking-widest text-xs mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">
-                                Fresh Drop
+                                {storeHeroBadge}
                             </div>
                             <h1 className="text-5xl md:text-6xl font-black text-white mb-8 leading-none tracking-tighter drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] uppercase">
                                 {storeName}
@@ -98,7 +103,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                 <div className="inline-flex animate-marquee">
                     {[...Array(10)].map((_, i) => (
                         <span key={i} className="text-2xl font-black uppercase mx-8 flex items-center gap-4">
-                            New Arrivals <Star className="w-6 h-6 fill-black" />
+                            {storeMarqueeText} <Star className="w-6 h-6 fill-black" />
                         </span>
                     ))}
                 </div>

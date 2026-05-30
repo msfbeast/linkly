@@ -362,6 +362,26 @@ export class BioRepository extends BaseRepository {
         return fileName;
     }
 
+    async uploadProductImage(file: File, userId: string): Promise<string> {
+        if (!this.isConfigured()) throw new Error('Supabase is not configured');
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+        const { error: uploadError } = await this.supabase!.storage
+            .from('product-images')
+            .upload(fileName, file, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        // Return public URL so images display directly in storefront
+        const { data } = this.supabase!.storage
+            .from('product-images')
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
+    }
+
     // =================================
     // Custom Domains
     // =================================

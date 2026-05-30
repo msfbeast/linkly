@@ -26,6 +26,9 @@ export interface AuthContextType {
     storeBannerUrl?: string;
     storeDescription?: string;
     storeButtonText?: string;
+    storeHeroBadge?: string;
+    storeMarqueeText?: string;
+    storeSocialUrl?: string;
     flipkartAffiliateId?: string;
     amazonAssociateTag?: string;
   }) => Promise<AuthResult>;
@@ -129,6 +132,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     storeBannerUrl?: string;
     storeDescription?: string;
     storeButtonText?: string;
+    storeHeroBadge?: string;
+    storeMarqueeText?: string;
+    storeSocialUrl?: string;
     upiId?: string;
     flipkartAffiliateId?: string;
     amazonAssociateTag?: string;
