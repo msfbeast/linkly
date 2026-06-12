@@ -49,6 +49,7 @@ const ComingSoonPage = React.lazy(() => import('./pages/ComingSoonPage'));
 const SmartRedirect = React.lazy(() => import('./pages/SmartRedirect'));
 const AffiliateManager = React.lazy(() => import('./pages/AffiliateManager'));
 const AgencyDashboard = React.lazy(() => import('./pages/AgencyDashboard'));
+const GalleryTest = React.lazy(() => import('./pages/GalleryTest'));
 
 
 /**
@@ -119,6 +120,7 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/team/invite/:token" element={<TeamInviteHandler />} /> {/* Moved here from protected */}
           <Route path="/open/:url" element={<SmartRedirect />} /> {/* Moved here from protected */}
+          <Route path="/gallery-test" element={<GalleryTest />} />
           <Route path="/share/:shareToken" element={<SharedAnalytics />} /> {/* Moved here from protected */}
           <Route path="/about" element={<AboutPage />} /> {/* Moved here from protected */}
           <Route path="/api-access" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />

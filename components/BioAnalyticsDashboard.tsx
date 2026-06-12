@@ -95,7 +95,7 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
                     </select>
                 </div>
                 <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50} initialDimension={{ width: 400, height: 300 }}>
                         <AreaChart data={data.clicksOverTime}>
                             <defs>
                                 <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
@@ -281,7 +281,7 @@ export const BioAnalyticsDashboard: React.FC<BioAnalyticsDashboardProps> = ({ us
                             <h3 className="font-bold text-slate-900">Devices</h3>
                         </div>
                         <div className="h-[200px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 200, height: 200 }}>
                                 <PieChart>
                                     <Pie
                                         data={data.byDevice}

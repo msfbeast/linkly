@@ -1,17 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save } from 'lucide-react';
+import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save, Upload, Image as ImageIcon, Trash2, Camera, Sliders, Info, RefreshCw } from 'lucide-react';
 import UTMBuilderModal from './UTMBuilderModal';
 import { analyzeUrlWithGemini, GeminiAnalysisResult, generateLinkMetadata } from '../services/geminiService';
 import { monetizeUrl } from '../utils/affiliateUtils';
-import { LinkData, SmartRedirects, Folder, Domain } from '../types';
+import { LinkData, SmartRedirects, Folder, Domain, LinkType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { TagInput } from './TagInput';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import InfoTooltip from './InfoTooltip';
 import { COUNTRY_NAMES } from '../utils/constants';
+import exifr from 'exifr';
+import { extractDriveFolderId, fetchDriveFolderImages } from '../services/googleDriveService';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -31,6 +33,31 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const [slug, setSlug] = useState('');
   const [title, setTitle] = useState(''); // Added title state
   const [description, setDescription] = useState(''); // Added description state
+  const [linkType, setLinkType] = useState<LinkType>('link');
+  const [galleryItems, setGalleryItems] = useState<any[]>([]);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [syncingDrive, setSyncingDrive] = useState(false);
+  const [beforeAfter, setBeforeAfter] = useState<{ beforeUrl: string; afterUrl: string; beforeLabel: string; afterLabel: string }>({
+    beforeUrl: '',
+    afterUrl: '',
+    beforeLabel: 'Standard HDR',
+    afterLabel: 'Raw Recovery'
+  });
+  const [creatorProduct, setCreatorProduct] = useState<{ title: string; description: string; price: string; buttonText: string; buttonUrl: string; imageUrl: string }>({
+    title: '',
+    description: '',
+    price: '',
+    buttonText: 'Get Preset Pack',
+    buttonUrl: '',
+    imageUrl: ''
+  });
+  const [sponsor, setSponsor] = useState<{ title: string; description: string; buttonText: string; buttonUrl: string }>({
+    title: '',
+    description: '',
+    buttonText: 'Buy Now',
+    buttonUrl: ''
+  });
+  const [galleryError, setGalleryError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false); // Added for title generation
   const [analysis, setAnalysis] = useState<GeminiAnalysisResult | null>(null);
@@ -70,6 +97,36 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       setSlug(editingLink.shortCode);
       setTitle(editingLink.title || ''); // Set title for editing
       setDescription(editingLink.description || ''); // Set description for editing
+      setLinkType(editingLink.type || 'link');
+      if (editingLink.type === 'gallery' && editingLink.metadata) {
+        setGalleryItems(editingLink.metadata.galleryItems || []);
+        setBeforeAfter(editingLink.metadata.beforeAfter || {
+          beforeUrl: '',
+          afterUrl: '',
+          beforeLabel: 'Standard HDR',
+          afterLabel: 'Raw Recovery'
+        });
+        setCreatorProduct(editingLink.metadata.creatorProduct || {
+          title: '',
+          description: '',
+          price: '',
+          buttonText: 'Get Preset Pack',
+          buttonUrl: '',
+          imageUrl: ''
+        });
+        setSponsor(editingLink.metadata.sponsor || {
+          title: '',
+          description: '',
+          buttonText: 'Buy Now',
+          buttonUrl: ''
+        });
+      } else {
+        setGalleryItems([]);
+        setBeforeAfter({ beforeUrl: '', afterUrl: '', beforeLabel: 'Standard HDR', afterLabel: 'Raw Recovery' });
+        setCreatorProduct({ title: '', description: '', price: '', buttonText: 'Get Preset Pack', buttonUrl: '', imageUrl: '' });
+        setSponsor({ title: '', description: '', buttonText: 'Buy Now', buttonUrl: '' });
+      }
+
       setSmartRedirects({
         ios: editingLink.smartRedirects?.ios || '',
         android: editingLink.smartRedirects?.android || '',
@@ -153,6 +210,120 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     setGeoRedirects(geoRedirects.filter((_, i) => i !== index));
   };
 
+  const handleDriveFolderSync = async () => {
+    if (!url) {
+      setGalleryError('Please enter a Google Drive folder URL in the Destination input first.');
+      return;
+    }
+    const folderId = extractDriveFolderId(url);
+    if (!folderId) {
+      setGalleryError('Invalid Google Drive URL. Please make sure it points to a Google Drive folder (e.g., https://drive.google.com/drive/folders/...).');
+      return;
+    }
+
+    setSyncingDrive(true);
+    setGalleryError(null);
+
+    try {
+      const items = await fetchDriveFolderImages(folderId);
+      if (items.length === 0) {
+        setGalleryError('No images found in this folder. Make sure the folder is shared publicly (Anyone with the link can view) and contains image files.');
+      } else {
+        setGalleryItems(items);
+        if (items.length >= 2) {
+          setBeforeAfter({
+            beforeUrl: items[0].url,
+            afterUrl: items[1].url,
+            beforeLabel: 'Standard HDR',
+            afterLabel: 'Raw Recovery'
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error('Google Drive Sync failed:', err);
+      setGalleryError(err.message || 'Failed to sync with Google Drive. Please make sure the folder is public and your API key is correct.');
+    } finally {
+      setSyncingDrive(false);
+    }
+  };
+
+  const handleGalleryImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files.length || !user?.id) return;
+    setUploadingGallery(true);
+    setGalleryError(null);
+
+    const files = Array.from(e.target.files);
+    const newItems = [...galleryItems];
+
+    for (const file of files) {
+      try {
+        let exifData: any = {};
+        try {
+          const output = await exifr.parse(file, {
+            tiff: true,
+            exif: true,
+            gps: false,
+          });
+
+          if (output) {
+            let exposureStr = '';
+            if (output.ExposureTime) {
+              const exp = output.ExposureTime;
+              if (exp < 1) {
+                exposureStr = `1/${Math.round(1 / exp)}s`;
+              } else {
+                exposureStr = `${exp}s`;
+              }
+            }
+            exifData = {
+              make: output.Make || '',
+              model: output.Model || '',
+              iso: output.ISO ? String(output.ISO) : '',
+              fNumber: output.FNumber ? `f/${output.FNumber}` : '',
+              exposureTime: exposureStr || (output.ExposureTime ? String(output.ExposureTime) : ''),
+              focalLength: output.FocalLength ? `${output.FocalLength}mm` : '',
+              lensModel: output.LensModel || '',
+              createDate: output.CreateDate || '',
+            };
+          }
+        } catch (exifErr) {
+          console.warn('Failed to parse EXIF:', exifErr);
+        }
+
+        const publicUrl = await supabaseAdapter.uploadGalleryImage(file, user.id);
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+
+        newItems.push({
+          id: uuidv4(),
+          title: file.name.split('.')[0],
+          category: newItems.length === 0 ? 'Main (1x)' : newItems.length === 1 ? 'Telephoto (3.7x)' : 'Night (1x)',
+          description: '',
+          url: publicUrl,
+          camera: exifData.model || exifData.make || 'Custom Camera',
+          sensor: exifData.lensModel || 'Standard Sensor',
+          aperture: exifData.fNumber || 'f/1.8',
+          iso: exifData.iso || '100',
+          shutter: exifData.exposureTime || '1/120s',
+          size: `${sizeMb} (RAW)`
+        });
+      } catch (err) {
+        console.error('Error uploading gallery image:', err);
+        setGalleryError('Failed to upload some images. Please try again.');
+      }
+    }
+
+    setGalleryItems(newItems);
+    setUploadingGallery(false);
+  };
+
+  const handleDeleteGalleryItem = (id: string) => {
+    setGalleryItems(galleryItems.filter(item => item.id !== id));
+  };
+
+  const handleUpdateGalleryItem = (id: string, field: string, value: any) => {
+    setGalleryItems(galleryItems.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
   const handleSingleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!url || !slug) return;
@@ -164,7 +335,6 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       }
     });
 
-    // Clean and Monetize URL
     const cleanUrl = monetizeUrl(url.trim(), {
       amazonAssociateTag: user?.amazonAssociateTag,
       flipkartAffiliateId: user?.flipkartAffiliateId
@@ -175,6 +345,13 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       shortCode: slug,
       title: title, // Use title from state
       description: description, // Use description from state
+      type: linkType,
+      metadata: linkType === 'gallery' ? {
+        galleryItems,
+        beforeAfter,
+        creatorProduct,
+        sponsor
+      } : undefined,
       smartRedirects: {
         ios: smartRedirects.ios || undefined,
         android: smartRedirects.android || undefined,
@@ -353,6 +530,12 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       setSlug('');
       setTitle(''); // Reset title
       setDescription(''); // Reset description
+      setLinkType('link');
+      setGalleryItems([]);
+      setBeforeAfter({ beforeUrl: '', afterUrl: '', beforeLabel: 'Standard HDR', afterLabel: 'Raw Recovery' });
+      setCreatorProduct({ title: '', description: '', price: '', buttonText: 'Get Preset Pack', buttonUrl: '', imageUrl: '' });
+      setSponsor({ title: '', description: '', buttonText: 'Buy Now', buttonUrl: '' });
+      setGalleryError(null);
       setAnalysis(null);
       setBulkUrls('');
       setSmartRedirects({ ios: '', android: '', desktop: '' });
@@ -455,14 +638,45 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
             {mode === 'single' ? (
               <>
+                {/* Link Type Selector */}
+                <div className="mb-6">
+                  <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Link Type</label>
+                  <div className="flex gap-4 p-1 bg-stone-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setLinkType('link')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        linkType === 'link'
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-stone-500 hover:text-stone-900'
+                      }`}
+                    >
+                      🔗 Redirect Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLinkType('gallery')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        linkType === 'gallery'
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-stone-500 hover:text-stone-900'
+                      }`}
+                    >
+                      🖼️ Media Gallery
+                    </button>
+                  </div>
+                </div>
+
                 {/* URL Input */}
                 <div className="mb-8">
-                  <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Destination URL</label>
+                  <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">
+                    {linkType === 'gallery' ? 'Original RAW Folder URL (e.g. Google Drive)' : 'Destination URL'}
+                  </label>
                   <div className="flex gap-3">
                     <div className="relative flex-1">
                       <input
                         type="url"
-                        placeholder="https://example.com/my-long-url"
+                        placeholder={linkType === 'gallery' ? 'https://drive.google.com/drive/folders/...' : 'https://example.com/my-long-url'}
                         className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-4 rounded-xl pl-12 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
@@ -679,6 +893,276 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       </select>
                     </div>
                   </div>
+
+                  {/* Media Gallery Configuration */}
+                  {linkType === 'gallery' && (
+                    <div className="space-y-6 mb-8 p-6 bg-amber-50/30 rounded-2xl border border-amber-200/50 animate-fadeIn">
+                      <div>
+                        <h4 className="text-slate-900 text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <ImageIcon className="w-4 h-4 text-amber-500" /> Gallery Photos
+                        </h4>
+                        <p className="text-xs text-stone-500 mb-4">
+                          Select one or more images from your local device. We will automatically extract camera EXIF metadata and optimize files client-side.
+                        </p>
+                        
+                        {galleryError && (
+                          <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs flex items-center gap-2 mb-4">
+                            <Info className="w-4 h-4 shrink-0" />
+                            {galleryError}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.createElement('input');
+                              input.type = 'file';
+                              input.multiple = true;
+                              input.accept = 'image/jpeg,image/png,image/webp';
+                              input.onchange = (e) => handleGalleryImagesUpload(e as any);
+                              input.click();
+                            }}
+                            disabled={uploadingGallery || syncingDrive}
+                            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+                          >
+                            {uploadingGallery ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            Upload Local Images
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={handleDriveFolderSync}
+                            disabled={uploadingGallery || syncingDrive}
+                            className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors disabled:opacity-50 shadow-sm"
+                          >
+                            {syncingDrive ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            Sync with Google Drive
+                          </button>
+
+                          {uploadingGallery && <span className="text-xs text-stone-500 animate-pulse">Uploading and extracting EXIF...</span>}
+                          {syncingDrive && <span className="text-xs text-amber-600 animate-pulse">Connecting to Drive folder...</span>}
+                        </div>
+
+                        {/* Uploaded Gallery Grid */}
+                        {galleryItems.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
+                            {galleryItems.map((item, idx) => (
+                              <div key={item.id} className="relative bg-white border border-stone-200 rounded-xl p-3 flex gap-3 group">
+                                <div className="w-16 h-16 rounded-lg overflow-hidden bg-stone-50 border shrink-0">
+                                  <img src={item.url} className="w-full h-full object-cover" alt="" />
+                                </div>
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <input
+                                    type="text"
+                                    placeholder="Photo title"
+                                    className="w-full bg-transparent border-none p-0 text-xs font-bold text-slate-950 focus:ring-0 focus:outline-none placeholder:text-stone-400"
+                                    value={item.title || ''}
+                                    onChange={(e) => handleUpdateGalleryItem(item.id, 'title', e.target.value)}
+                                  />
+                                  <select
+                                    className="bg-stone-50 border border-stone-200 text-[10px] rounded p-1 text-stone-600 block focus:ring-0 focus:outline-none"
+                                    value={item.category || 'Main (1x)'}
+                                    onChange={(e) => handleUpdateGalleryItem(item.id, 'category', e.target.value)}
+                                  >
+                                    <option value="Main (1x)">Main (1x)</option>
+                                    <option value="Telephoto (3.7x)">Telephoto (3.7x)</option>
+                                    <option value="Night (1x)">Night (1x)</option>
+                                    <option value="Ultrawide (0.6x)">Ultrawide (0.6x)</option>
+                                  </select>
+                                  <div className="text-[10px] text-stone-400 font-mono truncate">
+                                    {item.camera || 'Unknown Camera'} • {item.shutter} @ ISO {item.iso}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteGalleryItem(item.id)}
+                                  className="absolute top-2 right-2 p-1 text-stone-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 bg-white rounded-xl border border-dashed border-stone-200 text-stone-400 text-xs">
+                            No camera sample photos uploaded yet.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Before / After Configuration */}
+                      <div className="border-t border-stone-200/60 pt-4 space-y-3">
+                        <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                          <Sliders className="w-4 h-4 text-amber-500" /> Before / After Compare Slider
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-stone-400 uppercase font-bold block">Before Image URL</label>
+                            <select
+                              value={beforeAfter.beforeUrl}
+                              onChange={(e) => setBeforeAfter({ ...beforeAfter, beforeUrl: e.target.value })}
+                              className="w-full bg-white border border-stone-200 text-xs text-slate-900 p-2 rounded-xl focus:ring-0 focus:outline-none"
+                            >
+                              <option value="">Select from Gallery</option>
+                              {galleryItems.map(item => (
+                                <option key={item.id} value={item.url}>{item.title}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Or paste custom image URL"
+                              className="w-full bg-white border border-stone-200 text-xs text-slate-900 p-2 rounded-xl focus:ring-0 focus:outline-none mt-1"
+                              value={beforeAfter.beforeUrl}
+                              onChange={(e) => setBeforeAfter({ ...beforeAfter, beforeUrl: e.target.value })}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Before Label (e.g. Standard HDR)"
+                              className="w-full bg-white border border-stone-200 text-xs text-slate-900 p-2 rounded-xl focus:ring-0 focus:outline-none mt-1"
+                              value={beforeAfter.beforeLabel}
+                              onChange={(e) => setBeforeAfter({ ...beforeAfter, beforeLabel: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-stone-400 uppercase font-bold block">After Image URL</label>
+                            <select
+                              value={beforeAfter.afterUrl}
+                              onChange={(e) => setBeforeAfter({ ...beforeAfter, afterUrl: e.target.value })}
+                              className="w-full bg-white border border-stone-200 text-xs text-slate-900 p-2 rounded-xl focus:ring-0 focus:outline-none"
+                            >
+                              <option value="">Select from Gallery</option>
+                              {galleryItems.map(item => (
+                                <option key={item.id} value={item.url}>{item.title}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Or paste custom image URL"
+                              className="w-full bg-white border border-stone-200 text-xs text-slate-900 p-2 rounded-xl focus:ring-0 focus:outline-none mt-1"
+                              value={beforeAfter.afterUrl}
+                              onChange={(e) => setBeforeAfter({ ...beforeAfter, afterUrl: e.target.value })}
+                            />
+                            <input
+                              type="text"
+                              placeholder="After Label (e.g. Raw Recovery)"
+                              className="w-full bg-white border border-stone-200 text-xs text-slate-900 p-2 rounded-xl focus:ring-0 focus:outline-none mt-1"
+                              value={beforeAfter.afterLabel}
+                              onChange={(e) => setBeforeAfter({ ...beforeAfter, afterLabel: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sponsor & Custom Products Ads */}
+                      <div className="border-t border-stone-200/60 pt-4 space-y-4">
+                        <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-amber-500" /> Monetization Settings
+                        </h4>
+
+                        {/* Sponsor Banner Setup */}
+                        <div className="bg-white border border-stone-200/60 rounded-xl p-4 space-y-3">
+                          <span className="text-[10px] text-amber-600 uppercase font-bold tracking-wider block">Option 1: Tech Sponsor Deal</span>
+                          <input
+                            type="text"
+                            placeholder="Sponsor Name / Phone model (e.g. Vivo X300 Ultra (5G))"
+                            className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                            value={sponsor.title}
+                            onChange={(e) => setSponsor({ ...sponsor, title: e.target.value })}
+                          />
+                          <textarea
+                            placeholder="Sponsor Ad copy (e.g. Get the best launch discounts and custom skins today...)"
+                            rows={2}
+                            className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                            value={sponsor.description}
+                            onChange={(e) => setSponsor({ ...sponsor, description: e.target.value })}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Button Text (e.g. Buy on Amazon)"
+                              className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                              value={sponsor.buttonText}
+                              onChange={(e) => setSponsor({ ...sponsor, buttonText: e.target.value })}
+                            />
+                            <input
+                              type="url"
+                              placeholder="Button Affiliate URL"
+                              className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                              value={sponsor.buttonUrl}
+                              onChange={(e) => setSponsor({ ...sponsor, buttonUrl: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Creator Wallpaper/Preset Setup */}
+                        <div className="bg-white border border-stone-200/60 rounded-xl p-4 space-y-3">
+                          <span className="text-[10px] text-amber-600 uppercase font-bold tracking-wider block">Option 2: Featured Creator Product</span>
+                          <input
+                            type="text"
+                            placeholder="Product Title (e.g. Ultra Cinematic LUTs)"
+                            className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                            value={creatorProduct.title}
+                            onChange={(e) => setCreatorProduct({ ...creatorProduct, title: e.target.value })}
+                          />
+                          <textarea
+                            placeholder="Product description (e.g. 12 stylized Lightroom presets designed for vivo logs...)"
+                            rows={2}
+                            className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                            value={creatorProduct.description}
+                            onChange={(e) => setCreatorProduct({ ...creatorProduct, description: e.target.value })}
+                          />
+                          <div className="grid grid-cols-3 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Price (e.g. ₹299)"
+                              className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none col-span-1"
+                              value={creatorProduct.price}
+                              onChange={(e) => setCreatorProduct({ ...creatorProduct, price: e.target.value })}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Button Text"
+                              className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none col-span-2"
+                              value={creatorProduct.buttonText}
+                              onChange={(e) => setCreatorProduct({ ...creatorProduct, buttonText: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="url"
+                              placeholder="Checkout/Store URL"
+                              className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                              value={creatorProduct.buttonUrl}
+                              onChange={(e) => setCreatorProduct({ ...creatorProduct, buttonUrl: e.target.value })}
+                            />
+                            <input
+                              type="url"
+                              placeholder="Product Preview Image URL"
+                              className="w-full bg-stone-50 border border-stone-200 text-xs text-slate-900 p-2 rounded-lg focus:ring-0 focus:outline-none"
+                              value={creatorProduct.imageUrl}
+                              onChange={(e) => setCreatorProduct({ ...creatorProduct, imageUrl: e.target.value })}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] text-stone-400">Or choose preview from gallery:</span>
+                            <select
+                              value={creatorProduct.imageUrl}
+                              onChange={(e) => setCreatorProduct({ ...creatorProduct, imageUrl: e.target.value })}
+                              className="bg-stone-50 border border-stone-200 text-[10px] rounded p-1 text-stone-600 focus:ring-0 focus:outline-none"
+                            >
+                              <option value="">Select URL</option>
+                              {galleryItems.map(item => (
+                                <option key={item.id} value={item.url}>{item.title}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Advanced Toggle */}
                   <button

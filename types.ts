@@ -123,7 +123,7 @@ export interface QnaMessage {
   isRead: boolean;
 }
 
-export type LinkType = 'link' | 'map' | 'newsletter' | 'contact' | 'tip_jar' | 'qr_code';
+export type LinkType = 'link' | 'map' | 'newsletter' | 'contact' | 'tip_jar' | 'qr_code' | 'gallery';
 
 export interface LinkData {
   id: string;

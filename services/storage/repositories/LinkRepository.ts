@@ -389,6 +389,8 @@ export class LinkRepository extends BaseRepository {
         if (updates.aiAnalysis !== undefined) rowUpdates.ai_analysis = updates.aiAnalysis;
         if (updates.folderId !== undefined) rowUpdates.folder_id = updates.folderId;
         if (updates.domain !== undefined) rowUpdates.domain = updates.domain;
+        if (updates.type !== undefined) rowUpdates.type = updates.type;
+        if (updates.metadata !== undefined) rowUpdates.metadata = updates.metadata;
 
         const { data, error } = await this.supabase!
             .from(this.TABLES.LINKS)

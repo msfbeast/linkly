@@ -131,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash", // Use stable 2.0 model
+            model: "gemini-2.5-flash", // Use stable 2.5 model
             contents: prompt,
             config: {
                 responseMimeType: "application/json",

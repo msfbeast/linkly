@@ -38,7 +38,7 @@ const ClickForecastChart: React.FC<ClickForecastChartProps> = ({ data }) => {
   return (
     <div className="w-full h-[250px] min-h-[250px] relative" data-testid="click-forecast-chart">
 
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50} initialDimension={{ width: 400, height: 250 }}>
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">

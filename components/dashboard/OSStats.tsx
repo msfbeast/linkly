@@ -47,7 +47,7 @@ export const OSStats: React.FC<OSStatsProps> = ({ data }) => {
                         <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest mt-1">Clicks</span>
                     </div>
 
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 300, height: 250 }}>
                         <PieChart>
                             <Pie
                                 data={chartData}

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gather | Brand Design Specifications</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Outfit', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .dark ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 9999px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Toast animation */
+    @keyframes slideUp {
+      from { transform: translateY(2rem) translateX(-50%); opacity: 0; }
+      to { transform: translateY(0) translateX(-50%); opacity: 1; }
+    }
+    .toast-animate {
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="bg-[#FAFAFA] text-zinc-900 dark:bg-[#0A0A0F] dark:text-white font-sans min-h-screen transition-colors duration-300">
+
+  <!-- Header/Navigation -->
+  <header class="sticky top-0 z-40 w-full bg-white/60 dark:bg-[#0A0A0F]/60 backdrop-blur-xl border-b border-zinc-200/50 dark:border-white/5 transition-colors duration-300">
+    <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Logo Preview (Node concept) -->
+        <div class="relative w-9 h-9 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-cyan-500/10">
+          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        </div>
+        <div>
+          <span class="font-display font-bold text-xl tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-white dark:to-zinc-300 bg-clip-text text-transparent">Gather</span>
+          <span class="text-[10px] uppercase font-bold tracking-widest text-cyan-500 ml-1.5 px-1.5 py-0.5 rounded bg-cyan-500/10">Design Specs</span>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <!-- Theme Toggle -->
+        <button id="themeToggle" class="p-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200/50 dark:border-white/5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95">
+          <!-- Moon Icon -->
+          <svg id="themeMoon" class="w-5 h-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+          <!-- Sun Icon -->
+          <svg id="themeSun" class="w-5 h-5 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707-.707m12.728 0l-.707.707M6.343 6.343l-.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="relative py-16 overflow-hidden">
+    <!-- Grid Overlay -->
+    <div class="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px] dark:bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)]"></div>
+    <!-- Ambient Blur Blobs -->
+    <div class="absolute -top-12 left-1/4 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute top-24 right-1/4 w-96 h-96 bg-violet-500/10 dark:bg-violet-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto px-6 relative z-10">
+      <div class="max-w-3xl">
+        <h1 class="font-display font-bold text-4xl sm:text-5xl md:text-6xl tracking-tight leading-[1.1] mb-6">
+          Gather Brand <br class="hidden sm:inline" />
+          <span class="bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500 bg-clip-text text-transparent">Design Specification</span>
+        </h1>
+        <p class="text-zinc-600 dark:text-zinc-400 text-lg sm:text-xl font-sans leading-relaxed mb-8">
+          The interactive visual design guide for Gather. Click colors to copy codes, interactively test display fonts, and view pre-built UI configurations to maintain brand alignment.
+        </p>
+        <div class="flex flex-wrap gap-4">
+          <a href="#palette" class="px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-bold hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-black/10">Color Palettes</a>
+          <a href="#typography" class="px-6 py-3 rounded-xl bg-white text-zinc-900 dark:bg-white/5 dark:text-white border border-zinc-200 dark:border-white/10 font-bold hover:bg-zinc-50 dark:hover:bg-white/10 active:scale-95 transition-all">Typography Sandbox</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="max-w-7xl mx-auto px-6 pb-24 space-y-20 relative z-10">
+
+    <!-- Brand Essence & Aesthetic Vibe -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="md:col-span-1">
+        <h2 class="font-display font-bold text-2xl tracking-tight mb-2">Aesthetic Essence</h2>
+        <p class="text-zinc-500 dark:text-zinc-400 text-sm">Our visuals balance extreme premium layout structure with high-contrast spark accents.</p>
+      </div>
+      <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <!-- Card 1: Glassmorphism -->
+        <div class="p-6 rounded-[2rem] bg-white/40 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] backdrop-blur-xl shadow-sm">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <h3 class="font-display font-semibold text-lg mb-2">Glassmorphism</h3>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">Soft translucent panels, overlay blurs, and minimal contrasting boundary lines. Evokes depth and premium quality.</p>
+        </div>
+        <!-- Card 2: Outer Glow -->
+        <div class="p-6 rounded-[2rem] bg-white/40 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] backdrop-blur-xl shadow-sm">
+          <div class="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 class="font-display font-semibold text-lg mb-2">Dark Sparks & Glow</h3>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">Vibrant focal points using our neon palette on dark fields, emphasized by wide, low-opacity ambient blurs.</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="border-zinc-200/50 dark:border-white/5" />
+
+    <!-- Color Palette Section -->
+    <section id="palette" class="space-y-8">
+      <div>
+        <h2 class="font-display font-bold text-3xl tracking-tight mb-2">Color System</h2>
+        <p class="text-zinc-500 dark:text-zinc-400">Click any block below to copy the color code to your clipboard.</p>
+      </div>
+
+      <div class="space-y-10">
+        <!-- Accents & Categories -->
+        <div>
+          <h3 class="text-xs uppercase tracking-widest font-bold text-zinc-400 dark:text-zinc-500 mb-4">Core Spark Accents</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <!-- Cyan -->
+            <div onclick="copyColor('#22D3EE', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-32 bg-[#22D3EE] relative">
+                <div class="absolute inset-0 bg-[#0891B2] opacity-0 group-hover:opacity-20 transition-opacity"></div>
+              </div>
+              <div class="p-4 flex items-center justify-between">
+                <div>
+                  <h4 class="font-bold text-sm">Cyan (Social / Active)</h4>
+                  <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#22D3EE</p>
+                </div>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-zinc-100 dark:bg-white/10 px-2 py-1 rounded">Copy</span>
+              </div>
+            </div>
+            <!-- Yellow -->
+            <div onclick="copyColor('#FBBF24', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-32 bg-[#FBBF24] relative">
+                <div class="absolute inset-0 bg-[#D97706] opacity-0 group-hover:opacity-20 transition-opacity"></div>
+              </div>
+              <div class="p-4 flex items-center justify-between">
+                <div>
+                  <h4 class="font-bold text-sm">Yellow (Marketing)</h4>
+                  <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#FBBF24</p>
+                </div>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-zinc-100 dark:bg-white/10 px-2 py-1 rounded">Copy</span>
+              </div>
+            </div>
+            <!-- Coral -->
+            <div onclick="copyColor('#F97316', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-32 bg-[#F97316] relative">
+                <div class="absolute inset-0 bg-[#EA580C] opacity-0 group-hover:opacity-20 transition-opacity"></div>
+              </div>
+              <div class="p-4 flex items-center justify-between">
+                <div>
+                  <h4 class="font-bold text-sm">Coral (Product / Low CTR)</h4>
+                  <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#F97316</p>
+                </div>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-zinc-100 dark:bg-white/10 px-2 py-1 rounded">Copy</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dark Theme Backgrounds -->
+        <div>
+          <h3 class="text-xs uppercase tracking-widest font-bold text-zinc-400 dark:text-zinc-500 mb-4">Dark Theme Fields</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+            <div onclick="copyColor('#0A0A0F', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#0A0A0F]"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Background Primary</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#0A0A0F</p>
+              </div>
+            </div>
+            <div onclick="copyColor('#12121A', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#12121A]"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Card Background</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#12121A</p>
+              </div>
+            </div>
+            <div onclick="copyColor('#1A1A24', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#1A1A24]"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Elevated Surface</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#1A1A24</p>
+              </div>
+            </div>
+            <div onclick="copyColor('#6366F1', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#6366F1]"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Secondary (Indigo)</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#6366F1</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Light Theme Backgrounds -->
+        <div>
+          <h3 class="text-xs uppercase tracking-widest font-bold text-zinc-400 dark:text-zinc-500 mb-4">Light Theme Fields</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+            <div onclick="copyColor('#FAFAFA', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#FAFAFA]"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Background Primary</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#FAFAFA</p>
+              </div>
+            </div>
+            <div onclick="copyColor('#FFFFFF', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#FFFFFF] border-b border-zinc-100"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Card/Plain White</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#FFFFFF</p>
+              </div>
+            </div>
+            <div onclick="copyColor('#F4F4F5', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#F4F4F5]"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Elevated Background</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#F4F4F5</p>
+              </div>
+            </div>
+            <div onclick="copyColor('#E4E4E7', this)" class="group cursor-pointer rounded-2xl bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] overflow-hidden shadow-sm hover:-translate-y-1 transition-all duration-300">
+              <div class="h-20 bg-[#E4E4E7]"></div>
+              <div class="p-4">
+                <h4 class="font-bold text-sm">Border Default</h4>
+                <p class="font-mono text-xs text-zinc-400 dark:text-zinc-500 mt-1">#E4E4E7</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="border-zinc-200/50 dark:border-white/5" />
+
+    <!-- Typography Section -->
+    <section id="typography" class="space-y-8">
+      <div>
+        <h2 class="font-display font-bold text-3xl tracking-tight mb-2">Typography & Fonts</h2>
+        <p class="text-zinc-500 dark:text-zinc-400">Play around with fonts to see how they render in real time.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Font Spec Table -->
+        <div class="space-y-6">
+          <div class="p-6 rounded-[2rem] bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] shadow-sm">
+            <h4 class="font-display font-bold text-lg mb-4">Font Roles</h4>
+            <div class="space-y-6">
+              <div class="flex items-start gap-4">
+                <div class="px-3 py-1 bg-zinc-100 dark:bg-white/5 rounded-lg text-xs font-mono">Outfit</div>
+                <div>
+                  <h5 class="font-display font-bold text-base">Display Headers & Logo</h5>
+                  <p class="text-sm text-zinc-500 mt-1 leading-relaxed">Ideal for huge branding texts, dashboard module titles, and headers. Geometric spacing gives it a sleek technical personality.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-4">
+                <div class="px-3 py-1 bg-zinc-100 dark:bg-white/5 rounded-lg text-xs font-mono">Plus Jakarta</div>
+                <div>
+                  <h5 class="font-sans font-bold text-base">Body Copy & Metadata</h5>
+                  <p class="text-sm text-zinc-500 mt-1 leading-relaxed">Built for utility lists, charts labels, sidebars, buttons, and analytical metrics. Highly readable at smaller dimensions (12px to 14px).</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typography Sandbox -->
+        <div class="p-6 rounded-[2rem] bg-white dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.05] shadow-sm space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <h4 class="font-display font-bold text-lg">Live Typography Sandbox</h4>
+            <!-- Options -->
+            <div class="flex items-center gap-2">
+              <select id="fontSelect" class="bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs focus:outline-none">
+                <option value="font-display">Outfit (Display)</option>
+                <option value="font-sans" selected>Plus Jakarta Sans (Body)</option>
+              </select>
+              <select id="weightSelect" class="bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs focus:outline-none">
+                <option value="font-normal">Regular</option>
+                <option value="font-semibold" selected>Semi-Bold</option>
+                <option value="font-bold">Bold</option>
+              </select>
+            </div>
+          </div>
+
+          <textarea id="sandboxInput" class="w-full h-32 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/5 rounded-xl p-4 text-sm focus:outline-none focus:border-cyan-500 transition-colors" placeholder="Type here to test typography...">Gather is the all-in-one platform for creators and agencies to manage smart links, digital stores, and team collaboration.</textarea>
+          
+          <div class="p-4 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/5 rounded-xl">
+            <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Result Preview</span>
+            <p id="sandboxPreview" class="font-sans font-semibold text-lg mt-2 break-words">Gather is the all-in-one platform for creators and agencies to manage smart links, digital stores, and team collaboration.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="border-zinc-200/50 dark:border-white/5" />
+
+    <!-- UI Mockup Playground (Components Preview) -->
+    <section class="space-y-8">
+      <div>
+        <h2 class="font-display font-bold text-3xl tracking-tight mb-2">Live UI Component Reference</h2>
+        <p class="text-zinc-500 dark:text-zinc-400">Preview components as they are rendered inside the Gather application dashboard using our specifications.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Component A: Analytics Card -->
+        <div class="p-8 rounded-[2rem] bg-white dark:bg-[#12121A] border border-zinc-200/60 dark:border-white/[0.05] shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-all relative overflow-hidden">
+          <!-- Background Glow subtle -->
+          <div class="absolute -right-12 -top-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-[40px] pointer-events-none"></div>
+          
+          <div class="flex items-center justify-between mb-6">
+            <span class="text-xs uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500">Live Workspace Clicks</span>
+            <span class="text-xs font-bold text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+              <span class="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse"></span> Live
+            </span>
+          </div>
+
+          <div class="space-y-1">
+            <span class="font-display font-bold text-4xl tracking-tight">128,492</span>
+            <p class="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Total tracked visitor engagements</p>
+          </div>
+
+          <div class="mt-8 pt-6 border-t border-zinc-100 dark:border-white/5 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
+              <span class="text-sm font-semibold text-zinc-600 dark:text-zinc-300">Social Clicks</span>
+            </div>
+            <span class="text-sm font-bold">64.2%</span>
+          </div>
+        </div>
+
+        <!-- Component B: Custom Interactive Action -->
+        <div class="p-8 rounded-[2rem] bg-white dark:bg-[#12121A] border border-zinc-200/60 dark:border-white/[0.05] shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col justify-between">
+          <div class="space-y-3">
+            <h4 class="font-display font-bold text-xl">Interactive Action Card</h4>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">This card showcases buttons and badges utilizing the correct spacing, rounded-xl borders, and active micro-scale states.</p>
+          </div>
+
+          <div class="mt-8 flex flex-wrap gap-3">
+            <button class="px-5 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 text-xs font-bold shadow-lg shadow-black/10 hover:opacity-90 active:scale-95 transition-all">
+              Primary Button
+            </button>
+            <button class="px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-white/5 active:scale-95 transition-all">
+              Secondary Options
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Copy Alert Toast (Container) -->
+  <div id="toast" class="hidden fixed bottom-8 left-1/2 -translate-x-1/2 bg-zinc-900/90 dark:bg-white/90 backdrop-blur-md text-white dark:text-zinc-900 px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 toast-animate border border-white/10 dark:border-zinc-900/10">
+    <svg class="w-4 h-4 text-cyan-400 dark:text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+    <span id="toastMsg" class="text-xs font-bold tracking-wide">Hex Code Copied!</span>
+  </div>
+
+  <footer class="w-full py-8 border-t border-zinc-200/50 dark:border-white/5 transition-colors">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-xs text-zinc-400 dark:text-zinc-500">© 2026 Gather. All Rights Reserved.</p>
+      <p class="text-xs text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5">
+        Designed for Gather Graphics Engineering Team
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Theme logic
+    const html = document.documentElement;
+    const toggleBtn = document.getElementById('themeToggle');
+    
+    // Check local storage or set dark class
+    const storedTheme = localStorage.getItem('gather-theme');
+    if (storedTheme === 'light') {
+      html.classList.remove('dark');
+    } else {
+      html.classList.add('dark');
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('gather-theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('gather-theme', 'dark');
+      }
+    });
+
+    // Copy to Clipboard logic
+    function copyColor(hex, element) {
+      navigator.clipboard.writeText(hex).then(() => {
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+        toastMsg.textContent = `Hex Code ${hex} Copied!`;
+        
+        toast.classList.remove('hidden');
+        
+        // Hide toast after 2 seconds
+        setTimeout(() => {
+          toast.classList.add('hidden');
+        }, 2200);
+      });
+    }
+
+    // Typography Sandbox Logic
+    const sandboxInput = document.getElementById('sandboxInput');
+    const sandboxPreview = document.getElementById('sandboxPreview');
+    const fontSelect = document.getElementById('fontSelect');
+    const weightSelect = document.getElementById('weightSelect');
+
+    function updatePreview() {
+      // Clear classes
+      sandboxPreview.className = '';
+      
+      const text = sandboxInput.value.trim() || "Type something to test...";
+      sandboxPreview.textContent = text;
+      
+      const fontClass = fontSelect.value;
+      const weightClass = weightSelect.value;
+      
+      // Apply configured typography
+      sandboxPreview.classList.add(fontClass);
+      sandboxPreview.classList.add(weightClass);
+      sandboxPreview.classList.add('text-lg', 'mt-2', 'break-words');
+    }
+
+    sandboxInput.addEventListener('input', updatePreview);
+    fontSelect.addEventListener('change', updatePreview);
+    weightSelect.addEventListener('change', updatePreview);
+    updatePreview();
+  </script>
+</body>
+</html>

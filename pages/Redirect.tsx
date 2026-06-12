@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Loader2, AlertCircle, ArrowRight, Globe, Lock } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Loader2, AlertCircle, ArrowRight, Globe, Lock, ArrowLeft, Download, Maximize2, ChevronLeft, ChevronRight, Sparkles, Info, ExternalLink, Zap, Camera, Sliders, ShieldCheck, Share2, Eye, Compass, ShoppingBag } from 'lucide-react';
 import { LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { isSupabaseConfigured } from '../services/storage/supabaseClient';
@@ -97,6 +97,9 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           }
 
           // If no password and valid type, proceed
+          if (link.type === 'gallery') {
+            return;
+          }
           await processRedirect(link);
         } else {
           setError("Link not found");
@@ -377,6 +380,9 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
     e.preventDefault();
     if (targetLink && targetLink.password === passwordInput) {
       setIsLocked(false);
+      if (targetLink.type === 'gallery') {
+        return;
+      }
       await processRedirect(targetLink);
     } else {
       setPasswordError(true);
@@ -429,6 +435,12 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
     );
   }
 
+  if (targetLink && !isLocked && !error && targetLink.type === 'gallery') {
+    return (
+      <GalleryView link={targetLink} recordClick={recordClick} />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
       <div className="text-center w-full max-w-md">
@@ -467,6 +479,405 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+interface GalleryViewProps {
+  link: LinkData;
+  recordClick: (link: LinkData, destinationUrl?: string) => Promise<void>;
+}
+
+const GalleryView: React.FC<GalleryViewProps> = ({ link, recordClick }) => {
+  const metadata = link.metadata || {};
+  const galleryItems = metadata.galleryItems || [];
+  const beforeAfter = metadata.beforeAfter || { beforeUrl: '', afterUrl: '', beforeLabel: 'Standard HDR', afterLabel: 'Raw Recovery' };
+  const creatorProduct = metadata.creatorProduct || { title: '', description: '', price: '', buttonText: 'Get Preset Pack', buttonUrl: '', imageUrl: '' };
+  const sponsor = metadata.sponsor || { title: '', description: '', buttonText: 'Buy Now', buttonUrl: '' };
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [showExif, setShowExif] = useState(true);
+  const [countdown, setCountdown] = useState(8);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // Before/After Slider state
+  const [sliderPosition, setSliderPosition] = useState(50);
+  const isResizingRef = useRef(false);
+  const sliderContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsUnlocked(true);
+    }
+  }, [countdown]);
+
+  const handleDownloadDrive = async () => {
+    setIsRedirecting(true);
+    await recordClick(link, link.originalUrl);
+    window.open(link.originalUrl, "_blank");
+    setIsRedirecting(false);
+  };
+
+  const handlePrev = () => {
+    if (galleryItems.length === 0) return;
+    setActiveIndex(prev => (prev === 0 ? galleryItems.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    if (galleryItems.length === 0) return;
+    setActiveIndex(prev => (prev === galleryItems.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleMove = (clientX: number) => {
+    if (!sliderContainerRef.current) return;
+    const rect = sliderContainerRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const position = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    setSliderPosition(position);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      handleMove(e.touches[0].clientX);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (e.buttons === 1 || isResizingRef.current) {
+      handleMove(e.clientX);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] text-slate-900 font-sans antialiased relative overflow-x-hidden selection:bg-yellow-200">
+      {/* Background Blob Blurs */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-yellow-200/20 via-purple-200/10 to-transparent blur-3xl -z-10 rounded-full opacity-60 pointer-events-none" />
+
+      {/* Sticky Countdown Header Bar */}
+      <div className="sticky top-0 bg-[#FDFBF7]/80 backdrop-blur-md border-b border-stone-200/60 z-50 px-6 py-3.5 flex items-center justify-between text-sm">
+        <div className="flex items-center gap-3">
+          <span className="font-bold tracking-tight text-slate-900">{link.domain || 'links.trak.in'}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-stone-500 hidden sm:inline">
+            {!isUnlocked ? `Unlocking original files in ${countdown}s...` : "Files unlocked and ready!"}
+          </span>
+          <button
+            onClick={handleDownloadDrive}
+            disabled={!isUnlocked || isRedirecting}
+            className={`px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md ${
+              isUnlocked 
+                ? 'bg-slate-900 hover:bg-slate-800 text-white hover:scale-[1.02] shadow-slate-950/10' 
+                : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+            }`}
+          >
+            {isRedirecting ? (
+              <span>Connecting...</span>
+            ) : !isUnlocked ? (
+              <span>Locked ({countdown}s)</span>
+            ) : (
+              <>
+                <span>Get RAW Files</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-6 py-8 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Area: Gallery Slideshow & Details (Col Span 8) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Header info */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="bg-yellow-400/20 text-yellow-800 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">
+                Camera Samples
+              </span>
+              <span className="text-xs text-stone-400 flex items-center gap-1 font-medium">
+                <Eye className="w-3.5 h-3.5" /> {link.clicks} views
+              </span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+              {link.title || 'Camera Sample Gallery'}
+            </h1>
+            {link.description && (
+              <p className="text-stone-500 text-sm leading-relaxed">
+                {link.description}
+              </p>
+            )}
+          </div>
+
+          {/* Main Slideshow Container */}
+          {galleryItems.length > 0 ? (
+            <div className="relative rounded-[2rem] overflow-hidden border border-stone-200 bg-white aspect-video shadow-xl shadow-stone-100/40 group">
+              
+              {/* Slideshow controls */}
+              {galleryItems.length > 1 && (
+                <>
+                  <button 
+                    onClick={handlePrev}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 hover:bg-white text-slate-900 rounded-full z-20 backdrop-blur-md border border-stone-200/50 shadow-md transition-all hover:scale-105"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 hover:bg-white text-slate-900 rounded-full z-20 backdrop-blur-md border border-stone-200/50 shadow-md transition-all hover:scale-105"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+
+              {/* Image Frame */}
+              <div className="w-full h-full flex items-center justify-center relative bg-stone-50">
+                <img 
+                  src={galleryItems[activeIndex].url} 
+                  alt={galleryItems[activeIndex].title || 'Gallery sample'}
+                  className="w-full h-full object-contain transition-all duration-300"
+                />
+                
+                {/* Category overlay */}
+                {galleryItems[activeIndex].category && (
+                  <span className="absolute top-4 left-4 bg-slate-900 text-white text-[10px] uppercase font-bold tracking-widest px-3 py-1.5 rounded-xl shadow-sm">
+                    {galleryItems[activeIndex].category}
+                  </span>
+                )}
+
+                {/* Info overlay toggle */}
+                <div className="absolute top-4 right-4 flex gap-2">
+                  <button 
+                    onClick={() => setShowExif(!showExif)}
+                    className={`p-2.5 rounded-xl text-xs font-bold transition-all border shadow-sm ${showExif ? 'bg-yellow-400 border-yellow-400 text-slate-900 font-extrabold' : 'bg-white border-stone-200 text-stone-500 hover:text-slate-900'}`}
+                    title="Toggle Camera Info"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* EXIF Data Panel Overlay */}
+              {showExif && (
+                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-stone-200/60 text-xs grid grid-cols-2 md:grid-cols-5 gap-3 text-stone-600 shadow-xl shadow-stone-900/5">
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] text-stone-400 uppercase font-bold block">Camera</span>
+                    <span className="font-bold text-slate-900 flex items-center gap-1 truncate">
+                      <Camera className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                      {galleryItems[activeIndex].camera || 'Unknown Model'}
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] text-stone-400 uppercase font-bold block">Sensor/Lens</span>
+                    <span className="font-bold text-slate-900 truncate block">{galleryItems[activeIndex].sensor || 'Standard'}</span>
+                  </div>
+                  <div className="space-y-0.5 text-right md:text-left">
+                    <span className="text-[9px] text-stone-400 uppercase font-bold block">Aperture</span>
+                    <span className="font-bold text-slate-900 font-mono">{galleryItems[activeIndex].aperture || 'f/1.8'}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] text-stone-400 uppercase font-bold block">Exposure</span>
+                    <span className="font-bold text-slate-900 font-mono">{galleryItems[activeIndex].shutter || '1/120s'} @ ISO {galleryItems[activeIndex].iso || '100'}</span>
+                  </div>
+                  <div className="space-y-0.5 text-right">
+                    <span className="text-[9px] text-stone-400 uppercase font-bold block">Size</span>
+                    <span className="font-bold text-orange-600 font-mono">{galleryItems[activeIndex].size || 'Original'}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-[2rem] border border-stone-200 text-stone-400">
+              No photos uploaded to this gallery.
+            </div>
+          )}
+
+          {/* Thumbnail Selector Bar */}
+          {galleryItems.length > 1 && (
+            <div className="grid grid-cols-4 gap-4 mt-4">
+              {galleryItems.map((sample: any, idx: number) => (
+                <button
+                  key={sample.id}
+                  onClick={() => setActiveIndex(idx)}
+                  className={`rounded-[1.2rem] overflow-hidden aspect-video border-2 bg-stone-100 transition-all ${idx === activeIndex ? 'border-yellow-400 scale-[1.02] shadow-md shadow-stone-200' : 'border-stone-200 opacity-60 hover:opacity-100'}`}
+                >
+                  <img src={sample.url} className="w-full h-full object-cover" alt="" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Interactive Before/After Camera Comparison Slider */}
+          {beforeAfter && beforeAfter.beforeUrl && beforeAfter.afterUrl && (
+            <div className="bg-white border border-stone-200 rounded-[2rem] p-6 space-y-4 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-yellow-500" />
+                    Dynamic Performance Slider
+                  </h3>
+                  <p className="text-xs text-stone-500">Drag the handle to compare standard HDR processing vs Raw recovery.</p>
+                </div>
+                <span className="bg-yellow-400/20 text-yellow-800 text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 rounded-md border border-yellow-400/30">
+                  Raw Compare
+                </span>
+              </div>
+
+              {/* Slider frame */}
+              <div 
+                ref={sliderContainerRef}
+                onMouseMove={handleMouseMove}
+                onTouchMove={handleTouchMove}
+                onMouseDown={() => { isResizingRef.current = true; }}
+                onMouseUp={() => { isResizingRef.current = false; }}
+                onMouseLeave={() => { isResizingRef.current = false; }}
+                className="relative w-full aspect-video rounded-2xl overflow-hidden border border-stone-200 bg-stone-50 cursor-ew-resize select-none shadow-inner"
+              >
+                {/* Standard HDR (Right / Background) */}
+                <img 
+                  src={beforeAfter.afterUrl} 
+                  alt="After"
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                />
+                <div className="absolute bottom-4 right-4 bg-slate-900/90 text-white text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded-md shadow-sm">
+                  {beforeAfter.afterLabel || 'Raw Recovery'}
+                </div>
+
+                {/* Raw recovery (Left / Overlay) */}
+                <div 
+                  className="absolute inset-0 overflow-hidden pointer-events-none"
+                  style={{ width: `${sliderPosition}%` }}
+                >
+                  <img 
+                    src={beforeAfter.beforeUrl} 
+                    alt="Before"
+                    className="absolute inset-0 w-full h-full object-cover max-w-none"
+                    style={{ width: sliderContainerRef.current?.getBoundingClientRect().width }}
+                  />
+                  <div className="absolute bottom-4 left-4 bg-yellow-400 text-slate-900 text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded-md font-bold shadow-sm">
+                    {beforeAfter.beforeLabel || 'Standard HDR'}
+                  </div>
+                </div>
+
+                {/* Slider Handle Line */}
+                <div 
+                  className="absolute top-0 bottom-0 w-1 bg-yellow-400 pointer-events-none shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                  style={{ left: `${sliderPosition}%` }}
+                >
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-yellow-400 text-slate-950 rounded-full flex items-center justify-center border-4 border-[#FDFBF7] font-bold text-xs select-none shadow-md">
+                    ↔
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Area: Premium Store Promotion & Info (Col Span 4) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Native Sponsor Banner (Monetization Slot 1) */}
+          {sponsor && sponsor.title && sponsor.buttonUrl && (
+            <div className="bg-gradient-to-br from-yellow-50 to-orange-50/60 border border-yellow-200/50 rounded-[2rem] p-6 shadow-md shadow-yellow-100/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-200/20 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none" />
+              
+              <div className="space-y-4 relative z-10">
+                <span className="bg-slate-900/10 text-slate-700 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-slate-900/15">
+                  Recommended Sponsor Deal
+                </span>
+
+                <div className="space-y-1">
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-tight">{sponsor.title}</h3>
+                  {sponsor.description && (
+                    <p className="text-xs text-stone-500 leading-relaxed">{sponsor.description}</p>
+                  )}
+                </div>
+
+                <a 
+                  href={sponsor.buttonUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-bold text-sm text-center block transition-all active:scale-[0.98] shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag className="w-4 h-4 text-yellow-400" />
+                  {sponsor.buttonText || 'Buy Now'}
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Native Product / Wallpaper Pack Ad (Monetization Slot 2) */}
+          {creatorProduct && creatorProduct.title && creatorProduct.buttonUrl && (
+            <div className="bg-white border border-stone-200 rounded-[2rem] p-6 shadow-md shadow-stone-100/40 relative overflow-hidden group">
+              <div className="space-y-6">
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest block">Featured Creator Product</span>
+                
+                {/* Product Image preview */}
+                {creatorProduct.imageUrl && (
+                  <div className="aspect-video bg-stone-50 rounded-2xl border border-stone-200 overflow-hidden relative shadow-inner">
+                    <img 
+                      src={creatorProduct.imageUrl} 
+                      alt="Product Preview" 
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-slate-900/5" />
+                    {creatorProduct.price && (
+                      <span className="absolute bottom-2 right-2 bg-yellow-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
+                        {creatorProduct.price}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <h4 className="text-base font-bold text-slate-900">{creatorProduct.title}</h4>
+                  {creatorProduct.description && (
+                    <p className="text-xs text-stone-500 leading-relaxed">{creatorProduct.description}</p>
+                  )}
+                </div>
+
+                <a 
+                  href={creatorProduct.buttonUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 py-3.5 rounded-xl font-bold text-sm text-center block transition-all active:scale-[0.98] shadow-lg shadow-yellow-400/10 flex items-center justify-center gap-1.5"
+                >
+                  <span>{creatorProduct.buttonText || 'Get Pack'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Technical Verification widget */}
+          <div className="bg-white border border-stone-200 rounded-[2rem] p-6 space-y-4 shadow-sm">
+            <h4 className="text-xs uppercase tracking-widest font-bold text-stone-400">File Verification</h4>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 text-xs">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-bold text-slate-900 block">Virustotal Clean</span>
+                  <span className="text-stone-400 text-[10px]">MD5 check passed</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 text-xs">
+                <Zap className="w-5 h-5 text-yellow-500 shrink-0" />
+                <div>
+                  <span className="font-bold text-slate-900 block">Uncompressed Original</span>
+                  <span className="text-stone-400 text-[10px]">Zero compression. High dynamic range intact.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
     </div>
   );
 };
