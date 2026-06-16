@@ -6,6 +6,7 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { extractProductDetails } from '../services/geminiService';
 import { toast } from 'sonner';
 import { Product } from '../types';
+import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
 
 const AddProduct: React.FC = () => {
     const { user } = useAuth();
@@ -109,14 +110,26 @@ const AddProduct: React.FC = () => {
 
         setLoading(true);
         try {
+            let monetizedUrl = destinationUrl;
+            if (product.type !== 'digital' && destinationUrl) {
+                let urlToMonetize = destinationUrl.trim();
+                if (isShortAmazonUrl(urlToMonetize)) {
+                    urlToMonetize = await resolveShortUrl(urlToMonetize);
+                }
+                monetizedUrl = monetizeUrl(urlToMonetize, {
+                    amazonAssociateTag: user?.amazonAssociateTag,
+                    flipkartAffiliateId: user?.flipkartAffiliateId
+                });
+            }
+
             const productData = {
                 ...product,
                 userId: user.id,
                 salesCount: product.salesCount || 0,
-                originalUrl: product.type !== 'digital' ? destinationUrl : undefined,
+                originalUrl: product.type !== 'digital' ? monetizedUrl : undefined,
                 // Logic for physical vs digital
                 linkId: (product.type !== 'digital' && destinationUrl) ? (await supabaseAdapter.createLink({
-                    originalUrl: destinationUrl,
+                    originalUrl: monetizedUrl,
                     shortCode: Math.random().toString(36).substring(7),
                     title: product.name || 'Product Link',
                     clicks: 0,

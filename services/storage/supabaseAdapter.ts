@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ProductRow, DomainRow } from './mappers';
+import { isShortAmazonUrl, resolveShortUrl, monetizeUrl } from '../../utils/affiliateUtils';
 import { AnalyticsRepository } from './repositories/AnalyticsRepository';
 import { AssetRepository } from './repositories/AssetRepository';
 import { BioRepository } from './repositories/BioRepository';
@@ -130,29 +131,79 @@ export class SupabaseAdapter {
     return this.linkRepo.getLink(id);
   }
 
+  async syncLinkToKv(link: LinkData): Promise<void> {
+    if (typeof window === 'undefined') return;
+    try {
+      await fetch('/api/link/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shortCode: link.shortCode,
+          originalUrl: link.originalUrl,
+          id: link.id,
+          password: !!link.password,
+          expiration: link.expirationDate,
+          start: link.startDate
+        })
+      });
+    } catch (err) {
+      console.error('Failed to sync link to Vercel KV:', err);
+    }
+  }
+
+  async deleteLinkFromKv(shortCode: string): Promise<void> {
+    if (typeof window === 'undefined') return;
+    try {
+      await fetch('/api/link/sync', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shortCode })
+      });
+    } catch (err) {
+      console.error('Failed to delete link from Vercel KV:', err);
+    }
+  }
+
   async createLink(link: Omit<LinkData, 'id'> & { id?: string }): Promise<LinkData & { _isExisting?: boolean }> {
-    return this.linkRepo.createLink(link);
+    const createdLink = await this.linkRepo.createLink(link);
+    await this.syncLinkToKv(createdLink);
+    return createdLink;
   }
 
   async bulkCreateLinks(links: Omit<LinkData, 'id' | 'createdAt' | 'clicks' | 'clickHistory'>[]): Promise<LinkData[]> {
-    return this.linkRepo.bulkCreateLinks(links);
+    const createdLinks = await this.linkRepo.bulkCreateLinks(links);
+    await Promise.allSettled(createdLinks.map(l => this.syncLinkToKv(l)));
+    return createdLinks;
   }
 
-
   async updateLink(id: string, updates: Partial<LinkData>): Promise<LinkData> {
-    return this.linkRepo.updateLink(id, updates);
+    const updatedLink = await this.linkRepo.updateLink(id, updates);
+    await this.syncLinkToKv(updatedLink);
+    return updatedLink;
   }
 
   async deleteLink(id: string): Promise<void> {
-    return this.linkRepo.deleteLink(id);
+    const link = await this.getLink(id);
+    await this.linkRepo.deleteLink(id);
+    if (link?.shortCode) {
+      await this.deleteLinkFromKv(link.shortCode);
+    }
   }
 
   async archiveLink(id: string): Promise<void> {
-    return this.linkRepo.archiveLink(id);
+    const link = await this.getLink(id);
+    await this.linkRepo.archiveLink(id);
+    if (link?.shortCode) {
+      await this.deleteLinkFromKv(link.shortCode);
+    }
   }
 
   async restoreLink(id: string): Promise<void> {
-    return this.linkRepo.restoreLink(id);
+    await this.linkRepo.restoreLink(id);
+    const link = await this.getLink(id);
+    if (link) {
+      await this.syncLinkToKv(link);
+    }
   }
 
   async updateLinkOrder(ids: string[]): Promise<void> {
@@ -545,6 +596,41 @@ export class SupabaseAdapter {
       clickEvents,
       exportedAt: Date.now()
     };
+  }
+
+  async propagateAffiliateTags(userId: string, amazonTag?: string, flipkartId?: string): Promise<void> {
+    if (!supabase) return;
+
+    const { data: userLinks, error } = await supabase
+        .from('links')
+        .select('*')
+        .eq('user_id', userId);
+
+    if (error || !userLinks) {
+        console.error('Failed to fetch user links for tag propagation:', error);
+        return;
+    }
+
+    const config = { amazonAssociateTag: amazonTag, flipkartAffiliateId: flipkartId };
+
+    for (const row of userLinks) {
+        const originalUrl = row.original_url || '';
+        
+        const isAmazon = /amazon\.(com|in|co\.uk|de|fr|co\.jp|ca|es|it)/i.test(originalUrl) || /amzn\.(to|in)/i.test(originalUrl);
+        const isFlipkart = /flipkart\.com/i.test(originalUrl);
+        
+        if (isAmazon || isFlipkart) {
+            let resolvedUrl = originalUrl;
+            if (isShortAmazonUrl(originalUrl)) {
+                resolvedUrl = await resolveShortUrl(originalUrl);
+            }
+            const monetizedUrl = monetizeUrl(resolvedUrl, config);
+            
+            if (monetizedUrl !== originalUrl) {
+                await this.updateLink(row.id, { originalUrl: monetizedUrl });
+            }
+        }
+    }
   }
 }
 

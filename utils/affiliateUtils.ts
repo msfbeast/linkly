@@ -103,3 +103,46 @@ export const monetizeUrl = (url: string, config: AffiliateConfig): string => {
         return url;
     }
 };
+
+export const isShortAmazonUrl = (url: string): boolean => {
+    try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.replace('www.', '');
+        return hostname === 'amzn.to' || hostname === 'amzn.in' || (hostname === 'amazon.in' && urlObj.pathname.startsWith('/d/'));
+    } catch {
+        return false;
+    }
+};
+
+export const resolveShortUrl = async (url: string): Promise<string> => {
+    if (!isShortAmazonUrl(url)) return url;
+    try {
+        const res = await fetch(`/api/link/resolve?url=${encodeURIComponent(url)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.url) return data.url;
+        }
+        return url;
+    } catch (e) {
+        console.error('Failed to resolve short URL:', e);
+        return url;
+    }
+};
+
+export const resolveShortUrlBackend = async (url: string): Promise<string> => {
+    if (!isShortAmazonUrl(url)) return url;
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            redirect: 'follow',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            }
+        });
+        return response.url;
+    } catch (e) {
+        console.error('Failed to resolve short URL backend:', e);
+        return url;
+    }
+};
+

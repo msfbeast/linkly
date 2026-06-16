@@ -5,6 +5,23 @@ export const config = {
 };
 
 export default async function handler(request: Request) {
+    if (request.method === 'DELETE') {
+        try {
+            const { shortCode } = await request.json();
+            if (!shortCode) {
+                return new Response('Missing shortCode', { status: 400 });
+            }
+            await kv.del(`gather:link:${shortCode}`);
+            return new Response(JSON.stringify({ success: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        } catch (error) {
+            console.error('Sync DELETE API Error:', error);
+            return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+        }
+    }
+
     if (request.method !== 'POST') {
         return new Response('Method not allowed', { status: 405 });
     }

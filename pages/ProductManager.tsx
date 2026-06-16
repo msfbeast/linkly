@@ -6,7 +6,7 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { toast } from 'sonner';
 import { supabase } from '../services/storage/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { monetizeUrl } from '../utils/affiliateUtils';
+import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
 
 import { extractProductDetails } from '../services/geminiService';
 import { extractProductMetadata } from '../services/extractionService';
@@ -148,6 +148,18 @@ const ProductManager: React.FC = () => {
         if (!user?.id) return;
         setLoading(true);
         try {
+            let monetizedUrl = destinationUrl;
+            if (currentProduct.type !== 'digital' && destinationUrl) {
+                let urlToMonetize = destinationUrl.trim();
+                if (isShortAmazonUrl(urlToMonetize)) {
+                    urlToMonetize = await resolveShortUrl(urlToMonetize);
+                }
+                monetizedUrl = monetizeUrl(urlToMonetize, {
+                    amazonAssociateTag: user?.amazonAssociateTag,
+                    flipkartAffiliateId: user?.flipkartAffiliateId
+                });
+            }
+
             const productData = {
                 ...currentProduct,
                 userId: user.id,
@@ -156,11 +168,11 @@ const ProductManager: React.FC = () => {
                 fileUrl: currentProduct.fileUrl,
                 fileName: currentProduct.fileName,
                 salesCount: currentProduct.salesCount || 0,
-                originalUrl: currentProduct.type !== 'digital' ? destinationUrl : undefined,
+                originalUrl: currentProduct.type !== 'digital' ? monetizedUrl : undefined,
                 // If it's physical, we might need a link. If digital, we might not need a tracked link immediately or we use a different mechanism.
                 // For now, let's keep the link creation logic but only if destinationUrl is present (Physical).
                 linkId: (currentProduct.type !== 'digital' && destinationUrl) ? (await supabaseAdapter.createLink({
-                    originalUrl: destinationUrl,
+                    originalUrl: monetizedUrl,
                     shortCode: Math.random().toString(36).substring(7),
                     title: currentProduct.name || 'Product Link',
                     clicks: 0,

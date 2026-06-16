@@ -457,6 +457,28 @@ export const authService = {
       },
     });
 
+    if (data?.user) {
+      try {
+        await supabaseAdapter.updateProfile(data.user.id, {
+          fullName: updates.displayName,
+          storefrontTheme: updates.storefrontTheme as any,
+          storeName: updates.storeName,
+          storeLogoUrl: updates.storeLogoUrl,
+          storeBannerUrl: updates.storeBannerUrl,
+          storeDescription: updates.storeDescription,
+          storeButtonText: updates.storeButtonText,
+          storeHeroBadge: updates.storeHeroBadge,
+          storeMarqueeText: updates.storeMarqueeText,
+          storeSocialUrl: updates.storeSocialUrl,
+          upiId: updates.upiId,
+          flipkartAffiliateId: updates.flipkartAffiliateId,
+          amazonAssociateTag: updates.amazonAssociateTag,
+        });
+      } catch (dbError) {
+        console.error('Failed to sync changes to database profiles table:', dbError);
+      }
+    }
+
     return {
       user: mapSupabaseUser(data.user),
       session: null, // Session isn't returned by updateUser, but user data is

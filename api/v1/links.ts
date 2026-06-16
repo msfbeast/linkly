@@ -1,5 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
+import { kv } from '@vercel/kv';
+import { monetizeUrl, isShortAmazonUrl, resolveShortUrlBackend } from '../../utils/affiliateUtils';
 
 export const config = {
     runtime: 'edge',
@@ -81,6 +83,31 @@ export default async function handler(request: Request) {
             });
         }
 
+        let monetizedUrl = url;
+        try {
+            // Fetch User Profile Affiliate Config
+            const profileRes = await supabase
+                .from('profiles')
+                .select('amazon_associate_tag, flipkart_affiliate_id')
+                .eq('id', keyData.user_id)
+                .single();
+
+            const profile = profileRes?.data;
+            if (profile) {
+                let urlToMonetize = url.trim();
+                if (isShortAmazonUrl(urlToMonetize)) {
+                    urlToMonetize = await resolveShortUrlBackend(urlToMonetize);
+                }
+                const config = {
+                    amazonAssociateTag: profile.amazon_associate_tag,
+                    flipkartAffiliateId: profile.flipkart_affiliate_id,
+                };
+                monetizedUrl = monetizeUrl(urlToMonetize, config);
+            }
+        } catch (profileError) {
+            console.warn('[API] Gracefully ignored profile lookup error:', profileError);
+        }
+
         // 4. Create Short Link
         // Generate a random short code (6 chars)
         const shortCode = Math.random().toString(36).substring(2, 8);
@@ -89,9 +116,9 @@ export default async function handler(request: Request) {
             .from('links')
             .insert({
                 user_id: keyData.user_id,
-                original_url: url,
+                original_url: monetizedUrl,
                 short_code: shortCode,
-                title: title || new URL(url).hostname,
+                title: title || new URL(monetizedUrl).hostname,
                 tags: tags || [],
                 created_at: new Date().toISOString()
             })
@@ -104,6 +131,18 @@ export default async function handler(request: Request) {
                 status: 500,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
+        }
+
+        // Sync to Vercel KV Cache
+        if (link) {
+            try {
+                await kv.set(`gather:link:${shortCode}`, {
+                    url: link.original_url,
+                    id: link.id
+                });
+            } catch (kvError) {
+                console.error('[API] Failed to sync to Vercel KV cache:', kvError);
+            }
         }
 
         // 5. Success Response

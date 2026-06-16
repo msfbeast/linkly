@@ -164,9 +164,18 @@ const Settings: React.FC = () => {
         amazonAssociateTag: amazonTag
       });
       if (result.success) {
+        toast.success('Monetization settings saved!');
+        if (user?.id) {
+          toast.info('Updating existing links with new tags...');
+          await supabaseAdapter.propagateAffiliateTags(user.id, amazonTag, flipkartId);
+          toast.success('Existing links updated successfully!');
+        }
+      } else {
+        toast.error(result.error || 'Failed to update monetization settings.');
       }
     } catch (error) {
       console.error('Failed to update monetization settings', error);
+      toast.error('An error occurred while saving monetization settings.');
     } finally {
       setIsSavingMonetization(false);
     }

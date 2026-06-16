@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save, Upload, Image as ImageIcon, Trash2, Camera, Sliders, Info, RefreshCw } from 'lucide-react';
 import UTMBuilderModal from './UTMBuilderModal';
 import { analyzeUrlWithGemini, GeminiAnalysisResult, generateLinkMetadata } from '../services/geminiService';
-import { monetizeUrl } from '../utils/affiliateUtils';
+import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
 import { LinkData, SmartRedirects, Folder, Domain, LinkType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { TagInput } from './TagInput';
@@ -324,7 +324,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     setGalleryItems(galleryItems.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
-  const handleSingleSubmit = (e: React.FormEvent) => {
+  const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url || !slug) return;
 
@@ -335,7 +335,12 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       }
     });
 
-    const cleanUrl = monetizeUrl(url.trim(), {
+    let urlToMonetize = url.trim();
+    if (isShortAmazonUrl(urlToMonetize)) {
+      urlToMonetize = await resolveShortUrl(urlToMonetize);
+    }
+
+    const cleanUrl = monetizeUrl(urlToMonetize, {
       amazonAssociateTag: user?.amazonAssociateTag,
       flipkartAffiliateId: user?.flipkartAffiliateId
     });
@@ -401,27 +406,33 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     resetAndClose();
   };
 
-  const handleBulkSubmit = () => {
+  const handleBulkSubmit = async () => {
     const urls = bulkUrls.split('\n').filter(u => u.trim().length > 0);
-    const newLinks: LinkData[] = urls.map(u => {
-      const cleanUrl = monetizeUrl(u.trim(), {
-        amazonAssociateTag: user?.amazonAssociateTag,
-        flipkartAffiliateId: user?.flipkartAffiliateId
-      });
-      return {
-        id: uuidv4(),
-        originalUrl: cleanUrl,
-        shortCode: Math.random().toString(36).substring(2, 8),
-        title: u.trim(),
-        description: 'Bulk created link',
-        tags: ['bulk'],
-        clicks: 0,
-        clickHistory: [],
-        createdAt: Date.now(),
-        smartRedirects: {},
-        aiAnalysis: undefined
-      };
-    });
+    const newLinks: LinkData[] = await Promise.all(
+      urls.map(async u => {
+        let urlToMonetize = u.trim();
+        if (isShortAmazonUrl(urlToMonetize)) {
+          urlToMonetize = await resolveShortUrl(urlToMonetize);
+        }
+        const cleanUrl = monetizeUrl(urlToMonetize, {
+          amazonAssociateTag: user?.amazonAssociateTag,
+          flipkartAffiliateId: user?.flipkartAffiliateId
+        });
+        return {
+          id: uuidv4(),
+          originalUrl: cleanUrl,
+          shortCode: Math.random().toString(36).substring(2, 8),
+          title: u.trim(),
+          description: 'Bulk created link',
+          tags: ['bulk'],
+          clicks: 0,
+          clickHistory: [],
+          createdAt: Date.now(),
+          smartRedirects: {},
+          aiAnalysis: undefined
+        };
+      })
+    );
 
     onBulkCreate(newLinks);
     resetAndClose();
@@ -469,7 +480,10 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           const tags = tagsIndex !== -1 ? values[tagsIndex]?.split('|') : [];
 
           // Clean and Monetize
-          const rawUrl = url.startsWith('http') ? url : `https://${url}`;
+          let rawUrl = url.startsWith('http') ? url : `https://${url}`;
+          if (isShortAmazonUrl(rawUrl)) {
+            rawUrl = await resolveShortUrl(rawUrl);
+          }
           const cleanUrl = monetizeUrl(rawUrl, {
             amazonAssociateTag: user?.amazonAssociateTag,
             flipkartAffiliateId: user?.flipkartAffiliateId

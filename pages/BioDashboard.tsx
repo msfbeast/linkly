@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { BioProfile, LinkData, LinkType } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
 import { generateBio } from '../services/geminiService';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -898,8 +899,17 @@ const BioDashboard: React.FC = () => {
                                     if (!url || !title) return;
 
                                     try {
+                                        let urlToMonetize = url.trim();
+                                        if (isShortAmazonUrl(urlToMonetize)) {
+                                            urlToMonetize = await resolveShortUrl(urlToMonetize);
+                                        }
+                                        const cleanUrl = monetizeUrl(urlToMonetize, {
+                                            amazonAssociateTag: user?.amazonAssociateTag,
+                                            flipkartAffiliateId: user?.flipkartAffiliateId
+                                        });
+
                                         const newLink = await supabaseAdapter.createLink({
-                                            originalUrl: url,
+                                            originalUrl: cleanUrl,
                                             shortCode: Math.random().toString(36).substring(7),
                                             title,
                                             tags: [],
