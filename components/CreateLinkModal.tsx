@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save, Upload, Image as ImageIcon, Trash2, Camera, Sliders, Info, RefreshCw } from 'lucide-react';
+import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save, Upload, Image as ImageIcon, Trash2, Camera, Sliders, Info, RefreshCw, Check, Copy, Download } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import UTMBuilderModal from './UTMBuilderModal';
 import { analyzeUrlWithGemini, GeminiAnalysisResult, generateLinkMetadata } from '../services/geminiService';
 import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
@@ -18,11 +19,134 @@ import { extractDriveFolderId, fetchDriveFolderImages } from '../services/google
 interface CreateLinkModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (link: LinkData) => void;
-  onUpdate: (id: string, link: Partial<LinkData>) => void;
-  onBulkCreate: (links: LinkData[]) => void;
+  onCreate: (link: LinkData) => Promise<void>;
+  onUpdate: (id: string, link: Partial<LinkData>) => Promise<void>;
+  onBulkCreate: (links: LinkData[]) => Promise<void>;
   editingLink?: LinkData | null;
 }
+
+const SuccessView: React.FC<{ links: LinkData[]; onClose: () => void }> = ({ links, onClose }) => {
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const getFullShortUrl = (link: LinkData) => {
+    const domain = link.domain || 'links.trak.in';
+    return domain === 'links.trak.in'
+      ? `${window.location.origin}/r/${link.shortCode}`
+      : `https://${domain}/${link.shortCode}`;
+  };
+
+  const handleCopy = (link: LinkData, index: number) => {
+    navigator.clipboard.writeText(getFullShortUrl(link));
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const isSingle = links.length === 1;
+
+  return (
+    <div className="flex flex-col items-center justify-center py-6 text-center animate-fadeIn space-y-6">
+      <div className="relative">
+        <div className="absolute inset-0 bg-emerald-100 rounded-full scale-150 animate-ping opacity-25" />
+        <div className="w-20 h-20 bg-gradient-to-tr from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white relative shadow-lg shadow-emerald-500/20">
+          <Check className="w-10 h-10" />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-2xl font-display font-extrabold text-slate-900 leading-tight">
+          {isSingle ? 'Link Created Successfully!' : `${links.length} Links Created Successfully!`}
+        </h3>
+        <p className="text-sm text-stone-500 mt-2 max-w-sm mx-auto">
+          {isSingle 
+            ? 'Your short link has been generated and auto-copied to your clipboard.' 
+            : 'Your short links have been generated, and the first link has been copied to your clipboard.'}
+        </p>
+      </div>
+
+      <div className="w-full max-w-md bg-stone-50 border border-stone-100 rounded-2xl p-5 space-y-4">
+        {isSingle ? (
+          <div className="space-y-4">
+            <div className="text-left space-y-1">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Destination</span>
+              <p className="text-sm font-medium text-slate-700 truncate">{links[0].originalUrl}</p>
+            </div>
+            
+            <div className="flex items-center bg-white border border-stone-200 rounded-xl pl-4 pr-2 py-2 shadow-sm transition-colors focus-within:border-amber-400">
+              <span className="text-stone-400 font-mono text-sm select-none">{links[0].domain || 'links.trak.in'}/</span>
+              <span className="text-slate-900 font-mono text-sm font-bold truncate flex-1 ml-0.5">{links[0].shortCode}</span>
+              <button
+                onClick={() => handleCopy(links[0], 0)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  copiedIndex === 0 
+                    ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/10' 
+                    : 'bg-stone-100 hover:bg-stone-200 text-slate-700 active:scale-95'
+                }`}
+              >
+                {copiedIndex === 0 ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="pt-2 flex flex-col items-center justify-center space-y-3">
+              <div className="bg-white p-3 rounded-2xl border border-stone-100 shadow-inner">
+                <QRCodeCanvas
+                  value={getFullShortUrl(links[0])}
+                  size={140}
+                  level="H"
+                  bgColor="#ffffff"
+                  fgColor="#0f172a"
+                />
+              </div>
+              <span className="text-[10px] text-stone-400 font-medium">Scan to visit on mobile device</span>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            {links.map((link, idx) => (
+              <div key={link.id} className="flex items-center justify-between p-3 bg-white border border-stone-150 rounded-xl text-left shadow-sm gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900">
+                    <span className="text-stone-400">{link.domain || 'links.trak.in'}/</span>
+                    <span className="truncate">{link.shortCode}</span>
+                  </div>
+                  <p className="text-[10px] text-stone-400 truncate mt-0.5">{link.originalUrl}</p>
+                </div>
+                <button
+                  onClick={() => handleCopy(link, idx)}
+                  className={`p-2 rounded-lg transition-all flex-shrink-0 active:scale-95 ${
+                    copiedIndex === idx
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'text-stone-400 hover:text-slate-900 hover:bg-stone-100'
+                  }`}
+                >
+                  {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="pt-4 w-full max-w-md">
+        <button
+          onClick={onClose}
+          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-slate-900/10 active:scale-[0.98]"
+        >
+          All Done
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCreate, onUpdate, onBulkCreate, editingLink }) => {
   const { user } = useAuth();
@@ -66,6 +190,10 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const [folders, setFolders] = useState<Folder[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]); // This state will hold fetched Domain objects
   const [selectedDomain, setSelectedDomain] = useState('links.trak.in'); // Initial default domain
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [createdLinksSuccess, setCreatedLinksSuccess] = useState<LinkData[]>([]);
 
   // Bulk Mode States
   const [bulkUrls, setBulkUrls] = useState('');
@@ -327,6 +455,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url || !slug) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
 
     const geoRecord: Record<string, string> = {};
     geoRedirects.forEach(rule => {
@@ -348,8 +478,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
     const commonData = {
       originalUrl: cleanUrl,
       shortCode: slug,
-      title: title, // Use title from state
-      description: description, // Use description from state
+      title: title || cleanUrl,
+      description: description,
       type: linkType,
       metadata: linkType === 'gallery' ? {
         galleryItems,
@@ -377,65 +507,107 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       domain: selectedDomain !== 'links.trak.in' ? selectedDomain : undefined
     };
 
-    if (editingLink) {
-      onUpdate(editingLink.id, {
-        ...commonData,
-        tags: tags.length > 0 ? tags : (analysis?.tags || editingLink.tags),
-        aiAnalysis: analysis ? {
-          sentiment: analysis.sentiment,
-          category: analysis.category,
-          predictedEngagement: analysis.predictedEngagement
-        } : editingLink.aiAnalysis
-      });
-    } else {
-      const newLink: LinkData = {
-        id: uuidv4(),
-        ...commonData,
-        tags: tags.length > 0 ? tags : (analysis?.tags || []),
-        clicks: 0,
-        clickHistory: [],
-        createdAt: Date.now(),
-        aiAnalysis: analysis ? {
-          sentiment: analysis.sentiment,
-          category: analysis.category,
-          predictedEngagement: analysis.predictedEngagement
-        } : undefined
-      };
-      onCreate(newLink);
+    try {
+      if (editingLink) {
+        await onUpdate(editingLink.id, {
+          ...commonData,
+          tags: tags.length > 0 ? tags : (analysis?.tags || editingLink.tags),
+          aiAnalysis: analysis ? {
+            sentiment: analysis.sentiment,
+            category: analysis.category,
+            predictedEngagement: analysis.predictedEngagement
+          } : editingLink.aiAnalysis
+        });
+        resetAndClose();
+      } else {
+        const newLink: LinkData = {
+          id: uuidv4(),
+          ...commonData,
+          tags: tags.length > 0 ? tags : (analysis?.tags || []),
+          clicks: 0,
+          clickHistory: [],
+          createdAt: Date.now(),
+          aiAnalysis: analysis ? {
+            sentiment: analysis.sentiment,
+            category: analysis.category,
+            predictedEngagement: analysis.predictedEngagement
+          } : undefined
+        };
+        await onCreate(newLink);
+        
+        // Show success screen and auto-copy link
+        setCreatedLinksSuccess([newLink]);
+        const domain = newLink.domain || 'links.trak.in';
+        const fullShortUrl = domain === 'links.trak.in'
+          ? `${window.location.origin}/r/${newLink.shortCode}`
+          : `https://${domain}/${newLink.shortCode}`;
+        navigator.clipboard.writeText(fullShortUrl).catch(err => {
+          console.warn('Failed to auto-copy short link:', err);
+        });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setSubmitError(err.message || 'Failed to create link');
+    } finally {
+      setIsSubmitting(false);
     }
-    resetAndClose();
   };
 
   const handleBulkSubmit = async () => {
     const urls = bulkUrls.split('\n').filter(u => u.trim().length > 0);
-    const newLinks: LinkData[] = await Promise.all(
-      urls.map(async u => {
-        let urlToMonetize = u.trim();
-        if (isShortAmazonUrl(urlToMonetize)) {
-          urlToMonetize = await resolveShortUrl(urlToMonetize);
-        }
-        const cleanUrl = monetizeUrl(urlToMonetize, {
-          amazonAssociateTag: user?.amazonAssociateTag,
-          flipkartAffiliateId: user?.flipkartAffiliateId
-        });
-        return {
-          id: uuidv4(),
-          originalUrl: cleanUrl,
-          shortCode: Math.random().toString(36).substring(2, 8),
-          title: u.trim(),
-          description: 'Bulk created link',
-          tags: ['bulk'],
-          clicks: 0,
-          clickHistory: [],
-          createdAt: Date.now(),
-          smartRedirects: {},
-          aiAnalysis: undefined
-        };
-      })
-    );
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    onBulkCreate(newLinks);
-    resetAndClose();
+    try {
+      const newLinks: LinkData[] = await Promise.all(
+        urls.map(async u => {
+          let urlToMonetize = u.trim();
+          if (!/^https?:\/\//i.test(urlToMonetize)) {
+            urlToMonetize = `https://${urlToMonetize}`;
+          }
+          if (isShortAmazonUrl(urlToMonetize)) {
+            urlToMonetize = await resolveShortUrl(urlToMonetize);
+          }
+          const cleanUrl = monetizeUrl(urlToMonetize, {
+            amazonAssociateTag: user?.amazonAssociateTag,
+            flipkartAffiliateId: user?.flipkartAffiliateId
+          });
+          return {
+            id: uuidv4(),
+            originalUrl: cleanUrl,
+            shortCode: Math.random().toString(36).substring(2, 8),
+            title: u.trim(),
+            description: 'Bulk created link',
+            tags: ['bulk'],
+            clicks: 0,
+            clickHistory: [],
+            createdAt: Date.now(),
+            smartRedirects: {},
+            aiAnalysis: undefined,
+            domain: selectedDomain !== 'links.trak.in' ? selectedDomain : undefined
+          };
+        })
+      );
+
+      await onBulkCreate(newLinks);
+      
+      // Show success screen and auto-copy first link
+      setCreatedLinksSuccess(newLinks);
+      if (newLinks.length > 0) {
+        const domain = newLinks[0].domain || 'links.trak.in';
+        const firstUrl = domain === 'links.trak.in'
+          ? `${window.location.origin}/r/${newLinks[0].shortCode}`
+          : `https://${domain}/${newLinks[0].shortCode}`;
+        navigator.clipboard.writeText(firstUrl).catch(err => {
+          console.warn('Failed to auto-copy first short link:', err);
+        });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setSubmitError(err.message || 'Failed to create bulk links');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCsvSubmit = async (e: React.FormEvent) => {
@@ -498,7 +670,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
             tags: tags,
             clicks: 0,
             clickHistory: [],
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            domain: selectedDomain !== 'links.trak.in' ? selectedDomain : undefined
           });
         }
 
@@ -506,27 +679,19 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           throw new Error('No valid links found in CSV.');
         }
 
-        // We delegate the actual creation to the parent via onBulkCreate to ensure consistency
-        // and avoid double-calling the API (since handleBulkCreate in parent does the calls).
-        // If we want to use the optimized bulkCreateLinks, we should change the parent handler.
-        // For now, let's stick to the parent handler to ensure UI updates and consistency.
-        // But wait, parent loops createLink. The adapter has bulkCreateLinks.
-        // Better approach: Call adapter here (optimized), then tell parent to just refresh.
+        await onBulkCreate(linksToCreate);
 
-        await supabaseAdapter.bulkCreateLinks(linksToCreate);
-
-        // We pass empty array or a special flag if we could, but onBulkCreate expects links.
-        // If we call onBulkCreate, it will try to create them again unless we modify parent.
-        // Let's modify the flow: We'll just call the prop to update UI if possible, 
-        // BUT current parent implementation WILL re-create.
-        // So we MUST NOT call onBulkCreate(linksToCreate).
-        // Instead we should reload valid data.
-
-        window.location.reload(); // Brute force refresh for now to ensure state sync, or we need a prop
-        // Actually, let's trust the adapter call here and just close. 
-        // The parent's list might be stale until refresh.
-
-        resetAndClose();
+        // Show success screen and auto-copy first link
+        setCreatedLinksSuccess(linksToCreate);
+        if (linksToCreate.length > 0) {
+          const domain = linksToCreate[0].domain || 'links.trak.in';
+          const firstUrl = domain === 'links.trak.in'
+            ? `${window.location.origin}/r/${linksToCreate[0].shortCode}`
+            : `https://${domain}/${linksToCreate[0].shortCode}`;
+          navigator.clipboard.writeText(firstUrl).catch(err => {
+            console.warn('Failed to auto-copy first short link:', err);
+          });
+        }
 
       } catch (err: any) {
         setCsvError(err.message || 'Failed to parse CSV');
@@ -566,6 +731,9 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
       setVariants([]);
       setMode('single');
       setShowAdvanced(false);
+      setIsSubmitting(false);
+      setSubmitError(null);
+      setCreatedLinksSuccess([]);
     }, 200);
   };
 
@@ -586,31 +754,46 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           exit={{ opacity: 0, y: 100, scale: 0.95 }}
           className="relative w-full max-w-2xl transform overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white text-left shadow-xl transition-all h-[90vh] sm:h-auto sm:max-h-[90vh] flex flex-col"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-100 bg-white sticky top-0 z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
-                <LinkIcon className="w-5 h-5 text-slate-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-display font-bold text-slate-900">
-                  {editingLink ? 'Edit Link' : 'Create New Link'}
-                </h3>
-                <p className="text-xs text-stone-500">
-                  {mode === 'single' ? 'Shorten a single URL' : 'Batch create multiple links'}
-                </p>
-              </div>
+          {createdLinksSuccess.length > 0 ? (
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col justify-center">
+              <SuccessView links={createdLinksSuccess} onClose={resetAndClose} />
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-stone-100 transition-colors"
-            >
-              <X className="w-5 h-5 text-stone-400" />
-            </button>
-          </div>
+          ) : (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-100 bg-white sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
+                    <LinkIcon className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-display font-bold text-slate-900">
+                      {editingLink ? 'Edit Link' : 'Create New Link'}
+                    </h3>
+                    <p className="text-xs text-stone-500">
+                      {mode === 'single' ? 'Shorten a single URL' : 'Batch create multiple links'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-full hover:bg-stone-100 transition-colors"
+                >
+                  <X className="w-5 h-5 text-stone-400" />
+                </button>
+              </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                {submitError && (
+                  <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-sm animate-fadeIn">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div className="text-left">
+                      <h5 className="font-bold">Error Creating Link</h5>
+                      <p>{submitError}</p>
+                    </div>
+                  </div>
+                )}
 
             {/* Tabs - Only show in Create Mode */}
             {!editingLink && (
@@ -1436,9 +1619,10 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                     </button>
                     <button
                       type="submit"
-                      disabled={!url || !slug}
-                      className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-amber-400/20"
+                      disabled={!url || !slug || isSubmitting}
+                      className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-amber-400/20 flex items-center gap-2"
                     >
+                      {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                       {editingLink ? 'Save Changes' : 'Create Link'}
                     </button>
                   </div>
@@ -1462,10 +1646,11 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                   <button onClick={resetAndClose} className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold hover:bg-stone-50 rounded-xl">Cancel</button>
                   <button
                     onClick={handleBulkSubmit}
-                    disabled={!bulkUrls.trim()}
+                    disabled={!bulkUrls.trim() || isSubmitting}
                     className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-amber-400/20"
                   >
-                    <Layers className="w-4 h-4" /> Bulk Generate
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+                    Bulk Generate
                   </button>
                 </div>
               </div>
@@ -1538,7 +1723,9 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
               </div>
             )}
           </div>
-        </motion.div>
+        </>
+      )}
+    </motion.div>
 
         <UTMBuilderModal
           isOpen={showUTMBuilder}

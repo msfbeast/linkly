@@ -255,63 +255,66 @@ const Links: React.FC<LinksProps> = ({
   };
 
 
-  const handleCreateLink = async (link: LinkData) => {
+  const handleCreateLink = async (link: LinkData): Promise<void> => {
     try {
       await retryExecute(
         () => supabaseAdapter.createLink(link),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
+      toast.success('Link created successfully!');
       await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create link';
-      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
     }
   };
 
-  const handleBulkCreate = async (newLinks: LinkData[]) => {
+  const handleBulkCreate = async (newLinks: LinkData[]): Promise<void> => {
     try {
-      await Promise.all(
-        newLinks.map((link) =>
-          retryExecute(
-            () => supabaseAdapter.createLink(link),
-            { maxRetries: 3, baseDelayMs: 1000 }
-          )
-        )
+      await retryExecute(
+        () => supabaseAdapter.bulkCreateLinks(newLinks as any[]),
+        { maxRetries: 3, baseDelayMs: 1000 }
       );
+      toast.success('Links created successfully!');
       await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create links';
-      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
     }
   };
 
-  const handleUpdateLink = async (id: string, updates: Partial<LinkData>) => {
+  const handleUpdateLink = async (id: string, updates: Partial<LinkData>): Promise<void> => {
     try {
       await retryExecute(
         () => supabaseAdapter.updateLink(id, updates),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
+      toast.success('Link updated successfully!');
       await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update link';
-      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
     }
   };
 
-  const handleDeleteLink = async (id: string) => {
+  const handleDeleteLink = async (id: string): Promise<void> => {
     try {
       await retryExecute(
         () => supabaseAdapter.deleteLink(id),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
+      toast.success('Link deleted successfully');
       await loadData();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete link';
-      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -320,7 +323,7 @@ const Links: React.FC<LinksProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleDuplicate = async (link: LinkData) => {
+  const handleDuplicate = async (link: LinkData): Promise<void> => {
     try {
       const duplicatedLink: LinkData = {
         ...link,
@@ -342,7 +345,6 @@ const Links: React.FC<LinksProps> = ({
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to duplicate link';
-      setError(errorMessage);
       toast.error(errorMessage);
     }
   };

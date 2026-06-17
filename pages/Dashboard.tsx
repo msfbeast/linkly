@@ -193,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     loadLinks();
   }, [user, currentTeam, filterStatus]); // Add filterStatus dependency
 
-  const handleCreateLink = async (link: LinkData) => {
+  const handleCreateLink = async (link: LinkData): Promise<void> => {
     try {
       const result = await retryExecute(
         () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
@@ -213,32 +213,31 @@ const Dashboard: React.FC<DashboardProps> = ({
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create link';
-      setError(errorMessage);
       toast.error(errorMessage);
       console.error('Failed to create link:', err);
+      throw err;
     }
   };
 
-  const handleBulkCreate = async (newLinks: LinkData[]) => {
+  const handleBulkCreate = async (newLinks: LinkData[]): Promise<void> => {
     try {
-      await Promise.all(
-        newLinks.map((link) =>
-          retryExecute(
-            () => supabaseAdapter.createLink({ ...link, teamId: currentTeam?.id }),
-            { maxRetries: 3, baseDelayMs: 1000 }
-          )
-        )
+      await retryExecute(
+        () => supabaseAdapter.bulkCreateLinks(
+          newLinks.map(link => ({ ...link, teamId: currentTeam?.id })) as any[]
+        ),
+        { maxRetries: 3, baseDelayMs: 1000 }
       );
       await loadLinks();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create links';
-      setError(errorMessage);
+      toast.error(errorMessage);
       console.error('Failed to bulk create links:', err);
+      throw err;
     }
   };
 
-  const handleUpdateLink = async (id: string, updates: Partial<LinkData>) => {
+  const handleUpdateLink = async (id: string, updates: Partial<LinkData>): Promise<void> => {
     try {
       await retryExecute(
         () => supabaseAdapter.updateLink(id, updates),
@@ -248,27 +247,29 @@ const Dashboard: React.FC<DashboardProps> = ({
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update link';
-      setError(errorMessage);
+      toast.error(errorMessage);
       console.error('Failed to update link:', err);
+      throw err;
     }
   };
 
-  const handleDeleteLink = async (id: string) => {
+  const handleDeleteLink = async (id: string): Promise<void> => {
     try {
       await retryExecute(
         () => supabaseAdapter.deleteLink(id),
         { maxRetries: 3, baseDelayMs: 1000 }
       );
+      toast.success('Link deleted successfully');
       await loadLinks();
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete link';
-      setError(errorMessage);
+      toast.error(errorMessage);
       console.error('Failed to delete link:', err);
     }
   };
 
-  const handleBulkDelete = async (ids: string[]) => {
+  const handleBulkDelete = async (ids: string[]): Promise<void> => {
     try {
       await Promise.all(
         ids.map(id =>
@@ -283,13 +284,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete links';
-      setError(errorMessage);
       toast.error(errorMessage);
       console.error('Failed to bulk delete links:', err);
     }
   };
 
-  const handleDuplicateLink = async (link: LinkData) => {
+  const handleDuplicateLink = async (link: LinkData): Promise<void> => {
     try {
       // Create a copy with reset stats
       const duplicatedLink: Omit<LinkData, 'id'> = {
@@ -320,7 +320,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       onLinksUpdate?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to duplicate link';
-      setError(errorMessage);
       toast.error(errorMessage);
       console.error('Failed to duplicate link:', err);
     }
