@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Search, Heart, ArrowRight } from 'lucide-react';
 import { Product } from '@/types';
@@ -149,7 +150,7 @@ const ClaymorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                     <div className="flex justify-between items-center mt-4">
                                         <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">{product.category || 'Item'}</span>
                                         <span className="text-lg font-black text-[#7b61ff]">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                            {formatPrice(product.price, product.currency)}
                                         </span>
                                     </div>
                                 </div>

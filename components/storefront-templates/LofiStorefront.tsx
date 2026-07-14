@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Coffee, Music, Heart } from 'lucide-react';
 import { Product } from '@/types';
@@ -115,7 +116,7 @@ const LofiStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, 
                                             {product.category || 'misc'}
                                         </span>
                                         <span className="font-bold text-[#F0A6CA]">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                            {formatPrice(product.price, product.currency)}
                                         </span>
                                     </div>
                                 </div>

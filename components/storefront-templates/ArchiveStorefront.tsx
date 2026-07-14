@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Database, FileText, Filter } from 'lucide-react';
 import { Product } from '@/types';
@@ -104,7 +105,7 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                     {/* Mobile Layout */}
                                     <div className="md:hidden flex justify-between items-start mb-2">
                                         <span className="text-xs font-bold">{product.name}</span>
-                                        <span className="text-xs">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}</span>
+                                        <span className="text-xs">{formatPrice(product.price, product.currency)}</span>
                                     </div>
 
                                     {/* Desktop Columns */}
@@ -140,7 +141,7 @@ const ArchiveStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                     </div>
 
                                     <div className="hidden md:block col-span-2 text-xs font-mono">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                        {formatPrice(product.price, product.currency)}
                                     </div>
 
                                     <div className="col-span-12 md:col-span-1 text-right">

@@ -358,7 +358,9 @@ const ProductManager: React.FC = () => {
                         Store Settings
                     </button>
                     <a
-                        href={`/store/${user?.id}`}
+                        // Prefer the shareable handle URL — /store/<uuid> is unspeakable.
+                        // Storefront.tsx already resolves handles via getBioProfileByHandle.
+                        href={`/store/${(user as any)?.user_metadata?.username || user?.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`bg-white border border-stone-200 hover:border-yellow-400 text-slate-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-sm ${!user?.id ? 'opacity-50 pointer-events-none' : ''}`}
@@ -464,7 +466,7 @@ const ProductManager: React.FC = () => {
                                             onClick={() => startInlineEdit(product.id, 'category', product.category || '')}
                                             title="Click to edit category"
                                         >
-                                            {product.category || 'Uncategorized'}
+                                            {product.category || '+ Add category'}
                                         </span>
                                     )}
                                 </div>

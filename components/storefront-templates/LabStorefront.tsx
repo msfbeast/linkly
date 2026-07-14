@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Beaker, Activity, Plus } from 'lucide-react';
 import { Product } from '@/types';
@@ -117,7 +118,7 @@ const LabStorefront: React.FC<StorefrontTemplateProps> = ({ products, loading, s
                                     <div className="flex justify-between items-start">
                                         <h3 className="font-bold text-sm leading-tight max-w-[70%]">{product.name}</h3>
                                         <span className="text-sm font-bold">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                            {formatPrice(product.price, product.currency)}
                                         </span>
                                     </div>
                                     <div className="flex gap-2 text-[10px] text-gray-500 uppercase">

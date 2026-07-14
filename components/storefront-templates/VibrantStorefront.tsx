@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Star, Zap, ExternalLink, X, DollarSign } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -20,13 +21,15 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
         );
     }
 
-    const storeName = storeProfile?.storeName || 'POP!';
+    // Fall back to the creator's own name before generic template copy,
+    // so an unconfigured store still reads as theirs — not as a demo.
+    const storeName = storeProfile?.storeName || storeProfile?.fullName || storeProfile?.username || 'My Store';
     const storeLogo = storeProfile?.storeLogoUrl;
     const storeBanner = storeProfile?.storeBannerUrl;
-    const storeDescription = storeProfile?.storeDescription || 'Stand out from the crowd with our boldest collection yet. Colors that pop, styles that rock.';
-    const storeButtonText = storeProfile?.storeButtonText || 'SHOP THE DROP';
-    const storeHeroBadge = storeProfile?.storeHeroBadge || 'Fresh Drop';
-    const storeMarqueeText = storeProfile?.storeMarqueeText || 'New Arrivals';
+    const storeDescription = storeProfile?.storeDescription || 'Hand-picked products I use and recommend.';
+    const storeButtonText = storeProfile?.storeButtonText || 'Browse Picks';
+    const storeHeroBadge = storeProfile?.storeHeroBadge || 'Curated';
+    const storeMarqueeText = storeProfile?.storeMarqueeText || 'My Recommendations';
     const storeSocialUrl = storeProfile?.storeSocialUrl;
 
 
@@ -131,14 +134,15 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </div>
                                     )}
                                     <div className="absolute top-4 right-4 bg-yellow-300 px-3 py-1 rounded-full border-2 border-black font-black text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                        {formatPrice(product.price, product.currency)}
                                     </div>
                                 </button>
 
                                 <div className="px-2 flex-1 flex flex-col">
                                     <h3 className="text-xl font-black mb-2 uppercase tracking-tight line-clamp-2">{product.name}</h3>
                                     <div className="flex justify-between items-center mt-auto">
-                                        <span className="text-sm font-bold text-gray-500 uppercase">{product.category || 'Cool Stuff'}</span>
+                                        {/* Hide the chip entirely when uncategorized — placeholder labels read as neglect */}
+                                        <span className="text-sm font-bold text-gray-500 uppercase">{product.category || ''}</span>
                                         <button
                                             onClick={(e) => {
                                                 e.preventDefault();

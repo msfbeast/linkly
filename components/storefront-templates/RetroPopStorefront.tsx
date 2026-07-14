@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Star, Heart, MousePointer } from 'lucide-react';
 import { Product } from '@/types';
@@ -158,7 +159,7 @@ const RetroPopStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadi
                                             <Star className="w-3 h-3 fill-yellow-400 text-black" />
                                         </div>
                                         <div className="text-red-600 font-bold bg-yellow-200 inline-block px-2 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                            {formatPrice(product.price, product.currency)}
                                         </div>
                                     </div>
                                 </div>

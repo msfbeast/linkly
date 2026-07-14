@@ -3,26 +3,13 @@ import { X, ShieldCheck, Download, Loader2, CreditCard, Mail } from 'lucide-reac
 import { Product } from '@/types';
 import { loadRazorpayScript } from '@/services/razorpayService';
 import { toast } from 'sonner';
+import { formatPrice } from '@/utils/formatPrice';
 
 interface CheckoutModalProps {
     product: Product;
     onClose: () => void;
     storeName: string;
 }
-
-/** Currency-safe price formatter — legacy products can have empty currency,
- *  and Intl.NumberFormat throws a RangeError on invalid codes (this used to
- *  white-screen the checkout). */
-const formatPrice = (price: number, currency?: string): string => {
-    try {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: currency || 'INR',
-        }).format(price);
-    } catch {
-        return `${currency || ''} ${price.toFixed(2)}`.trim();
-    }
-};
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeName }) => {
     const [loading, setLoading] = useState(false);

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Search, Star } from 'lucide-react';
 import { Product } from '@/types';
@@ -107,7 +108,7 @@ const NeubrutalismStorefront: React.FC<StorefrontTemplateProps> = ({ products, l
                                     )}
 
                                     <div className="absolute top-2 right-2 bg-[#FFE66D] border-2 border-black px-3 py-1 font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                        {formatPrice(product.price, product.currency)}
                                     </div>
                                 </div>
 

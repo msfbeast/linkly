@@ -181,6 +181,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // STRICT Currency Overrides
         if (url.includes("amazon.in") || url.includes("flipkart.com") || url.includes("myntra.com")) {
             result.currency = "INR";
+        } else {
+            // Any .in domain is an Indian retailer; and when the model is
+            // unsure it tends to guess USD — default to INR (primary market)
+            try {
+                const host = new URL(url).hostname;
+                if (host.endsWith('.in') || !result.currency) {
+                    result.currency = "INR";
+                }
+            } catch { /* keep model's guess */ }
         }
 
         // Image Fallback

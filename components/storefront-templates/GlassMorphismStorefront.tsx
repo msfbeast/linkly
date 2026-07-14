@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Search, Menu } from 'lucide-react';
 import { Product } from '@/types';
@@ -109,7 +110,7 @@ const GlassMorphismStorefront: React.FC<StorefrontTemplateProps> = ({ products, 
                                     )}
 
                                     <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-sm font-bold border border-white/10 text-white">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                        {formatPrice(product.price, product.currency)}
                                     </div>
                                 </div>
 

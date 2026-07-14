@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Square, Circle, Triangle } from 'lucide-react';
 import { Product } from '@/types';
@@ -108,7 +109,7 @@ const BauhausStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         <div className="flex justify-between items-end">
                                             <span className="text-sm font-bold text-gray-500 uppercase">{product.category || 'Object'}</span>
                                             <span className="text-xl font-bold">
-                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                                {formatPrice(product.price, product.currency)}
                                             </span>
                                         </div>
                                     </div>
