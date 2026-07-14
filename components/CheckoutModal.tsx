@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, Download, Loader2, CreditCard } from 'lucide-react';
+import { X, ShieldCheck, Download, Loader2, CreditCard, Mail } from 'lucide-react';
 import { Product } from '@/types';
-import { loadRazorpayScript, createRazorpayOrder } from '@/services/razorpayService';
+import { loadRazorpayScript } from '@/services/razorpayService';
 import { toast } from 'sonner';
 
 interface CheckoutModalProps {
@@ -9,6 +9,20 @@ interface CheckoutModalProps {
     onClose: () => void;
     storeName: string;
 }
+
+/** Currency-safe price formatter — legacy products can have empty currency,
+ *  and Intl.NumberFormat throws a RangeError on invalid codes (this used to
+ *  white-screen the checkout). */
+const formatPrice = (price: number, currency?: string): string => {
+    try {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency || 'INR',
+        }).format(price);
+    } catch {
+        return `${currency || ''} ${price.toFixed(2)}`.trim();
+    }
+};
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeName }) => {
     const [loading, setLoading] = useState(false);
@@ -32,36 +46,46 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
                 return;
             }
 
-            // 2. Create Order
-            const order = await createRazorpayOrder(product.price, product.currency || 'INR');
+            // 2. Create Store Order — the server derives the price from the
+            //    product row (never trust client-side price) and records the
+            //    order so the seller has a purchase history.
+            const orderResponse = await fetch('/api/create-store-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productId: product.id,
+                    customerEmail,
+                }),
+            });
+
+            if (!orderResponse.ok) {
+                const err = await orderResponse.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed to create order');
+            }
+
+            const order = await orderResponse.json();
+            // order = { id (internal), rz_id (razorpay), amount (subunits), currency, key_id }
 
             // 3. Open Razorpay Checkout
             const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                key: order.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID,
                 amount: order.amount,
                 currency: order.currency,
                 name: storeName,
                 description: `Purchase: ${product.name}`,
                 image: product.imageUrl,
-                order_id: order.id,
+                order_id: order.rz_id,
                 handler: async function (response: any) {
                     try {
-                        const verifyData = {
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                            customer_email: customerEmail,
-                            product_id: product.id
-                        };
-
                         // 4. Verify Payment via store purchase endpoint
                         const verifyResponse = await fetch('/api/verify-store-purchase', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                ...verifyData,
-                                orderId: order.id,
-                                productId: product.id
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                                orderId: order.id, // internal DB order id
                             })
                         });
 
@@ -69,16 +93,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
 
                         if (result.success) {
                             setStep('success');
-                            // Use signed URL from server if available, fallback to constructing one
+                            // Server returns a SIGNED url for the private bucket.
+                            // No client-side public-URL fallback — the bucket is
+                            // private, those links 404 on paying customers.
                             if (result.downloadUrl) {
                                 setDownloadUrl(result.downloadUrl);
-                            } else if (product.fileUrl) {
-                                // Fallback: construct URL (less secure but functional)
-                                setDownloadUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/digital-products/${product.fileUrl}`);
                             }
                             toast.success('Payment successful!');
                         } else {
-                            toast.error('Payment verification failed');
+                            toast.error(result.error || 'Payment verification failed');
                         }
                     } catch (err) {
                         toast.error('Payment verification failed');
@@ -134,7 +157,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
                                 <h2 className="font-bold text-slate-900 mb-1 line-clamp-2">{product.name}</h2>
                                 <p className="text-stone-500 text-sm mb-2">{product.category || 'Digital Product'}</p>
                                 <div className="inline-block px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">
-                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                    {formatPrice(product.price, product.currency)}
                                 </div>
                             </div>
                         </div>
@@ -158,7 +181,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
                                 className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                                Pay {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                Pay {formatPrice(product.price, product.currency)}
                             </button>
                         </div>
                     </div>
@@ -170,20 +193,34 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
                             <ShieldCheck className="w-8 h-8" />
                         </div>
                         <h2 className="text-2xl font-bold text-slate-900 mb-2">Payment Successful!</h2>
-                        <p className="text-stone-500 mb-8 max-w-xs mx-auto">
-                            Thank you for your purchase. Your file is ready for download.
-                        </p>
 
-                        <a
-                            href={downloadUrl}
-                            download
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
-                        >
-                            <Download className="w-5 h-5" />
-                            Download File
-                        </a>
+                        {downloadUrl ? (
+                            <>
+                                <p className="text-stone-500 mb-8 max-w-xs mx-auto">
+                                    Thank you for your purchase. Your file is ready for download.
+                                </p>
+                                <a
+                                    href={downloadUrl}
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                                >
+                                    <Download className="w-5 h-5" />
+                                    Download File
+                                </a>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center gap-3 mb-4">
+                                <p className="text-stone-500 max-w-xs mx-auto">
+                                    Thank you for your purchase. Your download link has been sent to <strong>{customerEmail}</strong>.
+                                </p>
+                                <div className="flex items-center gap-2 text-stone-400 text-sm">
+                                    <Mail className="w-4 h-4" />
+                                    Check your inbox (and spam folder)
+                                </div>
+                            </div>
+                        )}
 
                         <button
                             onClick={onClose}

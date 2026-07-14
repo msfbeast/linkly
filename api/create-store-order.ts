@@ -19,45 +19,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { productId, amount, currency, sellerId, customerEmail, customerName } = req.body;
+        const { productId, customerEmail, customerName } = req.body;
 
-        if (!productId || !amount || !sellerId) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!productId) {
+            return res.status(400).json({ error: 'Missing required field: productId' });
         }
 
-        // 1. Create Razorpay Order
-        const payment_capture = 1;
-        const currencyCode = currency || 'USD';
+        // 1. PRICE INTEGRITY: derive amount/currency/seller from the DATABASE,
+        //    never from the client. (Previously the client sent `amount`,
+        //    which allowed buying any product for any price.)
+        const { data: product, error: productError } = await supabase
+            .from('products')
+            .select('id, user_id, name, price, currency')
+            .eq('id', productId)
+            .single();
 
-        // Razorpay expects integer amount (subunits)
-        // Check if currency is zero-decimal or not. Generally * 100 for USD/INR/EUR.
-        const amountInSubunits = Math.round(amount * 100);
+        if (productError || !product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        if (!product.price || product.price <= 0) {
+            return res.status(400).json({ error: 'Product is not purchasable' });
+        }
 
+        const currencyCode = product.currency || 'INR';
+        const amountInSubunits = Math.round(product.price * 100);
+
+        // 2. Create Razorpay Order
         const options = {
             amount: amountInSubunits,
             currency: currencyCode,
             receipt: `rcpt_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-            payment_capture,
+            payment_capture: 1,
             notes: {
-                productId,
-                sellerId
+                productId: product.id,
+                sellerId: product.user_id,
             }
         };
 
         const rzOrder = await razorpay.orders.create(options);
 
-        // 2. Insert into Supabase 'orders' table
+        // 3. Insert into Supabase 'orders' table
         const { data: order, error: dbError } = await supabase
             .from('orders')
             .insert({
-                seller_id: sellerId,
-                product_id: productId,
-                amount: amount,
+                seller_id: product.user_id,
+                product_id: product.id,
+                amount: product.price,
                 currency: currencyCode,
                 status: 'pending',
                 razorpay_order_id: rzOrder.id,
-                customer_email: customerEmail, // Optional (captured from UI if available)
-                customer_name: customerName,   // Optional
+                customer_email: customerEmail,
+                customer_name: customerName,
             })
             .select()
             .single();
@@ -67,13 +79,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw new Error('Failed to create local order record');
         }
 
-        // 3. Return combined data
+        // 4. Return combined data
         res.status(200).json({
             id: order.id,           // Internal ID
             rz_id: rzOrder.id,      // Razorpay Order ID
-            amount: rzOrder.amount,
+            amount: rzOrder.amount, // In subunits
             currency: rzOrder.currency,
-            key_id: process.env.RAZORPAY_KEY_ID
+            key_id: process.env.RAZORPAY_KEY_ID,
+            product_name: product.name,
         });
 
     } catch (error: any) {
