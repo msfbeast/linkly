@@ -17,6 +17,12 @@ export default async function handler(
     req: VercelRequest,
     res: VercelResponse
 ) {
+    // PARKED: Cashfree disabled while Razorpay is the sole provider.
+    // Set ENABLE_CASHFREE=true in Vercel env to re-enable.
+    if (process.env.ENABLE_CASHFREE !== 'true') {
+        return res.status(404).json({ error: 'Not found' });
+    }
+
     // CORS Headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');

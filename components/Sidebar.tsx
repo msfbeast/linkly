@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { LayoutDashboard, BarChart2, Settings, Link as LinkIcon, Code2, Layers, UserCircle2, Zap, ShoppingBag, Briefcase } from 'lucide-react';
 import { ViewState } from '../types';
 import TeamSwitcher from './TeamSwitcher';
+import { FEATURES } from '../utils/featureFlags';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -14,7 +15,8 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, onClose }) => {
   const menuItems = [
     { id: ViewState.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
-    { id: ViewState.AGENCY, icon: Briefcase, label: 'Agency' }, // Using same icon? Maybe Briefcase is better but using available imports first.
+    // Agency parked behind feature flag (see utils/featureFlags.ts)
+    ...(FEATURES.AGENCY_DASHBOARD ? [{ id: ViewState.AGENCY, icon: Briefcase, label: 'Agency' }] : []),
     { id: ViewState.PRODUCTS, icon: ShoppingBag, label: 'Products' },
     { id: ViewState.AFFILIATE, icon: Zap, label: 'Affiliate' },
     { id: ViewState.BIO_PAGES, icon: UserCircle2, label: 'Link-in-Bio' },

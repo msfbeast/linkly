@@ -1,54 +1,116 @@
 import { kv } from '@vercel/kv';
+import { createClient } from '@supabase/supabase-js';
 
 export const config = {
     runtime: 'edge',
 };
 
-export default async function handler(request: Request) {
-    if (request.method === 'DELETE') {
-        try {
-            const { shortCode } = await request.json();
-            if (!shortCode) {
-                return new Response('Missing shortCode', { status: 400 });
-            }
-            await kv.del(`gather:link:${shortCode}`);
-            return new Response(JSON.stringify({ success: true }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        } catch (error) {
-            console.error('Sync DELETE API Error:', error);
-            return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
-        }
-    }
+/**
+ * KV cache sync endpoint.
+ *
+ * SECURITY MODEL (hardened 2026-07):
+ * - Caller must present a valid Supabase JWT.
+ * - Caller must own the link (links.user_id matches the JWT user).
+ * - The KV payload is built from the DATABASE row, never from the request
+ *   body — so even a valid user cannot poison the cache for a short code
+ *   with an arbitrary destination URL.
+ */
 
-    if (request.method !== 'POST') {
+const json = (body: unknown, status: number) =>
+    new Response(JSON.stringify(body), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+    });
+
+export default async function handler(request: Request) {
+    if (request.method !== 'POST' && request.method !== 'DELETE') {
         return new Response('Method not allowed', { status: 405 });
     }
 
-    try {
-        const { shortCode, originalUrl, id, password, expiration, start } = await request.json();
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        if (!shortCode || !originalUrl) {
-            return new Response('Missing required fields', { status: 400 });
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+        console.error('[Sync] Server misconfiguration: missing Supabase env');
+        return json({ error: 'Server misconfiguration' }, 500);
+    }
+
+    // 1. Authenticate caller
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+        return json({ error: 'Missing Authorization header' }, 401);
+    }
+    const token = authHeader.split(' ')[1];
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token);
+    if (authError || !user) {
+        return json({ error: 'Unauthorized' }, 401);
+    }
+
+    try {
+        const { shortCode } = await request.json();
+        if (!shortCode || typeof shortCode !== 'string') {
+            return json({ error: 'Missing shortCode' }, 400);
         }
 
-        // Redis Setup for Gather AI:link:{shortCode}
-        // We store id and restrictions        // Key: gather:link:{shortCode}
-        await kv.set(`gather:link:${shortCode}`, {
-            url: originalUrl,
-            id,
-            password,
-            expiration,
-            start
+        // 2. Load the link from the DB and verify ownership
+        const admin = createClient(supabaseUrl, supabaseServiceKey, {
+            auth: { autoRefreshToken: false, persistSession: false },
         });
 
-        return new Response(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
+        const { data: link, error: linkError } = await admin
+            .from('links')
+            .select('id, user_id, team_id, original_url, password_hash, expiration_date, start_date')
+            .eq('short_code', shortCode)
+            .maybeSingle();
+
+        // Caller is authorized if they own the link, or are a member of the
+        // link's team (team members legitimately edit each other's links,
+        // and a blocked sync would leave a stale destination in KV).
+        const isAuthorized = async (): Promise<boolean> => {
+            if (!link) return false;
+            if (link.user_id === user.id) return true;
+            if (!link.team_id) return false;
+            const { data: membership } = await admin
+                .from('team_members')
+                .select('user_id')
+                .eq('team_id', link.team_id)
+                .eq('user_id', user.id)
+                .maybeSingle();
+            return !!membership;
+        };
+
+        if (request.method === 'DELETE') {
+            // Allow delete when the link row is already gone (cleanup after
+            // DB delete) — but if it exists, the caller must be authorized.
+            if (link && !(await isAuthorized())) {
+                return json({ error: 'Forbidden' }, 403);
+            }
+            await kv.del(`gather:link:${shortCode}`);
+            return json({ success: true }, 200);
+        }
+
+        // POST: sync from DB
+        if (linkError || !link) {
+            return json({ error: 'Link not found' }, 404);
+        }
+        if (!(await isAuthorized())) {
+            return json({ error: 'Forbidden' }, 403);
+        }
+
+        await kv.set(`gather:link:${shortCode}`, {
+            url: link.original_url,
+            id: link.id,
+            password: !!link.password_hash,
+            expiration: link.expiration_date ?? undefined,
+            start: link.start_date ?? undefined,
         });
+
+        return json({ success: true }, 200);
     } catch (error) {
-        console.error('Sync API Error:', error);
-        return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+        console.error('[Sync] API Error:', error);
+        return json({ error: 'Internal Server Error' }, 500);
     }
 }

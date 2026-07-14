@@ -362,12 +362,26 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         window.location.href = deepLink;
       }
 
-      // Fallback to web URL if app doesn't open within 2.5s
-      // Note: If app opens, this timeout might still fire when user returns, 
-      // but usually the browser backgrounding prevents immediate execution.
-      setTimeout(() => {
+      // Fallback to web URL ONLY if the app didn't open.
+      // If the app opens, the page is backgrounded — cancel the fallback so
+      // returning users aren't redirected a second time (double-fires clicks
+      // and can clobber affiliate attribution).
+      const fallbackTimer = setTimeout(() => {
         window.location.replace(finalUrl);
       }, 2500);
+
+      const cleanup = () => {
+        clearTimeout(fallbackTimer);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        window.removeEventListener('pagehide', cleanup);
+        window.removeEventListener('blur', cleanup);
+      };
+      const onVisibilityChange = () => {
+        if (document.hidden) cleanup();
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      window.addEventListener('pagehide', cleanup);
+      window.addEventListener('blur', cleanup);
     } else {
       // Standard Redirect
       setTimeout(() => {

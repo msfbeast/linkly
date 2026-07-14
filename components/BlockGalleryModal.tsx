@@ -49,14 +49,6 @@ const BLOCKS: BlockOption[] = [
         category: 'media',
         isPremium: true
     },
-    // Growth
-    {
-        type: 'newsletter',
-        title: 'Newsletter',
-        description: 'Collect emails from visitors',
-        icon: <Mail className="w-5 h-5" />,
-        category: 'growth'
-    },
     // Monetization
     {
         type: 'tip_jar',

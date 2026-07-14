@@ -2,6 +2,12 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // PARKED: Stripe disabled while Razorpay is the sole provider.
+    // Set ENABLE_STRIPE=true in Vercel env to re-enable.
+    if (process.env.ENABLE_STRIPE !== 'true') {
+        return res.status(404).json({ error: 'Not found' });
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }

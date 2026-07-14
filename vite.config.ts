@@ -48,17 +48,14 @@ export default defineConfig(({ mode }) => {
             router: ['react-router-dom'],
             framer: ['framer-motion'],
             charts: ['recharts'],
-            ai: ['@google/genai'],
             icons: ['lucide-react'],
             supabase: ['@supabase/supabase-js'],
           },
         },
       },
     },
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || '')
-    },
+    // SECURITY: Never inline GEMINI_API_KEY (or any secret) into the client
+    // bundle via `define`. All AI calls go through /api/ai/* server endpoints.
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

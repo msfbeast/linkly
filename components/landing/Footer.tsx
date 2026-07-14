@@ -70,12 +70,6 @@ const Footer: React.FC = () => {
                                 <Link to="/about" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">About</Link>
                             </li>
                             <li>
-                                <Link to="/blog" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">Blog</Link>
-                            </li>
-                            <li>
-                                <Link to="/careers" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">Careers</Link>
-                            </li>
-                            <li>
                                 <a href="mailto:hello@gather.link" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">Contact</a>
                             </li>
                         </ul>
@@ -88,12 +82,6 @@ const Footer: React.FC = () => {
                             </li>
                             <li>
                                 <Link to="/#features" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">Features</Link>
-                            </li>
-                            <li>
-                                <Link to="/help" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">Help Center</Link>
-                            </li>
-                            <li>
-                                <Link to="/community" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">Community</Link>
                             </li>
                         </ul>
                     </div>

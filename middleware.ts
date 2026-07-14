@@ -69,7 +69,7 @@ export default async function middleware(request: Request) {
             const systemRoutes = [
                 '/admin', '/dashboard', '/login', '/register',
                 '/api', '/assets', '/p/', '/r/', '/store',
-                '/open', '/reset-password', '/update-password',
+                '/open', '/unlock', '/reset-password', '/update-password',
                 '/claim', '/team', '/pricing', '/about', '/privacy', '/terms', '/cookies'
             ];
 

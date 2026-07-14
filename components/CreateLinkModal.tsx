@@ -15,6 +15,7 @@ import InfoTooltip from './InfoTooltip';
 import { COUNTRY_NAMES } from '../utils/constants';
 import exifr from 'exifr';
 import { extractDriveFolderId, fetchDriveFolderImages } from '../services/googleDriveService';
+import { FEATURES } from '../utils/featureFlags';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -1479,7 +1480,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                         />
                       </div>
 
-                      {/* A/B Testing */}
+                      {/* A/B Testing — parked behind feature flag (utils/featureFlags.ts) */}
+                      {FEATURES.AB_TESTING && (
                       <div className="pt-2 border-t border-stone-200">
                         <div className="flex items-center justify-between mb-4">
                           <label className="text-xs text-stone-500 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -1606,6 +1608,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                           </div>
                         )}
                       </div>
+                      )}
                     </div>
                   )}
 

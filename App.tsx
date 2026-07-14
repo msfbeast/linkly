@@ -30,6 +30,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToHashElement from './components/ScrollToHashElement';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { FEATURES } from './utils/featureFlags';
 import { Toaster } from 'sonner';
 import DomainRouter from './components/DomainRouter';
 
@@ -45,11 +46,8 @@ const LinkAnalytics = React.lazy(() => import('./pages/LinkAnalytics'));
 const SharedAnalytics = React.lazy(() => import('./pages/SharedAnalytics'));
 const LegalPage = React.lazy(() => import('./pages/LegalPage'));
 const AboutPage = React.lazy(() => import('./pages/AboutPage'));
-const ComingSoonPage = React.lazy(() => import('./pages/ComingSoonPage'));
 const SmartRedirect = React.lazy(() => import('./pages/SmartRedirect'));
 const AffiliateManager = React.lazy(() => import('./pages/AffiliateManager'));
-const AgencyDashboard = React.lazy(() => import('./pages/AgencyDashboard'));
-const GalleryTest = React.lazy(() => import('./pages/GalleryTest'));
 
 
 /**
@@ -111,6 +109,10 @@ const AnimatedRoutes: React.FC = () => {
 
           {/* Public Link & Bio Routes */}
           <Route path="/r/:code" element={<Redirect />} />
+          {/* /unlock serves password/scheduled links — the edge API sends
+              restricted links here because /r/:code is rewritten back to
+              the edge function by vercel.json (redirect loop otherwise). */}
+          <Route path="/unlock/:code" element={<Redirect />} />
           <Route path="/p/:handle" element={<BioView />} />
           <Route path="/@:handle" element={<BioView />} /> {/* Added this back as it was removed in the instruction but is a valid route */}
           <Route path="/s/:domain" element={<SmartRedirect />} />
@@ -120,14 +122,9 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/team/invite/:token" element={<TeamInviteHandler />} /> {/* Moved here from protected */}
           <Route path="/open/:url" element={<SmartRedirect />} /> {/* Moved here from protected */}
-          <Route path="/gallery-test" element={<GalleryTest />} />
           <Route path="/share/:shareToken" element={<SharedAnalytics />} /> {/* Moved here from protected */}
           <Route path="/about" element={<AboutPage />} /> {/* Moved here from protected */}
           <Route path="/api-access" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />
-          <Route path="/blog" element={<ComingSoonPage />} /> {/* Moved here from protected */}
-          <Route path="/careers" element={<ComingSoonPage />} /> {/* Moved here from protected */}
-          <Route path="/community" element={<ComingSoonPage />} /> {/* Moved here from protected */}
-          <Route path="/help" element={<ComingSoonPage />} /> {/* Moved here from protected */}
           <Route path="/" element={<LandingPage />} /> {/* Moved here from protected */}
 
           {/* Protected Routes Group */}
@@ -141,7 +138,7 @@ const AnimatedRoutes: React.FC = () => {
             "/analytics",
             "/products",
             "/affiliate",
-            "/agency",
+            ...(FEATURES.AGENCY_DASHBOARD ? ["/agency"] : []),
             "/team/settings"
           ].map((path) => (
             <Route

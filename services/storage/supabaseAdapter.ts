@@ -131,20 +131,30 @@ export class SupabaseAdapter {
     return this.linkRepo.getLink(id);
   }
 
+  private async getSyncHeaders(): Promise<Record<string, string> | null> {
+    if (!supabase) return null;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    };
+  }
+
   async syncLinkToKv(link: LinkData): Promise<void> {
     if (typeof window === 'undefined') return;
     try {
+      const headers = await this.getSyncHeaders();
+      if (!headers) {
+        console.warn('KV sync skipped: no session (guest links are served via DB fallback)');
+        return;
+      }
+      // Server rebuilds the KV payload from the DB row (never trusts the
+      // client), so we only send the shortCode.
       await fetch('/api/link/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shortCode: link.shortCode,
-          originalUrl: link.originalUrl,
-          id: link.id,
-          password: !!link.password,
-          expiration: link.expirationDate,
-          start: link.startDate
-        })
+        headers,
+        body: JSON.stringify({ shortCode: link.shortCode })
       });
     } catch (err) {
       console.error('Failed to sync link to Vercel KV:', err);
@@ -154,9 +164,11 @@ export class SupabaseAdapter {
   async deleteLinkFromKv(shortCode: string): Promise<void> {
     if (typeof window === 'undefined') return;
     try {
+      const headers = await this.getSyncHeaders();
+      if (!headers) return;
       await fetch('/api/link/sync', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ shortCode })
       });
     } catch (err) {

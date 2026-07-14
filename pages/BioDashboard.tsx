@@ -16,8 +16,6 @@ import BioAppearanceEditor from '../components/BioAppearanceEditor';
 import BioSeoEditor from '../components/BioSeoEditor';
 import { SortableBioLinkItem } from '../components/SortableBioLinkItem';
 
-import { TechVaultManager } from '../components/TechVaultManager';
-import { NewsletterManager } from '../components/NewsletterManager';
 import { AppStackManager } from '../components/AppStackManager';
 import { ThemeGallery } from '../components/ThemeGallery';
 import {
@@ -612,29 +610,6 @@ const BioDashboard: React.FC = () => {
 
                             {/* 4. Tech Vault Card */}
                             {/* 4. Tech Vault Card (Creator Feature) */}
-                            <CollapsibleWidget
-                                title="Tech Vault"
-                                icon={Camera}
-                                defaultOpen={false}
-                            >
-                                {!['pro', 'business'].includes(user?.preferences?.subscription_tier || '') ? (
-                                    <div className="p-6 text-center">
-                                        <Camera className="w-12 h-12 text-stone-200 mx-auto mb-3" />
-                                        <h3 className="text-slate-900 font-bold mb-1">Showcase Your Gear</h3>
-                                        <p className="text-stone-500 text-sm mb-4">Share your equipment and setup with Tech Vault.</p>
-                                        <button
-                                            // Trigger upgrade modal via a global event or prop if available, or just toast for now
-                                            onClick={() => toast("Upgrade to Pro tier to use Tech Vault")}
-                                            className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-amber-500/20"
-                                        >
-                                            Upgrade to Unlock
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <TechVaultManager />
-                                )}
-                            </CollapsibleWidget>
-
                             {/* 5. App Stack Card (Pro Feature) */}
                             <CollapsibleWidget title="App Stack" icon={Smartphone} defaultOpen={false}>
                                 {!['pro', 'business'].includes(user?.preferences?.subscription_tier || '') ? (
@@ -669,17 +644,6 @@ const BioDashboard: React.FC = () => {
                                         />
                                     )}
                                 </div>
-                            </CollapsibleWidget>
-
-                            {/* 7. Newsletter Card */}
-                            <CollapsibleWidget
-                                title="Newsletter"
-                                icon={Mail}
-                                defaultOpen={false}
-                                className="md:col-span-2"
-                                id="newsletter-section"
-                            >
-                                <NewsletterManager />
                             </CollapsibleWidget>
 
                         </div>

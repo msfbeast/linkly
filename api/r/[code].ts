@@ -1,26 +1,75 @@
 import { kv } from '@vercel/kv';
-import { Client } from '@upstash/qstash';
+import { createClient } from '@supabase/supabase-js';
 
 export const config = {
     runtime: 'edge',
 };
 
-// Initialize QStash Client
-const qstash = new Client({
-    token: process.env.QSTASH_TOKEN || '',
-});
+interface KvLinkData {
+    url: string;
+    id: string;
+    password?: boolean;
+    expiration?: number;
+    start?: number;
+}
+
+// Domains where the SPA itself is served (interstitial/unlock pages work here)
+const MAIN_DOMAINS = ['localhost', 'gather.link', 'app.gather.link', 'gather-link.vercel.app', 'links.trak.in'];
+
+/**
+ * Resolve the app's own URL for interstitial pages (/open, /unlock).
+ * Prefers NEXT_PUBLIC_APP_URL; if unset and the request is already on a
+ * main domain, use that origin (avoids a cross-domain hop for every
+ * mobile click when the env var is missing).
+ */
+const getAppUrl = (requestUrl: URL): string => {
+    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+    if (MAIN_DOMAINS.some(d => requestUrl.hostname.includes(d))) return requestUrl.origin;
+    return 'https://gather.link';
+};
+
+/** DB fallback when the KV cache misses; rewarms the cache on success. */
+async function lookupFromDatabase(code: string): Promise<KvLinkData | null> {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+        console.error('[Edge API] DB fallback unavailable: missing Supabase env');
+        return null;
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: row, error } = await supabase
+        .from('links')
+        .select('id, original_url, password_hash, expiration_date, start_date')
+        .eq('short_code', code)
+        .maybeSingle();
+
+    if (error || !row || !row.original_url) return null;
+
+    const linkData: KvLinkData = {
+        url: row.original_url,
+        id: row.id,
+        password: !!row.password_hash,
+        expiration: row.expiration_date ?? undefined,
+        start: row.start_date ?? undefined,
+    };
+
+    // Rewarm KV so the next click is fast (best-effort)
+    try {
+        await kv.set(`gather:link:${code}`, linkData);
+    } catch (e) {
+        console.error('[Edge API] KV rewarm failed:', e);
+    }
+
+    return linkData;
+}
 
 export default async function handler(request: Request) {
     const url = new URL(request.url);
-    // Vercel file-system routing: /api/r/[code]
-    // The code is usually passed as a query param or part of the path depending on how we access it.
-    // If we rewrite /r/:code -> /api/r/[code], Vercel passes it.
-    // Let's try to parse from URL path first, or query param.
-
-    // When accessed via rewrite /r/foo -> /api/r/foo
-    // The request.url might still be /r/foo or /api/r/foo depending on Vercel internal proxy.
-    // Safer to parse the last segment.
-
+    // When accessed via rewrite /r/foo -> /api/r/foo, parse the last segment.
     const pathSegments = url.pathname.split('/');
     const code = pathSegments[pathSegments.length - 1];
 
@@ -29,17 +78,13 @@ export default async function handler(request: Request) {
     }
 
     try {
-        console.log(`[Edge API] Checking link: ${code}`);
-        console.error(`[Edge API] QSTASH_TOKEN present: ${!!process.env.QSTASH_TOKEN}`);
-
-        // Check Vercel KV for the link
-        const linkData = await kv.get<{
-            url: string;
-            id: string;
-            password?: boolean;
-            expiration?: number;
-            start?: number;
-        }>(`gather:link:${code}`);
+        // 1. Check Vercel KV; fall back to Supabase on miss (KV can be
+        //    incomplete after failed syncs or cache flushes — links must
+        //    not die because of a cache problem).
+        let linkData = await kv.get<KvLinkData>(`gather:link:${code}`);
+        if (!linkData || !linkData.url) {
+            linkData = await lookupFromDatabase(code);
+        }
 
         if (linkData && linkData.url) {
             // Async Analytics: Publish to QStash
@@ -60,9 +105,7 @@ export default async function handler(request: Request) {
                     longitude: request.headers.get('x-vercel-ip-longitude'),
                 };
 
-                console.log('[Edge API] Sending to QStash via fetch...');
-
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gather.link';
+                const appUrl = getAppUrl(url);
                 const qstashRes = await fetch(`${process.env.QSTASH_URL}/v2/publish/${appUrl}/api/queue/process-click`, {
                     method: 'POST',
                     headers: {
@@ -74,32 +117,24 @@ export default async function handler(request: Request) {
 
                 if (!qstashRes.ok) {
                     console.error(`[Edge API] QStash failed: ${qstashRes.status} ${await qstashRes.text()}`);
-                } else {
-                    console.log(`[Edge API] QStash success: ${await qstashRes.text()}`);
                 }
             } catch (qError) {
                 console.error('[Edge API] QStash Error:', qError);
                 // Don't fail the redirect if analytics fails
             }
 
-            // 1. Check Restrictions (Password, Expiration, Start Date)
+            // 2. Check Restrictions (Password, Expiration, Start Date)
             const now = Date.now();
             if (linkData.password ||
                 (linkData.expiration && now > linkData.expiration) ||
                 (linkData.start && now < linkData.start)) {
-                console.log(`[Edge API] Link has restrictions, delegating to React Page: ${code}`);
-                // Redirect to the React Page which handles UI for passwords/errors
-                // We use the same path /r/[code] but without the /api prefix
-                // The middleware rewrites /r/[code] to /api/r/[code], so we need to be careful not to loop.
-                // Wait, if we redirect to /r/[code], the middleware sees it.
-                // If it's a custom domain, middleware rewrites /r/[code] to /api/r/[code].
-                // LOOP DANGER!
-
-                // SOLUTION: We need to tell the middleware NOT to rewrite this request.
-                // Or, we redirect to the main domain?
-                // If we redirect to app.gather.link/r/[code], it works.
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gather.link';
-                return Response.redirect(`${appUrl}/r/${code}`, 307);
+                // Delegate to the React page which renders password/expiry UI.
+                // IMPORTANT: use /unlock/:code, NOT /r/:code — vercel.json
+                // rewrites /r/:code straight back to this function, which
+                // previously caused an infinite redirect loop for every
+                // password-protected or scheduled link.
+                const appUrl = getAppUrl(url);
+                return Response.redirect(`${appUrl}/unlock/${code}`, 307);
             }
 
             // Smart Redirect for Mobile Users (to break out of in-app browsers)
@@ -107,7 +142,7 @@ export default async function handler(request: Request) {
             const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
 
             if (isMobile) {
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gather.link';
+                const appUrl = getAppUrl(url);
                 const encodedTarget = encodeURIComponent(linkData.url);
                 return Response.redirect(`${appUrl}/open/${encodedTarget}`, 307);
             }

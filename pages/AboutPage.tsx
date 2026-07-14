@@ -32,9 +32,9 @@ const AboutPage: React.FC = () => {
                         <p className="text-slate-300 text-lg leading-relaxed mb-8">
                             We're a small, passionate team working on big problems. If you care about design, creator tools, and the open web, we'd love to hear from you.
                         </p>
-                        <Link to="/careers" className="inline-block px-6 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-purple-50 transition-colors">
-                            View Careers
-                        </Link>
+                        <a href="mailto:hello@gather.link" className="inline-block px-6 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-purple-50 transition-colors">
+                            Get in Touch
+                        </a>
                     </div>
                 </div>
             </div>

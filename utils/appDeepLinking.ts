@@ -159,26 +159,10 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
                 return webUrl;
             }
 
-            // Standard Product URLs (Non-Android fallback or specific iOS scheme if needed)
-            // Try 1: Direct Product ID (Standard Scheme)
-            let pid = url.searchParams.get('pid');
-
-            // Try 2: Extract PID from path (e.g. /product-name/p/itm...)
-            if (!pid) {
-                const match = path.match(/\/p\/([a-zA-Z0-9]+)/);
-                if (match && match[1]) {
-                    pid = match[1];
-                }
-            }
-
-            if (pid) {
-                // flipkart://product?pid= is reliable on iOS?
-                // Actually, for iOS, standard Universal Links (https) are best.
-                // But if we want to force it, we can try the scheme.
-                return `flipkart://product?pid=${pid}&ot=SCH&otr=TRACKER`;
-            }
-
-            // Fallback
+            // AFFILIATE-CRITICAL: the pid-only scheme
+            // (flipkart://product?pid=...) drops the query string — including
+            // ?affid= — losing affiliate attribution. Always use the
+            // URL-preserving dl/url form so the full tagged URL reaches the app.
             return `flipkart://dl/url?url=${encodeURIComponent(webUrl)}`;
         }
 
@@ -187,18 +171,16 @@ export const getAppDeepLink = (webUrl: string, userAgent?: string): string | nul
             if (isAndroid) {
                 const cleanPath = webUrl.replace(/^https?:\/\//, '');
                 // Amazon package name can vary (com.amazon.mShop.android.shopping is global/common)
+                // cleanPath keeps the full query string, so ?tag= survives.
                 return `intent://${cleanPath}#Intent;scheme=https;package=com.amazon.mShop.android.shopping;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
             }
 
-            // Try 1: Extract ASIN for direct product deep link
-            // Patterns: /dp/ASIN, /gp/product/ASIN
-            const asinMatch = path.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
-            if (asinMatch && asinMatch[1]) {
-                const domain = hostname.includes('amazon.in') ? 'in' : 'com';
-                return `com.amazon.mobile.shopping://www.amazon.${domain}/products/${asinMatch[1]}`;
-            }
-
-            // Fallback for iOS/Others
+            // iOS/Others: ALWAYS use the URL-preserving scheme.
+            // AFFILIATE-CRITICAL: the older ASIN scheme
+            // (com.amazon.mobile.shopping://.../products/ASIN) drops the query
+            // string — including ?tag= — which silently destroyed Associates
+            // attribution for every iOS click. The .web:// form loads the full
+            // tagged URL inside the Amazon app, keeping attribution intact.
             return `com.amazon.mobile.shopping.web://content/view?currentUrl=${encodeURIComponent(webUrl)}`;
         }
 

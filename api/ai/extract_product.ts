@@ -28,8 +28,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Auth Check
-    if (supabase) {
+    // Auth Check (fail closed if server is misconfigured)
+    if (!supabase) {
+        console.error('[AI] Supabase not configured on server; refusing request');
+        return res.status(500).json({ error: 'Server misconfiguration' });
+    }
+    {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
             return res.status(401).json({ error: 'Missing Authorization header' });

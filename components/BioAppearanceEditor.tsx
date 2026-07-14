@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { BioProfile, BioThemeConfig } from '../types';
-import { Layout, Type, Palette as PaletteIcon, Shapes, Check, ChevronDown, Monitor, Image as ImageIcon, Sparkles, Loader2, Lock } from 'lucide-react';
+import { Layout, Type, Palette as PaletteIcon, Shapes, Check, ChevronDown, Monitor, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { generateBackgroundImage } from '../services/geminiService';
 
 interface BioAppearanceEditorProps {
     profile: BioProfile;
@@ -30,8 +29,6 @@ const BUTTON_STYLES = [
 
 const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onChange }) => {
     const { user } = useAuth();
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [bgPrompt, setBgPrompt] = useState('');
 
     const isPro = ['pro', 'business', 'lifetime'].includes(user?.preferences?.subscription_tier || 'free');
 
@@ -156,51 +153,6 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                     />
                                 </div>
 
-                                {/* AI Generator (Nano Banana) */}
-                                <div className={`p-4 rounded-xl border ${isPro ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-stone-50 border-stone-200 opacity-75'}`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                                            <span className="text-xs font-bold text-indigo-900">Generate with Nano Banana</span>
-                                        </div>
-                                        {!isPro && <Lock className="w-3 h-3 text-stone-400" />}
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="E.g., minimal tropical sunset..."
-                                            value={bgPrompt}
-                                            onChange={(e) => setBgPrompt(e.target.value)}
-                                            disabled={!isPro || isGenerating}
-                                            className="flex-1 bg-white border border-stone-200/50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-transparent"
-                                        />
-                                        <button
-                                            onClick={async () => {
-                                                if (!bgPrompt) return;
-                                                setIsGenerating(true);
-                                                try {
-                                                    const url = await generateBackgroundImage(bgPrompt);
-                                                    updateConfig('backgroundValue', url);
-                                                } catch (e) {
-                                                    console.error(e);
-                                                    alert('Failed to generate image. Please try again.');
-                                                } finally {
-                                                    setIsGenerating(false);
-                                                }
-                                            }}
-                                            disabled={!isPro || isGenerating || !bgPrompt}
-                                            className="bg-indigo-600 text-white px-3 rounded-lg font-bold text-xs hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[32px] transition-colors"
-                                        >
-                                            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Go'}
-                                        </button>
-                                    </div>
-                                    {!isPro && (
-                                        <p className="text-[10px] text-stone-500 mt-2">
-                                            Upgrade to Pro to generate unlimited AI backgrounds.
-                                        </p>
-                                    )}
-                                </div>
                             </div>
                         )}
                     </div>
@@ -332,28 +284,6 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                                     blockVisibility: {
                                         ...profile.blockVisibility,
                                         gallery: e.target.checked
-                                    }
-                                })}
-                                className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
-                        </label>
-                    </div>
-
-                    {/* Newsletter Toggle */}
-                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
-                        <div>
-                            <p className="font-bold text-sm text-slate-900">Newsletter</p>
-                            <p className="text-xs text-stone-500">Show subscription form</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={profile.blockVisibility?.newsletter !== false}
-                                onChange={e => onChange({
-                                    blockVisibility: {
-                                        ...profile.blockVisibility,
-                                        newsletter: e.target.checked
                                     }
                                 })}
                                 className="sr-only peer"
