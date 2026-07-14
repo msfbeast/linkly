@@ -1,4 +1,5 @@
 import { supabase } from './storage/supabaseClient';
+import { titleFromUrl } from '../utils/urlTitle';
 
 export interface GeminiAnalysisResult {
   title: string;
@@ -60,8 +61,8 @@ export const analyzeUrlWithGemini = async (url: string): Promise<GeminiAnalysisR
   } catch (error) {
     console.error("Gemini analysis failed:", error);
     return {
-      title: "New Link",
-      description: "Analysis failed, please enter manually.",
+      title: titleFromUrl(url),
+      description: "",
       suggestedSlug: generateSlugFallback(),
       tags: ["general"],
       category: "Uncategorized",
@@ -88,14 +89,14 @@ export const generateLinkMetadata = async (url: string, currentTitle?: string): 
     if (response.ok) {
       const data = await response.json();
       return {
-        title: data.title || currentTitle || "New Link",
+        title: data.title || currentTitle || titleFromUrl(url),
         description: data.description || ""
       };
     }
-    return { title: currentTitle || "New Link", description: "" };
+    return { title: currentTitle || titleFromUrl(url), description: "" };
   } catch (error) {
     console.error("Smart Link Metadata generation failed:", error);
-    return { title: currentTitle || "New Link", description: "" };
+    return { title: currentTitle || titleFromUrl(url), description: "" };
   }
 };
 

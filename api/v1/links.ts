@@ -4,6 +4,7 @@ import { kv } from '@vercel/kv';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { monetizeUrl, isShortAmazonUrl, resolveShortUrlBackend } from '../../utils/affiliateUtils';
+import { titleFromUrl } from '../../utils/urlTitle';
 
 export const config = {
     runtime: 'edge',
@@ -222,7 +223,7 @@ export default async function handler(request: Request) {
                     user_id: keyData.user_id,
                     original_url: monetizedUrl,
                     short_code: shortCode,
-                    title: title || parsedUrl.hostname,
+                    title: title || titleFromUrl(monetizedUrl),
                     tags: tags || [],
                     created_at: new Date().toISOString()
                 })

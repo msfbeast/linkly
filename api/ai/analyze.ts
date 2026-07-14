@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from '@supabase/supabase-js';
+import { titleFromUrl } from '../../utils/urlTitle';
 
 // Initialize Gemini on the server side
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
@@ -163,8 +164,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({
             error: error.message || 'Analysis failed',
             fallback: {
-                title: "New Link",
-                description: "Analysis failed, please enter manually.",
+                title: titleFromUrl(req.body?.url || ''),
+                description: "",
                 suggestedSlug: Math.random().toString(36).substring(2, 8),
                 tags: ["general"],
                 category: "Uncategorized",

@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from '@supabase/supabase-js';
+import { titleFromUrl } from '../../utils/urlTitle';
 
 // Initialize Gemini on the server side (key never reaches the client)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
@@ -78,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let parsed: any = {};
                 try { parsed = JSON.parse(text); } catch { /* fall through to defaults */ }
                 return res.status(200).json({
-                    title: parsed.title || currentTitle || "New Link",
+                    title: parsed.title || currentTitle || titleFromUrl(url),
                     description: parsed.description || ""
                 });
             }

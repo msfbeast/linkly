@@ -68,7 +68,7 @@ export default async function middleware(request: Request) {
         if (hostname === 'links.trak.in') {
             const systemRoutes = [
                 '/admin', '/dashboard', '/login', '/register',
-                '/api', '/assets', '/p/', '/r/', '/store',
+                '/api', '/assets', '/p/', '/r/', '/@', '/store',
                 '/open', '/unlock', '/reset-password', '/update-password',
                 '/claim', '/team', '/pricing', '/about', '/privacy', '/terms', '/cookies'
             ];
