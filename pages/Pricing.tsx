@@ -6,6 +6,7 @@ import PricingCard from '../components/PricingCard';
 import { useAuth } from '../contexts/AuthContext';
 // import { createOrder, startPayment } from '../services/cashfreeService'; // Removed
 import { Check, Zap, Shield, BarChart3, Globe, Users } from 'lucide-react';
+import { RAZORPAY_PLANS } from '../utils/razorpayPlans';
 
 declare global {
     interface Window {
@@ -27,13 +28,7 @@ const Pricing: React.FC = () => {
         }
     };
 
-    // Placeholder IDs - To be filled by User
-    const priceIds = {
-        INR: {
-            monthly: { pro: 'plan_RuwgZWy5U7TtRf', business: 'plan_RuwhIlSY4xmePl' },
-            yearly: { pro: 'plan_Ruwh4kaj1GtTia', business: 'plan_RuwhesYYL42H6Q' }
-        }
-    };
+    const priceIds = RAZORPAY_PLANS;
 
     const handleSubscribe = async (priceId: string, tierName: string) => {
         if (!user) {
@@ -45,7 +40,7 @@ const Pricing: React.FC = () => {
 
         try {
             // Razorpay Subscription Flow (Default)
-            const { loadRazorpayScript, createRazorpaySubscription, verifyRazorpayPayment } = await import('../services/razorpayService');
+            const { loadRazorpayScript, createRazorpaySubscription, authHeaders } = await import('../services/razorpayService');
 
             const isScriptLoaded = await loadRazorpayScript();
             if (!isScriptLoaded) {
@@ -55,10 +50,7 @@ const Pricing: React.FC = () => {
             }
 
             // Create Subscription
-            const subscription = await createRazorpaySubscription(priceId, {
-                userId: user.id,
-                tier: tierName
-            });
+            const subscription = await createRazorpaySubscription(priceId);
 
             const options = {
                 key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
@@ -73,12 +65,8 @@ const Pricing: React.FC = () => {
                             // Call specialized verify endpoint
                             const verifyResponse = await fetch('/api/verify-razorpay-subscription', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    ...response,
-                                    userId: user.id,
-                                    tier: tierName
-                                })
+                                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+                                body: JSON.stringify(response)
                             });
 
                             if (!verifyResponse.ok) throw new Error('Verification failed');

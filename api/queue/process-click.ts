@@ -7,15 +7,39 @@ export const config = {
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+const CURRENT_SIGNING_KEY = process.env.QSTASH_CURRENT_SIGNING_KEY;
+const NEXT_SIGNING_KEY = process.env.QSTASH_NEXT_SIGNING_KEY;
+
 // Initialize QStash Receiver
 const receiver = new Receiver({
-    currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY || '',
-    nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY || '',
+    currentSigningKey: CURRENT_SIGNING_KEY || '',
+    nextSigningKey: NEXT_SIGNING_KEY || CURRENT_SIGNING_KEY || '',
 });
+
+/**
+ * Keyed hash of the visitor IP so raw addresses are never stored. A plain
+ * hash of an IPv4 address can be reversed by brute force; HMAC with a
+ * server secret cannot.
+ */
+async function hashIp(rawIp: unknown): Promise<string | null> {
+    if (typeof rawIp !== 'string' || !rawIp || rawIp === 'unknown') return null;
+    const ip = rawIp.split(',')[0].trim();
+    const secret = process.env.IP_HASH_SALT || SUPABASE_KEY || '';
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(ip));
+    return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export default async function handler(request: Request) {
     if (request.method !== 'POST') {
         return new Response('Method not allowed', { status: 405 });
+    }
+
+    // Fail closed: without signing keys we can't tell QStash from anyone else.
+    if (!CURRENT_SIGNING_KEY) {
+        console.error('QStash signing keys not configured; rejecting click');
+        return new Response('Server Configuration Error', { status: 500 });
     }
 
     const signature = request.headers.get('upstash-signature');
@@ -23,15 +47,15 @@ export default async function handler(request: Request) {
         return new Response('Missing signature', { status: 401 });
     }
 
+    const body = await request.text();
     try {
-        const body = await request.text();
+        const valid = await receiver.verify({ signature, body });
+        if (!valid) throw new Error('invalid');
+    } catch {
+        return new Response('Invalid signature', { status: 401 });
+    }
 
-        if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
-            await receiver.verify({
-                signature,
-                body,
-            });
-        }
+    try {
 
         const event = JSON.parse(body);
 
@@ -53,7 +77,7 @@ export default async function handler(request: Request) {
                 link_id: event.linkId,
                 timestamp: new Date(event.timestamp).toISOString(),
                 raw_user_agent: event.userAgent,
-                ip_hash: event.ip,
+                ip_hash: await hashIp(event.ip),
                 country: event.country,
                 city: event.city,
                 region: event.region,
@@ -102,6 +126,6 @@ export default async function handler(request: Request) {
 
     } catch (error) {
         console.error('Worker Error:', error);
-        return new Response(`Invalid Request: ${error.message}`, { status: 400 });
+        return new Response('Invalid Request', { status: 400 });
     }
 }

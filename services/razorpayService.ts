@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { supabase } from './storage/supabaseClient';
 
 interface RazorpayOptions {
     key: string;
@@ -37,45 +37,22 @@ export const loadRazorpayScript = () => {
     });
 };
 
-export const createRazorpayOrder = async (amount: number, currency: string = 'INR') => {
-    try {
-        const response = await fetch('/api/create-razorpay-order', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                amount, // sending raw amount, backend multiplies by 100 if needed? 
-                // Wait, checking api/create-razorpay-order.ts: it does amount * 100.
-                // So we send standard units (e.g. 299).
-                currency,
-            }),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to create order');
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Error creating Razorpay order:', error);
-        throw error;
-    }
+/** Authorization header for the current Supabase session (empty if signed out). */
+export const authHeaders = async (): Promise<Record<string, string>> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 };
 
-export const createRazorpaySubscription = async (planId: string, notes: any) => {
+/** The server decides the tier from the plan and ties the subscription to the signed-in user. */
+export const createRazorpaySubscription = async (planId: string) => {
     try {
         const response = await fetch('/api/create-razorpay-subscription', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(await authHeaders()),
             },
-            body: JSON.stringify({
-                planId,
-                total_count: 120, // 10 years
-                notes
-            }),
+            body: JSON.stringify({ planId }),
         });
 
         if (!response.ok) {
@@ -86,28 +63,6 @@ export const createRazorpaySubscription = async (planId: string, notes: any) => 
         return await response.json();
     } catch (error) {
         console.error('Error creating Razorpay subscription:', error);
-        throw error;
-    }
-};
-
-export const verifyRazorpayPayment = async (paymentData: any) => {
-    try {
-        const response = await fetch('/api/verify-razorpay-payment', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(paymentData),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Payment verification failed');
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Error verifying payment:', error);
         throw error;
     }
 };
