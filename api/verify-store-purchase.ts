@@ -1,149 +1,163 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import Razorpay from 'razorpay';
 import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getAdminClient } from './_lib/supabaseServer';
 
-// Initialize Supabase (Service Role for admin updates)
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const DOWNLOAD_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function safeEqual(a: string, b: string): boolean {
+    const ab = Buffer.from(a, 'utf8');
+    const bb = Buffer.from(b, 'utf8');
+    return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+}
+
+function escapeHtml(value: unknown): string {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+async function signedDownloadUrl(supabase: SupabaseClient, fileUrl: string | null): Promise<string | undefined> {
+    if (!fileUrl) return undefined;
+    if (fileUrl.startsWith('http')) return fileUrl;
+    const { data, error } = await supabase.storage
+        .from('digital-products')
+        .createSignedUrl(fileUrl, DOWNLOAD_TTL_SECONDS);
+    if (error || !data) {
+        console.warn('[Verify] Failed to sign URL:', error);
+        return undefined;
+    }
+    return data.signedUrl;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    try {
-        const {
-            razorpay_order_id,
-            razorpay_payment_id,
-            razorpay_signature,
-            orderId, // Internal DB order ID
-            productId
-        } = req.body;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const supabase = getAdminClient();
+    if (!keySecret || !supabase) {
+        console.error('[Verify] Server misconfiguration');
+        return res.status(500).json({ error: 'Server misconfiguration' });
+    }
 
-        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !orderId || !productId) {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body || {};
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !orderId) {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
-        // 1. Verify Signature
-        const generated_signature = crypto
-            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
-            .update(razorpay_order_id + '|' + razorpay_payment_id)
+        // 1. Verify Razorpay signature over order_id|payment_id
+        const expected = crypto
+            .createHmac('sha256', keySecret)
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest('hex');
 
-        if (generated_signature !== razorpay_signature) {
+        if (!safeEqual(expected, String(razorpay_signature))) {
             return res.status(400).json({ error: 'Invalid payment signature' });
         }
 
-        // 2. Update Order Status
-        const { error: updateError } = await supabase
+        // 2. The paid Razorpay order must be the one we created for this
+        //    internal order. The product is taken from the order row, so a
+        //    payment for one product can't unlock another.
+        const { data: order, error: orderError } = await supabase
             .from('orders')
-            .update({
-                status: 'paid',
-                razorpay_payment_id: razorpay_payment_id,
-                razorpay_order_id: razorpay_order_id // Ensure this is saved if not already
-            })
-            .eq('id', orderId);
-
-        if (updateError) {
-            console.error('Order update error:', updateError);
-            return res.status(500).json({ error: 'Failed to update order status' });
-        }
-
-        // 3. Increment Sales Count & Fetch Details for Email
-        const { data: product } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', productId)
-            .single();
-
-        if (product) {
-            await supabase
-                .from('products')
-                .update({ sales_count: (product.sales_count || 0) + 1 })
-                .eq('id', productId);
-        }
-
-        // 4. Send Receipt Email
-        // Fetch order details to get buyer email
-        const { data: order } = await supabase
-            .from('orders')
-            .select('buyer_email, amount, currency')
+            .select('id, product_id, status, razorpay_order_id, razorpay_payment_id, customer_email, amount, currency')
             .eq('id', orderId)
-            .single();
+            .maybeSingle();
 
-        if (order?.buyer_email) {
-            try {
-                // Generate Secure Download Link
-                let downloadUrl = product?.file_url || '#';
+        if (orderError || !order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+        if (order.razorpay_order_id !== razorpay_order_id) {
+            return res.status(400).json({ error: 'Payment does not match order' });
+        }
 
-                // If it's a storage path (not an external URL), sign it
-                if (downloadUrl && !downloadUrl.startsWith('http')) {
-                    const { data: signedData, error: signError } = await supabase
-                        .storage
-                        .from('digital-products')
-                        .createSignedUrl(downloadUrl, 60 * 60 * 24 * 7); // 7 days expiry
+        // 3. Mark paid exactly once (conditional update guards against
+        //    replays and concurrent verifications).
+        let firstVerification = false;
+        if (order.status === 'paid') {
+            if (order.razorpay_payment_id !== razorpay_payment_id) {
+                return res.status(409).json({ error: 'Order already paid' });
+            }
+        } else {
+            const { data: updated, error: updateError } = await supabase
+                .from('orders')
+                .update({ status: 'paid', razorpay_payment_id })
+                .eq('id', order.id)
+                .eq('status', 'pending')
+                .select('id');
 
-                    if (!signError && signedData) {
-                        downloadUrl = signedData.signedUrl;
-                    } else {
-                        console.warn('[Verify] Failed to sign URL:', signError);
-                        // Fallback: Construct public URL if bucket is public
-                        const { data: publicData } = supabase.storage.from('digital-products').getPublicUrl(downloadUrl);
-                        downloadUrl = publicData.publicUrl;
-                    }
-                }
+            if (updateError) {
+                console.error('Order update error:', updateError);
+                return res.status(500).json({ error: 'Failed to update order status' });
+            }
+            if (!updated || updated.length === 0) {
+                return res.status(409).json({ error: 'Order is not pending' });
+            }
+            firstVerification = true;
+        }
 
-                const Resend = require('resend').Resend;
-                const resend = new Resend(process.env.RESEND_API_KEY);
+        const { data: product } = order.product_id
+            ? await supabase
+                .from('products')
+                .select('id, name, file_url, sales_count')
+                .eq('id', order.product_id)
+                .maybeSingle()
+            : { data: null };
 
-                await resend.emails.send({
-                    from: 'Gather Receipts <receipts@gather.link>',
-                    to: order.buyer_email,
-                    subject: `Receipt for ${product?.title || 'Digital Product'}`,
-                    html: `
-                        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                            <h1>Thank you for your purchase!</h1>
-                            <p>Here is your receipt for <strong>${product?.title}</strong>.</p>
-                            <div style="background: #f4f4f4; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                                <p><strong>Order ID:</strong> ${orderId}</p>
-                                <p><strong>Amount:</strong> ${order.currency} ${order.amount}</p>
-                                <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+        const downloadUrl = await signedDownloadUrl(supabase, product?.file_url ?? null);
+
+        if (firstVerification) {
+            if (product) {
+                await supabase
+                    .from('products')
+                    .update({ sales_count: (product.sales_count || 0) + 1 })
+                    .eq('id', product.id);
+            }
+
+            // 4. Receipt email (best-effort)
+            if (order.customer_email && process.env.RESEND_API_KEY) {
+                try {
+                    const resend = new Resend(process.env.RESEND_API_KEY);
+                    const fromEmail = process.env.RESEND_FROM_EMAIL || 'receipts@gather.link';
+                    const title = escapeHtml(product?.name || 'Digital Product');
+                    await resend.emails.send({
+                        from: `Gather Receipts <${fromEmail}>`,
+                        to: order.customer_email,
+                        subject: `Receipt for ${product?.name || 'Digital Product'}`,
+                        html: `
+                            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                                <h1>Thank you for your purchase!</h1>
+                                <p>Here is your receipt for <strong>${title}</strong>.</p>
+                                <div style="background: #f4f4f4; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                    <p><strong>Order ID:</strong> ${escapeHtml(order.id)}</p>
+                                    <p><strong>Amount:</strong> ${escapeHtml(order.currency)} ${escapeHtml(order.amount)}</p>
+                                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                                </div>
+                                ${downloadUrl ? `
+                                <p>You can download your file or access your content using the link below:</p>
+                                <a href="${escapeHtml(downloadUrl)}" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Content</a>
+                                <p style="margin-top: 10px; font-size: 12px; color: #666;">This link expires in 7 days.</p>` : ''}
+                                <p style="margin-top: 30px; font-size: 12px; color: #666;">If you have any questions, please reply to this email.</p>
                             </div>
-                            <p>You can download your file or access your content using the link below:</p>
-                            <a href="${downloadUrl}" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Content</a>
-                            <p style="margin-top: 10px; font-size: 12px; color: #666;">This link expires in 7 days.</p>
-                            <img src="${product?.image_url}" style="width: 100%; border-radius: 8px; margin-top: 20px; max-height: 200px; object-fit: cover;" />
-                            <p style="margin-top: 30px; font-size: 12px; color: #666;">If you have any questions, please reply to this email.</p>
-                        </div>
-                    `
-                });
-                console.log(`Receipt sent to ${order.buyer_email}`);
-            } catch (emailError) {
-                console.error('Failed to send receipt email:', emailError);
-                // Don't fail the verification request just because email failed, but log it critical
+                        `,
+                    });
+                } catch (emailError) {
+                    console.error('Failed to send receipt email:', emailError);
+                }
             }
         }
 
-        // Generate download URL for the client response
-        let clientDownloadUrl: string | undefined;
-        if (product?.file_url && !product.file_url.startsWith('http')) {
-            const { data: signedData, error: signError } = await supabase
-                .storage
-                .from('digital-products')
-                .createSignedUrl(product.file_url, 60 * 60 * 24 * 7); // 7 days
-
-            if (!signError && signedData) {
-                clientDownloadUrl = signedData.signedUrl;
-            }
-        }
-
-        return res.status(200).json({ success: true, message: 'Purchase verified', downloadUrl: clientDownloadUrl });
-
+        return res.status(200).json({ success: true, message: 'Purchase verified', downloadUrl });
     } catch (error: any) {
         console.error('Verify Purchase Error:', error);
-        return res.status(500).json({ error: error.message || 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 }

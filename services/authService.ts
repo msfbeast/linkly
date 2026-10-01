@@ -191,7 +191,7 @@ export const authService = {
     // Send welcome email
     if (data.user && data.user.email) {
       try {
-        await emailService.sendWelcomeEmail(data.user.email, username || data.user.email.split('@')[0]);
+        await emailService.sendWelcomeEmail();
       } catch (emailErr) {
         console.error('Failed to send welcome email:', emailErr);
         // Don't fail signup

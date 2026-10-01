@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, Download, Loader2, CreditCard } from 'lucide-react';
 import { Product } from '@/types';
-import { loadRazorpayScript, createRazorpayOrder } from '@/services/razorpayService';
+import { loadRazorpayScript } from '@/services/razorpayService';
 import { toast } from 'sonner';
 
 interface CheckoutModalProps {
@@ -33,35 +33,35 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
             }
 
             // 2. Create Order
-            const order = await createRazorpayOrder(product.price, product.currency || 'INR');
+            // Price is set by the server from the product row
+            const orderResponse = await fetch('/api/create-store-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productId: product.id, customerEmail }),
+            });
+            const orderData = await orderResponse.json();
+            if (!orderResponse.ok) throw new Error(orderData.error || 'Failed to create order');
 
             // 3. Open Razorpay Checkout
             const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-                amount: order.amount,
-                currency: order.currency,
+                key: orderData.key_id,
+                amount: orderData.amount,
+                currency: orderData.currency,
                 name: storeName,
                 description: `Purchase: ${product.name}`,
                 image: product.imageUrl,
-                order_id: order.id,
+                order_id: orderData.rz_id,
                 handler: async function (response: any) {
                     try {
-                        const verifyData = {
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                            customer_email: customerEmail,
-                            product_id: product.id
-                        };
-
                         // 4. Verify Payment via store purchase endpoint
                         const verifyResponse = await fetch('/api/verify-store-purchase', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                ...verifyData,
-                                orderId: order.id,
-                                productId: product.id
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                                orderId: orderData.id,
                             })
                         });
 

@@ -57,13 +57,8 @@ const ProductPage: React.FC = () => {
             const response = await fetch('/api/create-store-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    productId: product.id,
-                    sellerId: product.userId,
-                    amount: product.price,
-                    currency: product.currency,
-                    // Optional: Collect email if we had a form
-                })
+                // Price and seller are looked up server-side
+                body: JSON.stringify({ productId: product.id })
             });
             const orderData = await response.json();
 
@@ -89,7 +84,6 @@ const ProductPage: React.FC = () => {
                                 razorpay_payment_id: response.razorpay_payment_id,
                                 razorpay_signature: response.razorpay_signature,
                                 orderId: orderData.id, // Internal Order ID from Step 1
-                                productId: product.id
                             })
                         });
                         const verifyData = await verifyRes.json();
