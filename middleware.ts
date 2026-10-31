@@ -2,6 +2,7 @@ import { next } from '@vercel/edge';
 import { createClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import { isMainDomain as isMainAppDomain, deploymentHosts } from './utils/mainDomains';
 
 export const config = {
     matcher: [
@@ -30,9 +31,7 @@ export default async function middleware(request: Request) {
     const hostname = url.hostname;
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
-    // Define allowed domains (localhost and main domain)
-    const allowedDomains = ['localhost', 'gather.link', 'app.gather.link', 'gather-link.vercel.app', 'links.trak.in'];
-    const isMainDomain = allowedDomains.some(domain => hostname.includes(domain));
+    const isMainDomain = isMainAppDomain(hostname, deploymentHosts());
 
     // 0. Rate Limiting - ONLY for custom domains and public redirect routes
     // Skip rate limiting for:
@@ -113,8 +112,9 @@ export default async function middleware(request: Request) {
     const { data: domainData, error } = await supabase
         .from('domains')
         .select('user_id, status, target_type')
-        .eq('domain', hostname)
-        .single();
+        .eq('domain', hostname.toLowerCase())
+        .eq('status', 'active')
+        .maybeSingle();
 
     if (error || !domainData || domainData.status !== 'active') {
         console.warn(`[Middleware] Domain ${hostname} not found or not active`);

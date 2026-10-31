@@ -1,86 +1,111 @@
-
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { promises as dns } from 'dns';
+import { getAdminClient, getUserFromRequest } from '../_lib/supabaseServer';
+
+/**
+ * Verify a custom domain and mark it active.
+ *
+ * The DNS check runs here, and only the server (service role) can set a
+ * domain's status: a database trigger stops clients doing it directly.
+ * Several users may have a pending claim on the same domain; the first one
+ * whose DNS actually points at us gets it.
+ */
+
+// Must match the instructions shown in components/DomainManager.tsx
+const EXPECTED_TARGETS = ['custom.gather.link', 'cname.vercel-dns.com'];
+
+const normalize = (name: string) => name.toLowerCase().replace(/\.$/, '');
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // CORS Headers
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { domain } = req.query;
-    const target = 'cname.vercel-dns.com';
-
-    if (!domain || typeof domain !== 'string') {
-        return res.status(400).json({ error: 'Domain parameter is required' });
+    const supabase = getAdminClient();
+    if (!supabase) {
+        console.error('[DomainVerify] Server misconfiguration');
+        return res.status(500).json({ error: 'Server misconfiguration' });
     }
 
-    // SIMULATION FOR DEMO ENVIRONMENT
-    if (domain.includes('verified') || domain.includes('demo') || domain.includes('mysite')) {
-        // Simulate a slight delay for realism
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        return res.status(200).json({
-            verified: true,
-            domain,
-            records: ['cname.vercel-dns.com'],
-            target
-        });
+    const user = await getUserFromRequest(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    if (domain.includes('pending')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return res.status(200).json({
-            verified: false,
-            domain,
-            error: 'No CNAME record found',
-            code: 'ENODATA'
-        });
+    const { domainId } = req.body || {};
+    if (!domainId || typeof domainId !== 'string') {
+        return res.status(400).json({ error: 'Missing domainId' });
     }
 
+    const { data: domainRow } = await supabase
+        .from('domains')
+        .select('id, user_id, domain, status')
+        .eq('id', domainId)
+        .maybeSingle();
+
+    if (!domainRow || domainRow.user_id !== user.id) {
+        return res.status(404).json({ error: 'Domain not found' });
+    }
+    if (domainRow.status === 'active') {
+        return res.status(200).json({ verified: true, domain: domainRow });
+    }
+
+    const domain = normalize(domainRow.domain);
+
+    let records: string[] = [];
     try {
-        // Resolve CNAME records
-        const cnames = await dns.resolveCname(domain);
-
-        // Check if any CNAME points to our target
-        // Allow 'vercel-dns' or 'gather' in the target
-        const isVerified = cnames.some(record =>
-            record.toLowerCase().includes('vercel-dns') ||
-            record.toLowerCase().includes('gather')
-        );
-
-        return res.status(200).json({
-            verified: isVerified,
-            domain,
-            records: cnames,
-            target
-        });
-
+        records = (await dns.resolveCname(domain)).map(normalize);
     } catch (error: any) {
-        console.error(`DNS Verification failed for ${domain}:`, error);
-
-        // Differentiate between "No Record" and "Server Error"
-        if (error.code === 'ENODATA' || error.code === 'ENOTFOUND') {
-            return res.status(200).json({
-                verified: false,
-                domain,
-                error: 'No CNAME record found',
-                code: error.code
-            });
+        if (error?.code !== 'ENODATA' && error?.code !== 'ENOTFOUND') {
+            console.error(`[DomainVerify] DNS lookup failed for ${domain}:`, error);
+            return res.status(502).json({ verified: false, error: 'DNS lookup failed, try again shortly' });
         }
+    }
 
-        // Return false for other errors in demo environment
+    if (!records.some(r => EXPECTED_TARGETS.includes(r))) {
         return res.status(200).json({
             verified: false,
-            domain,
-            error: 'Verification failed (Simulation)',
-            details: error.message
+            error: `CNAME for ${domain} does not point to ${EXPECTED_TARGETS[0]}`,
+            records,
         });
     }
+
+    // Someone else may already have this domain live.
+    const { data: activeClaim } = await supabase
+        .from('domains')
+        .select('id')
+        .eq('domain', domain)
+        .eq('status', 'active')
+        .neq('id', domainRow.id)
+        .maybeSingle();
+
+    if (activeClaim) {
+        return res.status(409).json({ verified: false, error: 'This domain is already connected to another account' });
+    }
+
+    const { data: updated, error: updateError } = await supabase
+        .from('domains')
+        .update({ status: 'active', verified_at: new Date().toISOString() })
+        .eq('id', domainRow.id)
+        .select('*')
+        .single();
+
+    if (updateError) {
+        // Unique index on active domains: another claim won the race.
+        if (updateError.code === '23505') {
+            return res.status(409).json({ verified: false, error: 'This domain is already connected to another account' });
+        }
+        console.error('[DomainVerify] Update failed:', updateError);
+        return res.status(500).json({ verified: false, error: 'Failed to activate domain' });
+    }
+
+    // Drop other users' stale pending claims for the same domain.
+    await supabase
+        .from('domains')
+        .delete()
+        .eq('domain', domain)
+        .neq('id', domainRow.id)
+        .neq('status', 'active');
+
+    return res.status(200).json({ verified: true, domain: updated });
 }
