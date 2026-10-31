@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import BioView from '../pages/BioView';
 import LoadingFallback from './LoadingFallback';
+import { isMainDomain } from '../utils/mainDomains';
 
 interface DomainRouterProps {
     children: React.ReactNode;
@@ -18,8 +19,7 @@ const DomainRouter: React.FC<DomainRouterProps> = ({ children }) => {
 
             // Allow list for main app domains
             const mainDomain = import.meta.env.VITE_APP_DOMAIN || 'gather.link';
-            const allowedDomains = ['localhost', mainDomain, 'gather-link.vercel.app', 'links.trak.in'];
-            const isAllowed = allowedDomains.some(d => hostname.includes(d));
+            const isAllowed = isMainDomain(hostname, [mainDomain]);
 
             if (isAllowed) {
                 setLoading(false);

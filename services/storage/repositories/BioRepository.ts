@@ -422,53 +422,25 @@ export class BioRepository extends BaseRepository {
     async verifyDomain(domainId: string): Promise<Domain> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
-        // Fetch domain details first
-        const { data: domainData } = await this.supabase!
-            .from('domains')
-            .select('domain')
-            .eq('id', domainId)
-            .single();
+        // DNS is checked and the domain activated server-side; clients can't
+        // set a domain's status themselves.
+        const { data: { session } } = await this.supabase!.auth.getSession();
+        if (!session?.access_token) throw new Error('Please sign in again');
 
-        if (!domainData) throw new Error('Domain not found');
+        const response = await fetch('/api/domain/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ domainId }),
+        });
+        const result = await response.json().catch(() => ({}));
 
-        // Perform DNS check via Google DoH (Client-side safe)
-        // We expect a CNAME to 'custom.gather.link' (or app domain)
-        const EXPECTED_CNAME = 'custom.gather.link';
-        let isVerified = false;
-
-        try {
-            const response = await fetch(`https://dns.google/resolve?name=${domainData.domain}&type=CNAME`);
-            const dnsData = await response.json();
-
-            if (dnsData.Answer) {
-                const cnameRecord = dnsData.Answer.find((r: any) => r.type === 5); // Type 5 is CNAME
-                if (cnameRecord && cnameRecord.data.endsWith(EXPECTED_CNAME + '.')) {
-                    isVerified = true;
-                }
-            } else {
-                // Fallback or additional check for TXT record gather-verification=...
-            }
-        } catch (e) {
-            console.error('DNS Check failed', e);
-            throw new Error('DNS verification failed due to network error');
+        if (!response.ok || !result.verified) {
+            throw new Error(result.error || 'Domain verification failed');
         }
-
-        if (!isVerified) {
-            throw new Error(`Verification failed. CNAME for ${domainData.domain} does not point to ${EXPECTED_CNAME}`);
-        }
-
-        const { data, error } = await this.supabase!
-            .from('domains')
-            .update({
-                status: 'active',
-                verified_at: new Date().toISOString()
-            })
-            .eq('id', domainId)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return rowToDomain(data as DomainRow);
+        return rowToDomain(result.domain as DomainRow);
     }
 
     async deleteDomain(id: string): Promise<void> {

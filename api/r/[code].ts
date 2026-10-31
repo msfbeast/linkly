@@ -1,5 +1,6 @@
 import { kv } from '@vercel/kv';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { isMainDomain, deploymentHosts } from '../../utils/mainDomains';
 
 export const config = {
     runtime: 'edge',
@@ -13,8 +14,6 @@ interface KvLinkData {
     start?: number;
 }
 
-// Domains where the SPA itself is served (interstitial/unlock pages work here)
-const MAIN_DOMAINS = ['localhost', 'gather.link', 'app.gather.link', 'gather-link.vercel.app', 'links.trak.in'];
 
 /**
  * Resolve the app's own URL for interstitial pages (/open, /unlock).
@@ -24,22 +23,54 @@ const MAIN_DOMAINS = ['localhost', 'gather.link', 'app.gather.link', 'gather-lin
  */
 const getAppUrl = (requestUrl: URL): string => {
     if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-    if (MAIN_DOMAINS.some(d => requestUrl.hostname.includes(d))) return requestUrl.origin;
+    if (isMainDomain(requestUrl.hostname, deploymentHosts())) return requestUrl.origin;
     return 'https://gather.link';
 };
 
-/** DB fallback when the KV cache misses; rewarms the cache on success. */
-async function lookupFromDatabase(code: string): Promise<KvLinkData | null> {
+function getAdminClient(): SupabaseClient | null {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceKey) {
+    if (!supabaseUrl || !serviceKey) return null;
+    return createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+    });
+}
+
+/**
+ * On a custom domain, only the domain owner's links may resolve. Otherwise
+ * anyone's short code would work on anyone's branded domain.
+ */
+async function linkBelongsToDomainOwner(hostname: string, code: string): Promise<boolean> {
+    const supabase = getAdminClient();
+    if (!supabase) {
+        console.error('[Edge API] Custom domain check unavailable: missing Supabase env');
+        return false;
+    }
+
+    const [{ data: domain }, { data: link }] = await Promise.all([
+        supabase
+            .from('domains')
+            .select('user_id')
+            .eq('domain', hostname.toLowerCase())
+            .eq('status', 'active')
+            .maybeSingle(),
+        supabase
+            .from('links')
+            .select('user_id')
+            .eq('short_code', code)
+            .maybeSingle(),
+    ]);
+
+    return !!domain && !!link && domain.user_id === link.user_id;
+}
+
+/** DB fallback when the KV cache misses; rewarms the cache on success. */
+async function lookupFromDatabase(code: string): Promise<KvLinkData | null> {
+    const supabase = getAdminClient();
+    if (!supabase) {
         console.error('[Edge API] DB fallback unavailable: missing Supabase env');
         return null;
     }
-
-    const supabase = createClient(supabaseUrl, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     const { data: row, error } = await supabase
         .from('links')
@@ -84,6 +115,11 @@ export default async function handler(request: Request) {
         let linkData = await kv.get<KvLinkData>(`gather:link:${code}`);
         if (!linkData || !linkData.url) {
             linkData = await lookupFromDatabase(code);
+        }
+
+        if (linkData && linkData.url && !isMainDomain(url.hostname, deploymentHosts()) &&
+            !(await linkBelongsToDomainOwner(url.hostname, code))) {
+            linkData = null;
         }
 
         if (linkData && linkData.url) {
