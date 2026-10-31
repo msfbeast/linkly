@@ -491,11 +491,7 @@ export class SupabaseAdapter {
 
     // Send Invite Email
     try {
-      const teams = await this.getTeams();
-      const teamName = teams.find(t => t.id === teamId)?.name || 'a team';
-      const inviteUrl = `${window.location.origin}/accept-invite?token=${invite.token}`;
-
-      await emailService.sendInviteEmail(email, teamName, inviteUrl);
+      await emailService.sendInviteEmail(invite.id);
     } catch (e) {
       console.error('[Adapter] Failed to send invite email', e);
     }
