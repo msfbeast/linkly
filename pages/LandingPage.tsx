@@ -296,30 +296,6 @@ const LandingPage: React.FC = () => {
                                             </button>
                                         </div>
                                     </div>
-
-                                    {/* Optional Guest Email collection for reminders */}
-                                    <div className="pt-4 border-t border-stone-200/50">
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-[10px] uppercase font-bold text-stone-400 tracking-wider text-left">Get link expiry reminders (Optional)</label>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="email"
-                                                    placeholder="Enter email..."
-                                                    className="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 transition-all"
-                                                    onChange={async (e) => {
-                                                        const email = e.target.value;
-                                                        if (email.includes('@') && email.includes('.')) {
-                                                            try {
-                                                                await supabaseAdapter.updateGuestEmail(result.id, email, localStorage.getItem('gather_guest_session') || '');
-                                                            } catch (err) {
-                                                                console.warn('Failed to save guest email:', err);
-                                                            }
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 {showQR && (
@@ -338,7 +314,7 @@ const LandingPage: React.FC = () => {
                                     Claim & Track Analytics <ArrowRight className="w-5 h-5" />
                                 </button>
                                 <p className="text-center text-xs text-stone-400 mt-3">
-                                    Guest links expire in 7 days. Claim it to keep it forever.
+                                    Claim it to see its clicks and manage it from your dashboard.
                                 </p>
                             </motion.div>
                         )}
