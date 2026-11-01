@@ -28,6 +28,9 @@ function getRatelimiter(): Ratelimit | null {
     return ratelimit;
 }
 
+const FREE_LINK_LIMIT = 15; // same rule as the enforce_free_link_limit trigger
+const MAX_TAGS = 20;
+
 const SLUG_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const SLUG_LENGTH = 7;
 const MAX_SLUG_ATTEMPTS = 5;
@@ -127,11 +130,12 @@ export default async function handler(request: Request) {
         // Verify Key
         const { data: keyData, error: keyError } = await supabase
             .from('api_keys')
-            .select('user_id, scopes')
+            .select('user_id, scopes, expires_at')
             .eq('key_hash', keyHash)
             .single();
 
-        if (keyError || !keyData) {
+        const expired = !!keyData?.expires_at && new Date(keyData.expires_at).getTime() <= Date.now();
+        if (keyError || !keyData || expired) {
             return new Response(JSON.stringify({ error: 'Invalid API Key' }), {
                 status: 401,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -151,7 +155,21 @@ export default async function handler(request: Request) {
         const body = await request.json();
         const { url, title, tags } = body;
 
-        if (!url || typeof url !== 'string') {
+        if (title !== undefined && (typeof title !== 'string' || title.length > 255)) {
+            return new Response(JSON.stringify({ error: 'title must be a string of at most 255 characters' }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+        if (tags !== undefined && (!Array.isArray(tags) || tags.length > MAX_TAGS ||
+            !tags.every((t: unknown) => typeof t === 'string' && t.length > 0 && t.length <= 50))) {
+            return new Response(JSON.stringify({ error: `tags must be an array of up to ${MAX_TAGS} strings` }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+
+        if (!url || typeof url !== 'string' || url.length > 2048) {
             return new Response(JSON.stringify({ error: 'Missing required field: url' }), {
                 status: 400,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -172,16 +190,29 @@ export default async function handler(request: Request) {
             });
         }
 
+        // Free plan limit. This route writes with the service role, which the
+        // database trigger deliberately exempts, so apply the same rule here.
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_tier, amazon_associate_tag, flipkart_affiliate_id')
+            .eq('id', keyData.user_id)
+            .maybeSingle();
+        if (!profile?.subscription_tier || profile.subscription_tier === 'free') {
+            const { count } = await supabase
+                .from('links')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', keyData.user_id)
+                .is('team_id', null);
+            if ((count ?? 0) >= FREE_LINK_LIMIT) {
+                return new Response(JSON.stringify({ error: 'Link limit reached for Free Tier. Please upgrade to create more links.' }), {
+                    status: 403,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
         let monetizedUrl = url.trim();
         try {
-            // Fetch User Profile Affiliate Config
-            const profileRes = await supabase
-                .from('profiles')
-                .select('amazon_associate_tag, flipkart_affiliate_id')
-                .eq('id', keyData.user_id)
-                .single();
-
-            const profile = profileRes?.data;
             if (profile) {
                 let urlToMonetize = monetizedUrl;
                 if (isShortAmazonUrl(urlToMonetize)) {

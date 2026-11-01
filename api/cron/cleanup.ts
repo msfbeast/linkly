@@ -5,9 +5,11 @@ import { createClient } from '@supabase/supabase-js';
 // For this client-side demo code, we'll simulate the logic.
 
 export default async function handler(req: any, res: any) {
-    // 1. Verify Cron Secret
+    // 1. Verify Cron Secret. Fail closed when it isn't set: comparing against
+    // `Bearer ${undefined}` would accept the literal header "Bearer undefined".
+    const secret = process.env.CRON_SECRET;
     const authHeader = req.headers['authorization'];
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!secret || authHeader !== `Bearer ${secret}`) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -33,6 +35,6 @@ export default async function handler(req: any, res: any) {
 
     } catch (error: any) {
         console.error('Cleanup Error:', error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: 'Cleanup failed' });
     }
 }
