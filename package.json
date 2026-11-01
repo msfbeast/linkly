@@ -15,7 +15,6 @@
     "generate-sitemap": "node scripts/generate-sitemap.js"
   },
   "dependencies": {
-    "@cashfreepayments/cashfree-js": "^1.0.5",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -30,7 +29,6 @@
     "@vercel/node": "^5.5.14",
     "@vercel/speed-insights": "^1.3.1",
     "canvas-confetti": "^1.9.4",
-    "cashfree-pg": "^5.1.0",
     "d3-scale": "^4.0.2",
     "dotenv": "^17.2.3",
     "exifr": "^7.1.3",
@@ -47,7 +45,6 @@
     "recharts": "^3.5.0",
     "resend": "^6.6.0",
     "sonner": "^2.0.7",
-    "stripe": "^20.0.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

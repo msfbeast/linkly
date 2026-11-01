@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import PricingCard from '../components/PricingCard';
 import { useAuth } from '../contexts/AuthContext';
-// import { createOrder, startPayment } from '../services/cashfreeService'; // Removed
 import { Check, Zap, Shield, BarChart3, Globe, Users } from 'lucide-react';
 import { RAZORPAY_PLANS } from '../utils/razorpayPlans';
 

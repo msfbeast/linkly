@@ -20,12 +20,6 @@ export const FEATURES = {
     /** Link A/B testing. Parked: revisit once core analytics are trusted. */
     AB_TESTING: envFlag(import.meta.env.VITE_FEATURE_AB_TESTING, false),
 
-    /**
-     * Payment providers. Razorpay is the single active provider.
-     * Stripe/Cashfree parked until public launch. Server endpoints are
-     * gated separately via ENABLE_STRIPE / ENABLE_CASHFREE env vars.
-     */
+    /** Payments. Razorpay is the only provider. */
     PAYMENTS_RAZORPAY: envFlag(import.meta.env.VITE_FEATURE_RAZORPAY, true),
-    PAYMENTS_STRIPE: envFlag(import.meta.env.VITE_FEATURE_STRIPE, false),
-    PAYMENTS_CASHFREE: envFlag(import.meta.env.VITE_FEATURE_CASHFREE, false),
 } as const;

@@ -19,7 +19,7 @@ Gather is a link shortener, link-in-bio and storefront platform for creators, bu
 | Redirect cache | Vercel KV |
 | Click analytics | Upstash QStash queue → `api/queue/process-click` |
 | Rate limiting | Upstash Ratelimit (custom domains, API) |
-| Payments | Razorpay. Stripe and Cashfree are built but switched off |
+| Payments | Razorpay |
 | Email | Resend |
 | AI | Gemini, server-side only (`api/ai/*`) |
 
@@ -95,8 +95,6 @@ cp .env.example .env.local   # then fill in the values (see below)
 | `VITE_FEATURE_AGENCY` | off |
 | `VITE_FEATURE_AB_TESTING` | off |
 | `VITE_FEATURE_RAZORPAY` | on |
-| `VITE_FEATURE_STRIPE` | off. The server also needs `ENABLE_STRIPE=true` plus the `STRIPE_*` keys |
-| `VITE_FEATURE_CASHFREE` | off. The server also needs `ENABLE_CASHFREE=true` plus the `CASHFREE_*` keys |
 
 ## Database
 
