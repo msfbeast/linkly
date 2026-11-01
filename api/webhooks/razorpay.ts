@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 import { getAdminClient } from '../_lib/supabaseServer';
-import { tierForPlan } from '../../utils/razorpayPlans';
+import { isSubscriptionEvent, profileUpdateForEvent } from '../_lib/razorpaySubscriptionEvents';
 
 // Raw body is required: the signature is computed over the exact bytes
 // Razorpay sent, which JSON.stringify(req.body) does not reproduce.
@@ -48,30 +48,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const event = JSON.parse(rawBody.toString('utf8'));
 
-        if (event.event === 'subscription.charged' || event.event === 'subscription.activated') {
+        if (isSubscriptionEvent(event.event)) {
             const subscription = event.payload?.subscription?.entity;
-            // notes.userId is set server-side in create-razorpay-subscription;
-            // the tier always comes from the plan that was actually paid for.
+            // notes.userId is set server-side in create-razorpay-subscription.
             const userId = subscription?.notes?.userId;
-            const tier = tierForPlan(subscription?.plan_id);
+            if (!userId) {
+                console.warn(`[Razorpay Webhook] Ignoring ${event.event}: no user on subscription`, subscription?.id);
+                return res.status(200).json({ status: 'ignored' });
+            }
 
-            if (userId && tier) {
-                const { error } = await supabase
-                    .from('profiles')
-                    .update({
-                        subscription_tier: tier,
-                        subscription_status: 'active',
-                        razorpay_subscription_id: subscription.id,
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', userId);
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('razorpay_subscription_id')
+                .eq('id', userId)
+                .maybeSingle();
 
-                if (error) {
-                    console.error('[Razorpay Webhook] Failed to update user tier:', error);
-                    return res.status(500).json({ error: 'Failed to update subscription' });
-                }
-            } else {
-                console.warn(`[Razorpay Webhook] Ignoring ${event.event}: unknown plan or user`, subscription?.id);
+            if (profileError) {
+                console.error('[Razorpay Webhook] Failed to load profile:', profileError);
+                return res.status(500).json({ error: 'Failed to load profile' });
+            }
+            if (!profile) {
+                console.warn(`[Razorpay Webhook] Ignoring ${event.event}: no profile for user`, userId);
+                return res.status(200).json({ status: 'ignored' });
+            }
+
+            const update = profileUpdateForEvent(event.event, subscription, profile.razorpay_subscription_id);
+            if (!update) {
+                console.warn(`[Razorpay Webhook] Ignoring ${event.event} for ${subscription?.id}: unknown plan or not the current subscription`);
+                return res.status(200).json({ status: 'ignored' });
+            }
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({ ...update, updated_at: new Date().toISOString() })
+                .eq('id', userId);
+
+            if (error) {
+                console.error('[Razorpay Webhook] Failed to update subscription:', error);
+                return res.status(500).json({ error: 'Failed to update subscription' });
             }
         }
         // payment.captured no longer changes plans: one-off orders carry no
