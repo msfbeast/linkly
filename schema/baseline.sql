@@ -115,6 +115,25 @@ CREATE TABLE IF NOT EXISTS public.click_events (
     device_model text
 );
 
+CREATE TABLE IF NOT EXISTS public.click_rollup_state (
+    key text NOT NULL,
+    at timestamp with time zone NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.click_rollups (
+    link_id uuid NOT NULL,
+    dim text NOT NULL,
+    val text NOT NULL,
+    val2 text DEFAULT ''::text NOT NULL,
+    bucket timestamp with time zone NOT NULL,
+    clicks bigint NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.click_visitors (
+    link_id uuid NOT NULL,
+    visitor_id text NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS public.clicks (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     link_id uuid,
@@ -356,6 +375,9 @@ ALTER TABLE ONLY public.app_recommendations ADD CONSTRAINT app_recommendations_p
 ALTER TABLE ONLY public.bio_profiles ADD CONSTRAINT bio_profiles_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.bio_profiles ADD CONSTRAINT bio_profiles_handle_key UNIQUE (handle);
 ALTER TABLE ONLY public.click_events ADD CONSTRAINT click_events_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.click_rollup_state ADD CONSTRAINT click_rollup_state_pkey PRIMARY KEY (key);
+ALTER TABLE ONLY public.click_rollups ADD CONSTRAINT click_rollups_pkey PRIMARY KEY (link_id, dim, val, val2, bucket);
+ALTER TABLE ONLY public.click_visitors ADD CONSTRAINT click_visitors_pkey PRIMARY KEY (link_id, visitor_id);
 ALTER TABLE ONLY public.clicks ADD CONSTRAINT clicks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'active'::text, 'failed'::text])));
@@ -482,6 +504,48 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.backfill_click_rollups(p_month date)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  cutoff timestamptz;
+  m_start timestamptz := date_trunc('month', p_month::timestamptz);
+  m_key text := 'backfilled:' || to_char(m_start, 'YYYY-MM');
+  n bigint;
+BEGIN
+  SELECT at INTO cutoff FROM public.click_rollup_state WHERE key = 'trigger_started';
+  IF cutoff IS NULL THEN RAISE EXCEPTION 'Rollup trigger not installed'; END IF;
+  IF m_start > cutoff THEN RETURN m_key || ': after cutoff, nothing to do'; END IF;
+
+  INSERT INTO public.click_rollup_state (key, at) VALUES (m_key, clock_timestamp())
+  ON CONFLICT (key) DO NOTHING;
+  IF NOT FOUND THEN RETURN m_key || ': already done'; END IF;
+
+  INSERT INTO public.click_rollups AS r (link_id, dim, val, val2, bucket, clicks)
+  SELECT ce.link_id, x.dim, x.val, x.val2, x.bucket, count(*)
+  FROM public.click_events ce
+  CROSS JOIN LATERAL public.click_rollup_rows(ce) x
+  WHERE ce.timestamp >= m_start
+    AND ce.timestamp < m_start + interval '1 month'
+    AND ce.timestamp < cutoff
+  GROUP BY ce.link_id, x.dim, x.val, x.val2, x.bucket
+  ON CONFLICT (link_id, dim, val, val2, bucket) DO UPDATE SET clicks = r.clicks + EXCLUDED.clicks;
+  GET DIAGNOSTICS n = ROW_COUNT;
+
+  INSERT INTO public.click_visitors (link_id, visitor_id)
+  SELECT DISTINCT link_id, visitor_id FROM public.click_events
+  WHERE timestamp >= m_start AND timestamp < m_start + interval '1 month' AND timestamp < cutoff
+    AND link_id IS NOT NULL AND visitor_id IS NOT NULL
+  ON CONFLICT DO NOTHING;
+
+  RETURN m_key || ': ' || n || ' rollup rows';
+END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -511,6 +575,91 @@ BEGIN
   END IF;
 
   RETURN jsonb_build_object('success', true, 'link_id', v_link_id);
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.click_rollup_rows(ce public.click_events)
+ RETURNS TABLE(dim text, val text, val2 text, bucket timestamp with time zone)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public'
+AS $function$
+  SELECT d.dim, d.val, d.val2, d.bucket
+  FROM (VALUES
+    ('total', '', '', date_trunc('hour', ce.timestamp)),
+    ('country', coalesce(ce.country, 'Unknown'), '', date_trunc('month', ce.timestamp)),
+    ('city', ce.city, coalesce(ce.country, 'Unknown'), date_trunc('month', ce.timestamp)),
+    ('device', coalesce(ce.device, 'Unknown'), '', date_trunc('month', ce.timestamp)),
+    ('os', coalesce(ce.os, 'Unknown'), '', date_trunc('month', ce.timestamp)),
+    ('browser', coalesce(ce.browser, 'Unknown'), '', date_trunc('month', ce.timestamp)),
+    ('referrer',
+      CASE
+        WHEN ce.referrer IS NULL OR ce.referrer = '' THEN 'Direct'
+        WHEN ce.referrer LIKE '%google%' THEN 'Google'
+        WHEN ce.referrer LIKE '%facebook%' OR ce.referrer LIKE '%fb.%' THEN 'Facebook'
+        WHEN ce.referrer LIKE '%twitter%' OR ce.referrer LIKE '%t.co%' THEN 'Twitter/X'
+        WHEN ce.referrer LIKE '%instagram%' THEN 'Instagram'
+        WHEN ce.referrer LIKE '%linkedin%' THEN 'LinkedIn'
+        WHEN ce.referrer LIKE '%youtube%' THEN 'YouTube'
+        WHEN ce.referrer LIKE '%whatsapp%' THEN 'WhatsApp'
+        WHEN ce.referrer LIKE '%telegram%' OR ce.referrer LIKE '%t.me%' THEN 'Telegram'
+        ELSE 'Other'
+      END, '', date_trunc('month', ce.timestamp)),
+    ('model',
+      CASE
+        WHEN ce.raw_user_agent ILIKE '%iPhone%' THEN
+          CASE
+            WHEN ce.raw_user_agent ~ 'iPhone17,[1-4]' THEN 'iPhone 15 Series'
+            WHEN ce.raw_user_agent ~ 'iPhone16,[1-2]' OR ce.raw_user_agent ~ 'iPhone15,[2-5]' THEN 'iPhone 14 Series'
+            WHEN ce.raw_user_agent ~ 'iPhone14,[2-5]' THEN 'iPhone 13 Series'
+            WHEN ce.raw_user_agent ~ 'iPhone13,[1-4]' THEN 'iPhone 12 Series'
+            WHEN ce.raw_user_agent ~ 'iPhone12,[1-8]' THEN 'iPhone 11 Series'
+            ELSE 'iPhone (Other)'
+          END
+        WHEN ce.raw_user_agent ILIKE '%iPad%' THEN 'iPad'
+        WHEN ce.raw_user_agent ~ 'SM-S9[12][0-9]' THEN 'Galaxy S24 Series'
+        WHEN ce.raw_user_agent ~ 'SM-S91[0-9]' THEN 'Galaxy S23 Series'
+        WHEN ce.raw_user_agent ~ 'SM-S90[0-9]' THEN 'Galaxy S22 Series'
+        WHEN ce.raw_user_agent ~ 'SM-A5[0-9]' THEN 'Galaxy A50/A55 Series'
+        WHEN ce.raw_user_agent ~ 'SM-A3[0-9]' THEN 'Galaxy A30 Series'
+        WHEN ce.raw_user_agent ~ 'SM-A1[0-9]' THEN 'Galaxy A10 Series'
+        WHEN ce.raw_user_agent ILIKE '%SM-%' THEN 'Samsung (Other)'
+        WHEN ce.raw_user_agent ILIKE '%OnePlus%' THEN 'OnePlus'
+        WHEN ce.raw_user_agent ILIKE '%Redmi%' THEN 'Redmi'
+        WHEN ce.raw_user_agent ILIKE '%Xiaomi%' THEN 'Xiaomi'
+        WHEN ce.raw_user_agent ILIKE '%Pixel%' THEN 'Google Pixel'
+        WHEN ce.raw_user_agent ILIKE '%Windows NT%' THEN 'Windows PC'
+        WHEN ce.raw_user_agent ILIKE '%Macintosh%' THEN 'Mac'
+        WHEN ce.raw_user_agent ILIKE '%Linux%' AND ce.raw_user_agent NOT ILIKE '%Android%' THEN 'Linux PC'
+        WHEN ce.raw_user_agent ILIKE '%Android%' THEN 'Android (Other)'
+        ELSE 'Unknown'
+      END, '', date_trunc('month', ce.timestamp))
+  ) AS d(dim, val, val2, bucket)
+  WHERE ce.link_id IS NOT NULL
+    AND ce.timestamp IS NOT NULL
+    AND d.val IS NOT NULL;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.count_click_in_rollups()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  INSERT INTO public.click_rollups AS r (link_id, dim, val, val2, bucket, clicks)
+  SELECT NEW.link_id, x.dim, x.val, x.val2, x.bucket, 1
+  FROM public.click_rollup_rows(NEW) x
+  ON CONFLICT (link_id, dim, val, val2, bucket) DO UPDATE SET clicks = r.clicks + 1;
+
+  IF NEW.link_id IS NOT NULL AND NEW.visitor_id IS NOT NULL THEN
+    INSERT INTO public.click_visitors (link_id, visitor_id)
+    VALUES (NEW.link_id, NEW.visitor_id)
+    ON CONFLICT DO NOTHING;
+  END IF;
+  RETURN NULL;
 END;
 $function$
 ;
@@ -997,39 +1146,37 @@ $function$
 CREATE OR REPLACE FUNCTION public.get_user_browser_breakdown(p_user_id uuid)
  RETURNS TABLE(browser text, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
-    RETURN QUERY SELECT COALESCE(ce.browser, 'Unknown'), COUNT(*)::BIGINT
-    FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id GROUP BY ce.browser ORDER BY COUNT(*) DESC LIMIT 10;
-END; $function$
+    RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'browser', 10) b;
+END;
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.get_user_city_breakdown(p_user_id uuid)
  RETURNS TABLE(city text, country text, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
-    RETURN QUERY SELECT COALESCE(ce.city, 'Unknown'), COALESCE(ce.country, 'Unknown'), COUNT(*)::BIGINT
-    FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id AND ce.city IS NOT NULL GROUP BY ce.city, ce.country ORDER BY COUNT(*) DESC LIMIT 20;
-END; $function$
+    RETURN QUERY SELECT b.val, b.val2, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'city', 20) b;
+END;
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.get_user_click_stats(p_user_id uuid)
  RETURNS TABLE(total_clicks bigint, unique_visitors bigint, clicks_today bigint, clicks_this_week bigint, clicks_this_month bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
@@ -1037,15 +1184,16 @@ BEGIN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
     RETURN QUERY
-    SELECT 
-        COUNT(*)::BIGINT as total_clicks,
-        COUNT(DISTINCT ce.visitor_id)::BIGINT as unique_visitors,
-        COUNT(*) FILTER (WHERE ce.timestamp > NOW() - INTERVAL '1 day')::BIGINT as clicks_today,
-        COUNT(*) FILTER (WHERE ce.timestamp > NOW() - INTERVAL '7 days')::BIGINT as clicks_this_week,
-        COUNT(*) FILTER (WHERE ce.timestamp > NOW() - INTERVAL '30 days')::BIGINT as clicks_this_month
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id;
+    SELECT
+        coalesce(sum(r.clicks), 0)::bigint,
+        (SELECT count(DISTINCT v.visitor_id) FROM public.click_visitors v
+           JOIN public.links lv ON lv.id = v.link_id WHERE lv.user_id = p_user_id)::bigint,
+        coalesce(sum(r.clicks) FILTER (WHERE r.bucket > now() - interval '1 day' - interval '1 hour'), 0)::bigint,
+        coalesce(sum(r.clicks) FILTER (WHERE r.bucket > now() - interval '7 days' - interval '1 hour'), 0)::bigint,
+        coalesce(sum(r.clicks) FILTER (WHERE r.bucket > now() - interval '30 days' - interval '1 hour'), 0)::bigint
+    FROM public.click_rollups r
+    JOIN public.links l ON l.id = r.link_id
+    WHERE l.user_id = p_user_id AND r.dim = 'total';
 END;
 $function$
 ;
@@ -1053,7 +1201,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.get_user_clicks_over_time(p_user_id uuid, p_days integer DEFAULT 30)
  RETURNS TABLE(click_date date, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
@@ -1061,14 +1209,12 @@ BEGIN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
     RETURN QUERY
-    SELECT 
-        DATE(ce.timestamp) as click_date,
-        COUNT(*)::BIGINT as click_count
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id
-      AND ce.timestamp > NOW() - (p_days || ' days')::INTERVAL
-    GROUP BY DATE(ce.timestamp)
+    SELECT date(r.bucket) AS click_date, sum(r.clicks)::bigint AS click_count
+    FROM public.click_rollups r
+    JOIN public.links l ON l.id = r.link_id
+    WHERE l.user_id = p_user_id AND r.dim = 'total'
+      AND r.bucket >= date_trunc('hour', now() - (p_days || ' days')::interval)
+    GROUP BY date(r.bucket)
     ORDER BY click_date;
 END;
 $function$
@@ -1077,122 +1223,44 @@ $function$
 CREATE OR REPLACE FUNCTION public.get_user_country_breakdown(p_user_id uuid)
  RETURNS TABLE(country text, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
-    RETURN QUERY SELECT COALESCE(ce.country, 'Unknown'), COUNT(*)::BIGINT
-    FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id GROUP BY ce.country ORDER BY COUNT(*) DESC LIMIT 20;
-END; $function$
+    RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'country', 20) b;
+END;
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.get_user_device_breakdown(p_user_id uuid)
  RETURNS TABLE(device text, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
-    RETURN QUERY SELECT COALESCE(ce.device, 'Unknown'), COUNT(*)::BIGINT
-    FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id GROUP BY ce.device ORDER BY COUNT(*) DESC;
-END; $function$
+    RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'device', NULL) b;
+END;
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.get_user_device_model_breakdown(p_user_id uuid)
  RETURNS TABLE(device_model text, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
-    RETURN QUERY
-    SELECT 
-        COALESCE(
-            CASE 
-                -- iPhone detection
-                WHEN ce.raw_user_agent ILIKE '%iPhone%' THEN
-                    CASE
-                        WHEN ce.raw_user_agent ~ 'iPhone17,[1-4]' THEN 'iPhone 15 Series'
-                        WHEN ce.raw_user_agent ~ 'iPhone16,[1-2]' OR ce.raw_user_agent ~ 'iPhone15,[2-5]' THEN 'iPhone 14 Series'
-                        WHEN ce.raw_user_agent ~ 'iPhone14,[2-5]' THEN 'iPhone 13 Series'
-                        WHEN ce.raw_user_agent ~ 'iPhone13,[1-4]' THEN 'iPhone 12 Series'
-                        WHEN ce.raw_user_agent ~ 'iPhone12,[1-8]' THEN 'iPhone 11 Series'
-                        ELSE 'iPhone (Other)'
-                    END
-                -- iPad
-                WHEN ce.raw_user_agent ILIKE '%iPad%' THEN 'iPad'
-                -- Samsung S series
-                WHEN ce.raw_user_agent ~ 'SM-S9[12][0-9]' THEN 'Galaxy S24 Series'
-                WHEN ce.raw_user_agent ~ 'SM-S91[0-9]' THEN 'Galaxy S23 Series'
-                WHEN ce.raw_user_agent ~ 'SM-S90[0-9]' THEN 'Galaxy S22 Series'
-                -- Samsung A series
-                WHEN ce.raw_user_agent ~ 'SM-A5[0-9]' THEN 'Galaxy A50/A55 Series'
-                WHEN ce.raw_user_agent ~ 'SM-A3[0-9]' THEN 'Galaxy A30 Series'
-                WHEN ce.raw_user_agent ~ 'SM-A1[0-9]' THEN 'Galaxy A10 Series'
-                WHEN ce.raw_user_agent ILIKE '%SM-%' THEN 'Samsung (Other)'
-                -- OnePlus
-                WHEN ce.raw_user_agent ILIKE '%OnePlus%' THEN 'OnePlus'
-                -- Xiaomi/Redmi
-                WHEN ce.raw_user_agent ILIKE '%Redmi%' THEN 'Redmi'
-                WHEN ce.raw_user_agent ILIKE '%Xiaomi%' THEN 'Xiaomi'
-                -- Pixel
-                WHEN ce.raw_user_agent ILIKE '%Pixel%' THEN 'Google Pixel'
-                -- Desktop
-                WHEN ce.raw_user_agent ILIKE '%Windows NT%' THEN 'Windows PC'
-                WHEN ce.raw_user_agent ILIKE '%Macintosh%' THEN 'Mac'
-                WHEN ce.raw_user_agent ILIKE '%Linux%' AND ce.raw_user_agent NOT ILIKE '%Android%' THEN 'Linux PC'
-                -- Generic Android
-                WHEN ce.raw_user_agent ILIKE '%Android%' THEN 'Android (Other)'
-                ELSE 'Unknown'
-            END,
-            'Unknown'
-        ) as device_model,
-        COUNT(*)::BIGINT as click_count
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id
-    GROUP BY 
-        CASE 
-            WHEN ce.raw_user_agent ILIKE '%iPhone%' THEN
-                CASE
-                    WHEN ce.raw_user_agent ~ 'iPhone17,[1-4]' THEN 'iPhone 15 Series'
-                    WHEN ce.raw_user_agent ~ 'iPhone16,[1-2]' OR ce.raw_user_agent ~ 'iPhone15,[2-5]' THEN 'iPhone 14 Series'
-                    WHEN ce.raw_user_agent ~ 'iPhone14,[2-5]' THEN 'iPhone 13 Series'
-                    WHEN ce.raw_user_agent ~ 'iPhone13,[1-4]' THEN 'iPhone 12 Series'
-                    WHEN ce.raw_user_agent ~ 'iPhone12,[1-8]' THEN 'iPhone 11 Series'
-                    ELSE 'iPhone (Other)'
-                END
-            WHEN ce.raw_user_agent ILIKE '%iPad%' THEN 'iPad'
-            WHEN ce.raw_user_agent ~ 'SM-S9[12][0-9]' THEN 'Galaxy S24 Series'
-            WHEN ce.raw_user_agent ~ 'SM-S91[0-9]' THEN 'Galaxy S23 Series'
-            WHEN ce.raw_user_agent ~ 'SM-S90[0-9]' THEN 'Galaxy S22 Series'
-            WHEN ce.raw_user_agent ~ 'SM-A5[0-9]' THEN 'Galaxy A50/A55 Series'
-            WHEN ce.raw_user_agent ~ 'SM-A3[0-9]' THEN 'Galaxy A30 Series'
-            WHEN ce.raw_user_agent ~ 'SM-A1[0-9]' THEN 'Galaxy A10 Series'
-            WHEN ce.raw_user_agent ILIKE '%SM-%' THEN 'Samsung (Other)'
-            WHEN ce.raw_user_agent ILIKE '%OnePlus%' THEN 'OnePlus'
-            WHEN ce.raw_user_agent ILIKE '%Redmi%' THEN 'Redmi'
-            WHEN ce.raw_user_agent ILIKE '%Xiaomi%' THEN 'Xiaomi'
-            WHEN ce.raw_user_agent ILIKE '%Pixel%' THEN 'Google Pixel'
-            WHEN ce.raw_user_agent ILIKE '%Windows NT%' THEN 'Windows PC'
-            WHEN ce.raw_user_agent ILIKE '%Macintosh%' THEN 'Mac'
-            WHEN ce.raw_user_agent ILIKE '%Linux%' AND ce.raw_user_agent NOT ILIKE '%Android%' THEN 'Linux PC'
-            WHEN ce.raw_user_agent ILIKE '%Android%' THEN 'Android (Other)'
-            ELSE 'Unknown'
-        END
-    ORDER BY click_count DESC
-    LIMIT 15;
+    RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'model', 15) b;
 END;
 $function$
 ;
@@ -1200,22 +1268,14 @@ $function$
 CREATE OR REPLACE FUNCTION public.get_user_os_breakdown(p_user_id uuid)
  RETURNS TABLE(os text, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
-    RETURN QUERY
-    SELECT 
-        COALESCE(ce.os, 'Unknown') as os,
-        COUNT(*)::BIGINT as click_count
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id
-    GROUP BY ce.os
-    ORDER BY click_count DESC;
+    RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'os', NULL) b;
 END;
 $function$
 ;
@@ -1223,41 +1283,16 @@ $function$
 CREATE OR REPLACE FUNCTION public.get_user_referrer_breakdown(p_user_id uuid)
  RETURNS TABLE(referrer text, click_count bigint)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
-    RETURN QUERY SELECT 
-        COALESCE(CASE 
-            WHEN ce.referrer IS NULL OR ce.referrer = '' THEN 'Direct'
-            WHEN ce.referrer LIKE '%google%' THEN 'Google'
-            WHEN ce.referrer LIKE '%facebook%' OR ce.referrer LIKE '%fb.%' THEN 'Facebook'
-            WHEN ce.referrer LIKE '%twitter%' OR ce.referrer LIKE '%t.co%' THEN 'Twitter/X'
-            WHEN ce.referrer LIKE '%instagram%' THEN 'Instagram'
-            WHEN ce.referrer LIKE '%linkedin%' THEN 'LinkedIn'
-            WHEN ce.referrer LIKE '%youtube%' THEN 'YouTube'
-            WHEN ce.referrer LIKE '%whatsapp%' THEN 'WhatsApp'
-            WHEN ce.referrer LIKE '%telegram%' OR ce.referrer LIKE '%t.me%' THEN 'Telegram'
-            ELSE 'Other'
-        END, 'Direct'), COUNT(*)::BIGINT
-    FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id 
-    GROUP BY CASE 
-        WHEN ce.referrer IS NULL OR ce.referrer = '' THEN 'Direct'
-        WHEN ce.referrer LIKE '%google%' THEN 'Google'
-        WHEN ce.referrer LIKE '%facebook%' OR ce.referrer LIKE '%fb.%' THEN 'Facebook'
-        WHEN ce.referrer LIKE '%twitter%' OR ce.referrer LIKE '%t.co%' THEN 'Twitter/X'
-        WHEN ce.referrer LIKE '%instagram%' THEN 'Instagram'
-        WHEN ce.referrer LIKE '%linkedin%' THEN 'LinkedIn'
-        WHEN ce.referrer LIKE '%youtube%' THEN 'YouTube'
-        WHEN ce.referrer LIKE '%whatsapp%' THEN 'WhatsApp'
-        WHEN ce.referrer LIKE '%telegram%' OR ce.referrer LIKE '%t.me%' THEN 'Telegram'
-        ELSE 'Other' END
-    ORDER BY COUNT(*) DESC;
-END; $function$
+    RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'referrer', NULL) b;
+END;
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -1654,6 +1689,22 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.user_rollup_breakdown(p_user_id uuid, p_dim text, p_limit integer)
+ RETURNS TABLE(val text, val2 text, click_count bigint)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT r.val, r.val2, sum(r.clicks)::bigint
+  FROM public.click_rollups r
+  JOIN public.links l ON l.id = r.link_id
+  WHERE l.user_id = p_user_id AND r.dim = p_dim
+  GROUP BY r.val, r.val2
+  ORDER BY 3 DESC
+  LIMIT p_limit;
+$function$
+;
+
 -- Views
 CREATE OR REPLACE VIEW public.click_stats_by_country WITH (security_invoker=true) AS
  SELECT link_id,
@@ -1749,6 +1800,8 @@ ALTER TABLE ONLY public.api_keys ADD CONSTRAINT api_keys_user_id_fkey FOREIGN KE
 ALTER TABLE ONLY public.app_recommendations ADD CONSTRAINT app_recommendations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.bio_profiles ADD CONSTRAINT bio_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.click_events ADD CONSTRAINT click_events_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.links(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.click_rollups ADD CONSTRAINT click_rollups_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.links(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.click_visitors ADD CONSTRAINT click_visitors_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.links(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.clicks ADD CONSTRAINT clicks_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.links(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.folders ADD CONSTRAINT folders_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.folders(id) ON DELETE SET NULL;
@@ -1775,6 +1828,7 @@ ALTER TABLE ONLY public.tech_vault_items ADD CONSTRAINT tech_vault_items_user_id
 
 -- Triggers
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+CREATE TRIGGER count_click_in_rollups AFTER INSERT ON public.click_events FOR EACH ROW EXECUTE FUNCTION public.count_click_in_rollups();
 CREATE TRIGGER strip_raw_ip_address BEFORE INSERT OR UPDATE ON public.clicks FOR EACH ROW EXECUTE FUNCTION public.strip_raw_ip_address();
 CREATE TRIGGER protect_domain_verification_columns BEFORE INSERT OR UPDATE ON public.domains FOR EACH ROW EXECUTE FUNCTION public.protect_domain_verification_columns();
 CREATE TRIGGER enforce_free_link_limit BEFORE INSERT ON public.links FOR EACH ROW EXECUTE FUNCTION public.enforce_free_link_limit();
@@ -1790,6 +1844,9 @@ ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_recommendations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bio_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.click_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.click_rollup_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.click_rollups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.click_visitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clicks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.domains ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
@@ -2049,11 +2106,14 @@ REVOKE ALL ON TABLE public.api_keys FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.app_recommendations FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.bio_profiles FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.click_events FROM anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.click_rollup_state FROM anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.click_rollups FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.click_stats_by_city FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.click_stats_by_country FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.click_stats_by_device FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.click_stats_by_referrer FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.click_stats_daily FROM anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.click_visitors FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.clicks FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.domains FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.folders FROM anon, authenticated, service_role;
@@ -2087,6 +2147,8 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO service_role;
 GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO anon;
 GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO authenticated;
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_rollup_state TO service_role;
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_rollups TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_city TO service_role;
 GRANT SELECT ON TABLE public.click_stats_by_city TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_country TO service_role;
@@ -2097,6 +2159,7 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT SELECT ON TABLE public.click_stats_by_referrer TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_daily TO service_role;
 GRANT SELECT ON TABLE public.click_stats_daily TO authenticated;
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_visitors TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO service_role;
 GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO anon;
 GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO authenticated;
@@ -2145,7 +2208,10 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.tech_vault_items TO service_role;
 REVOKE ALL ON FUNCTION public.accept_team_invite(p_token text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.aggregate_daily_stats(target_date date) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.backfill_click_rollups(p_month date) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.click_rollup_rows(ce public.click_events) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.count_click_in_rollups() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) FROM PUBLIC, anon, authenticated, service_role;
@@ -2186,14 +2252,18 @@ REVOKE ALL ON FUNCTION public.strip_raw_ip_address() FROM PUBLIC, anon, authenti
 REVOKE ALL ON FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text, p_session_id text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.update_tech_vault_updated_at() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.user_rollup_breakdown(p_user_id uuid, p_dim text, p_limit integer) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.accept_team_invite(p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_team_invite(p_token text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO anon;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO service_role;
+GRANT EXECUTE ON FUNCTION public.backfill_click_rollups(p_month date) TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.click_rollup_rows(ce public.click_events) TO service_role;
+GRANT EXECUTE ON FUNCTION public.count_click_in_rollups() TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO PUBLIC;
@@ -2281,6 +2351,7 @@ GRANT EXECUTE ON FUNCTION public.update_tech_vault_updated_at() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.update_tech_vault_updated_at() TO anon;
 GRANT EXECUTE ON FUNCTION public.update_tech_vault_updated_at() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_tech_vault_updated_at() TO service_role;
+GRANT EXECUTE ON FUNCTION public.user_rollup_breakdown(p_user_id uuid, p_dim text, p_limit integer) TO service_role;
 
 -- Realtime
 DO $r$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.click_events; EXCEPTION WHEN duplicate_object THEN NULL; END $r$;
