@@ -114,46 +114,11 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
   }, [code]);
 
   /**
-   * Captures detailed device fingerprint data for analytics.
-   * This data is sent to the Edge Function for server-side processing.
+   * Browser details for analytics. The IP, location and visitor IDs are
+   * worked out server-side by /api/track from the request itself.
    */
-  /**
-   * Generates a privacy-preserving visitor hash.
-   * Uses SHA-256 on (UserAgent + IP + Date + Salt) to create a daily unique ID
-   * without storing persistent cookies or PII.
-   */
-  const generateVisitorHash = async (ip: string, ua: string): Promise<string> => {
-    const today = new Date().toISOString().split('T')[0]; // Daily rotation
-    const salt = 'gather-privacy-salt'; // In prod, this should be an env var
-    const data = `${ua}|${ip}|${today}|${salt}`;
-
-    const msgBuffer = new TextEncoder().encode(data);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  };
-
-  /**
-   * Captures detailed device fingerprint data for analytics.
-   * Fetches IP for hashing but does NOT store it.
-   */
-  const captureDeviceFingerprint = async () => {
-    // Fetch IP for fingerprinting (not stored)
-    let ip = '';
-    try {
-      // We use the geolocation service to get the IP
-      // Note: In a real edge function, the IP is available in headers.
-      // Here we fetch it from the client side.
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      ip = data.ip;
-    } catch (e) {
-      console.warn('Failed to fetch IP for fingerprinting');
-    }
-
+  const captureDeviceFingerprint = () => {
     const ua = navigator.userAgent || '';
-    const visitorId = await generateVisitorHash(ip, ua);
-
     return {
       userAgent: ua,
       referrer: document.referrer || '',
@@ -165,52 +130,38 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       platform: navigator.platform,
       cookiesEnabled: navigator.cookieEnabled,
       doNotTrack: navigator.doNotTrack === '1',
-      visitorId,
-      ipAddress: ip, // Passed for geolocation lookup, but not stored raw
       deviceModel: detectDeviceModel(ua), // Detailed device model (e.g. iPhone 15)
     };
   };
 
   /**
-   * Records a click event using the Edge Function for detailed analytics.
-   * Falls back to direct Supabase insert if Edge Function is unavailable.
+   * Records a click event through /api/track.
+   * Falls back to direct Supabase insert if it is unavailable.
    * 
    * Requirements: 2.1, 2.2
    */
   const recordClick = async (link: LinkData, destinationUrl?: string): Promise<void> => {
-    const fingerprint = await captureDeviceFingerprint();
-
-
-
-
+    const fingerprint = captureDeviceFingerprint();
 
     try {
-      // Try Edge Function first for detailed analytics with IP geolocation
-      const edgeFunctionUrl = import.meta.env.VITE_SUPABASE_URL?.replace('.supabase.co', '.supabase.co/functions/v1/track-click');
-
-      if (edgeFunctionUrl && isSupabaseConfigured()) {
-
-
-        const response = await fetch(edgeFunctionUrl, {
+      // Same-origin endpoint: geolocates from Vercel's headers and stores the
+      // click with the IP only as a keyed hash.
+      if (isSupabaseConfigured()) {
+        const response = await fetch('/api/track', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
           body: JSON.stringify({
             linkId: link.id,
-            shortCode: link.shortCode,
             destinationUrl, // Pass destination URL for A/B testing
             ...fingerprint,
           }),
         });
 
         if (response.ok) {
-          const result = await response.json();
-
           return;
         } else {
-          console.warn('[Click Tracking] Edge Function failed, falling back to direct insert');
+          console.warn('[Click Tracking] /api/track failed, falling back to direct insert');
         }
       }
 
@@ -224,7 +175,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         const clickEventInput = createClickEventInput({
           userAgent: fingerprint.userAgent,
           referrer: fingerprint.referrer,
-          ipAddress: fingerprint.ipAddress,
+          ipAddress: '',
           utm_source: searchParams.get('utm_source') || undefined,
           utm_medium: searchParams.get('utm_medium') || undefined,
           utm_campaign: searchParams.get('utm_campaign') || undefined,
@@ -236,7 +187,6 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           timezone: fingerprint.timezone,
           screenWidth: fingerprint.screenWidth,
           screenHeight: fingerprint.screenHeight,
-          visitorId: fingerprint.visitorId,
           destinationUrl, // Pass destination URL for A/B testing
         }, Date.now());
 
@@ -256,14 +206,13 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           const clickEventInput = createClickEventInput({
             userAgent: fingerprint.userAgent,
             referrer: fingerprint.referrer,
-            ipAddress: fingerprint.ipAddress,
+            ipAddress: '',
             // Advanced Analytics
             language: fingerprint.language,
             timezone: fingerprint.timezone,
             screenWidth: fingerprint.screenWidth,
             screenHeight: fingerprint.screenHeight,
-            visitorId: fingerprint.visitorId,
-            destinationUrl, // Pass destination URL for A/B testing
+              destinationUrl, // Pass destination URL for A/B testing
           }, Date.now());
           await supabaseAdapter.recordClick(link.id, { ...clickEventInput, country: 'Unknown', device: clickEventInput.device as any, os: clickEventInput.os as any });
         }

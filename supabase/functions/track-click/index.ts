@@ -1,5 +1,5 @@
 // Supabase Edge Function for Click Tracking
-// This runs server-side and has access to visitor IP for geolocation
+// Deprecated in favour of /api/track (see below).
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -22,16 +22,6 @@ interface ClickRequest {
   platform?: string
   cookiesEnabled?: boolean
   doNotTrack?: boolean
-}
-
-interface GeoData {
-  country: string
-  countryCode: string
-  region: string
-  city: string
-  latitude?: number
-  longitude?: number
-  isp?: string
 }
 
 // Parse user agent for device and OS
@@ -73,56 +63,10 @@ function parseUserAgent(ua: string): { device: string; os: string; browser: stri
   return { device, os, browser }
 }
 
-// Get geolocation from IP using free API
-async function getGeoFromIP(ip: string): Promise<GeoData> {
-  try {
-    // Skip localhost/private IPs
-    if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
-      return {
-        country: 'Local',
-        countryCode: 'XX',
-        region: 'Local',
-        city: 'Local',
-      }
-    }
-
-    // Use ip-api.com (free, no API key needed, 45 requests/minute)
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,region,regionName,city,lat,lon,isp`)
-
-    if (!response.ok) {
-      throw new Error('Geo API failed')
-    }
-
-    const data = await response.json()
-
-    if (data.status === 'success') {
-      return {
-        country: data.country || 'Unknown',
-        countryCode: data.countryCode || 'XX',
-        region: data.regionName || data.region || 'Unknown',
-        city: data.city || 'Unknown',
-        latitude: data.lat,
-        longitude: data.lon,
-        isp: data.isp,
-      }
-    }
-
-    return {
-      country: 'Unknown',
-      countryCode: 'XX',
-      region: 'Unknown',
-      city: 'Unknown',
-    }
-  } catch (error) {
-    console.error('Geo lookup failed:', error)
-    return {
-      country: 'Unknown',
-      countryCode: 'XX',
-      region: 'Unknown',
-      city: 'Unknown',
-    }
-  }
-}
+// Deprecated: the app now records clicks through /api/track on Vercel,
+// which geolocates from Vercel's own headers. This function only serves
+// browsers still running a cached copy of the old app. It used to send each
+// visitor's IP to ip-api.com over plain HTTP; it no longer geolocates.
 
 // Generate a simple fingerprint hash from device characteristics
 function generateFingerprint(data: ClickRequest, ip: string): string {
@@ -145,6 +89,16 @@ function generateFingerprint(data: ClickRequest, ip: string): string {
     hash = hash & hash
   }
   return Math.abs(hash).toString(16).padStart(8, '0')
+}
+
+// The 32-bit hash above can be brute-forced back to the IP, so only an HMAC
+// of it is stored -- the same value api/_lib/clickStore.ts stores.
+async function hmacHex(value: string): Promise<string> {
+  const secret = Deno.env.get('IP_HASH_SALT') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(value))
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 // Keyed hash of the visitor IP, so raw addresses are never stored. Must
@@ -186,11 +140,7 @@ serve(async (req) => {
     // Parse user agent
     const { device, os, browser } = parseUserAgent(body.userAgent || '')
 
-    // Get geolocation
-    const geo = await getGeoFromIP(ip)
-
-    // Generate fingerprint
-    const fingerprint = generateFingerprint(body, ip)
+    const fingerprint = await hmacHex(generateFingerprint(body, ip))
 
     const timestamp = new Date().toISOString()
 
@@ -202,13 +152,7 @@ serve(async (req) => {
       device,
       os,
       browser,
-      country: geo.country,
-      country_code: geo.countryCode,
-      region: geo.region,
-      city: geo.city,
-      latitude: geo.latitude,
-      longitude: geo.longitude,
-      isp: geo.isp,
+      country: 'Unknown',
       screen_width: body.screenWidth,
       screen_height: body.screenHeight,
       color_depth: body.colorDepth,
@@ -257,7 +201,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, fingerprint }),
+      JSON.stringify({ success: true }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200

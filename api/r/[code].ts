@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { isMainDomain, deploymentHosts } from '../../utils/mainDomains';
 import { isLinkAllowedOnDomain } from '../_lib/customDomainAccess';
 import { recordClick, clickStoreEnvFromProcess, type ClickEvent } from '../_lib/clickStore';
+import { geoFromVercelHeaders } from '../../utils/geoNames';
 
 export const config = {
     runtime: 'edge',
@@ -108,18 +109,19 @@ export default async function handler(request: Request, context?: { waitUntil?: 
 
         if (linkData && linkData.url) {
             // Record the click without delaying the redirect.
-            const rawCity = request.headers.get('x-vercel-ip-city');
+            const geo = geoFromVercelHeaders(request.headers);
             const clickEvent: ClickEvent = {
                 linkId: linkData.id,
                 timestamp: Date.now(),
                 userAgent: request.headers.get('user-agent'),
                 ip: request.headers.get('x-forwarded-for'),
                 referrer: request.headers.get('referer'),
-                country: request.headers.get('x-vercel-ip-country'),
-                city: rawCity ? decodeURIComponent(rawCity) : null,
-                region: request.headers.get('x-vercel-ip-region'),
-                latitude: request.headers.get('x-vercel-ip-latitude'),
-                longitude: request.headers.get('x-vercel-ip-longitude'),
+                country: geo.country,
+                countryCode: geo.countryCode,
+                city: geo.city,
+                region: geo.region,
+                latitude: geo.latitude,
+                longitude: geo.longitude,
             };
             const recording = recordClick(
                 clickEvent,
