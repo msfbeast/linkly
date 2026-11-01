@@ -125,17 +125,9 @@ export class LinkRepository extends BaseRepository {
 
         if (!data) return null;
 
-        // Fetch click history 
-        const { data: clicks } = await this.supabase!
-            .from(this.TABLES.CLICK_EVENTS || 'click_events')
-            .select('*')
-            .eq('link_id', id)
-            .order('timestamp', { ascending: false })
-            .limit(50000); // Increased limit to 50k to support high-traffic links
-
-        const clickHistory = (clicks || []).map(rowToClickEvent);
-
-        return rowToLinkData(data as LinkRow, clickHistory);
+        // No click history: the link analytics page reads counts from
+        // get_link_analytics and pages its click table separately.
+        return rowToLinkData(data as LinkRow, []);
     }
 
     async getLinkByCode(code: string): Promise<LinkData | null> {

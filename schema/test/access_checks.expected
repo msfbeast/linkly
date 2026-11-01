@@ -84,3 +84,8 @@ Alice: rollup breakdown helper directly                       DENIED
 Alice: own clicks counted in rollups                          OK 6
 Alice: own top country from rollups                           OK India 5
 Alice: direct clicks counted as Direct                        OK Direct 6
+anon: link analytics of Alice link                            DENIED
+Bob: link analytics of Alice link                             DENIED
+Alice: own link analytics (7d)                                OK 6
+Alice: own link analytics (all, rollups)                      OK 6
+Carol (team member): team link analytics                      OK 0

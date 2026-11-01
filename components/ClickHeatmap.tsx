@@ -4,11 +4,20 @@ import { processHeatmapData } from '../services/analyticsService';
 import { ResponsiveContainer, Tooltip } from 'recharts';
 
 interface ClickHeatmapProps {
-    data: ClickEvent[];
+    data?: ClickEvent[];
+    /** Precomputed counts (day 0 = Sunday, hour 0-23); used instead of data when given. */
+    counts?: { day: number; hour: number; count: number }[];
 }
 
-export const ClickHeatmap: React.FC<ClickHeatmapProps> = ({ data }) => {
-    const heatmapData = useMemo(() => processHeatmapData(data), [data]);
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+export const ClickHeatmap: React.FC<ClickHeatmapProps> = ({ data = [], counts }) => {
+    const heatmapData = useMemo(() => {
+        if (!counts) return processHeatmapData(data);
+        const grid = DAY_NAMES.map(day => ({ day, hours: Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 })) }));
+        counts.forEach(c => { if (grid[c.day]?.hours[c.hour]) grid[c.day].hours[c.hour].count = c.count; });
+        return grid;
+    }, [data, counts]);
 
     // Find max value for color scaling
     const maxCount = useMemo(() => {
