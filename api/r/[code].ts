@@ -4,6 +4,7 @@ import { isMainDomain, deploymentHosts } from '../../utils/mainDomains';
 import { isLinkAllowedOnDomain } from '../_lib/customDomainAccess';
 import { recordClick, clickStoreEnvFromProcess, type ClickEvent } from '../_lib/clickStore';
 import { geoFromVercelHeaders } from '../../utils/geoNames';
+import { isBot, isMobileUserAgent } from '../_lib/botFilter';
 import {
     type KvLinkData, type LinkCacheRow, LINK_CACHE_COLUMNS, LINK_CACHE_TTL_SECONDS,
     linkCacheKey, toCacheEntry, redirectDecision,
@@ -26,15 +27,17 @@ function withTimeout<T>(promise: PromiseLike<T>, ms: number, what: string): Prom
 
 
 /**
- * Resolve the app's own URL for interstitial pages (/open, /unlock).
- * Prefers NEXT_PUBLIC_APP_URL; if unset and the request is already on a
- * main domain, use that origin (avoids a cross-domain hop for every
- * mobile click when the env var is missing).
+ * The app's own URL for hand-offs to the browser redirect page (/go, /unlock).
+ * On a main domain, that domain; on a custom domain, NEXT_PUBLIC_APP_URL or
+ * links.trak.in.
  */
 const getAppUrl = (requestUrl: URL): string => {
-    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+    // Stay on the main domain the visitor came in on: hand-offs to /go and
+    // /unlock must not hop to another domain (gather.link currently serves
+    // a Firebase 404, so a hard-coded or configured hop there breaks links).
     if (isMainDomain(requestUrl.hostname, deploymentHosts())) return requestUrl.origin;
-    return 'https://gather.link';
+    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+    return 'https://links.trak.in';
 };
 
 function getAdminClient(): SupabaseClient | null {
@@ -129,52 +132,53 @@ export default async function handler(request: Request, context?: { waitUntil?: 
         }
 
         if (linkData && linkData.url) {
-            // 1. Restrictions (password, expiry, start date, click limit) go
-            //    to the /unlock page, which explains or asks, and counts the
-            //    click itself once the visitor gets through.
+            const appUrl = getAppUrl(url);
+            const userAgent = request.headers.get('user-agent');
+
+            // 1. Restricted or targeted links (password, expiry, start date,
+            //    click limit, A/B / device / country destinations) go to the
+            //    browser redirect page, which explains, asks or picks the
+            //    destination, and counts the click itself.
+            //    IMPORTANT: /unlock/:code, NOT /r/:code — vercel.json rewrites
+            //    /r/:code straight back to this function (redirect loop).
             if (redirectDecision(linkData) === 'interstitial') {
-                // Delegate to the React page which renders password/expiry UI.
-                // IMPORTANT: use /unlock/:code, NOT /r/:code — vercel.json
-                // rewrites /r/:code straight back to this function, which
-                // previously caused an infinite redirect loop for every
-                // password-protected or scheduled link.
-                const appUrl = getAppUrl(url);
                 return Response.redirect(`${appUrl}/unlock/${code}`, 307);
             }
 
-            // 2. Record the click without delaying the redirect.
-            const geo = geoFromVercelHeaders(request.headers);
-            const clickEvent: ClickEvent = {
-                linkId: linkData.id,
-                timestamp: Date.now(),
-                userAgent: request.headers.get('user-agent'),
-                ip: request.headers.get('x-forwarded-for'),
-                referrer: request.headers.get('referer'),
-                country: geo.country,
-                countryCode: geo.countryCode,
-                city: geo.city,
-                region: geo.region,
-                latitude: geo.latitude,
-                longitude: geo.longitude,
-            };
-            const recording = recordClick(
-                clickEvent,
-                clickStoreEnvFromProcess(`${getAppUrl(url)}/api/queue/process-click`),
-            );
-            if (context?.waitUntil) {
-                context.waitUntil(recording);
-            } else {
-                await recording;
+            // 2. Phones and tablets also go to the browser redirect page: it
+            //    opens Amazon, Flipkart, YouTube, Instagram... in their apps
+            //    (keeping affiliate tags) and breaks out of in-app browsers.
+            //    It counts the click, so it isn't counted here.
+            if (isMobileUserAgent(userAgent)) {
+                return Response.redirect(`${appUrl}/go/${code}`, 307);
             }
 
-            // Smart Redirect for Mobile Users (to break out of in-app browsers)
-            const userAgent = request.headers.get('user-agent') || '';
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
-
-            if (isMobile) {
-                const appUrl = getAppUrl(url);
-                const encodedTarget = encodeURIComponent(linkData.url);
-                return Response.redirect(`${appUrl}/open/${encodedTarget}`, 307);
+            // 3. Desktop: redirect straight away and count the click, unless a
+            //    link-preview bot or crawler is fetching it (or it's a HEAD).
+            if (request.method !== 'HEAD' && !isBot(userAgent)) {
+                const geo = geoFromVercelHeaders(request.headers);
+                const clickEvent: ClickEvent = {
+                    linkId: linkData.id,
+                    timestamp: Date.now(),
+                    userAgent,
+                    ip: request.headers.get('x-forwarded-for'),
+                    referrer: request.headers.get('referer'),
+                    country: geo.country,
+                    countryCode: geo.countryCode,
+                    city: geo.city,
+                    region: geo.region,
+                    latitude: geo.latitude,
+                    longitude: geo.longitude,
+                };
+                const recording = recordClick(
+                    clickEvent,
+                    clickStoreEnvFromProcess(`${appUrl}/api/queue/process-click`),
+                );
+                if (context?.waitUntil) {
+                    context.waitUntil(recording);
+                } else {
+                    await recording;
+                }
             }
 
             return Response.redirect(linkData.url, 307);

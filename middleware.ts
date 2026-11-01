@@ -162,7 +162,9 @@ export default async function middleware(request: Request) {
     // The existing /r/ page logic handles the lookup by code
     // We just need to ensure the short code exists for this USER (optional security check)
     // We rewrite to /api/r/path to leverage the Edge API and Vercel KV for fast redirects
-    if (path.length > 1) {
+    // Only single-segment paths are short codes; the app's own files
+    // (/assets/..., /p/..., /go/...) must load normally on a custom domain.
+    if (path.length > 1 && !path.slice(1).includes('/') && !path.includes('.')) {
         console.log(`[Middleware] Rewriting ${hostname}${path} to /api/r${path}`);
         url.pathname = `/api/r${path}`;
         const response = next();
