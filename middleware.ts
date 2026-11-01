@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { isMainDomain as isMainAppDomain, deploymentHosts } from './utils/mainDomains';
-import { isHybridAppRoute } from './utils/hybridRoutes';
+import { isHybridAppRoute, isShortCodePath } from './utils/hybridRoutes';
 
 export const config = {
     matcher: [
@@ -73,9 +73,9 @@ export default async function middleware(request: Request) {
         // SPECIAL CASE: links.trak.in is a hybrid domain (App + Short Links)
         // If it's links.trak.in, we need to check if it's a system route or a short link
         if (hostname === 'links.trak.in') {
-            const isSystemRoute = isHybridAppRoute(url.pathname);
-
-            if (!isSystemRoute) {
+            // Only a single-segment path outside the app's routes is a short
+            // code; anything else is the app (its router handles unknowns).
+            if (!isHybridAppRoute(url.pathname) && isShortCodePath(url.pathname)) {
                 // It's a short link! Rewrite to /api/r/path (Edge API)
                 // This uses Vercel KV and bypasses client-side RLS issues
                 console.log(`[Middleware] Hybrid Rewrite: ${hostname}${url.pathname} to /api/r${url.pathname}`);
@@ -164,7 +164,7 @@ export default async function middleware(request: Request) {
     // We rewrite to /api/r/path to leverage the Edge API and Vercel KV for fast redirects
     // Only single-segment paths are short codes; the app's own files
     // (/assets/..., /p/..., /go/...) must load normally on a custom domain.
-    if (path.length > 1 && !path.slice(1).includes('/') && !path.includes('.')) {
+    if (isShortCodePath(path)) {
         console.log(`[Middleware] Rewriting ${hostname}${path} to /api/r${path}`);
         url.pathname = `/api/r${path}`;
         const response = next();

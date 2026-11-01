@@ -2,6 +2,7 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { shortLinkNavigationPatterns } from './utils/hybridRoutes';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
@@ -14,6 +15,12 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
+        workbox: {
+          // Short links and API calls must reach the server: answering them
+          // with the cached app sent bare codes to the homepage and skipped
+          // the server redirect for anyone who had visited before.
+          navigateFallbackDenylist: [/^\/api\//, ...shortLinkNavigationPatterns()],
+        },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
         devOptions: {
           enabled: true,
