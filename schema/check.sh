@@ -17,3 +17,12 @@ else
   echo "schema/baseline.sql does not match schema/fingerprint.txt (see diff above)." >&2
   exit 1
 fi
+
+# Who can call what: anon, other users and owners against the API surface.
+psql -X -q -f schema/test/access_checks.sql | grep -v '^$' > /tmp/access_checks.txt
+if diff -u schema/test/access_checks.expected /tmp/access_checks.txt; then
+  echo "Access checks pass."
+else
+  echo "Access checks changed (see diff above): update schema/test/access_checks.expected only if intended." >&2
+  exit 1
+fi

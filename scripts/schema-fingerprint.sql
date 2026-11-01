@@ -18,7 +18,7 @@ idx as (select string_agg(pg_get_indexdef(i.indexrelid), '|' order by pg_get_ind
 fns as (select string_agg(md5(pg_get_functiondef(p.oid)), '|' order by p.proname collate "C", pg_get_function_identity_arguments(p.oid) collate "C") s, count(*) n
   from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public' and p.prokind in ('f','p')
   and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e')),
-vws as (select string_agg(c.relname||':'||md5(pg_get_viewdef(c.oid)), '|' order by c.relname collate "C") s, count(*) n
+vws as (select string_agg(c.relname||':'||coalesce(array_to_string(c.reloptions, ','), '')||':'||md5(pg_get_viewdef(c.oid)), '|' order by c.relname collate "C") s, count(*) n
   from pg_class c join pg_namespace ns on ns.oid=c.relnamespace where ns.nspname='public' and c.relkind in ('v','m')),
 trg as (select string_agg(pg_get_triggerdef(t.oid), '|' order by pg_get_triggerdef(t.oid) collate "C") s, count(*) n
   from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace ns on ns.oid=c.relnamespace where not t.tgisinternal and (ns.nspname='public' or (ns.nspname='auth' and c.relname='users'))),

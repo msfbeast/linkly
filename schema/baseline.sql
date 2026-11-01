@@ -431,6 +431,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.aggregate_daily_stats(target_date date DEFAULT CURRENT_DATE)
  RETURNS void
  LANGUAGE plpgsql
+ SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
   r RECORD;
@@ -482,6 +483,9 @@ AS $function$
 DECLARE
   v_link_id UUID;
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
   -- Update the link to belong to the user
   UPDATE public.links
   SET 
@@ -507,11 +511,15 @@ CREATE OR REPLACE FUNCTION public.create_analytics_share_token(p_expires_in_days
  RETURNS text
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
     v_token TEXT;
     v_expires_at TIMESTAMPTZ;
 BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Sign in to share analytics' USING ERRCODE = '42501';
+    END IF;
     -- Generate random token
     v_token := encode(gen_random_bytes(16), 'hex');
     
@@ -620,6 +628,9 @@ DECLARE
   v_team_id UUID;
   v_count INTEGER;
 BEGIN
+    IF p_owner_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
   -- A. Input Validation
   IF length(p_name) < 3 OR length(p_name) > 50 THEN
     RAISE EXCEPTION 'Invalid name: Must be between 3 and 50 characters.';
@@ -691,6 +702,7 @@ CREATE OR REPLACE FUNCTION public.get_click_trends(p_user_id uuid, p_days intege
  RETURNS TABLE(day date, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     RETURN QUERY
@@ -711,6 +723,7 @@ CREATE OR REPLACE FUNCTION public.get_device_breakdown(p_user_id uuid)
  RETURNS TABLE(device text, browser text, click_count bigint, percentage numeric)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
     v_total BIGINT;
@@ -740,8 +753,16 @@ CREATE OR REPLACE FUNCTION public.get_link_stats(p_link_id uuid)
  RETURNS TABLE(total_clicks bigint, unique_visitors bigint, top_country text, top_city text, top_referrer text, clicks_by_day json)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF coalesce(auth.role(), '') <> 'service_role' AND NOT EXISTS (
+        SELECT 1 FROM public.links l
+        WHERE l.id = p_link_id
+          AND (l.user_id = auth.uid() OR (l.team_id IS NOT NULL AND public.is_team_member(l.team_id)))
+    ) THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY
     WITH daily_clicks AS (
         SELECT 
@@ -768,6 +789,7 @@ CREATE OR REPLACE FUNCTION public.get_shared_analytics(p_share_token text)
  RETURNS json
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
     v_user_id UUID;
@@ -864,6 +886,7 @@ CREATE OR REPLACE FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer
  RETURNS TABLE(city text, country text, click_count bigint, percentage numeric)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
     v_total BIGINT;
@@ -894,6 +917,7 @@ CREATE OR REPLACE FUNCTION public.get_traffic_sources(p_user_id uuid)
  RETURNS TABLE(source text, click_count bigint, percentage numeric)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
     v_total BIGINT;
@@ -933,8 +957,12 @@ CREATE OR REPLACE FUNCTION public.get_user_browser_breakdown(p_user_id uuid)
  RETURNS TABLE(browser text, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY SELECT COALESCE(ce.browser, 'Unknown'), COUNT(*)::BIGINT
     FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
     WHERE l.user_id = p_user_id GROUP BY ce.browser ORDER BY COUNT(*) DESC LIMIT 10;
@@ -945,8 +973,12 @@ CREATE OR REPLACE FUNCTION public.get_user_city_breakdown(p_user_id uuid)
  RETURNS TABLE(city text, country text, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY SELECT COALESCE(ce.city, 'Unknown'), COALESCE(ce.country, 'Unknown'), COUNT(*)::BIGINT
     FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
     WHERE l.user_id = p_user_id AND ce.city IS NOT NULL GROUP BY ce.city, ce.country ORDER BY COUNT(*) DESC LIMIT 20;
@@ -957,8 +989,12 @@ CREATE OR REPLACE FUNCTION public.get_user_click_stats(p_user_id uuid)
  RETURNS TABLE(total_clicks bigint, unique_visitors bigint, clicks_today bigint, clicks_this_week bigint, clicks_this_month bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY
     SELECT 
         COUNT(*)::BIGINT as total_clicks,
@@ -977,8 +1013,12 @@ CREATE OR REPLACE FUNCTION public.get_user_clicks_over_time(p_user_id uuid, p_da
  RETURNS TABLE(click_date date, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY
     SELECT 
         DATE(ce.timestamp) as click_date,
@@ -997,8 +1037,12 @@ CREATE OR REPLACE FUNCTION public.get_user_country_breakdown(p_user_id uuid)
  RETURNS TABLE(country text, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY SELECT COALESCE(ce.country, 'Unknown'), COUNT(*)::BIGINT
     FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
     WHERE l.user_id = p_user_id GROUP BY ce.country ORDER BY COUNT(*) DESC LIMIT 20;
@@ -1009,8 +1053,12 @@ CREATE OR REPLACE FUNCTION public.get_user_device_breakdown(p_user_id uuid)
  RETURNS TABLE(device text, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY SELECT COALESCE(ce.device, 'Unknown'), COUNT(*)::BIGINT
     FROM click_events ce INNER JOIN links l ON ce.link_id = l.id
     WHERE l.user_id = p_user_id GROUP BY ce.device ORDER BY COUNT(*) DESC;
@@ -1021,8 +1069,12 @@ CREATE OR REPLACE FUNCTION public.get_user_device_model_breakdown(p_user_id uuid
  RETURNS TABLE(device_model text, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY
     SELECT 
         COALESCE(
@@ -1108,8 +1160,12 @@ CREATE OR REPLACE FUNCTION public.get_user_os_breakdown(p_user_id uuid)
  RETURNS TABLE(os text, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY
     SELECT 
         COALESCE(ce.os, 'Unknown') as os,
@@ -1127,8 +1183,12 @@ CREATE OR REPLACE FUNCTION public.get_user_referrer_breakdown(p_user_id uuid)
  RETURNS TABLE(referrer text, click_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
+    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
     RETURN QUERY SELECT 
         COALESCE(CASE 
             WHEN ce.referrer IS NULL OR ce.referrer = '' THEN 'Direct'
@@ -1206,6 +1266,7 @@ CREATE OR REPLACE FUNCTION public.increment_bio_view(profile_id uuid)
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     UPDATE bio_profiles
@@ -1219,6 +1280,7 @@ CREATE OR REPLACE FUNCTION public.increment_bio_views(profile_id uuid)
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     UPDATE bio_profiles
@@ -1231,6 +1293,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.increment_clicks(link_id uuid)
  RETURNS void
  LANGUAGE plpgsql
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
   UPDATE links
@@ -1243,6 +1306,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone)
  RETURNS void
  LANGUAGE plpgsql
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
   UPDATE links
@@ -1258,6 +1322,7 @@ CREATE OR REPLACE FUNCTION public.is_team_member(team_uuid uuid)
  RETURNS boolean
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
   RETURN EXISTS (
@@ -1368,6 +1433,7 @@ CREATE OR REPLACE FUNCTION public.record_click(p_link_id uuid, p_click_data json
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
     -- Increment click count on links table
@@ -1423,6 +1489,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.strip_raw_ip_address()
  RETURNS trigger
  LANGUAGE plpgsql
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
   NEW := jsonb_populate_record(NEW, '{"ip_address": null}'::jsonb);
@@ -1449,6 +1516,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.update_tech_vault_updated_at()
  RETURNS trigger
  LANGUAGE plpgsql
+ SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
   NEW.updated_at = NOW();
@@ -1458,7 +1526,7 @@ $function$
 ;
 
 -- Views
-CREATE OR REPLACE VIEW public.click_stats_by_country AS
+CREATE OR REPLACE VIEW public.click_stats_by_country WITH (security_invoker=true) AS
  SELECT link_id,
     country,
     country_code,
@@ -1467,7 +1535,7 @@ CREATE OR REPLACE VIEW public.click_stats_by_country AS
    FROM public.click_events
   GROUP BY link_id, country, country_code;
 
-CREATE OR REPLACE VIEW public.click_stats_by_city AS
+CREATE OR REPLACE VIEW public.click_stats_by_city WITH (security_invoker=true) AS
  SELECT link_id,
     country,
     city,
@@ -1476,7 +1544,7 @@ CREATE OR REPLACE VIEW public.click_stats_by_city AS
    FROM public.click_events
   GROUP BY link_id, country, city;
 
-CREATE OR REPLACE VIEW public.click_stats_by_device AS
+CREATE OR REPLACE VIEW public.click_stats_by_device WITH (security_invoker=true) AS
  SELECT link_id,
     device,
     os,
@@ -1485,14 +1553,14 @@ CREATE OR REPLACE VIEW public.click_stats_by_device AS
    FROM public.click_events
   GROUP BY link_id, device, os, browser;
 
-CREATE OR REPLACE VIEW public.click_stats_by_referrer AS
+CREATE OR REPLACE VIEW public.click_stats_by_referrer WITH (security_invoker=true) AS
  SELECT link_id,
     referrer,
     count(*) AS click_count
    FROM public.click_events
   GROUP BY link_id, referrer;
 
-CREATE OR REPLACE VIEW public.click_stats_daily AS
+CREATE OR REPLACE VIEW public.click_stats_daily WITH (security_invoker=true) AS
  SELECT link_id,
     date("timestamp") AS click_date,
     count(*) AS click_count,
@@ -1584,6 +1652,7 @@ CREATE TRIGGER tech_vault_items_updated_at BEFORE UPDATE ON public.tech_vault_it
 
 -- Row level security
 ALTER TABLE public.analytics_daily_summary ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.analytics_share_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_recommendations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bio_profiles ENABLE ROW LEVEL SECURITY;
@@ -1609,6 +1678,12 @@ CREATE POLICY "Users can view analytics for their own links" ON public.analytics
     USING ((EXISTS ( SELECT 1
    FROM public.links
   WHERE ((links.id = analytics_daily_summary.link_id) AND (links.user_id = auth.uid())))));
+
+CREATE POLICY "Owners can revoke their share tokens" ON public.analytics_share_tokens AS PERMISSIVE FOR DELETE TO authenticated
+    USING ((user_id = auth.uid()));
+
+CREATE POLICY "Owners can view their share tokens" ON public.analytics_share_tokens AS PERMISSIVE FOR SELECT TO authenticated
+    USING ((user_id = auth.uid()));
 
 CREATE POLICY "Users can manage their own API keys" ON public.api_keys AS PERMISSIVE FOR ALL TO public
     USING ((auth.uid() = user_id));
@@ -1874,9 +1949,8 @@ REVOKE ALL ON TABLE public.tech_vault_items FROM anon, authenticated, service_ro
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.analytics_daily_summary TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.analytics_daily_summary TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.analytics_daily_summary TO service_role;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.analytics_share_tokens TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.analytics_share_tokens TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.analytics_share_tokens TO service_role;
+GRANT DELETE, SELECT ON TABLE public.analytics_share_tokens TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.api_keys TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.api_keys TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.api_keys TO service_role;
@@ -1889,21 +1963,16 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO service_role;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_city TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_city TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_city TO service_role;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_country TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_country TO authenticated;
+GRANT SELECT ON TABLE public.click_stats_by_city TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_country TO service_role;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_device TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_device TO authenticated;
+GRANT SELECT ON TABLE public.click_stats_by_country TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_device TO service_role;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_referrer TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_referrer TO authenticated;
+GRANT SELECT ON TABLE public.click_stats_by_device TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_referrer TO service_role;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_daily TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_daily TO authenticated;
+GRANT SELECT ON TABLE public.click_stats_by_referrer TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_daily TO service_role;
+GRANT SELECT ON TABLE public.click_stats_daily TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO service_role;
@@ -1991,24 +2060,16 @@ GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO PUBL
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO anon;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO service_role;
-GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO anon;
 GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO anon;
 GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) TO anon;
 GRANT EXECUTE ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_team_with_owner(p_name text, p_slug text, p_owner_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_team_with_owner(p_name text, p_slug text, p_owner_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.create_team_with_owner(p_name text, p_slug text, p_owner_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_team_with_owner(p_name text, p_slug text, p_owner_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.current_profile_role() TO anon;
@@ -2018,69 +2079,34 @@ GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO anon;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_click_trends(p_user_id uuid, p_days integer) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_click_trends(p_user_id uuid, p_days integer) TO anon;
-GRANT EXECUTE ON FUNCTION public.get_click_trends(p_user_id uuid, p_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_click_trends(p_user_id uuid, p_days integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_device_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_device_breakdown(p_user_id uuid) TO anon;
-GRANT EXECUTE ON FUNCTION public.get_device_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_device_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_link_stats(p_link_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_link_stats(p_link_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_link_stats(p_link_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_link_stats(p_link_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer) TO anon;
-GRANT EXECUTE ON FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_traffic_sources(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_traffic_sources(p_user_id uuid) TO anon;
-GRANT EXECUTE ON FUNCTION public.get_traffic_sources(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_traffic_sources(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_click_stats(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_click_stats(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_click_stats(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_click_stats(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_clicks_over_time(p_user_id uuid, p_days integer) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_clicks_over_time(p_user_id uuid, p_days integer) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_clicks_over_time(p_user_id uuid, p_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_clicks_over_time(p_user_id uuid, p_days integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_country_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_country_breakdown(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_country_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_country_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_device_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_device_breakdown(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_device_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_device_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_device_model_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_device_model_breakdown(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_device_model_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_device_model_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.handle_new_user() TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.handle_new_user() TO anon;
-GRANT EXECUTE ON FUNCTION public.handle_new_user() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
 GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO anon;
@@ -2110,9 +2136,6 @@ GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO anon;
 GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO service_role;
-GRANT EXECUTE ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) TO anon;
-GRANT EXECUTE ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO anon;
