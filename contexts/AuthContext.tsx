@@ -3,6 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { authService, User, AuthResult, toAuthResult } from '../services/authService';
 import { validatePassword } from '../services/passwordValidation';
 import { supabase } from '../services/storage/supabaseClient';
+import { emailService } from '../services/emailService';
 
 /**
  * Auth Context Type
@@ -38,6 +39,24 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Send the welcome email once the account has a confirmed email and a
+ * session. The server sends it at most once per account; the local flag
+ * just avoids asking again on every page load.
+ */
+function maybeSendWelcomeEmail(session: Session) {
+  if (!session.user.email_confirmed_at) return;
+  const key = `gather_welcome_email:${session.user.id}`;
+  try {
+    if (localStorage.getItem(key)) return;
+  } catch { /* storage unavailable: let the server dedupe */ }
+
+  emailService.sendWelcomeEmail().then(ok => {
+    if (!ok) return;
+    try { localStorage.setItem(key, '1'); } catch { /* ignore */ }
+  });
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -66,6 +85,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setUser(sessionUser);
         setLoading(false);
+
+        // Deferred: supabase-js auth calls inside this callback can deadlock.
+        setTimeout(() => maybeSendWelcomeEmail(session), 0);
 
         // Fetch full user details in background (non-blocking)
         authService.getUser().then(fullUser => {

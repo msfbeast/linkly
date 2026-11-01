@@ -1,7 +1,6 @@
 import { supabase, isSupabaseConfigured } from './storage/supabaseClient';
 import { Session, User as SupabaseUser, AuthError } from '@supabase/supabase-js';
 import { supabaseAdapter } from './storage/supabaseAdapter';
-import { emailService } from './emailService';
 
 /**
  * User interface for the application
@@ -188,15 +187,8 @@ export const authService = {
       }
     }
 
-    // Send welcome email
-    if (data.user && data.user.email) {
-      try {
-        await emailService.sendWelcomeEmail();
-      } catch (emailErr) {
-        console.error('Failed to send welcome email:', emailErr);
-        // Don't fail signup
-      }
-    }
+    // The welcome email is sent from AuthContext on the first confirmed
+    // sign-in; right after sign-up there's usually no session yet.
 
     // Fetch profile for settings and preferences
     let settingsNotifications;
