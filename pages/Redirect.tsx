@@ -4,6 +4,7 @@ import { LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { isSupabaseConfigured } from '../services/storage/supabaseClient';
 import { getLinkByCode as getLocalLinkByCode, incrementClicks } from '../services/storageService';
+import { safeNavigationUrl, safeWebUrl } from '../utils/safeUrl';
 import { getAppDeepLink } from '../utils/appDeepLinking';
 import { detectDeviceModel } from '../services/userAgentParser';
 
@@ -227,6 +228,15 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       setError("Invalid destination URL. Direct access to widgets is not supported.");
       return;
     }
+    // Destinations come from users (link, A/B variants, device and geo
+    // rules). Refuse script-capable schemes before navigating: a
+    // javascript: URL here would run on our origin for every visitor.
+    const safeFinalUrl = safeNavigationUrl(finalUrl);
+    if (!safeFinalUrl) {
+      setError("This link's destination isn't a valid web address.");
+      return;
+    }
+    finalUrl = safeFinalUrl;
 
     // Append lcid for conversion tracking - REMOVED to prevent WAF blocking
     // const lcid = crypto.randomUUID();
@@ -242,7 +252,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
     // Smart App Redirect
     // Try to detect if we can open an app directly
-    const deepLink = getAppDeepLink(finalUrl, navigator.userAgent);
+    const deepLink = safeNavigationUrl(getAppDeepLink(finalUrl, navigator.userAgent));
 
     if (deepLink) {
 
@@ -426,7 +436,8 @@ const GalleryView: React.FC<GalleryViewProps> = ({ link, recordClick }) => {
   const handleDownloadDrive = async () => {
     setIsRedirecting(true);
     await recordClick(link, link.originalUrl);
-    window.open(link.originalUrl, "_blank");
+    const url = safeWebUrl(link.originalUrl);
+    if (url) window.open(url, "_blank", "noopener");
     setIsRedirecting(false);
   };
 
