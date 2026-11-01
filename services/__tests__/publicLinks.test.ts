@@ -35,13 +35,24 @@ describe('public link reads', () => {
         expect(db.from).not.toHaveBeenCalled();
     });
 
-    it('checks link passwords on the server', async () => {
-        db.rpc.mockResolvedValueOnce({ data: null, error: null });
-        expect(await new LinkRepository().unlockLink('abc', 'wrong')).toBeNull();
-        db.rpc.mockResolvedValueOnce({ data: row({ requires_password: true }), error: null });
-        const link = await new LinkRepository().unlockLink('abc', 'right');
-        expect(db.rpc).toHaveBeenLastCalledWith('unlock_link', { p_short_code: 'abc', p_password: 'right' });
-        expect(link?.originalUrl).toBe('https://example.com');
+    it('checks link passwords through the rate-limited unlock endpoint', async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'wrong_password' }), { status: 401 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ link: row({ requires_password: true }) })))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'too_many_attempts' }), { status: 429 }));
+        vi.stubGlobal('fetch', fetchMock);
+        try {
+            const repo = new LinkRepository();
+            expect(await repo.unlockLink('abc', 'wrong')).toEqual({ status: 'wrong' });
+            const ok = await repo.unlockLink('abc', 'right');
+            expect(ok.status === 'ok' && ok.link.originalUrl).toBe('https://example.com');
+            expect(await repo.unlockLink('abc', 'again')).toEqual({ status: 'limited' });
+            expect(fetchMock).toHaveBeenCalledWith('/api/link/unlock', expect.objectContaining({ method: 'POST' }));
+            expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ code: 'abc', password: 'right' });
+            expect(db.rpc).not.toHaveBeenCalled();
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 
     it('finds a guest link by claim token through get_guest_link_by_claim_token', async () => {

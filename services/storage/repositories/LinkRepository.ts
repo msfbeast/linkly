@@ -12,6 +12,8 @@ import {
 } from '../mappers';
 import { v4 as uuidv4 } from 'uuid';
 
+export type UnlockResult = { status: 'ok'; link: LinkData } | { status: 'wrong' } | { status: 'limited' };
+
 export class LinkRepository extends BaseRepository {
 
     /**
@@ -153,16 +155,25 @@ export class LinkRepository extends BaseRepository {
         return rowToLinkData(data as LinkRow);
     }
 
-    /** The full link for a password-protected short code, or null if the password is wrong. */
-    async unlockLink(code: string, password: string): Promise<LinkData | null> {
-        if (!this.isConfigured()) return null;
-
-        const { data, error } = await this.supabase!.rpc('unlock_link', { p_short_code: code, p_password: password });
-        if (error) {
+    /**
+     * Checks a protected link's password on the server (/api/link/unlock,
+     * which limits guesses). 'limited' means too many wrong passwords lately.
+     */
+    async unlockLink(code: string, password: string): Promise<UnlockResult> {
+        try {
+            const res = await fetch('/api/link/unlock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code, password }),
+            });
+            if (res.status === 429) return { status: 'limited' };
+            if (!res.ok) return { status: 'wrong' };
+            const { link } = await res.json();
+            return link ? { status: 'ok', link: rowToLinkData(link as LinkRow) } : { status: 'wrong' };
+        } catch (error) {
             console.error('[LinkRepository] Error unlocking link:', error);
-            return null;
+            return { status: 'wrong' };
         }
-        return data ? rowToLinkData(data as LinkRow) : null;
     }
 
     async createGuestLink(originalUrl: string, sessionId: string): Promise<LinkData> {

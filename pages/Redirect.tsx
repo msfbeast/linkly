@@ -26,7 +26,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
   // Password State
   const [isLocked, setIsLocked] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState(false);
+  const [passwordError, setPasswordError] = useState<false | 'wrong' | 'limited'>(false);
   const [targetLink, setTargetLink] = useState<LinkData | null>(null);
   const processedCode = React.useRef<string | null>(null);
 
@@ -297,11 +297,15 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Checked on the server: the browser never receives the password, and
-    // a protected link's destination only arrives after it matches.
-    const unlocked = targetLink && code && isSupabaseConfigured()
+    // a protected link's destination only arrives after it matches. The
+    // server stops accepting guesses after too many wrong ones.
+    const result = targetLink && code && isSupabaseConfigured()
       ? await supabaseAdapter.unlockLink(code, passwordInput)
-      : (targetLink && targetLink.password === passwordInput ? targetLink : null); // local-only mode
-    if (unlocked) {
+      : (targetLink && targetLink.password === passwordInput // local-only mode
+        ? { status: 'ok' as const, link: targetLink }
+        : { status: 'wrong' as const });
+    if (result.status === 'ok') {
+      const unlocked = result.link;
       setTargetLink(unlocked);
       setIsLocked(false);
       if (unlocked.type === 'gallery') {
@@ -309,7 +313,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       }
       await processRedirect(unlocked);
     } else {
-      setPasswordError(true);
+      setPasswordError(result.status === 'limited' ? 'limited' : 'wrong');
       setPasswordInput('');
     }
   };
@@ -350,6 +354,13 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
               onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
               autoFocus
             />
+            {passwordError && (
+              <p className="text-sm text-red-500" role="alert">
+                {passwordError === 'limited'
+                  ? 'Too many wrong passwords. Try again in 15 minutes.'
+                  : 'Wrong password.'}
+              </p>
+            )}
             <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-amber-500/20">
               Unlock Link
             </button>
