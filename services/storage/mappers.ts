@@ -475,16 +475,6 @@ export function rowToDomain(row: DomainRow): Domain {
     };
 }
 
-export function hashIP(ip: string): string {
-    let hash = 0;
-    for (let i = 0; i < ip.length; i++) {
-        const char = ip.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return hash.toString(16);
-}
-
 export function rowToGalleryItem(row: GalleryItemRow): GalleryItem {
     return {
         id: row.id,

@@ -147,15 +147,18 @@ function generateFingerprint(data: ClickRequest, ip: string): string {
   return Math.abs(hash).toString(16).padStart(8, '0')
 }
 
-// Hash IP for privacy
-function hashIP(ip: string): string {
-  let hash = 0
-  for (let i = 0; i < ip.length; i++) {
-    const char = ip.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0')
+// Keyed hash of the visitor IP, so raw addresses are never stored. Must
+// match utils/ipHash.ts in the app (same normalization, HMAC-SHA256, hex)
+// so clicks from both paths hash the same visitor the same way. Set
+// IP_HASH_SALT in this function's secrets to the same value as in Vercel.
+async function hashIP(raw: string): Promise<string | null> {
+  const ip = raw.split(',')[0].trim()
+  if (!ip || ip.toLowerCase() === 'unknown') return null
+  const secret = Deno.env.get('IP_HASH_SALT') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(ip))
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 serve(async (req) => {
@@ -178,7 +181,7 @@ serve(async (req) => {
 
     const body: ClickRequest = await req.json()
 
-    console.log('Track click request:', { linkId: body.linkId, ip })
+    console.log('Track click request:', { linkId: body.linkId })
 
     // Parse user agent
     const { device, os, browser } = parseUserAgent(body.userAgent || '')
@@ -215,7 +218,7 @@ serve(async (req) => {
       cookies_enabled: body.cookiesEnabled,
       do_not_track: body.doNotTrack,
       fingerprint,
-      ip_hash: hashIP(ip),
+      ip_hash: await hashIP(ip),
       raw_user_agent: body.userAgent,
     }
 
