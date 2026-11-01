@@ -4,6 +4,7 @@ import { kv } from '@vercel/kv';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { monetizeUrl, isShortAmazonUrl, resolveShortUrlBackend } from '../../utils/affiliateUtils';
+import { type LinkCacheRow, LINK_CACHE_TTL_SECONDS, linkCacheKey, toCacheEntry } from '../_lib/linkCache';
 
 export const config = {
     runtime: 'edge',
@@ -284,10 +285,8 @@ export default async function handler(request: Request) {
 
         // Sync to Vercel KV Cache
         try {
-            await kv.set(`gather:link:${link.short_code}`, {
-                url: link.original_url,
-                id: link.id
-            });
+            const entry = toCacheEntry(link as LinkCacheRow);
+            if (entry) await kv.set(linkCacheKey(link.short_code), entry, { ex: LINK_CACHE_TTL_SECONDS });
         } catch (kvError) {
             console.error('[API] Failed to sync to Vercel KV cache:', kvError);
         }

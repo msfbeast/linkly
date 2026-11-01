@@ -1,4 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+
+const { kvDel, deleted } = vi.hoisted(() => ({ kvDel: vi.fn(), deleted: { rows: [] as { short_code: string }[] } }));
+vi.mock('@vercel/kv', () => ({ kv: { del: kvDel } }));
+vi.mock('@supabase/supabase-js', () => ({
+    createClient: () => ({
+        from: () => ({
+            delete: () => ({ eq: () => ({ lt: () => ({ select: async () => ({ data: deleted.rows, error: null }) }) }) }),
+        }),
+    }),
+}));
+
 import handler from '../cron/cleanup';
 
 function mockRes() {
@@ -23,5 +34,15 @@ describe('/api/cron/cleanup', () => {
         const res = mockRes();
         await handler({ headers: { authorization: 'Bearer nope' } }, res);
         expect(res.statusCode).toBe(401);
+    });
+
+    it('removes deleted guest links from the redirect cache', async () => {
+        vi.stubEnv('CRON_SECRET', 's3cret');
+        deleted.rows = [{ short_code: 'g1' }, { short_code: 'g2' }];
+        const res = mockRes();
+        await handler({ headers: { authorization: 'Bearer s3cret' } }, res);
+        expect(res.statusCode).toBe(200);
+        expect(res.body.deleted_count).toBe(2);
+        expect(kvDel).toHaveBeenCalledWith('gather:link:g1', 'gather:link:g2');
     });
 });

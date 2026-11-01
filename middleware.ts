@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { isMainDomain as isMainAppDomain, deploymentHosts } from './utils/mainDomains';
+import { isHybridAppRoute } from './utils/hybridRoutes';
 
 export const config = {
     matcher: [
@@ -45,7 +46,14 @@ export default async function middleware(request: Request) {
     );
 
     if (shouldRateLimit) {
-        const { success, limit, reset, remaining } = await ratelimit.limit(ip);
+        // Fail open: an Upstash outage must not take every custom domain down.
+        let rate: Awaited<ReturnType<typeof ratelimit.limit>> | null = null;
+        try {
+            rate = await ratelimit.limit(ip);
+        } catch (e) {
+            console.error('[Middleware] Rate limiter unavailable, allowing request:', e);
+        }
+        const { success, limit, reset, remaining } = rate ?? { success: true, limit: 0, reset: 0, remaining: 0 };
 
         if (!success) {
             console.warn(`[Middleware] Rate limit exceeded for IP: ${ip}`);
@@ -65,14 +73,7 @@ export default async function middleware(request: Request) {
         // SPECIAL CASE: links.trak.in is a hybrid domain (App + Short Links)
         // If it's links.trak.in, we need to check if it's a system route or a short link
         if (hostname === 'links.trak.in') {
-            const systemRoutes = [
-                '/admin', '/dashboard', '/login', '/register',
-                '/api', '/assets', '/p/', '/r/', '/store',
-                '/open', '/unlock', '/reset-password', '/update-password',
-                '/claim', '/team', '/pricing', '/about', '/privacy', '/terms', '/cookies'
-            ];
-
-            const isSystemRoute = systemRoutes.some(route => url.pathname.startsWith(route)) || url.pathname === '/';
+            const isSystemRoute = isHybridAppRoute(url.pathname);
 
             if (!isSystemRoute) {
                 // It's a short link! Rewrite to /api/r/path (Edge API)

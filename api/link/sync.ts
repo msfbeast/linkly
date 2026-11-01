@@ -1,5 +1,6 @@
 import { kv } from '@vercel/kv';
 import { createClient } from '@supabase/supabase-js';
+import { type LinkCacheRow, LINK_CACHE_COLUMNS, LINK_CACHE_TTL_SECONDS, linkCacheKey, toCacheEntry } from '../_lib/linkCache';
 
 export const config = {
     runtime: 'edge',
@@ -62,7 +63,7 @@ export default async function handler(request: Request) {
 
         const { data: link, error: linkError } = await admin
             .from('links')
-            .select('id, user_id, team_id, original_url, password_hash, expiration_date, start_date')
+            .select(`user_id, team_id, ${LINK_CACHE_COLUMNS}`)
             .eq('short_code', shortCode)
             .maybeSingle();
 
@@ -88,7 +89,7 @@ export default async function handler(request: Request) {
             if (link && !(await isAuthorized())) {
                 return json({ error: 'Forbidden' }, 403);
             }
-            await kv.del(`gather:link:${shortCode}`);
+            await kv.del(linkCacheKey(shortCode));
             return json({ success: true }, 200);
         }
 
@@ -100,13 +101,13 @@ export default async function handler(request: Request) {
             return json({ error: 'Forbidden' }, 403);
         }
 
-        await kv.set(`gather:link:${shortCode}`, {
-            url: link.original_url,
-            id: link.id,
-            password: !!link.password_hash,
-            expiration: link.expiration_date ?? undefined,
-            start: link.start_date ?? undefined,
-        });
+        // Archived links and expired guest links leave the cache instead.
+        const entry = toCacheEntry(link as LinkCacheRow);
+        if (entry) {
+            await kv.set(linkCacheKey(shortCode), entry, { ex: LINK_CACHE_TTL_SECONDS });
+        } else {
+            await kv.del(linkCacheKey(shortCode));
+        }
 
         return json({ success: true }, 200);
     } catch (error) {
