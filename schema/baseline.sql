@@ -2275,10 +2275,10 @@ DO $r$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.click_events; 
 DO $r$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.links; EXCEPTION WHEN duplicate_object THEN NULL; END $r$;
 
 -- Storage buckets and policies
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('app-icons', 'app-icons', true, NULL, NULL) ON CONFLICT (id) DO NOTHING;
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('avatars', 'avatars', true, NULL, NULL) ON CONFLICT (id) DO NOTHING;
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('digital-products', 'digital-products', false, NULL, NULL) ON CONFLICT (id) DO NOTHING;
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('gallery-images', 'gallery-images', true, NULL, NULL) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('app-icons', 'app-icons', true, 10485760, '{image/png,image/jpeg,image/webp,image/gif,image/avif}'::text[]) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('avatars', 'avatars', true, 10485760, '{image/png,image/jpeg,image/webp,image/gif,image/avif}'::text[]) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('digital-products', 'digital-products', false, 52428800, NULL) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('gallery-images', 'gallery-images', true, 10485760, '{image/png,image/jpeg,image/webp,image/gif,image/avif}'::text[]) ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Allow authenticated uploads" ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated
     WITH CHECK (((bucket_id = 'digital-products'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
@@ -2289,38 +2289,19 @@ CREATE POLICY "Allow owner delete access" ON storage.objects AS PERMISSIVE FOR D
 CREATE POLICY "Allow owner read access" ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated
     USING (((bucket_id = 'digital-products'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
-CREATE POLICY "Allow owner update access" ON storage.objects AS PERMISSIVE FOR UPDATE TO authenticated
-    USING (((bucket_id = 'digital-products'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+CREATE POLICY "Digital products: owners update own folder" ON storage.objects AS PERMISSIVE FOR UPDATE TO authenticated
+    USING (((bucket_id = 'digital-products'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)))
+    WITH CHECK (((bucket_id = 'digital-products'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
-CREATE POLICY "App icons are publicly accessible" ON storage.objects AS PERMISSIVE FOR SELECT TO public
-    USING ((bucket_id = 'app-icons'::text));
+CREATE POLICY "Public images: owners delete own folder" ON storage.objects AS PERMISSIVE FOR DELETE TO authenticated
+    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
-CREATE POLICY "Authenticated users can upload avatars." ON storage.objects AS PERMISSIVE FOR INSERT TO public
-    WITH CHECK (((bucket_id = 'avatars'::text) AND (auth.role() = 'authenticated'::text)));
+CREATE POLICY "Public images: owners read own folder" ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated
+    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
-CREATE POLICY "Avatar images are publicly accessible." ON storage.objects AS PERMISSIVE FOR SELECT TO public
-    USING ((bucket_id = 'avatars'::text));
+CREATE POLICY "Public images: owners update own folder" ON storage.objects AS PERMISSIVE FOR UPDATE TO authenticated
+    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)))
+    WITH CHECK (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
-CREATE POLICY "Gallery images are publicly accessible" ON storage.objects AS PERMISSIVE FOR SELECT TO public
-    USING ((bucket_id = 'gallery-images'::text));
-
-CREATE POLICY "Users can delete their app icons" ON storage.objects AS PERMISSIVE FOR DELETE TO public
-    USING (((bucket_id = 'app-icons'::text) AND (auth.uid() = owner)));
-
-CREATE POLICY "Users can delete their own avatar." ON storage.objects AS PERMISSIVE FOR DELETE TO public
-    USING (((bucket_id = 'avatars'::text) AND ((auth.uid())::text = split_part(name, '/'::text, 1))));
-
-CREATE POLICY "Users can delete their own gallery images" ON storage.objects AS PERMISSIVE FOR DELETE TO public
-    USING (((bucket_id = 'gallery-images'::text) AND (auth.uid() = owner)));
-
-CREATE POLICY "Users can update their app icons" ON storage.objects AS PERMISSIVE FOR UPDATE TO public
-    USING (((bucket_id = 'app-icons'::text) AND (auth.uid() = owner)));
-
-CREATE POLICY "Users can update their own avatar." ON storage.objects AS PERMISSIVE FOR UPDATE TO public
-    USING (((bucket_id = 'avatars'::text) AND ((auth.uid())::text = split_part(name, '/'::text, 1))));
-
-CREATE POLICY "Users can upload app icons" ON storage.objects AS PERMISSIVE FOR INSERT TO public
-    WITH CHECK (((bucket_id = 'app-icons'::text) AND (auth.uid() = owner)));
-
-CREATE POLICY "Users can upload gallery images" ON storage.objects AS PERMISSIVE FOR INSERT TO public
-    WITH CHECK (((bucket_id = 'gallery-images'::text) AND (auth.uid() = owner)));
+CREATE POLICY "Public images: owners upload to own folder" ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated
+    WITH CHECK (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));

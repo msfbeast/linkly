@@ -23,6 +23,7 @@ INSERT INTO public.click_events (link_id, country, city, device, browser, os, re
 INSERT INTO public.analytics_share_tokens (user_id, token) VALUES ('00000000-0000-0000-0000-00000000000a','alicetoken');
 INSERT INTO public.links (id, original_url, short_code, title, user_id, password_hash) VALUES ('22222222-2222-2222-2222-22222222222b','https://secret.example','lck','Locked','00000000-0000-0000-0000-00000000000a','opensesame');
 INSERT INTO public.bio_profiles (id, user_id, handle, display_name) VALUES ('44444444-4444-4444-4444-444444444444','00000000-0000-0000-0000-00000000000a','alice','Alice');
+INSERT INTO storage.objects (bucket_id, name, owner) VALUES ('avatars','00000000-0000-0000-0000-00000000000a/avatar.jpg','00000000-0000-0000-0000-00000000000a'),('digital-products','00000000-0000-0000-0000-00000000000a/ebook.pdf','00000000-0000-0000-0000-00000000000a');
 -- helper: run one probe as a role/user and print OK/DENIED
 CREATE OR REPLACE FUNCTION pg_temp.probe(label text, sql text, as_role text, as_uid text) RETURNS text LANGUAGE plpgsql AS $$
 DECLARE r text;
@@ -84,4 +85,15 @@ SELECT pg_temp.probe('anon: public link hides password field', $q$SELECT (public
 SELECT pg_temp.probe('anon: locked link destination', $q$SELECT '[' || (public.get_public_link('lck')->>'original_url') || ']'$q$, 'anon', null);
 SELECT pg_temp.probe('anon: unlock with wrong password', $q$SELECT coalesce(public.unlock_link('lck', 'nope')::text, 'rejected')$q$, 'anon', null);
 SELECT pg_temp.probe('anon: unlock with right password', $q$SELECT public.unlock_link('lck', 'opensesame')->>'original_url'$q$, 'anon', null);
+SELECT pg_temp.probe('anon: list avatar files (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'avatars'$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: list Alice''s avatar files (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE name LIKE '00000000-0000-0000-0000-00000000000a/%'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Alice: list own avatar files (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'avatars'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: upload an avatar', $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('avatars', 'x/avatar.jpg') RETURNING 'row'$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: upload into Alice''s avatar folder', $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('avatars', '00000000-0000-0000-0000-00000000000a/evil.jpg') RETURNING 'row'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: upload into own gallery folder', $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('gallery-images', '00000000-0000-0000-0000-00000000000b/pic.jpg') RETURNING 'row'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: overwrite Alice''s avatar (rows changed)', $q$WITH u AS (UPDATE storage.objects SET metadata = '{}' WHERE name = '00000000-0000-0000-0000-00000000000a/avatar.jpg' RETURNING 1) SELECT count(*)::text FROM u$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: move own file into Alice''s folder', $q$WITH u AS (UPDATE storage.objects SET name = '00000000-0000-0000-0000-00000000000a/pic.jpg' WHERE name = '00000000-0000-0000-0000-00000000000b/pic.jpg' RETURNING 1) SELECT count(*)::text FROM u$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: delete Alice''s avatar (rows changed)', $q$WITH d AS (DELETE FROM storage.objects WHERE name = '00000000-0000-0000-0000-00000000000a/avatar.jpg' RETURNING 1) SELECT count(*)::text FROM d$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: read Alice''s digital product (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'digital-products'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Alice: read own digital product (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'digital-products'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 ROLLBACK;

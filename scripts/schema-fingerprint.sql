@@ -34,7 +34,7 @@ fgr as (select string_agg(format('%s(%s) %s', p.proname, pg_get_function_identit
   where ns.nspname='public' and p.prokind in ('f','p') and x.privilege_type='EXECUTE' and (x.grantee=0 or r.rolname in ('anon','authenticated','service_role'))
   and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e')),
 pub as (select string_agg(tablename, '|' order by tablename collate "C") s, count(*) n from pg_publication_tables where pubname='supabase_realtime' and schemaname='public'),
-bkt as (select string_agg(id||public::text, '|' order by id collate "C") s, count(*) n from storage.buckets)
+bkt as (select string_agg(format('%s %s %s %s', id, public, coalesce(file_size_limit::text, '-'), coalesce(allowed_mime_types::text, '-')), '|' order by id collate "C") s, count(*) n from storage.buckets)
 select 'columns' k, n, md5(s) from cols union all select 'constraints', n, md5(s) from cons union all select 'indexes', n, md5(s) from idx
 union all select 'functions', n, md5(s) from fns union all select 'views', n, md5(s) from vws union all select 'triggers', n, md5(s) from trg
 union all select 'policies', n, md5(s) from pols union all select 'rls', n, md5(s) from rls union all select 'table_grants', n, md5(s) from tgr

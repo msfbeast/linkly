@@ -43,3 +43,14 @@ anon: public link hides password field                        OK false
 anon: locked link destination                                 OK []
 anon: unlock with wrong password                              OK rejected
 anon: unlock with right password                              OK https://secret.examp
+anon: list avatar files (rows)                                OK 0
+Bob: list Alice's avatar files (rows)                         OK 0
+Alice: list own avatar files (rows)                           OK 1
+anon: upload an avatar                                        DENIED
+Bob: upload into Alice's avatar folder                        DENIED
+Bob: upload into own gallery folder                           OK row
+Bob: overwrite Alice's avatar (rows changed)                  OK 0
+Bob: move own file into Alice's folder                        DENIED
+Bob: delete Alice's avatar (rows changed)                     OK 0
+Bob: read Alice's digital product (rows)                      OK 0
+Alice: read own digital product (rows)                        OK 1
