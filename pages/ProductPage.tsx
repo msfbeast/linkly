@@ -4,6 +4,7 @@ import { ArrowLeft, ShoppingBag, ExternalLink, Loader2, AlertCircle, Check, Shar
 import { Product } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { toast } from 'sonner';
+import { safeWebUrl } from '../utils/safeUrl';
 
 const ProductPage: React.FC = () => {
     const { productId } = useParams<{ productId: string }>();
@@ -56,7 +57,8 @@ const ProductPage: React.FC = () => {
         // Physical products are sold on the seller's own site (affiliate
         // links); only digital products are paid for and delivered here.
         if (product.type !== 'digital') {
-            if (product.originalUrl) window.open(product.originalUrl, '_blank', 'noopener');
+            const url = safeWebUrl(product.originalUrl);
+            if (url) window.open(url, '_blank', 'noopener');
             return;
         }
         setBuying(true);
@@ -223,8 +225,8 @@ const ProductPage: React.FC = () => {
                         <div className="flex gap-4 sticky bottom-6 z-30 bg-[#FDFBF7]/90 backdrop-blur p-4 -m-4 rounded-t-[2rem] lg:static lg:bg-transparent lg:p-0 lg:m-0">
                             {purchased && product.type === 'digital' ? (
                                 <button
-                                    onClick={() => downloadUrl
-                                        ? window.open(downloadUrl, '_blank', 'noopener')
+                                    onClick={() => safeWebUrl(downloadUrl)
+                                        ? window.open(safeWebUrl(downloadUrl)!, '_blank', 'noopener')
                                         : toast.error('Download link unavailable. Please contact the seller.')}
                                     className="flex-1 bg-emerald-500 text-white font-bold py-5 rounded-[2rem] hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 text-lg shadow-xl shadow-emerald-500/20"
                                 >

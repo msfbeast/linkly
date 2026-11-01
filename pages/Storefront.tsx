@@ -13,6 +13,7 @@ import LofiStorefront from '../components/storefront-templates/LofiStorefront';
 import ClaymorphismStorefront from '../components/storefront-templates/ClaymorphismStorefront';
 import BauhausStorefront from '../components/storefront-templates/BauhausStorefront';
 import IndustrialStorefront from '../components/storefront-templates/IndustrialStorefront';
+import { safeWebUrl } from '../utils/safeUrl';
 import LabStorefront from '../components/storefront-templates/LabStorefront';
 import ArchiveStorefront from '../components/storefront-templates/ArchiveStorefront';
 import CheckoutModal from '../components/CheckoutModal';
@@ -95,9 +96,10 @@ const Storefront: React.FC = () => {
     const handleProductSelect = (product: Product) => {
         if (product.type === 'digital') {
             setSelectedProduct(product);
-        } else if (product.originalUrl) {
-            // Physical/Affiliate Link
-            window.open(product.originalUrl, '_blank');
+        } else {
+            // Physical/Affiliate Link (seller-provided URL: web links only)
+            const url = safeWebUrl(product.originalUrl);
+            if (url) window.open(url, '_blank', 'noopener');
         }
     };
 

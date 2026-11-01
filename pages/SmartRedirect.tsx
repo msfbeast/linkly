@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2, ExternalLink } from 'lucide-react';
+import { safeWebUrl } from '../utils/safeUrl';
 
 const SmartRedirect: React.FC = () => {
     const { url } = useParams<{ url: string }>();
-    const decodedUrl = url ? decodeURIComponent(url) : '';
+    // Only web links: this page is public and takes the URL from its own
+    // path, so without this /open/javascript:... ran script on our origin.
+    let decodedUrl = '';
+    try {
+        decodedUrl = (url && safeWebUrl(decodeURIComponent(url))) || '';
+    } catch {
+        decodedUrl = ''; // malformed %-encoding
+    }
     const [status, setStatus] = useState('Opening...');
 
     useEffect(() => {
