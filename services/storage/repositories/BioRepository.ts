@@ -44,21 +44,16 @@ export class BioRepository extends BaseRepository {
             .ilike('handle', handle)
             .single();
 
-        // Track view if found (fire and forget)
-        // Track view if found (fire and forget)
-        if (data) {
-            this.supabase!.rpc('increment_bio_view', { profile_id: data.id })
-                .then(async (response: any) => {
-                    if (response.error) {
-                        // Fallback: manual update if RPC missing (approximate)
-                        // console.warn('RPC missing, falling back to manual update', response.error); 
-                        const currentViews = data.views || 0;
-                        await this.supabase!
-                            .from(this.TABLES.BIO_PROFILES)
-                            .update({ views: currentViews + 1 })
-                            .eq('id', data.id);
-                    }
-                });
+        // Count the view (fire and forget). Goes through /api/bio-view, which
+        // rate-limits per visitor; the database no longer lets browsers
+        // increment views directly.
+        if (data && typeof fetch === 'function') {
+            fetch('/api/bio-view', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                keepalive: true,
+                body: JSON.stringify({ profileId: data.id }),
+            }).catch(() => { /* a missed view isn't worth surfacing */ });
         }
 
         if (error || !data) return null;

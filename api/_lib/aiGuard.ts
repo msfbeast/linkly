@@ -19,6 +19,10 @@ type Limiter = { limit: (key: string) => Promise<{ success: boolean; reset: numb
 let limiter: Limiter | null | undefined;
 function getLimiter(): Limiter | null {
     if (limiter !== undefined) return limiter;
+    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+        limiter = null; // not configured (local dev, tests)
+        return null;
+    }
     try {
         limiter = new Ratelimit({
             redis: Redis.fromEnv(),

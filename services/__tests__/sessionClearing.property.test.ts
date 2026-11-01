@@ -54,7 +54,7 @@ describe('Session Clearing Property Tests', () => {
     user: fc.record({
       id: fc.uuid(),
       email: fc.emailAddress(),
-      created_at: fc.date().map(d => d.toISOString()),
+      created_at: fc.date({ noInvalidDate: true }).map(d => d.toISOString()),
     }),
   });
 
