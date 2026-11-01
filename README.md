@@ -100,7 +100,7 @@ cp .env.example .env.local   # then fill in the values (see below)
 
 ## Database
 
-The schema lives in Supabase. SQL changes are in [`migrations/`](migrations/README.md) and are applied by hand in the Supabase SQL editor. **Merging a PR does not apply them**, so a PR that adds a migration should say so. The live database is the source of truth.
+The schema lives in Supabase. SQL changes are in [`migrations/`](migrations/README.md) and are applied by hand in the Supabase SQL editor. **Merging a PR does not apply them**, so a PR that adds a migration should say so. The live database is the source of truth; [`schema/baseline.sql`](schema/README.md) is a complete, CI-checked snapshot of it for rebuilding from scratch.
 
 Security-relevant rules are enforced in the database, not only in the app. For example, triggers stop users from changing their own plan or role, or activating a custom domain without a DNS check.
 
@@ -116,7 +116,8 @@ components/     React components, incl. bio-templates/ and storefront-templates/
 pages/          Route-level pages
 services/       Client data layer (Supabase repositories, analytics, auth)
 utils/          Shared helpers (affiliate tagging, deep links, feature flags, domains)
-migrations/     Database SQL
+migrations/     Database SQL (changes)
+schema/         Full schema baseline and its CI check
 supabase/       Supabase edge function (track-click)
 scripts/        One-off maintenance scripts (KV sync, re-tagging links)
 middleware.ts   Edge middleware: custom domains, rate limiting

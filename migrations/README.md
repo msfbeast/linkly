@@ -22,5 +22,8 @@ All SQL for the Supabase database lives in this folder.
 
 Because files were applied by hand and some are one-off fixes, **the live
 database is the source of truth**, not this folder. To rebuild the schema
-from scratch, dump it from the live project (for example with
-`supabase db dump --schema public`) rather than replaying these files.
+from scratch, use [`schema/baseline.sql`](../schema/README.md) rather than
+replaying these files.
+
+After applying a migration to production, regenerate the baseline and its
+fingerprint (see `schema/README.md`) in the same PR.
