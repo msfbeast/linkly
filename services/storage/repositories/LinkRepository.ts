@@ -195,22 +195,27 @@ export class LinkRepository extends BaseRepository {
             throw error;
         }
 
-        // Fetch the created link (guests can't read the links table directly)
+        // Fetch the created link (guests can't read the links table directly).
+        // The claim token only comes back from create_guest_link, to the
+        // browser that made the link; the public projection never shows it.
         const link = await this.getLinkByCode(shortCode);
         if (!link) throw new Error('Failed to fetch created guest link');
 
-        return link;
+        const claimToken = (data as { claim_token?: string } | null)?.claim_token;
+        return claimToken ? { ...link, claimToken } : link;
     }
 
     /**
-     * Update guest email for a link (uses specialized rpc or logic)
+     * Saves the email a guest gave for reminders. Only accepted from the
+     * browser session that created the link.
      */
-    async updateGuestEmail(linkId: string, email: string): Promise<void> {
+    async updateGuestEmail(linkId: string, email: string, sessionId: string): Promise<void> {
         if (!this.isConfigured()) return;
 
         const { error } = await this.supabase!.rpc('update_guest_link_metadata', {
             p_link_id: linkId,
-            p_email: email
+            p_email: email,
+            p_session_id: sessionId
         });
 
         if (error) {
@@ -691,31 +696,21 @@ export class LinkRepository extends BaseRepository {
     }
 
     /**
-     * Claim a guest link - transfer ownership to authenticated user
+     * Claim a guest link: claim_guest_link moves it to the signed-in user
+     * and clears its guest fields and token.
      */
     async claimGuestLink(token: string, userId: string): Promise<LinkData> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
-        // First verify the link exists and is claimable
-        const existingLink = await this.getGuestLinkByToken(token);
-        if (!existingLink) {
-            throw new Error('Link not found or already claimed');
-        }
-
-        // Update the link to assign it to the user and remove guest status
-        const { data, error } = await this.supabase!
-            .from(this.TABLES.LINKS)
-            .update({
-                user_id: userId,
-                is_guest: false,
-                claim_token: null,
-                expires_at: null
-            })
-            .eq('claim_token', token)
-            .select()
-            .single();
-
+        const { data, error } = await this.supabase!.rpc('claim_guest_link', {
+            p_claim_token: token,
+            p_user_id: userId,
+        });
         if (error) throw error;
-        return rowToLinkData(data as LinkRow);
+
+        const linkId = (data as { link_id?: string } | null)?.link_id;
+        const link = linkId ? await this.getLink(linkId) : null;
+        if (!link) throw new Error('Claimed link could not be loaded');
+        return link;
     }
 }

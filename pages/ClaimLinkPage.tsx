@@ -4,6 +4,7 @@ import { CheckCircle, Loader2, AlertCircle, TrendingUp, Link as LinkIcon } from 
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { LinkData } from '../types';
+import { setPendingClaim, clearPendingClaim } from '../utils/pendingClaim';
 
 const ClaimLinkPage: React.FC = () => {
     const { token } = useParams<{ token: string }>();
@@ -30,6 +31,9 @@ const ClaimLinkPage: React.FC = () => {
                     setError('Link not found or already claimed');
                 } else {
                     setLink(guestLink);
+                    // Kept until sign-in, so the link is claimed even if signing
+                    // up goes through email confirmation or Google/GitHub.
+                    setPendingClaim(token);
                 }
             } catch (err) {
                 console.error('Failed to load guest link:', err);
@@ -48,6 +52,7 @@ const ClaimLinkPage: React.FC = () => {
             if (user && link && !claimed && token) {
                 try {
                     const claimedLink = await supabaseAdapter.claimGuestLink(token, user.id);
+                    clearPendingClaim();
                     setLink(claimedLink);
                     setClaimed(true);
                 } catch (err) {
@@ -127,13 +132,13 @@ const ClaimLinkPage: React.FC = () => {
 
                     <div className="space-y-3">
                         <button
-                            onClick={() => navigate(`/register?claim=${token}`)}
+                            onClick={() => navigate('/register')}
                             className="w-full px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-lg shadow-yellow-400/20"
                         >
                             Sign Up to Claim
                         </button>
                         <button
-                            onClick={() => navigate(`/login?claim=${token}`)}
+                            onClick={() => navigate('/login', { state: { from: `/claim/${token}` } })}
                             className="w-full px-6 py-3 bg-stone-100 hover:bg-stone-200 text-slate-900 font-medium rounded-xl transition-colors"
                         >
                             Already have an account? Log in

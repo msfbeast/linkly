@@ -11,6 +11,7 @@ import FeatureShowcaseGrid from '../components/landing/FeatureShowcaseGrid';
 import ProductFeatureGrid from '../components/landing/ProductFeatureGrid';
 import FAQSection from '../components/landing/FAQSection';
 import Footer from '../components/landing/Footer';
+import { setPendingClaim } from '../utils/pendingClaim';
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -85,6 +86,8 @@ const LandingPage: React.FC = () => {
             try {
                 const sessionId = localStorage.getItem('gather_guest_session')!;
                 const newLink = await supabaseAdapter.createGuestLink(finalUrl, sessionId);
+                // Claimed automatically once this visitor signs in (PendingClaimHandler).
+                if (newLink.claimToken) setPendingClaim(newLink.claimToken);
                 setResult(newLink);
                 setInputValue('');
                 toast.success('Link shortened!');
@@ -110,7 +113,7 @@ const LandingPage: React.FC = () => {
 
     const handleClaimLink = () => {
         if (result?.claimToken) {
-            navigate(`/register?claim=${result.claimToken}`);
+            navigate(`/claim/${result.claimToken}`);
         }
     };
 
@@ -307,7 +310,7 @@ const LandingPage: React.FC = () => {
                                                         const email = e.target.value;
                                                         if (email.includes('@') && email.includes('.')) {
                                                             try {
-                                                                await supabaseAdapter.updateGuestEmail(result.id, email);
+                                                                await supabaseAdapter.updateGuestEmail(result.id, email, localStorage.getItem('gather_guest_session') || '');
                                                             } catch (err) {
                                                                 console.warn('Failed to save guest email:', err);
                                                             }

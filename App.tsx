@@ -25,6 +25,7 @@ import Redirect from './pages/Redirect';
 import ResetPassword from './pages/ResetPassword';
 import UpdatePassword from './pages/UpdatePassword';
 import ClaimLinkPage from './pages/ClaimLinkPage';
+import PendingClaimHandler from './components/PendingClaimHandler';
 import BioView from './pages/BioView';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToHashElement from './components/ScrollToHashElement';
@@ -204,6 +205,7 @@ const App: React.FC = () => {
         <AuthProvider>
           <TeamProvider>
             <LegacyHashHandler />
+            <PendingClaimHandler />
             <ScrollToHashElement />
             <ErrorBoundary>
               <DomainRouter>
