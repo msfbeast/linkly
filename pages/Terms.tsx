@@ -37,7 +37,7 @@ const Terms: React.FC = () => {
                                 Our Service allows you to post, link, store, share and otherwise make available certain information, text, graphics, videos, or other material ("Content"). You are responsible for the Content that you post to the Service, including its legality, reliability, and appropriateness.
                             </p>
                             <p className="mt-2">
-                                <strong>Commerce:</strong> When you sell products through Gather using our integration with Stripe/Razorpay, you function as the merchant of record. You are responsible for all customer service, refunds, and legal compliance related to your sales. Gather is not a party to the transactions between you and your customers.
+                                <strong>Commerce:</strong> When you sell products through Gather using our integration with Razorpay, you function as the merchant of record. You are responsible for all customer service, refunds, and legal compliance related to your sales. Gather is not a party to the transactions between you and your customers.
                             </p>
                         </section>
 
