@@ -92,6 +92,28 @@ describe('link analytics page', () => {
         expect([since, offset]).toEqual([null, 0]);
     });
 
+    it('shows the range total on the cards, with no comparison for All Time', async () => {
+        renderPage();
+        await screen.findByText('Showing 1 - 10 of 1,925');
+        expect(screen.getAllByText('1,925').length).toBeGreaterThan(0); // Total Clicks card
+        expect(screen.getByText(/100% vs previous 7 days/)).toBeTruthy(); // 1925 vs 962.5
+
+        fireEvent.click(screen.getByRole('button', { name: 'All Time' }));
+        await screen.findByText('Showing 1 - 10 of 106,935');
+        expect(screen.getAllByText('106,935').length).toBeGreaterThan(0);
+        expect(screen.queryByText(/vs previous/)).toBeNull();
+        expect(screen.getByText('Counted from 1 Nov 2026')).toBeTruthy();
+    });
+
+    it('drops the cards for data clicks never record', async () => {
+        renderPage();
+        await screen.findByText('Showing 1 - 10 of 1,925');
+        expect(screen.queryByText('Marketing Campaigns (UTM)')).toBeNull();
+        expect(screen.queryByText('Browser Version')).toBeNull();
+        expect(screen.queryByText('OS Version')).toBeNull();
+        expect(screen.getByText('Screen & Locale')).toBeTruthy();
+    });
+
     it('says when analytics fail and retries', async () => {
         getLinkAnalytics.mockRejectedValueOnce(new Error('timeout'));
         renderPage();

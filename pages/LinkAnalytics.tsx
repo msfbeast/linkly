@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check, Split, Download, TrendingUp, TrendingDown, Clock } from 'lucide-react';
-import { LinkData, ClickEvent, getCategoryColor, LinkStats, LinkAnalytics as LinkAnalyticsData, LinkAnalyticsRange, NameValue } from '../types';
+import { LinkData, ClickEvent, getCategoryColor, LinkAnalytics as LinkAnalyticsData, LinkAnalyticsRange } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
 import {
@@ -31,6 +31,13 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
 const dayKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const hourKey = (d: Date) => `${dayKey(d)}T${pad2(d.getHours())}`;
 
+const PERIOD_LABEL: Record<LinkAnalyticsRange, string> = { '24h': '24h', '7d': '7 days', '30d': '30 days', all: '' };
+
+// Clicks only carry a visitor ID from this moment on; unique counts for
+// anything earlier are partial.
+const VISITOR_TRACKING_START = Date.parse('2026-11-01T08:17:00Z');
+const VISITOR_TRACKING_LABEL = 'Counted from 1 Nov 2026';
+
 const EMPTY_ANALYTICS: LinkAnalyticsData = {
     range: '7d', timezone: 'UTC', total: 0, unique: 0, previousTotal: 0, previousUnique: 0,
     timeline: [], devices: [], browsers: [], oses: [], countries: [], referrers: [], deviceModels: [],
@@ -41,7 +48,6 @@ const LinkAnalytics: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [link, setLink] = useState<LinkData | null>(null);
-    const [linkStats, setLinkStats] = useState<LinkStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [timeRange, setTimeRange] = useState<LinkAnalyticsRange>('7d');
@@ -64,14 +70,6 @@ const LinkAnalytics: React.FC = () => {
                 if (data) {
                     setLink(data);
                     setLoading(false);
-
-                    // Fetch stats in background (don't block page load)
-                    try {
-                        const stats = await aggregatedAnalytics.getLinkStats(id);
-                        setLinkStats(stats);
-                    } catch (statsError) {
-                        console.error('[LinkAnalytics] Failed to load stats (non-blocking):', statsError);
-                    }
                 } else {
                     // Handle not found
                     navigate('/links');
@@ -141,6 +139,9 @@ const LinkAnalytics: React.FC = () => {
     const clickGrowth = calculateGrowth(total, stats.previousTotal);
     const uniqueClicks = stats.unique;
     const uniqueGrowth = calculateGrowth(uniqueClicks, stats.previousUnique);
+    // The current or previous period reaches back before visitor IDs existed.
+    const comparedFrom = timeRange === 'all' ? null : now - 2 * (RANGE_MS[timeRange] as number);
+    const uniqueNote = comparedFrom === null || comparedFrom < VISITOR_TRACKING_START ? VISITOR_TRACKING_LABEL : null;
 
     // Export to CSV: fetches the range's clicks only when asked.
     const handleExportCSV = async () => {
@@ -338,12 +339,14 @@ const LinkAnalytics: React.FC = () => {
                             <span className="text-stone-500 text-sm font-medium">Total Clicks</span>
                         </div>
                         <p className="text-3xl font-bold text-slate-900 mb-1">
-                            {(linkStats?.totalClicks ?? total).toLocaleString()}
+                            {total.toLocaleString()}
                         </p>
-                        <div className={`flex items-center text-xs font-medium ${clickGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {clickGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                            {Math.abs(clickGrowth)}% vs previous
-                        </div>
+                        {timeRange !== 'all' && (
+                            <div className={`flex items-center text-xs font-medium ${clickGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                {clickGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                                {Math.abs(clickGrowth)}% vs previous {PERIOD_LABEL[timeRange]}
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -354,12 +357,16 @@ const LinkAnalytics: React.FC = () => {
                             <span className="text-stone-500 text-sm font-medium">Unique Visitors</span>
                         </div>
                         <p className="text-3xl font-bold text-slate-900 mb-1">
-                            {(linkStats?.uniqueVisitors ?? uniqueClicks).toLocaleString()}
+                            {uniqueClicks.toLocaleString()}
                         </p>
-                        <div className={`flex items-center text-xs font-medium ${uniqueGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {uniqueGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                            {Math.abs(uniqueGrowth)}% vs previous
-                        </div>
+                        {uniqueNote ? (
+                            <p className="text-xs text-stone-400">{uniqueNote}</p>
+                        ) : (
+                            <div className={`flex items-center text-xs font-medium ${uniqueGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                {uniqueGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                                {Math.abs(uniqueGrowth)}% vs previous {PERIOD_LABEL[timeRange]}
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -372,7 +379,7 @@ const LinkAnalytics: React.FC = () => {
                         <p className="text-xl font-bold text-slate-900 truncate">
                             {countryData[0]?.name || 'N/A'}
                         </p>
-                        <p className="text-xs text-stone-400">{countryData[0]?.value || 0} clicks</p>
+                        <p className="text-xs text-stone-400">{(countryData[0]?.value || 0).toLocaleString()} clicks</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -385,7 +392,7 @@ const LinkAnalytics: React.FC = () => {
                         <p className="text-xl font-bold text-slate-900 truncate">
                             {browserData[0]?.name || 'N/A'}
                         </p>
-                        <p className="text-xs text-stone-400">{browserData[0]?.value || 0} clicks</p>
+                        <p className="text-xs text-stone-400">{(browserData[0]?.value || 0).toLocaleString()} clicks</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -398,7 +405,7 @@ const LinkAnalytics: React.FC = () => {
                         <p className="text-xl font-bold text-slate-900 truncate">
                             {referrerData[0]?.name === 'direct' ? 'Direct / Email' : referrerData[0]?.name || 'N/A'}
                         </p>
-                        <p className="text-xs text-stone-400">{referrerData[0]?.value || 0} clicks</p>
+                        <p className="text-xs text-stone-400">{(referrerData[0]?.value || 0).toLocaleString()} clicks</p>
                     </div>
                 </div>
 
@@ -619,106 +626,35 @@ const LinkAnalytics: React.FC = () => {
                     </div>
                 </div>
 
-                {/* UTM Parameters */}
-                <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6">Marketing Campaigns (UTM)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {['utm_source', 'utm_medium', 'utm_campaign'].map((field) => {
-                            // Clicks don't record UTM parameters yet.
-                            const data: NameValue[] = [];
-                            return (
-                                <div key={field}>
-                                    <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-4">
-                                        {field.replace('utm_', '')}
-                                    </h4>
-                                    <div className="space-y-3">
-                                        {data.map((item) => (
-                                            <div key={item.name} className="flex items-center justify-between text-sm">
-                                                <span className="text-slate-700 truncate max-w-[150px]" title={item.name}>
-                                                    {item.name === 'Unknown' ? '-' : item.name}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-16 h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-amber-400 rounded-full"
-                                                            style={{ width: `${share(item.value) * 100}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="font-medium text-slate-900 text-xs w-6 text-right">{item.value}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
                 {/* Activity Heatmap */}
                 <div className="lg:col-span-3 h-[400px]">
                     <ClickHeatmap counts={stats.heatmap} />
                 </div>
 
-                {/* Tech Details & Locale */}
-                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Technical Details */}
-                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <h3 className="text-lg font-bold text-slate-900 mb-6">Technical Details</h3>
-                        <div className="space-y-6">
-                            {[
-                                // Clicks don't record browser or OS versions yet.
-                                { label: 'Browser Version', data: [] as NameValue[] },
-                                { label: 'OS Version', data: [] as NameValue[] },
-                                { label: 'Screen Resolution', data: stats.screenWidths, format: (v: string) => v !== 'Unknown' ? `${v}px width` : 'Unknown' }
-                            ].map((metric) => {
-                                const data = metric.data;
-                                return (
-                                    <div key={metric.label}>
-                                        <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
-                                        <div className="space-y-2">
-                                            {data.map((item) => (
-                                                <div key={item.name} className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-700">
-                                                        {metric.format ? metric.format(item.name) : (item.name === 'Unknown' ? '-' : item.name)}
-                                                    </span>
-                                                    <span className="font-medium text-slate-900">{item.value}</span>
-                                                </div>
-                                            ))}
-                                            {data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
+                {/* Screen & Locale */}
+                <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                    <h3 className="text-lg font-bold text-slate-900 mb-6">Screen & Locale</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {[
+                            { label: 'Screen Width', data: stats.screenWidths, format: (v: string) => (v !== 'Unknown' ? `${v}px` : '-') },
+                            { label: 'Language', data: stats.languages },
+                            { label: 'Timezone', data: stats.timezones },
+                        ].map((metric) => (
+                            <div key={metric.label}>
+                                <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
+                                <div className="space-y-2">
+                                    {metric.data.map((item) => (
+                                        <div key={item.name} className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-700 truncate max-w-[180px]" title={item.name}>
+                                                {metric.format ? metric.format(item.name) : (item.name === 'Unknown' ? '-' : item.name)}
+                                            </span>
+                                            <span className="font-medium text-slate-900">{item.value.toLocaleString()}</span>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Locale & Time */}
-                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <h3 className="text-lg font-bold text-slate-900 mb-6">Locale & Time</h3>
-                        <div className="space-y-6">
-                            {[
-                                { label: 'Language', data: stats.languages },
-                                { label: 'Timezone', data: stats.timezones }
-                            ].map((metric) => {
-                                const data = metric.data;
-                                return (
-                                    <div key={metric.label}>
-                                        <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
-                                        <div className="space-y-2">
-                                            {data.map((item) => (
-                                                <div key={item.name} className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-700">{item.name === 'Unknown' ? '-' : item.name}</span>
-                                                    <span className="font-medium text-slate-900">{item.value}</span>
-                                                </div>
-                                            ))}
-                                            {data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    ))}
+                                    {metric.data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
