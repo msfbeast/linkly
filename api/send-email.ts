@@ -7,7 +7,9 @@ import { getAdminClient, getUserFromRequest } from './_lib/supabaseServer';
  *
  * Callers never supply recipients or HTML. They pick a template, and the
  * server works out who receives it:
- * - { type: 'welcome' }           -> the signed-in user's own address
+ * - { type: 'welcome' }           -> the signed-in user's own address, once
+ *                                    per account and only after the email
+ *                                    is confirmed
  * - { type: 'invite', inviteId }  -> the invitee of a team invite the
  *                                    signed-in user created
  */
@@ -57,8 +59,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let subject: string;
     let html: string;
 
+    // Set when this request claimed the one-time welcome email, so a failed
+    // send can release the claim and be retried on a later sign-in.
+    let welcomeClaimed = false;
+
     if (type === 'welcome') {
         if (!user.email) return res.status(400).json({ error: 'No email on account' });
+        if (!user.email_confirmed_at) {
+            return res.status(400).json({ error: 'Email not confirmed yet' });
+        }
+
+        // Claim the welcome email atomically: only the first request for
+        // this account gets a row back, so it is sent at most once.
+        const { data: claimed, error: claimError } = await supabase
+            .from('profiles')
+            .update({ welcome_email_sent_at: new Date().toISOString() })
+            .eq('id', user.id)
+            .is('welcome_email_sent_at', null)
+            .select('id');
+
+        if (claimError) {
+            console.error('[Email] Could not claim welcome email (is the welcome_email_sent_at migration applied?):', claimError);
+            return res.status(500).json({ error: 'Failed to send email' });
+        }
+        if (!claimed || claimed.length === 0) {
+            return res.status(200).json({ skipped: 'already_sent' });
+        }
+        welcomeClaimed = true;
+
         const { data: profile } = await supabase
             .from('profiles')
             .select('username')
@@ -127,12 +155,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (error) {
             console.error('Resend API Error:', error);
+            await releaseWelcomeClaim();
             return res.status(502).json({ error: 'Failed to send email' });
         }
 
         return res.status(200).json({ data });
     } catch (error: any) {
         console.error('Email Send Error:', error);
+        await releaseWelcomeClaim();
         return res.status(500).json({ error: 'Failed to send email' });
+    }
+
+    async function releaseWelcomeClaim() {
+        if (!welcomeClaimed) return;
+        await supabase!
+            .from('profiles')
+            .update({ welcome_email_sent_at: null })
+            .eq('id', user!.id);
     }
 }
