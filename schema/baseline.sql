@@ -595,7 +595,7 @@ AS $function$
     ('browser', coalesce(ce.browser, 'Unknown'), '', date_trunc('month', ce.timestamp)),
     ('referrer',
       CASE
-        WHEN ce.referrer IS NULL OR ce.referrer = '' THEN 'Direct'
+        WHEN ce.referrer IS NULL OR ce.referrer = '' OR lower(ce.referrer) = 'direct' THEN 'Direct'
         WHEN ce.referrer LIKE '%google%' THEN 'Google'
         WHEN ce.referrer LIKE '%facebook%' OR ce.referrer LIKE '%fb.%' THEN 'Facebook'
         WHEN ce.referrer LIKE '%twitter%' OR ce.referrer LIKE '%t.co%' THEN 'Twitter/X'
@@ -638,7 +638,7 @@ AS $function$
   ) AS d(dim, val, val2, bucket)
   WHERE ce.link_id IS NOT NULL
     AND ce.timestamp IS NOT NULL
-    AND d.val IS NOT NULL;
+    AND d.val IS NOT NULL;            -- clicks without a city skip the city dim, as before
 $function$
 ;
 
@@ -649,6 +649,10 @@ CREATE OR REPLACE FUNCTION public.count_click_in_rollups()
  SET search_path TO 'public'
 AS $function$
 BEGIN
+  IF NEW.link_id IS NOT NULL THEN
+    PERFORM pg_advisory_xact_lock(hashtextextended('click_rollups:' || NEW.link_id::text, 0));
+  END IF;
+
   INSERT INTO public.click_rollups AS r (link_id, dim, val, val2, bucket, clicks)
   SELECT NEW.link_id, x.dim, x.val, x.val2, x.bucket, 1
   FROM public.click_rollup_rows(NEW) x
@@ -1547,6 +1551,69 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.rebuild_click_rollups(p_batch integer DEFAULT 50)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  l record;
+  done integer := 0;
+  left_over bigint;
+BEGIN
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
+    RAISE EXCEPTION 'Run rebuild_click_rollups in READ COMMITTED';
+  END IF;
+
+  FOR l IN
+    SELECT k.id FROM public.links k
+    WHERE NOT EXISTS (SELECT 1 FROM public.click_rollup_state s
+                      WHERE s.key = 'rebuilt_direct_referrer:' || k.id)
+    ORDER BY k.id
+    LIMIT p_batch
+  LOOP
+    PERFORM public.rebuild_link_rollups(l.id);
+    INSERT INTO public.click_rollup_state (key, at)
+    VALUES ('rebuilt_direct_referrer:' || l.id, clock_timestamp())
+    ON CONFLICT (key) DO NOTHING;
+    done := done + 1;
+  END LOOP;
+
+  SELECT count(*) INTO left_over FROM public.links k
+  WHERE NOT EXISTS (SELECT 1 FROM public.click_rollup_state s
+                    WHERE s.key = 'rebuilt_direct_referrer:' || k.id);
+
+  RETURN 'rebuilt ' || done || ' links, ' || left_over || ' left';
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.rebuild_link_rollups(p_link_id uuid)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  n bigint;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('click_rollups:' || p_link_id::text, 0));
+
+  DELETE FROM public.click_rollups WHERE link_id = p_link_id;
+
+  INSERT INTO public.click_rollups (link_id, dim, val, val2, bucket, clicks)
+  SELECT ce.link_id, x.dim, x.val, x.val2, x.bucket, count(*)
+  FROM public.click_events ce
+  CROSS JOIN LATERAL public.click_rollup_rows(ce) x
+  WHERE ce.link_id = p_link_id
+  GROUP BY ce.link_id, x.dim, x.val, x.val2, x.bucket;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
+END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb)
  RETURNS void
  LANGUAGE plpgsql
@@ -2246,6 +2313,8 @@ REVOKE ALL ON FUNCTION public.is_team_member(team_uuid uuid) FROM PUBLIC, anon, 
 REVOKE ALL ON FUNCTION public.link_public_json(l public.links) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.protect_domain_verification_columns() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.protect_profile_privileged_columns() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.rebuild_click_rollups(p_batch integer) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.rebuild_link_rollups(p_link_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.strip_raw_ip_address() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text) FROM PUBLIC, anon, authenticated, service_role;
@@ -2337,6 +2406,8 @@ GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO anon;
 GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO service_role;
+GRANT EXECUTE ON FUNCTION public.rebuild_click_rollups(p_batch integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.rebuild_link_rollups(p_link_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO anon;

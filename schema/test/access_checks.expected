@@ -84,3 +84,4 @@ Alice: run the rollup rebuild                                 DENIED
 Alice: rollup breakdown helper directly                       DENIED
 Alice: own clicks counted in rollups                          OK 6
 Alice: own top country from rollups                           OK India 5
+Alice: direct clicks counted as Direct                        OK Direct 6
