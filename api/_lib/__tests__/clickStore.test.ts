@@ -102,3 +102,25 @@ describe('recordClick', () => {
         expect(log).toHaveBeenCalled();
     });
 });
+
+describe('visitorKeys', () => {
+    it('keys the legacy fingerprint, matching the SQL backfill of stored rows', async () => {
+        const { legacyFingerprint, visitorKeys } = await import('../clickStore');
+        const { hmacIp } = await import('../../../utils/ipHash');
+        const client = { screenWidth: 390, screenHeight: 844, timezone: 'Asia/Kolkata' };
+        const legacy = legacyFingerprint('UA', client, '1.2.3.4');
+        expect(legacy).toMatch(/^[0-9a-f]{8,}$/);
+        const keys = await visitorKeys({ ...event, userAgent: 'UA', client }, 'salt');
+        // scripts/hash-stored-fingerprints.sql: encode(hmac(fingerprint, salt, 'sha256'), 'hex')
+        expect(keys.fingerprint).toBe(await hmacIp(legacy, 'salt'));
+        expect(keys.visitorId).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it('parses device details for /r/ clicks, which only have the user agent', async () => {
+        const fetchMock = stubFetch(() => ok());
+        await storeClick({ ...event, userAgent: 'Mozilla/5.0 (Linux; Android 14) Chrome/129.0 Mobile Safari/537.36' }, env);
+        const row = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+        expect(row).toMatchObject({ device: 'Mobile', os: 'Android', browser: 'Chrome' });
+        vi.unstubAllGlobals();
+    });
+});

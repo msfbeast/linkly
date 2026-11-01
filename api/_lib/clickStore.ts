@@ -1,4 +1,5 @@
-import { hashIp } from '../../utils/ipHash';
+import { hashIp, hmacIp, normalizeIp } from '../../utils/ipHash';
+import { parseUserAgent } from '../../utils/userAgent';
 
 /**
  * Recording a click from the edge redirect (api/r) and the QStash worker
@@ -17,6 +18,60 @@ export interface ClickEvent {
     region: string | null;
     latitude: string | number | null;
     longitude: string | number | null;
+    /** ISO country code; `country` holds the name. */
+    countryCode?: string | null;
+    /** Extra details the redirect page reports from the browser (api/track). */
+    client?: ClientDetails;
+}
+
+export interface ClientDetails {
+    screenWidth?: number | null;
+    screenHeight?: number | null;
+    colorDepth?: number | null;
+    timezone?: string | null;
+    language?: string | null;
+    platform?: string | null;
+    cookiesEnabled?: boolean | null;
+    doNotTrack?: boolean | null;
+    deviceModel?: string | null;
+    destinationUrl?: string | null;
+}
+
+/**
+ * The old track-click fingerprint: a 32-bit hash of the browser details and
+ * the raw IP. Small enough to brute-force back to the IP, so it is only an
+ * intermediate value now; see visitorKeys.
+ */
+export function legacyFingerprint(userAgent: string | null, client: ClientDetails, ip: string | null): string {
+    const components = [
+        userAgent,
+        client.screenWidth,
+        client.screenHeight,
+        client.colorDepth,
+        client.timezone,
+        client.language,
+        client.platform,
+        ip ?? 'Unknown',
+    ].filter(Boolean).join('|');
+    let hash = 0;
+    for (let i = 0; i < components.length; i++) {
+        hash = ((hash << 5) - hash) + components.charCodeAt(i);
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0');
+}
+
+/**
+ * Keyed visitor identifiers. fingerprint is HMAC(salt, legacy fingerprint),
+ * which is what scripts/hash-stored-fingerprints.sql turns existing rows
+ * into, so unique-visitor counts carry across. visitor_id rotates daily.
+ */
+export async function visitorKeys(event: ClickEvent, salt: string): Promise<{ fingerprint: string; visitorId: string | null }> {
+    const ip = normalizeIp(event.ip);
+    const fingerprint = await hmacIp(legacyFingerprint(event.userAgent, event.client ?? {}, ip), salt);
+    const day = new Date(event.timestamp).toISOString().slice(0, 10);
+    const visitorId = ip ? await hmacIp(`visitor|${event.userAgent ?? ''}|${ip}|${day}`, salt) : null;
+    return { fingerprint, visitorId };
 }
 
 export interface ClickStoreEnv {
@@ -61,6 +116,10 @@ export async function storeClick(event: ClickEvent, env: ClickStoreEnv): Promise
         'Content-Type': 'application/json',
     };
     const at = new Date(event.timestamp).toISOString();
+    const salt = env.ipHashSalt || serviceKey;
+    const { device, os, browser } = parseUserAgent(event.userAgent);
+    const client = event.client ?? {};
+    const keys = await visitorKeys(event, salt);
 
     const insertRes = await fetch(`${supabaseUrl}/rest/v1/click_events`, {
         method: 'POST',
@@ -69,13 +128,29 @@ export async function storeClick(event: ClickEvent, env: ClickStoreEnv): Promise
             link_id: event.linkId,
             timestamp: at,
             raw_user_agent: event.userAgent,
-            ip_hash: await hashIp(event.ip, env.ipHashSalt || serviceKey),
+            device,
+            os,
+            browser,
+            ip_hash: await hashIp(event.ip, salt),
+            fingerprint: keys.fingerprint,
+            visitor_id: keys.visitorId,
             country: event.country,
+            country_code: event.countryCode ?? null,
             city: event.city,
             region: event.region,
             latitude: toNumber(event.latitude),
             longitude: toNumber(event.longitude),
-            referrer: event.referrer,
+            referrer: event.referrer || 'direct',
+            screen_width: client.screenWidth ?? null,
+            screen_height: client.screenHeight ?? null,
+            color_depth: client.colorDepth ?? null,
+            timezone: client.timezone ?? null,
+            language: client.language ?? null,
+            platform: client.platform ?? null,
+            cookies_enabled: client.cookiesEnabled ?? null,
+            do_not_track: client.doNotTrack ?? null,
+            device_model: client.deviceModel ?? null,
+            destination_url: client.destinationUrl ?? null,
         }),
     });
     if (!insertRes.ok) return { ok: false, error: `insert ${insertRes.status}: ${await insertRes.text()}` };
