@@ -14,7 +14,7 @@ Bob: read share tokens (sees only own)                        OK <none>
 Alice: read share tokens (sees only own)                      OK alicetoken
 anon: create share token                                      DENIED
 Alice: create share token                                     OK 32
-anon: shared analytics with valid token                       OK User
+anon: shared analytics with valid token                       OK Alice
 anon: shared analytics with bad token                         OK <null>
 anon: click_stats_by_country view                             DENIED
 Bob: click_stats_by_country (0 rows expected)                 OK 0
@@ -24,3 +24,11 @@ Bob: create own team                                          OK Bobs
 Bob: claim guest link for Alice                               DENIED
 anon: record_click on Alice link                              DENIED
 anon: legacy get_top_cities(Alice)                            DENIED
+anon: insert fake click event                                 DENIED
+Bob: insert fake click event                                  DENIED
+anon: insert into legacy clicks                               DENIED
+anon: increment_link_clicks                                   DENIED
+anon: increment_clicks                                        DENIED
+anon: increment_bio_view                                      DENIED
+service_role: record a click                                  OK row
+service_role: count a bio view                                OK 

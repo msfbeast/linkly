@@ -21,6 +21,7 @@ INSERT INTO public.links (id, original_url, short_code, title, user_id, team_id)
 INSERT INTO public.links (id, original_url, short_code, title, is_guest, claim_token) VALUES ('22222222-2222-2222-2222-22222222222f','https://g.example','ggg','G', true, '33333333-3333-3333-3333-333333333333');
 INSERT INTO public.click_events (link_id, country, city, device, browser, os, referrer) SELECT '22222222-2222-2222-2222-22222222222a','India','Pune','Mobile','Chrome','Android','direct' FROM generate_series(1,5);
 INSERT INTO public.analytics_share_tokens (user_id, token) VALUES ('00000000-0000-0000-0000-00000000000a','alicetoken');
+INSERT INTO public.bio_profiles (id, user_id, handle, display_name) VALUES ('44444444-4444-4444-4444-444444444444','00000000-0000-0000-0000-00000000000a','alice','Alice');
 -- helper: run one probe as a role/user and print OK/DENIED
 CREATE OR REPLACE FUNCTION pg_temp.probe(label text, sql text, as_role text, as_uid text) RETURNS text LANGUAGE plpgsql AS $$
 DECLARE r text;
@@ -63,4 +64,12 @@ SELECT pg_temp.probe('Bob: create own team', $q$SELECT (public.create_team_with_
 SELECT pg_temp.probe('Bob: claim guest link for Alice', $q$SELECT (public.claim_guest_link('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-00000000000a'))::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('anon: record_click on Alice link', $q$SELECT public.record_click('22222222-2222-2222-2222-22222222222a', '{}')::text$q$, 'anon', null);
 SELECT pg_temp.probe('anon: legacy get_top_cities(Alice)', $q$SELECT count(*)::text FROM public.get_top_cities('00000000-0000-0000-0000-00000000000a', 10)$q$, 'anon', null);
+SELECT pg_temp.probe('anon: insert fake click event', $q$INSERT INTO public.click_events (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: insert fake click event', $q$INSERT INTO public.click_events (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('anon: insert into legacy clicks', $q$INSERT INTO public.clicks (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'anon', null);
+SELECT pg_temp.probe('anon: increment_link_clicks', $q$SELECT public.increment_link_clicks('22222222-2222-2222-2222-22222222222a', now())::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: increment_clicks', $q$SELECT public.increment_clicks('22222222-2222-2222-2222-22222222222a')::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: increment_bio_view', $q$SELECT public.increment_bio_view('44444444-4444-4444-4444-444444444444')::text$q$, 'anon', null);
+SELECT pg_temp.probe('service_role: record a click', $q$INSERT INTO public.click_events (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'service_role', null);
+SELECT pg_temp.probe('service_role: count a bio view', $q$SELECT public.increment_bio_view('44444444-4444-4444-4444-444444444444')::text$q$, 'service_role', null);
 ROLLBACK;

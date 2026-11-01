@@ -1715,9 +1715,6 @@ CREATE POLICY "Users can update their own bio profiles" ON public.bio_profiles A
 CREATE POLICY "Users can view their own bio profiles" ON public.bio_profiles AS PERMISSIVE FOR SELECT TO public
     USING ((auth.uid() = user_id));
 
-CREATE POLICY "Anyone can insert click events" ON public.click_events AS PERMISSIVE FOR INSERT TO public
-    WITH CHECK (true);
-
 CREATE POLICY "Users can delete own click events" ON public.click_events AS PERMISSIVE FOR DELETE TO public
     USING ((EXISTS ( SELECT 1
    FROM public.links
@@ -1727,9 +1724,6 @@ CREATE POLICY "Users can view own click events" ON public.click_events AS PERMIS
     USING ((EXISTS ( SELECT 1
    FROM public.links
   WHERE ((links.id = click_events.link_id) AND (links.user_id = auth.uid())))));
-
-CREATE POLICY "Public can record clicks" ON public.clicks AS PERMISSIVE FOR INSERT TO public
-    WITH CHECK (true);
 
 CREATE POLICY "Public can view active domains" ON public.domains AS PERMISSIVE FOR SELECT TO public
     USING ((status = 'active'::text));
@@ -1960,9 +1954,9 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bio_profiles TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bio_profiles TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bio_profiles TO service_role;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO service_role;
+GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO anon;
+GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_events TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_city TO service_role;
 GRANT SELECT ON TABLE public.click_stats_by_city TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_by_country TO service_role;
@@ -1973,9 +1967,9 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT SELECT ON TABLE public.click_stats_by_referrer TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.click_stats_daily TO service_role;
 GRANT SELECT ON TABLE public.click_stats_daily TO authenticated;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO anon;
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO service_role;
+GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO anon;
+GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clicks TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.domains TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.domains TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.domains TO service_role;
@@ -2108,21 +2102,9 @@ GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO servic
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
-GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO anon;
-GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.increment_bio_views(profile_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.increment_bio_views(profile_id uuid) TO anon;
-GRANT EXECUTE ON FUNCTION public.increment_bio_views(profile_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.increment_bio_views(profile_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.increment_clicks(link_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.increment_clicks(link_id uuid) TO anon;
-GRANT EXECUTE ON FUNCTION public.increment_clicks(link_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.increment_clicks(link_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone) TO anon;
-GRANT EXECUTE ON FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone) TO service_role;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO anon;
