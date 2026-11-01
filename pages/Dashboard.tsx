@@ -1,6 +1,6 @@
 // Dashboard v2.0 - Fixed infinite loop issue
 const DASHBOARD_VERSION = '2.0.1'; // Force rebuild
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download, Tag as TagIcon } from 'lucide-react';
@@ -65,6 +65,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [editingLink, setEditingLink] = useState<LinkData | null>(null);
   const [priorityLinksChecked, setPriorityLinksChecked] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
+  // Charts load after the links, so a slow analytics query never holds up the page.
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const analyticsRequest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [isExporting, setIsExporting] = useState(false);
@@ -150,32 +153,42 @@ const Dashboard: React.FC<DashboardProps> = ({
         const total = data.reduce((sum, link) => sum + link.clicks, 0);
         setTotalClicks(total);
 
+        // Links are on screen now; charts fill in when their data arrives.
+        setIsLoading(false);
+
         // Fetch Chart Data from Server Aggregation (Parallel)
         // This replaces the client-side calculation from 50k+ rows
+        const request = ++analyticsRequest.current;
         if (user?.id && !currentTeam) {
-          const [dailyClicks, referrerStats, cityStats, osStats, browserStats, userStats] = await Promise.all([
-            aggregatedAnalytics.getClicksOverTime(user.id, 30),
-            aggregatedAnalytics.getReferrerBreakdown(user.id),
-            aggregatedAnalytics.getCityBreakdown(user.id),
-            aggregatedAnalytics.getOsBreakdown(user.id),
-            aggregatedAnalytics.getBrowserBreakdown(user.id),
-            aggregatedAnalytics.getUserClickStats(user.id)
-          ]);
+          setAnalyticsLoading(true);
+          try {
+            const [dailyClicks, referrerStats, cityStats, osStats, browserStats, userStats] = await Promise.all([
+              aggregatedAnalytics.getClicksOverTime(user.id, 30),
+              aggregatedAnalytics.getReferrerBreakdown(user.id),
+              aggregatedAnalytics.getCityBreakdown(user.id),
+              aggregatedAnalytics.getOsBreakdown(user.id),
+              aggregatedAnalytics.getBrowserBreakdown(user.id),
+              aggregatedAnalytics.getUserClickStats(user.id)
+            ]);
+            if (request !== analyticsRequest.current) return; // a newer load is running
 
-          setClickForecastData(aggregateDailyClicksToForecast(dailyClicks));
-          setTrafficSourceData(categorizeTrafficSourceFromStats(referrerStats));
-          setServerCityData(cityStats);
-          setServerOsData(osStats);
-          setServerBrowserData(browserStats);
-          setServerReferrerData(referrerStats);
-          if (userStats) setUserClickStats(userStats);
-
+            setClickForecastData(aggregateDailyClicksToForecast(dailyClicks));
+            setTrafficSourceData(categorizeTrafficSourceFromStats(referrerStats));
+            setServerCityData(cityStats);
+            setServerOsData(osStats);
+            setServerBrowserData(browserStats);
+            setServerReferrerData(referrerStats);
+            if (userStats) setUserClickStats(userStats);
+          } finally {
+            if (request === analyticsRequest.current) setAnalyticsLoading(false);
+          }
         } else {
           // Team Mode Fallback (Client-side or empty)
           // For team mode, we might need to rely on what we have or accept empty charts for now
           // pending team analytics implementation
           setClickForecastData([]);
           setTrafficSourceData([]);
+          setAnalyticsLoading(false);
         }
       }
     } catch (err) {
@@ -184,6 +197,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       console.error('Failed to load links:', err);
     } finally {
       setIsLoading(false);
+      // Nothing left to wait for if the links never loaded.
+      setAnalyticsLoading((loading) => (loading && analyticsRequest.current === 0 ? false : loading));
     }
   }, [user?.id, currentTeam?.id, filterStatus]);
 
@@ -582,7 +597,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <ErrorBoundary>
               <AnalyticsOverview
                 links={links}
-                isLoading={isLoading}
+                isLoading={isLoading || analyticsLoading}
                 clickForecastData={clickForecastData}
                 trafficSourceData={trafficSourceData}
                 totalClicks={trafficSourceTotal}
