@@ -89,3 +89,11 @@ Bob: link analytics of Alice link                             DENIED
 Alice: own link analytics (7d)                                OK 6
 Alice: own link analytics (all, rollups)                      OK 6
 Carol (team member): team link analytics                      OK 0
+Bob: add Alice to his own team                                DENIED
+Bob: create a link in Alice's team                            DENIED
+Bob: read locked link URL via a product                       DENIED
+Carol (editor): make team link her own                        DENIED
+Carol (editor): make herself owner (rows)                     OK 0
+Carol (editor): take team ownership (rows)                    OK 0
+Carol (editor): edit team link title                          OK Edited
+Alice: product from her own link                              OK https://a.example
