@@ -15,3 +15,5 @@ CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE sql IMMUTA
 CREATE VIEW vault.decrypted_secrets AS SELECT NULL::text AS name, NULL::text AS decrypted_secret WHERE false;
 CREATE PUBLICATION supabase_realtime;
 GRANT USAGE ON SCHEMA public, auth, storage, extensions TO anon, authenticated, service_role;
+-- As on Supabase: the API roles hold table privileges on storage, RLS decides.
+GRANT ALL ON storage.objects TO anon, authenticated, service_role;
