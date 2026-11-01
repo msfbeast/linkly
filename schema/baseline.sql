@@ -981,95 +981,64 @@ $function$
 CREATE OR REPLACE FUNCTION public.get_shared_analytics(p_share_token text)
  RETURNS json
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
-    v_user_id UUID;
-    v_display_name TEXT;
-    v_result JSON;
+    v_user_id uuid;
+    v_display_name text;
+    v_result json;
 BEGIN
-    -- Get user_id from token
     SELECT user_id INTO v_user_id
     FROM analytics_share_tokens
     WHERE token = p_share_token
-    AND (expires_at IS NULL OR expires_at > NOW());
-    
+      AND (expires_at IS NULL OR expires_at > now());
+
     IF v_user_id IS NULL THEN
         RETURN NULL;
     END IF;
-    
-    -- Get display name from bio_profiles or profiles
-    SELECT COALESCE(bp.display_name, p.full_name, 'User') INTO v_display_name
+
+    SELECT coalesce(bp.display_name, p.full_name, 'User') INTO v_display_name
     FROM profiles p
     LEFT JOIN bio_profiles bp ON bp.user_id = p.id
     WHERE p.id = v_user_id
     LIMIT 1;
-    
-    -- Build result JSON
+
     SELECT json_build_object(
         'displayName', v_display_name,
         'stats', (
             SELECT json_build_object(
-                'totalClicks', COUNT(*),
-                'clicksThisWeek', COUNT(CASE WHEN ce.timestamp >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END),
-                'clicksLastWeek', COUNT(CASE WHEN ce.timestamp >= CURRENT_DATE - INTERVAL '14 days' AND ce.timestamp < CURRENT_DATE - INTERVAL '7 days' THEN 1 END),
-                'clicksThisMonth', COUNT(CASE WHEN ce.timestamp >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END)
+                'totalClicks', coalesce(sum(r.clicks), 0),
+                'clicksThisWeek', coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= CURRENT_DATE - interval '7 days'), 0),
+                'clicksLastWeek', coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= CURRENT_DATE - interval '14 days' AND r.bucket < CURRENT_DATE - interval '7 days'), 0),
+                'clicksThisMonth', coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= CURRENT_DATE - interval '30 days'), 0)
             )
-            FROM click_events ce
-            INNER JOIN links l ON ce.link_id = l.id
-            WHERE l.user_id = v_user_id
+            FROM click_rollups r
+            JOIN links l ON l.id = r.link_id
+            WHERE l.user_id = v_user_id AND r.dim = 'total'
         ),
         'countries', (
-            SELECT COALESCE(json_agg(c), '[]'::json)
-            FROM (
-                SELECT country, COUNT(*) as "clickCount"
-                FROM click_events ce
-                INNER JOIN links l ON ce.link_id = l.id
-                WHERE l.user_id = v_user_id AND country IS NOT NULL
-                GROUP BY country
-                ORDER BY COUNT(*) DESC
-                LIMIT 10
-            ) c
+            SELECT coalesce(json_agg(c), '[]'::json)
+            FROM (SELECT b.val AS country, b.click_count AS "clickCount"
+                  FROM user_rollup_breakdown(v_user_id, 'country', 10) b) c
         ),
         'cities', (
-            SELECT COALESCE(json_agg(c), '[]'::json)
-            FROM (
-                SELECT city, country, COUNT(*) as "clickCount"
-                FROM click_events ce
-                INNER JOIN links l ON ce.link_id = l.id
-                WHERE l.user_id = v_user_id AND city IS NOT NULL
-                GROUP BY city, country
-                ORDER BY COUNT(*) DESC
-                LIMIT 10
-            ) c
+            SELECT coalesce(json_agg(c), '[]'::json)
+            FROM (SELECT b.val AS city, b.val2 AS country, b.click_count AS "clickCount"
+                  FROM user_rollup_breakdown(v_user_id, 'city', 10) b) c
         ),
         'devices', (
-            SELECT COALESCE(json_agg(d), '[]'::json)
-            FROM (
-                SELECT device, COUNT(*) as "clickCount"
-                FROM click_events ce
-                INNER JOIN links l ON ce.link_id = l.id
-                WHERE l.user_id = v_user_id
-                GROUP BY device
-                ORDER BY COUNT(*) DESC
-                LIMIT 5
-            ) d
+            SELECT coalesce(json_agg(d), '[]'::json)
+            FROM (SELECT b.val AS device, b.click_count AS "clickCount"
+                  FROM user_rollup_breakdown(v_user_id, 'device', 5) b) d
         ),
         'browsers', (
-            SELECT COALESCE(json_agg(b), '[]'::json)
-            FROM (
-                SELECT COALESCE(browser, 'Unknown') as browser, COUNT(*) as "clickCount"
-                FROM click_events ce
-                INNER JOIN links l ON ce.link_id = l.id
-                WHERE l.user_id = v_user_id
-                GROUP BY browser
-                ORDER BY COUNT(*) DESC
-                LIMIT 5
-            ) b
+            SELECT coalesce(json_agg(br), '[]'::json)
+            FROM (SELECT b.val AS browser, b.click_count AS "clickCount"
+                  FROM user_rollup_breakdown(v_user_id, 'browser', 5) b) br
         )
     ) INTO v_result;
-    
+
     RETURN v_result;
 END;
 $function$
