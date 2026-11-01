@@ -24,11 +24,16 @@ export interface KvLinkData {
     maxClicks?: number;
     /** guest links are deleted after this (epoch ms); serve nothing past it */
     guestExpiresAt?: number;
+    /**
+     * A/B test, device or country destinations: only the browser redirect
+     * page (pages/Redirect.tsx) picks the destination for these.
+     */
+    appOnly?: boolean;
 }
 
 /** The links columns toCacheEntry needs. */
 export const LINK_CACHE_COLUMNS =
-    'id, original_url, password_hash, expiration_date, start_date, max_clicks, is_archived, is_guest, expires_at';
+    'id, original_url, password_hash, expiration_date, start_date, max_clicks, is_archived, is_guest, expires_at, ab_test_config, smart_redirects, geo_redirects';
 
 export interface LinkCacheRow {
     id: string;
@@ -40,7 +45,13 @@ export interface LinkCacheRow {
     is_archived?: boolean | null;
     is_guest?: boolean | null;
     expires_at?: string | null;
+    ab_test_config?: { enabled?: boolean; variants?: unknown[] } | null;
+    smart_redirects?: Record<string, unknown> | null;
+    geo_redirects?: Record<string, unknown> | null;
 }
+
+const hasEntries = (value: Record<string, unknown> | null | undefined) =>
+    !!value && Object.values(value).some(v => !!v);
 
 export const LINK_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -67,14 +78,19 @@ export function toCacheEntry(row: LinkCacheRow, now: number = Date.now()): KvLin
     if (start !== undefined) entry.start = start;
     if (row.max_clicks) entry.maxClicks = row.max_clicks;
     if (guestExpiresAt !== undefined) entry.guestExpiresAt = guestExpiresAt;
+    if ((row.ab_test_config?.enabled && (row.ab_test_config.variants?.length ?? 0) > 0) ||
+        hasEntries(row.smart_redirects) || hasEntries(row.geo_redirects)) {
+        entry.appOnly = true;
+    }
     return entry;
 }
 
 /**
  * What the redirect does with a cached entry:
  * - 'gone': the guest link has expired (treat as not found)
- * - 'interstitial': password, expired, not started yet, or click-limited;
- *   the /unlock page explains or asks and counts the click itself
+ * - 'interstitial': password, expired, not started yet, click-limited, or
+ *   A/B / device / country destinations; the browser redirect page
+ *   (/unlock) explains, asks or picks the destination and counts the click
  * - 'redirect': send the visitor on and count the click
  */
 export function redirectDecision(entry: KvLinkData, now: number = Date.now()): 'gone' | 'interstitial' | 'redirect' {
@@ -84,7 +100,8 @@ export function redirectDecision(entry: KvLinkData, now: number = Date.now()): '
     if (entry.password ||
         (expiration !== undefined && now > expiration) ||
         (start !== undefined && now < start) ||
-        entry.maxClicks) {
+        entry.maxClicks ||
+        entry.appOnly) {
         return 'interstitial';
     }
     return 'redirect';

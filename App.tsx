@@ -114,6 +114,8 @@ const AnimatedRoutes: React.FC = () => {
               restricted links here because /r/:code is rewritten back to
               the edge function by vercel.json (redirect loop otherwise). */}
           <Route path="/unlock/:code" element={<Redirect />} />
+          {/* Mobile short-link visits, handed over by api/r/[code].ts so native apps open */}
+          <Route path="/go/:code" element={<Redirect />} />
           <Route path="/p/:handle" element={<BioView />} />
           <Route path="/@:handle" element={<BioView />} /> {/* Added this back as it was removed in the instruction but is a valid route */}
           <Route path="/s/:domain" element={<SmartRedirect />} />

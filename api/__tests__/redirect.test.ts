@@ -26,8 +26,10 @@ vi.mock('../_lib/clickStore', () => ({
 import handler from '../r/[code]';
 
 const DEST = 'https://dest.example/page';
-const request = (code: string, ua = 'Mozilla/5.0 (Macintosh)') =>
-    new Request(`https://links.trak.in/api/r/${code}`, { headers: { 'user-agent': ua } });
+const DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/130 Safari/537.36';
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
+const request = (code: string, ua = DESKTOP, method = 'GET') =>
+    new Request(`https://links.trak.in/api/r/${code}`, { method, headers: { 'user-agent': ua } });
 const context = { waitUntil: vi.fn() };
 
 beforeEach(() => {
@@ -93,6 +95,43 @@ describe('/api/r/:code', () => {
         expect(res.status).toBe(404);
         expect(kvDel).toHaveBeenCalledWith('gather:link:guest1');
         expect(recordClick).not.toHaveBeenCalled();
+    });
+
+    it('hands phones to the browser redirect page (native apps) without counting there', async () => {
+        kvGet.mockResolvedValue({ url: DEST, id: 'l1' });
+        const res = await handler(request('abc', IPHONE), context);
+        expect(res.headers.get('location')).toBe('https://links.trak.in/go/abc');
+        expect(recordClick).not.toHaveBeenCalled();
+    });
+
+    it('redirects link-preview bots without counting them', async () => {
+        kvGet.mockResolvedValue({ url: DEST, id: 'l1' });
+        for (const ua of ['WhatsApp/2.23.20.0 A', 'facebookexternalhit/1.1', 'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)', 'TelegramBot (like TwitterBot)', '']) {
+            const res = await handler(request('abc', ua), context);
+            expect(res.headers.get('location')).toBe(DEST);
+        }
+        expect(recordClick).not.toHaveBeenCalled();
+    });
+
+    it('does not count HEAD requests', async () => {
+        kvGet.mockResolvedValue({ url: DEST, id: 'l1' });
+        const res = await handler(request('abc', DESKTOP, 'HEAD'), context);
+        expect(res.status).toBe(307);
+        expect(recordClick).not.toHaveBeenCalled();
+    });
+
+    it('leaves A/B, device and country destinations to the browser redirect page', async () => {
+        dbRow.current = { id: 'l1', original_url: DEST, geo_redirects: { IN: 'https://in.example' } };
+        const res = await handler(request('abc'), context);
+        expect(res.headers.get('location')).toBe('https://links.trak.in/unlock/abc');
+        expect(recordClick).not.toHaveBeenCalled();
+    });
+
+    it('stays on the main domain it was called on, whatever NEXT_PUBLIC_APP_URL says', async () => {
+        vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://gather.link');
+        kvGet.mockResolvedValue({ url: DEST, id: 'l1' });
+        const res = await handler(request('abc', IPHONE), context);
+        expect(res.headers.get('location')).toBe('https://links.trak.in/go/abc');
     });
 
     it('returns 404 for an unknown code', async () => {

@@ -8,7 +8,7 @@
 export const HYBRID_APP_ROUTES = [
     '/admin', '/dashboard', '/login', '/register',
     '/api', '/assets', '/p/', '/r/', '/store',
-    '/open', '/unlock', '/reset-password', '/update-password',
+    '/open', '/unlock', '/go', '/reset-password', '/update-password',
     '/claim', '/team', '/pricing', '/about', '/privacy', '/terms', '/cookies',
 ];
 
