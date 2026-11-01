@@ -919,7 +919,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.get_link_stats(p_link_id uuid)
  RETURNS TABLE(total_clicks bigint, unique_visitors bigint, top_country text, top_city text, top_referrer text, clicks_by_day json)
  LANGUAGE plpgsql
- SECURITY DEFINER
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
@@ -931,23 +931,22 @@ BEGIN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
     RETURN QUERY
-    WITH daily_clicks AS (
-        SELECT 
-            DATE(timestamp) as day,
-            COUNT(*) as count
-        FROM click_events
-        WHERE link_id = p_link_id
-          AND timestamp > NOW() - INTERVAL '30 days'
-        GROUP BY DATE(timestamp)
-        ORDER BY day
-    )
-    SELECT 
-        (SELECT COUNT(*) FROM click_events WHERE link_id = p_link_id)::BIGINT,
-        (SELECT COUNT(DISTINCT visitor_id) FROM click_events WHERE link_id = p_link_id)::BIGINT,
-        (SELECT country FROM click_events WHERE link_id = p_link_id GROUP BY country ORDER BY COUNT(*) DESC LIMIT 1),
-        (SELECT city FROM click_events WHERE link_id = p_link_id AND city IS NOT NULL GROUP BY city ORDER BY COUNT(*) DESC LIMIT 1),
-        (SELECT referrer FROM click_events WHERE link_id = p_link_id AND referrer IS NOT NULL GROUP BY referrer ORDER BY COUNT(*) DESC LIMIT 1),
-        (SELECT json_agg(json_build_object('day', day, 'count', count)) FROM daily_clicks);
+    SELECT
+        (SELECT coalesce(sum(r.clicks), 0) FROM public.click_rollups r
+          WHERE r.link_id = p_link_id AND r.dim = 'total')::bigint,
+        (SELECT count(*) FROM public.click_visitors v WHERE v.link_id = p_link_id)::bigint,
+        (SELECT r.val FROM public.click_rollups r WHERE r.link_id = p_link_id AND r.dim = 'country'
+          GROUP BY r.val ORDER BY sum(r.clicks) DESC LIMIT 1),
+        (SELECT r.val FROM public.click_rollups r WHERE r.link_id = p_link_id AND r.dim = 'city'
+          GROUP BY r.val ORDER BY sum(r.clicks) DESC LIMIT 1),
+        (SELECT r.val FROM public.click_rollups r WHERE r.link_id = p_link_id AND r.dim = 'referrer' AND r.val <> 'Direct'
+          GROUP BY r.val ORDER BY sum(r.clicks) DESC LIMIT 1),
+        (SELECT json_agg(json_build_object('day', d.day, 'count', d.count) ORDER BY d.day)
+           FROM (SELECT date(r.bucket) AS day, sum(r.clicks)::bigint AS count
+                   FROM public.click_rollups r
+                  WHERE r.link_id = p_link_id AND r.dim = 'total'
+                    AND r.bucket >= date_trunc('hour', now() - interval '30 days')
+                  GROUP BY date(r.bucket)) d);
 END;
 $function$
 ;
