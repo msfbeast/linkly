@@ -2,6 +2,7 @@ import { kv } from '@vercel/kv';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { isMainDomain, deploymentHosts } from '../../utils/mainDomains';
 import { isLinkAllowedOnDomain } from '../_lib/customDomainAccess';
+import { recordClick, clickStoreEnvFromProcess, type ClickEvent } from '../_lib/clickStore';
 
 export const config = {
     runtime: 'edge',
@@ -81,7 +82,7 @@ async function lookupFromDatabase(code: string): Promise<KvLinkData | null> {
     return linkData;
 }
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context?: { waitUntil?: (promise: Promise<unknown>) => void }) {
     const url = new URL(request.url);
     // When accessed via rewrite /r/foo -> /api/r/foo, parse the last segment.
     const pathSegments = url.pathname.split('/');
@@ -106,40 +107,28 @@ export default async function handler(request: Request) {
         }
 
         if (linkData && linkData.url) {
-            // Async Analytics: Publish to QStash
-            try {
-                const rawCity = request.headers.get('x-vercel-ip-city');
-                const decodedCity = rawCity ? decodeURIComponent(rawCity) : null;
-
-                const clickEvent = {
-                    linkId: linkData.id,
-                    timestamp: Date.now(),
-                    userAgent: request.headers.get('user-agent'),
-                    ip: request.headers.get('x-forwarded-for') || 'unknown',
-                    referrer: request.headers.get('referer'),
-                    country: request.headers.get('x-vercel-ip-country'),
-                    city: decodedCity,
-                    region: request.headers.get('x-vercel-ip-region'),
-                    latitude: request.headers.get('x-vercel-ip-latitude'),
-                    longitude: request.headers.get('x-vercel-ip-longitude'),
-                };
-
-                const appUrl = getAppUrl(url);
-                const qstashRes = await fetch(`${process.env.QSTASH_URL}/v2/publish/${appUrl}/api/queue/process-click`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(clickEvent),
-                });
-
-                if (!qstashRes.ok) {
-                    console.error(`[Edge API] QStash failed: ${qstashRes.status} ${await qstashRes.text()}`);
-                }
-            } catch (qError) {
-                console.error('[Edge API] QStash Error:', qError);
-                // Don't fail the redirect if analytics fails
+            // Record the click without delaying the redirect.
+            const rawCity = request.headers.get('x-vercel-ip-city');
+            const clickEvent: ClickEvent = {
+                linkId: linkData.id,
+                timestamp: Date.now(),
+                userAgent: request.headers.get('user-agent'),
+                ip: request.headers.get('x-forwarded-for'),
+                referrer: request.headers.get('referer'),
+                country: request.headers.get('x-vercel-ip-country'),
+                city: rawCity ? decodeURIComponent(rawCity) : null,
+                region: request.headers.get('x-vercel-ip-region'),
+                latitude: request.headers.get('x-vercel-ip-latitude'),
+                longitude: request.headers.get('x-vercel-ip-longitude'),
+            };
+            const recording = recordClick(
+                clickEvent,
+                clickStoreEnvFromProcess(`${getAppUrl(url)}/api/queue/process-click`),
+            );
+            if (context?.waitUntil) {
+                context.waitUntil(recording);
+            } else {
+                await recording;
             }
 
             // 2. Check Restrictions (Password, Expiration, Start Date)
