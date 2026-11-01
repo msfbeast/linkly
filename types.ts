@@ -786,6 +786,43 @@ export interface DailyClicks {
   clickCount: number;
 }
 
+export type LinkAnalyticsRange = '24h' | '7d' | '30d' | 'all';
+
+export type NameValue = {
+  name: string;
+  value: number;
+};
+
+/** Everything the link analytics page draws, counted server-side (get_link_analytics). */
+export interface LinkAnalytics {
+  range: LinkAnalyticsRange;
+  timezone: string;
+  total: number;
+  unique: number;
+  previousTotal: number;
+  previousUnique: number;
+  /** key: 'YYYY-MM-DDTHH' for 24h, 'YYYY-MM-DD' otherwise, in the viewer's time zone */
+  timeline: { key: string; clicks: number }[];
+  devices: NameValue[];
+  browsers: NameValue[];
+  oses: NameValue[];
+  countries: NameValue[];
+  referrers: NameValue[];
+  deviceModels: NameValue[];
+  /** Top 3 screen widths (px, as text) */
+  screenWidths: NameValue[];
+  /** Top 5 browser languages */
+  languages: NameValue[];
+  /** Top 5 visitor time zones */
+  timezones: NameValue[];
+  regions: { country: string; region: string; value: number }[];
+  /** City counts in the United States and India, for the map markers */
+  cities: { country: string; city: string; value: number }[];
+  /** day: 0 = Sunday; hour: 0-23; in the viewer's time zone */
+  heatmap: { day: number; hour: number; count: number }[];
+  destinations: { url: string; clicks: number }[];
+}
+
 export interface LinkStats {
   totalClicks: number;
   uniqueVisitors: number;

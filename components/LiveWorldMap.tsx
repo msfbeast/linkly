@@ -21,8 +21,12 @@ interface CityData {
 }
 
 interface LiveWorldMapProps {
-    clickHistory: ClickEvent[];
+    clickHistory?: ClickEvent[];
     serverCityData?: CityData[];
+    /** Precomputed per-country counts; with regionCounts, used instead of clickHistory. */
+    countryCounts?: { name: string; value: number }[];
+    /** Precomputed state counts for the USA and India views. */
+    regionCounts?: { country: string; region: string; value: number }[];
     className?: string;
 }
 
@@ -34,35 +38,59 @@ interface MapClick {
     timestamp: number;
 }
 
-type ViewMode = 'world' | 'usa' | 'india';
+export type ViewMode = 'world' | 'usa' | 'india';
 
-const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory, serverCityData = [], className = '' }) => {
+/**
+ * Clicks per country (world view) or per state (USA / India views). Uses the
+ * precomputed counts when given, otherwise counts clickHistory.
+ */
+export function countLocations(
+    viewMode: ViewMode,
+    clickHistory: ClickEvent[],
+    countryCounts?: { name: string; value: number }[],
+    regionCounts?: { country: string; region: string; value: number }[],
+): Record<string, number> {
+    const counts: Record<string, number> = {};
+    if (countryCounts || regionCounts) {
+        // Precomputed on the server (link analytics page).
+        if (viewMode === 'world') {
+            countryCounts?.forEach(c => { if (c.name && c.name !== 'Unknown') counts[c.name] = (counts[c.name] || 0) + c.value; });
+        } else {
+            const country = viewMode === 'usa' ? 'United States' : 'India';
+            regionCounts?.forEach(r => { if (r.country === country) counts[r.region] = (counts[r.region] || 0) + r.value; });
+        }
+        return counts;
+    }
+    clickHistory.forEach(click => {
+        if (viewMode === 'world') {
+            if (click.country) {
+                counts[click.country] = (counts[click.country] || 0) + 1;
+            }
+        } else if (viewMode === 'usa') {
+            // In USA mode, aggregate by region (State)
+            if (click.country === 'United States' && click.region) {
+                counts[click.region] = (counts[click.region] || 0) + 1;
+            }
+        } else if (viewMode === 'india') {
+            // In India mode, aggregate by region (State)
+            if (click.country === 'India' && click.region) {
+                counts[click.region] = (counts[click.region] || 0) + 1;
+            }
+        }
+    });
+    return counts;
+}
+
+const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCityData = [], countryCounts, regionCounts, className = '' }) => {
     const [recentClicks, setRecentClicks] = useState<MapClick[]>([]);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('world');
 
     // Process historical data for heatmap
-    const locationCounts = useMemo(() => {
-        const counts: Record<string, number> = {};
-        clickHistory.forEach(click => {
-            if (viewMode === 'world') {
-                if (click.country) {
-                    counts[click.country] = (counts[click.country] || 0) + 1;
-                }
-            } else if (viewMode === 'usa') {
-                // In USA mode, aggregate by region (State)
-                if (click.country === 'United States' && click.region) {
-                    counts[click.region] = (counts[click.region] || 0) + 1;
-                }
-            } else if (viewMode === 'india') {
-                // In India mode, aggregate by region (State)
-                if (click.country === 'India' && click.region) {
-                    counts[click.region] = (counts[click.region] || 0) + 1;
-                }
-            }
-        });
-        return counts;
-    }, [clickHistory, viewMode]);
+    const locationCounts = useMemo(
+        () => countLocations(viewMode, clickHistory, countryCounts, regionCounts),
+        [clickHistory, countryCounts, regionCounts, viewMode],
+    );
 
     // City coordinates for markers
     const CITY_COORDS: Record<string, [number, number]> = {

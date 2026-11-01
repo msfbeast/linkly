@@ -9,7 +9,12 @@
 
 import { supabase, isSupabaseConfigured } from './storage/supabaseClient';
 
-import { UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, OsBreakdown, BrowserBreakdown, DeviceModelBreakdown, DailyClicks, LinkStats } from '../types';
+import { UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, OsBreakdown, BrowserBreakdown, DeviceModelBreakdown, DailyClicks, LinkStats, LinkAnalytics, LinkAnalyticsRange, ClickEvent } from '../types';
+import { rowToClickEvent } from './storage/mappers';
+import type { ClickEventRow } from './storage/mappers';
+
+// Columns the link page's click table and CSV export use.
+const LINK_CLICK_COLUMNS = 'timestamp, country, city, device, os, browser, referrer, visitor_id';
 
 class AggregatedAnalyticsService {
     /**
@@ -241,6 +246,49 @@ class AggregatedAnalyticsService {
             };
         } catch {
             return null;
+        }
+    }
+
+    /**
+     * Everything the link analytics page shows for one time range, counted on
+     * the server in the viewer's time zone. Throws on failure so the page can
+     * say so instead of showing zeros.
+     */
+    async getLinkAnalytics(linkId: string, range: LinkAnalyticsRange, timeZone: string): Promise<LinkAnalytics> {
+        if (!isSupabaseConfigured() || !supabase) throw new Error('Analytics unavailable');
+        const { data, error } = await supabase.rpc('get_link_analytics', {
+            p_link_id: linkId,
+            p_range: range,
+            p_tz: timeZone,
+        });
+        if (error) throw error;
+        const a = data as LinkAnalytics;
+        return { ...a, previousTotal: a.previousTotal ?? 0, previousUnique: a.previousUnique ?? 0 };
+    }
+
+    /** One page of a link's clicks, newest first, optionally only since a time. */
+    async getLinkClicksPage(linkId: string, sinceMs: number | null, offset: number, limit: number): Promise<ClickEvent[]> {
+        if (!isSupabaseConfigured() || !supabase) return [];
+        let query = supabase
+            .from('click_events')
+            .select(LINK_CLICK_COLUMNS)
+            .eq('link_id', linkId)
+            .order('timestamp', { ascending: false })
+            .range(offset, offset + limit - 1);
+        if (sinceMs !== null) query = query.gte('timestamp', new Date(sinceMs).toISOString());
+        const { data, error } = await query;
+        if (error) throw error;
+        return ((data || []) as unknown as ClickEventRow[]).map(rowToClickEvent);
+    }
+
+    /** Every click in the range, fetched in batches (for CSV export). */
+    async getAllLinkClicks(linkId: string, sinceMs: number | null): Promise<ClickEvent[]> {
+        const batch = 10000;
+        const all: ClickEvent[] = [];
+        for (let offset = 0; ; offset += batch) {
+            const page = await this.getLinkClicksPage(linkId, sinceMs, offset, batch);
+            all.push(...page);
+            if (page.length < batch) return all;
         }
     }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check, Split, Download, TrendingUp, TrendingDown, Clock } from 'lucide-react';
-import { LinkData, ClickEvent, getCategoryColor, LinkStats } from '../types';
+import { LinkData, ClickEvent, getCategoryColor, LinkStats, LinkAnalytics as LinkAnalyticsData, LinkAnalyticsRange, NameValue } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
 import {
@@ -11,6 +11,32 @@ import {
 import LiveWorldMap from '../components/LiveWorldMap';
 import { ClickHeatmap } from '../components/ClickHeatmap';
 
+const ITEMS_PER_PAGE = 10;
+const RANGE_MS: Record<LinkAnalyticsRange, number | null> = {
+    '24h': 24 * 60 * 60 * 1000,
+    '7d': 7 * 24 * 60 * 60 * 1000,
+    '30d': 30 * 24 * 60 * 60 * 1000,
+    all: null,
+};
+const VIEWER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+/** Earliest click time in the range, or null for all time. */
+const rangeStart = (range: LinkAnalyticsRange, now: number) => {
+    const span = RANGE_MS[range];
+    return span === null ? null : now - span;
+};
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+// Same keys get_link_analytics returns for its timeline, in local time.
+const dayKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const hourKey = (d: Date) => `${dayKey(d)}T${pad2(d.getHours())}`;
+
+const EMPTY_ANALYTICS: LinkAnalyticsData = {
+    range: '7d', timezone: 'UTC', total: 0, unique: 0, previousTotal: 0, previousUnique: 0,
+    timeline: [], devices: [], browsers: [], oses: [], countries: [], referrers: [], deviceModels: [],
+    screenWidths: [], languages: [], timezones: [], regions: [], cities: [], heatmap: [], destinations: [],
+};
+
 const LinkAnalytics: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -18,8 +44,15 @@ const LinkAnalytics: React.FC = () => {
     const [linkStats, setLinkStats] = useState<LinkStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
-    const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
+    const [timeRange, setTimeRange] = useState<LinkAnalyticsRange>('7d');
     const [currentPage, setCurrentPage] = useState(1);
+    // Counts for the selected range, from get_link_analytics (null while loading).
+    const [analytics, setAnalytics] = useState<LinkAnalyticsData | null>(null);
+    const [analyticsError, setAnalyticsError] = useState(false);
+    const [analyticsAttempt, setAnalyticsAttempt] = useState(0);
+    // The one page of clicks the table shows.
+    const [pageClicks, setPageClicks] = useState<ClickEvent[]>([]);
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         const fetchLink = async () => {
@@ -51,6 +84,32 @@ const LinkAnalytics: React.FC = () => {
         fetchLink();
     }, [id, navigate]);
 
+    useEffect(() => {
+        if (!id) return;
+        let current = true;
+        setAnalytics(null);
+        setAnalyticsError(false);
+        aggregatedAnalytics.getLinkAnalytics(id, timeRange, VIEWER_TIME_ZONE)
+            .then(data => { if (current) setAnalytics(data); })
+            .catch(err => {
+                console.error('[LinkAnalytics] Failed to load analytics:', err);
+                if (current) setAnalyticsError(true);
+            });
+        return () => { current = false; };
+    }, [id, timeRange, analyticsAttempt]);
+
+    useEffect(() => {
+        if (!id) return;
+        let current = true;
+        aggregatedAnalytics.getLinkClicksPage(id, rangeStart(timeRange, Date.now()), (currentPage - 1) * ITEMS_PER_PAGE, ITEMS_PER_PAGE)
+            .then(rows => { if (current) setPageClicks(rows); })
+            .catch(err => {
+                console.error('[LinkAnalytics] Failed to load clicks:', err);
+                if (current) setPageClicks([]);
+            });
+        return () => { current = false; };
+    }, [id, timeRange, currentPage]);
+
     const handleCopy = () => {
         if (!link) return;
         const url = `${window.location.origin}/#/r/${link.shortCode}`;
@@ -69,158 +128,113 @@ const LinkAnalytics: React.FC = () => {
 
     if (!link) return null;
 
-    // Debug: log linkStats to verify it's being used
-
-    // --- Data Processing ---
-
-    // Filter clicks by time range
+    // --- Data (counted on the server for the selected range) ---
+    const stats = analytics ?? EMPTY_ANALYTICS;
     const now = Date.now();
-    const getTimeLimit = (range: typeof timeRange) => {
-        switch (range) {
-            case '24h': return 24 * 60 * 60 * 1000;
-            case '7d': return 7 * 24 * 60 * 60 * 1000;
-            case '30d': return 30 * 24 * 60 * 60 * 1000;
-            default: return Infinity;
-        }
-    };
-
-    const timeLimit = getTimeLimit(timeRange);
-    const filteredClicks = link.clickHistory.filter(c => (now - c.timestamp) <= timeLimit);
-
-    // Calculate Comparison Metrics (Previous Period)
-    const previousTimeLimit = timeLimit * 2;
-    const previousClicks = link.clickHistory.filter(c =>
-        (now - c.timestamp) > timeLimit && (now - c.timestamp) <= previousTimeLimit
-    );
+    const total = stats.total;
 
     const calculateGrowth = (current: number, previous: number) => {
         if (previous === 0) return current > 0 ? 100 : 0;
         return Math.round(((current - previous) / previous) * 100);
     };
 
-    const clickGrowth = calculateGrowth(filteredClicks.length, previousClicks.length);
+    const clickGrowth = calculateGrowth(total, stats.previousTotal);
+    const uniqueClicks = stats.unique;
+    const uniqueGrowth = calculateGrowth(uniqueClicks, stats.previousUnique);
 
-    const uniqueClicks = new Set(filteredClicks.map(c => c.visitorId).filter(Boolean)).size;
-    const previousUniqueClicks = new Set(previousClicks.map(c => c.visitorId).filter(Boolean)).size;
-    const uniqueGrowth = calculateGrowth(uniqueClicks, previousUniqueClicks);
+    // Export to CSV: fetches the range's clicks only when asked.
+    const handleExportCSV = async () => {
+        if (!id || exporting) return;
+        setExporting(true);
+        try {
+            const clicks = await aggregatedAnalytics.getAllLinkClicks(id, rangeStart(timeRange, Date.now()));
+            const headers = ['Timestamp', 'Country', 'City', 'Device', 'OS', 'Browser', 'Referrer', 'Visitor ID'];
+            const rows = clicks.map(c => [
+                new Date(c.timestamp).toISOString(),
+                c.country || '',
+                c.city || '',
+                c.device || '',
+                c.os || '',
+                c.browser || '',
+                c.referrer || '',
+                c.visitorId || ''
+            ]);
 
-    // Export to CSV
-    const handleExportCSV = () => {
-        const headers = ['Timestamp', 'Country', 'City', 'Device', 'OS', 'Browser', 'Referrer', 'Visitor ID'];
-        const rows = filteredClicks.map(c => [
-            new Date(c.timestamp).toISOString(),
-            c.country || '',
-            c.city || '',
-            c.device || '',
-            c.os || '',
-            c.browser || '',
-            c.referrer || '',
-            c.visitorId || ''
-        ]);
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            ].join('\n');
 
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `gather_analytics_${id}_${timeRange}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `gather_analytics_${id}_${timeRange}.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('[LinkAnalytics] CSV export failed:', err);
+            alert('Could not export the clicks. Please try again.');
+        } finally {
+            setExporting(false);
+        }
     };
 
-    // 1. Timeline Data
-    // 1. Timeline Data
+    // 1. Timeline Data: 24 hourly points, or one point per day (last 14 days for All Time)
     const timelineData = (() => {
-        const days = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14;
-        const data: Record<string, number> = {};
-
+        const counts = new Map(stats.timeline.map(p => [p.key, p.clicks]));
+        const points: { date: string; clicks: number }[] = [];
         if (timeRange === '24h') {
-            // Hourly breakdown for 24h
             for (let i = 23; i >= 0; i--) {
                 const d = new Date(now - i * 60 * 60 * 1000);
-                const key = d.toLocaleTimeString([], { hour: '2-digit', hour12: true });
-                data[key] = 0;
+                points.push({
+                    date: d.toLocaleTimeString([], { hour: '2-digit', hour12: true }),
+                    clicks: counts.get(hourKey(d)) ?? 0,
+                });
             }
-            filteredClicks.forEach(click => {
-                const key = new Date(click.timestamp).toLocaleTimeString([], { hour: '2-digit', hour12: true });
-                if (data[key] !== undefined) data[key]++;
-            });
         } else {
-            // Daily breakdown
+            const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14;
             for (let i = days - 1; i >= 0; i--) {
                 const d = new Date(now - i * 24 * 60 * 60 * 1000);
-                const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                data[key] = 0;
+                points.push({
+                    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                    clicks: counts.get(dayKey(d)) ?? 0,
+                });
             }
-            filteredClicks.forEach(click => {
-                const key = new Date(click.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                if (data[key] !== undefined) data[key]++;
-            });
         }
-
-        return Object.entries(data).map(([date, clicks]) => ({ date, clicks }));
+        return points;
     })();
 
     // 2. Device & Browser Data
-    const getDistribution = (field: keyof ClickEvent) => {
-        const counts: Record<string, number> = {};
-        filteredClicks.forEach(c => {
-            const val = (c[field] as string) || 'Unknown';
-            counts[val] = (counts[val] || 0) + 1;
-        });
-        return Object.entries(counts)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
-    };
-
-    const deviceData = getDistribution('device');
-    const browserData = getDistribution('browser');
-    const osData = getDistribution('os');
-    const countryData = getDistribution('country').slice(0, 5);
-    const referrerData = getDistribution('referrer').slice(0, 5);
-    // @ts-ignore - deviceModel is optional in interface but valid for runtime access if present
-    const deviceModelData = getDistribution('deviceModel').slice(0, 5);
+    const deviceData = stats.devices;
+    const browserData = stats.browsers;
+    const osData = stats.oses;
+    const countryData = stats.countries.slice(0, 5);
+    const referrerData = stats.referrers;
+    const deviceModelData = stats.deviceModels;
 
     const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#6b7280'];
 
-    const itemsPerPage = 10;
-    const totalPages = Math.ceil(filteredClicks.length / itemsPerPage);
-
-    const paginatedClicks = filteredClicks.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
-
-
+    const itemsPerPage = ITEMS_PER_PAGE;
+    const totalPages = Math.ceil(total / itemsPerPage);
+    const paginatedClicks = pageClicks;
+    // Share of the range's clicks, for the percentage bars.
+    const share = (value: number) => (total > 0 ? value / total : 0);
 
     // 3. A/B Test Data
     const abTestData = (() => {
         if (!link.abTestConfig?.enabled) return null;
 
         const variants = link.abTestConfig.variants;
-        const totalClicks = filteredClicks.length;
-
-        // Count clicks per destination URL
         const clickCounts: Record<string, number> = {};
-        filteredClicks.forEach(c => {
-            if (c.destinationUrl) {
-                clickCounts[c.destinationUrl] = (clickCounts[c.destinationUrl] || 0) + 1;
-            } else {
-                // Fallback for older clicks or if destinationUrl missing - assume originalUrl?
-                // Or just count as "Other/Original"
-                clickCounts['original'] = (clickCounts['original'] || 0) + 1;
-            }
-        });
+        stats.destinations.forEach(d => { clickCounts[d.url] = d.clicks; });
 
         return variants.map(v => ({
             ...v,
             clicks: clickCounts[v.url] || 0,
-            percentage: totalClicks > 0 ? ((clickCounts[v.url] || 0) / totalClicks) * 100 : 0
+            percentage: total > 0 ? ((clickCounts[v.url] || 0) / total) * 100 : 0
         }));
     })();
 
@@ -267,16 +281,17 @@ const LinkAnalytics: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleExportCSV}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-lg text-stone-600 hover:text-slate-900 hover:bg-stone-50 transition-colors text-sm font-medium shadow-sm"
+                            disabled={exporting}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-lg text-stone-600 hover:text-slate-900 hover:bg-stone-50 transition-colors text-sm font-medium shadow-sm disabled:opacity-60 disabled:cursor-wait"
                         >
                             <Download className="w-4 h-4" />
-                            Export CSV
+                            {exporting ? 'Exporting…' : 'Export CSV'}
                         </button>
                         <div className="flex bg-white rounded-lg border border-stone-200 p-1 shadow-sm">
                             {(['24h', '7d', '30d', 'all'] as const).map((range) => (
                                 <button
                                     key={range}
-                                    onClick={() => setTimeRange(range)}
+                                    onClick={() => { setTimeRange(range); setCurrentPage(1); }}
                                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${timeRange === range
                                         ? 'bg-amber-50 text-amber-700'
                                         : 'text-stone-500 hover:bg-stone-50'
@@ -290,6 +305,27 @@ const LinkAnalytics: React.FC = () => {
                 </div>
             </div>
 
+            {(analyticsError || !analytics) && (
+                <div className="max-w-6xl mx-auto mb-4">
+                    {analyticsError ? (
+                        <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-700">
+                            <span>Couldn't load analytics for this range.</span>
+                            <button
+                                onClick={() => setAnalyticsAttempt(n => n + 1)}
+                                className="font-semibold underline underline-offset-2 hover:text-red-900"
+                            >
+                                Try again
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-sm text-stone-500">
+                            <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                            Loading analytics…
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Overview Cards */}
@@ -302,7 +338,7 @@ const LinkAnalytics: React.FC = () => {
                             <span className="text-stone-500 text-sm font-medium">Total Clicks</span>
                         </div>
                         <p className="text-3xl font-bold text-slate-900 mb-1">
-                            {(linkStats?.totalClicks ?? filteredClicks.length).toLocaleString()}
+                            {(linkStats?.totalClicks ?? total).toLocaleString()}
                         </p>
                         <div className={`flex items-center text-xs font-medium ${clickGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {clickGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
@@ -500,7 +536,12 @@ const LinkAnalytics: React.FC = () => {
 
                 {/* Map & Geography Row */}
                 <div className="lg:col-span-2 bg-white p-1 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
-                    <LiveWorldMap clickHistory={filteredClicks} className="h-[400px] w-full rounded-xl border-none" />
+                    <LiveWorldMap
+                        countryCounts={stats.countries}
+                        regionCounts={stats.regions}
+                        serverCityData={stats.cities.map(c => ({ city: c.city, country: c.country, clickCount: c.value }))}
+                        className="h-[400px] w-full rounded-xl border-none"
+                    />
                 </div>
 
                 {/* Geography Table */}
@@ -517,7 +558,7 @@ const LinkAnalytics: React.FC = () => {
                                     <div className="w-24 h-2 bg-stone-200 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-emerald-500 rounded-full"
-                                            style={{ width: `${(item.value / filteredClicks.length) * 100}%` }}
+                                            style={{ width: `${share(item.value) * 100}%` }}
                                         />
                                     </div>
                                     <span className="text-xs text-stone-500 w-8 text-right">{item.value}</span>
@@ -540,7 +581,7 @@ const LinkAnalytics: React.FC = () => {
                                 {deviceData.map((item) => (
                                     <div key={item.name} className="flex items-center justify-between text-sm">
                                         <span className="text-slate-700">{item.name}</span>
-                                        <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                        <span className="font-medium text-slate-900">{Math.round(share(item.value) * 100)}%</span>
                                     </div>
                                 ))}
                             </div>
@@ -552,7 +593,7 @@ const LinkAnalytics: React.FC = () => {
                                 {osData.map((item) => (
                                     <div key={item.name} className="flex items-center justify-between text-sm">
                                         <span className="text-slate-700">{item.name}</span>
-                                        <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                        <span className="font-medium text-slate-900">{Math.round(share(item.value) * 100)}%</span>
                                     </div>
                                 ))}
                             </div>
@@ -568,7 +609,7 @@ const LinkAnalytics: React.FC = () => {
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <span className="text-stone-400 text-xs">{item.value}</span>
-                                            <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                            <span className="font-medium text-slate-900">{Math.round(share(item.value) * 100)}%</span>
                                         </div>
                                     </div>
                                 ))}
@@ -583,7 +624,8 @@ const LinkAnalytics: React.FC = () => {
                     <h3 className="text-lg font-bold text-slate-900 mb-6">Marketing Campaigns (UTM)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {['utm_source', 'utm_medium', 'utm_campaign'].map((field) => {
-                            const data = getDistribution(field as keyof ClickEvent).slice(0, 5);
+                            // Clicks don't record UTM parameters yet.
+                            const data: NameValue[] = [];
                             return (
                                 <div key={field}>
                                     <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-4">
@@ -599,7 +641,7 @@ const LinkAnalytics: React.FC = () => {
                                                     <div className="w-16 h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                                         <div
                                                             className="h-full bg-amber-400 rounded-full"
-                                                            style={{ width: `${(item.value / filteredClicks.length) * 100}%` }}
+                                                            style={{ width: `${share(item.value) * 100}%` }}
                                                         />
                                                     </div>
                                                     <span className="font-medium text-slate-900 text-xs w-6 text-right">{item.value}</span>
@@ -616,7 +658,7 @@ const LinkAnalytics: React.FC = () => {
 
                 {/* Activity Heatmap */}
                 <div className="lg:col-span-3 h-[400px]">
-                    <ClickHeatmap data={filteredClicks} />
+                    <ClickHeatmap counts={stats.heatmap} />
                 </div>
 
                 {/* Tech Details & Locale */}
@@ -626,11 +668,12 @@ const LinkAnalytics: React.FC = () => {
                         <h3 className="text-lg font-bold text-slate-900 mb-6">Technical Details</h3>
                         <div className="space-y-6">
                             {[
-                                { label: 'Browser Version', field: 'browserVersion' },
-                                { label: 'OS Version', field: 'osVersion' },
-                                { label: 'Screen Resolution', field: 'screenWidth', format: (v: any) => v ? `${v}px width` : 'Unknown' }
+                                // Clicks don't record browser or OS versions yet.
+                                { label: 'Browser Version', data: [] as NameValue[] },
+                                { label: 'OS Version', data: [] as NameValue[] },
+                                { label: 'Screen Resolution', data: stats.screenWidths, format: (v: string) => v !== 'Unknown' ? `${v}px width` : 'Unknown' }
                             ].map((metric) => {
-                                const data = getDistribution(metric.field as keyof ClickEvent).slice(0, 3);
+                                const data = metric.data;
                                 return (
                                     <div key={metric.label}>
                                         <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
@@ -656,10 +699,10 @@ const LinkAnalytics: React.FC = () => {
                         <h3 className="text-lg font-bold text-slate-900 mb-6">Locale & Time</h3>
                         <div className="space-y-6">
                             {[
-                                { label: 'Language', field: 'language' },
-                                { label: 'Timezone', field: 'timezone' }
+                                { label: 'Language', data: stats.languages },
+                                { label: 'Timezone', data: stats.timezones }
                             ].map((metric) => {
-                                const data = getDistribution(metric.field as keyof ClickEvent).slice(0, 5);
+                                const data = metric.data;
                                 return (
                                     <div key={metric.label}>
                                         <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
@@ -684,7 +727,7 @@ const LinkAnalytics: React.FC = () => {
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
                         <span className="text-sm text-stone-500">
-                            Showing {paginatedClicks.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredClicks.length)} of {filteredClicks.length}
+                            Showing {paginatedClicks.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, total)} of {total.toLocaleString()}
                         </span>
                     </div>
                     <div className="overflow-hidden">
@@ -715,7 +758,7 @@ const LinkAnalytics: React.FC = () => {
                                         </td>
                                     </tr>
                                 ))}
-                                {filteredClicks.length === 0 && (
+                                {total === 0 && (
                                     <tr>
                                         <td colSpan={4} className="px-4 py-8 text-center text-stone-400">
                                             No clicks recorded in this period
