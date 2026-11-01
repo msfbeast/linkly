@@ -296,12 +296,18 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (targetLink && targetLink.password === passwordInput) {
+    // Checked on the server: the browser never receives the password, and
+    // a protected link's destination only arrives after it matches.
+    const unlocked = targetLink && code && isSupabaseConfigured()
+      ? await supabaseAdapter.unlockLink(code, passwordInput)
+      : (targetLink && targetLink.password === passwordInput ? targetLink : null); // local-only mode
+    if (unlocked) {
+      setTargetLink(unlocked);
       setIsLocked(false);
-      if (targetLink.type === 'gallery') {
+      if (unlocked.type === 'gallery') {
         return;
       }
-      await processRedirect(targetLink);
+      await processRedirect(unlocked);
     } else {
       setPasswordError(true);
       setPasswordInput('');
