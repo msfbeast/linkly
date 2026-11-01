@@ -1,6 +1,7 @@
 import { kv } from '@vercel/kv';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { isMainDomain, deploymentHosts } from '../../utils/mainDomains';
+import { isLinkAllowedOnDomain } from '../_lib/customDomainAccess';
 
 export const config = {
     runtime: 'edge',
@@ -36,32 +37,14 @@ function getAdminClient(): SupabaseClient | null {
     });
 }
 
-/**
- * On a custom domain, only the domain owner's links may resolve. Otherwise
- * anyone's short code would work on anyone's branded domain.
- */
-async function linkBelongsToDomainOwner(hostname: string, code: string): Promise<boolean> {
+/** On a custom domain, only the owner's (or the owner's teams') links resolve. */
+async function linkAllowedOnCustomDomain(hostname: string, code: string): Promise<boolean> {
     const supabase = getAdminClient();
     if (!supabase) {
         console.error('[Edge API] Custom domain check unavailable: missing Supabase env');
         return false;
     }
-
-    const [{ data: domain }, { data: link }] = await Promise.all([
-        supabase
-            .from('domains')
-            .select('user_id')
-            .eq('domain', hostname.toLowerCase())
-            .eq('status', 'active')
-            .maybeSingle(),
-        supabase
-            .from('links')
-            .select('user_id')
-            .eq('short_code', code)
-            .maybeSingle(),
-    ]);
-
-    return !!domain && !!link && domain.user_id === link.user_id;
+    return isLinkAllowedOnDomain(supabase, hostname, code);
 }
 
 /** DB fallback when the KV cache misses; rewarms the cache on success. */
@@ -118,7 +101,7 @@ export default async function handler(request: Request) {
         }
 
         if (linkData && linkData.url && !isMainDomain(url.hostname, deploymentHosts()) &&
-            !(await linkBelongsToDomainOwner(url.hostname, code))) {
+            !(await linkAllowedOnCustomDomain(url.hostname, code))) {
             linkData = null;
         }
 
