@@ -71,3 +71,8 @@ anon: claim a guest link                                      DENIED
 Bob: claim guest link for himself                             OK true
 Bob: claim the same link again                                DENIED
 Bob: claimed link is his, guest data gone                     OK guest=f token=- emai
+Alice: upload product image to own folder                     OK row
+Bob: upload into Alice's product folder                       DENIED
+Alice: upload tech vault image to own folder                  OK row
+Bob: delete Alice's product image (rows)                      OK 0
+anon: upload a tech vault image                               DENIED

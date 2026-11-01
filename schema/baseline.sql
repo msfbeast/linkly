@@ -2291,6 +2291,8 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('avatars', 'avatars', true, 10485760, '{image/png,image/jpeg,image/webp,image/gif,image/avif}'::text[]) ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('digital-products', 'digital-products', false, 52428800, NULL) ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('gallery-images', 'gallery-images', true, 10485760, '{image/png,image/jpeg,image/webp,image/gif,image/avif}'::text[]) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('product-images', 'product-images', true, 10485760, '{image/png,image/jpeg,image/webp,image/gif,image/avif}'::text[]) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('tech-vault', 'tech-vault', true, 10485760, '{image/png,image/jpeg,image/webp,image/gif,image/avif}'::text[]) ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Allow authenticated uploads" ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated
     WITH CHECK (((bucket_id = 'digital-products'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
@@ -2306,14 +2308,14 @@ CREATE POLICY "Digital products: owners update own folder" ON storage.objects AS
     WITH CHECK (((bucket_id = 'digital-products'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
 CREATE POLICY "Public images: owners delete own folder" ON storage.objects AS PERMISSIVE FOR DELETE TO authenticated
-    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text, 'product-images'::text, 'tech-vault'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
 CREATE POLICY "Public images: owners read own folder" ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated
-    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text, 'product-images'::text, 'tech-vault'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
 CREATE POLICY "Public images: owners update own folder" ON storage.objects AS PERMISSIVE FOR UPDATE TO authenticated
-    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)))
-    WITH CHECK (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+    USING (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text, 'product-images'::text, 'tech-vault'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)))
+    WITH CHECK (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text, 'product-images'::text, 'tech-vault'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
 CREATE POLICY "Public images: owners upload to own folder" ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated
-    WITH CHECK (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+    WITH CHECK (((bucket_id = ANY (ARRAY['avatars'::text, 'app-icons'::text, 'gallery-images'::text, 'product-images'::text, 'tech-vault'::text])) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
