@@ -121,6 +121,8 @@ SELECT pg_temp.probe('anon: upload a tech vault image', $q$INSERT INTO storage.o
 SELECT pg_temp.probe('anon: read click rollups', $q$SELECT count(*)::text FROM public.click_rollups$q$, 'anon', null);
 SELECT pg_temp.probe('Bob: read click visitors', $q$SELECT count(*)::text FROM public.click_visitors$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Alice: run the rollup backfill', $q$SELECT public.backfill_click_rollups(current_date)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Alice: rebuild a link''s rollups', $q$SELECT public.rebuild_link_rollups('22222222-2222-2222-2222-22222222222a')::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Alice: run the rollup rebuild', $q$SELECT public.rebuild_click_rollups(5)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.probe('Alice: rollup breakdown helper directly', $q$SELECT count(*)::text FROM public.user_rollup_breakdown('00000000-0000-0000-0000-00000000000a', 'country', 5)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.probe('Alice: own clicks counted in rollups', $q$SELECT total_clicks::text FROM public.get_user_click_stats('00000000-0000-0000-0000-00000000000a')$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.probe('Alice: own top country from rollups', $q$SELECT country || ' ' || click_count FROM public.get_user_country_breakdown('00000000-0000-0000-0000-00000000000a') LIMIT 1$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');

@@ -79,6 +79,8 @@ anon: upload a tech vault image                               DENIED
 anon: read click rollups                                      DENIED
 Bob: read click visitors                                      DENIED
 Alice: run the rollup backfill                                DENIED
+Alice: rebuild a link's rollups                               DENIED
+Alice: run the rollup rebuild                                 DENIED
 Alice: rollup breakdown helper directly                       DENIED
 Alice: own clicks counted in rollups                          OK 6
 Alice: own top country from rollups                           OK India 5
