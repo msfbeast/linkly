@@ -21,6 +21,7 @@ INSERT INTO public.links (id, original_url, short_code, title, user_id, team_id)
 INSERT INTO public.links (id, original_url, short_code, title, is_guest, claim_token) VALUES ('22222222-2222-2222-2222-22222222222f','https://g.example','ggg','G', true, '33333333-3333-3333-3333-333333333333');
 INSERT INTO public.click_events (link_id, country, city, device, browser, os, referrer) SELECT '22222222-2222-2222-2222-22222222222a','India','Pune','Mobile','Chrome','Android','direct' FROM generate_series(1,5);
 INSERT INTO public.analytics_share_tokens (user_id, token) VALUES ('00000000-0000-0000-0000-00000000000a','alicetoken');
+INSERT INTO public.links (id, original_url, short_code, title, user_id, password_hash) VALUES ('22222222-2222-2222-2222-22222222222b','https://secret.example','lck','Locked','00000000-0000-0000-0000-00000000000a','opensesame');
 INSERT INTO public.bio_profiles (id, user_id, handle, display_name) VALUES ('44444444-4444-4444-4444-444444444444','00000000-0000-0000-0000-00000000000a','alice','Alice');
 -- helper: run one probe as a role/user and print OK/DENIED
 CREATE OR REPLACE FUNCTION pg_temp.probe(label text, sql text, as_role text, as_uid text) RETURNS text LANGUAGE plpgsql AS $$
@@ -72,4 +73,15 @@ SELECT pg_temp.probe('anon: increment_clicks', $q$SELECT public.increment_clicks
 SELECT pg_temp.probe('anon: increment_bio_view', $q$SELECT public.increment_bio_view('44444444-4444-4444-4444-444444444444')::text$q$, 'anon', null);
 SELECT pg_temp.probe('service_role: record a click', $q$INSERT INTO public.click_events (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'service_role', null);
 SELECT pg_temp.probe('service_role: count a bio view', $q$SELECT public.increment_bio_view('44444444-4444-4444-4444-444444444444')::text$q$, 'service_role', null);
+SELECT pg_temp.probe('anon: read the links table (rows)', $q$SELECT count(*)::text FROM public.links$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: read Alice''s links (rows)', $q$SELECT count(*)::text FROM public.links WHERE user_id = '00000000-0000-0000-0000-00000000000a'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Carol (team): read team link (rows)', $q$SELECT count(*)::text FROM public.links WHERE team_id IS NOT NULL$q$, 'authenticated', '00000000-0000-0000-0000-00000000000c');
+SELECT pg_temp.probe('anon: repoint Alice''s link (rows changed)', $q$WITH u AS (UPDATE public.links SET original_url = 'https://evil.example' WHERE id = '22222222-2222-2222-2222-22222222222a' RETURNING 1) SELECT count(*)::text FROM u$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: repoint Alice''s link (rows changed)', $q$WITH u AS (UPDATE public.links SET original_url = 'https://evil.example' WHERE id = '22222222-2222-2222-2222-22222222222a' RETURNING 1) SELECT count(*)::text FROM u$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Alice: save a javascript: link', $q$INSERT INTO public.links (original_url, short_code, title, user_id) VALUES ('javascript:alert(1)', 'xss', 'X', '00000000-0000-0000-0000-00000000000a') RETURNING 'saved'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: public link has destination', $q$SELECT (length(public.get_public_link('aaa')->>'original_url') > 0)::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: public link hides password field', $q$SELECT (public.get_public_link('lck') ? 'password_hash')::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: locked link destination', $q$SELECT '[' || (public.get_public_link('lck')->>'original_url') || ']'$q$, 'anon', null);
+SELECT pg_temp.probe('anon: unlock with wrong password', $q$SELECT coalesce(public.unlock_link('lck', 'nope')::text, 'rejected')$q$, 'anon', null);
+SELECT pg_temp.probe('anon: unlock with right password', $q$SELECT public.unlock_link('lck', 'opensesame')->>'original_url'$q$, 'anon', null);
 ROLLBACK;
