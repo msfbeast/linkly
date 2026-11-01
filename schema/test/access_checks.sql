@@ -126,4 +126,9 @@ SELECT pg_temp.probe('Alice: rollup breakdown helper directly', $q$SELECT count(
 SELECT pg_temp.probe('Alice: own clicks counted in rollups', $q$SELECT total_clicks::text FROM public.get_user_click_stats('00000000-0000-0000-0000-00000000000a')$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.probe('Alice: own top country from rollups', $q$SELECT country || ' ' || click_count FROM public.get_user_country_breakdown('00000000-0000-0000-0000-00000000000a') LIMIT 1$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.probe('Alice: direct clicks counted as Direct', $q$SELECT referrer || ' ' || click_count FROM public.get_user_referrer_breakdown('00000000-0000-0000-0000-00000000000a') LIMIT 1$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: link analytics of Alice link', $q$SELECT (public.get_link_analytics('22222222-2222-2222-2222-22222222222a', '7d', 'UTC'))->>'total'$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: link analytics of Alice link', $q$SELECT (public.get_link_analytics('22222222-2222-2222-2222-22222222222a', '7d', 'UTC'))->>'total'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Alice: own link analytics (7d)', $q$SELECT (public.get_link_analytics('22222222-2222-2222-2222-22222222222a', '7d', 'UTC'))->>'total'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Alice: own link analytics (all, rollups)', $q$SELECT (public.get_link_analytics('22222222-2222-2222-2222-22222222222a', 'all', 'UTC'))->>'total'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Carol (team member): team link analytics', $q$SELECT (public.get_link_analytics('22222222-2222-2222-2222-22222222222e', 'all', 'UTC'))->>'total'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000c');
 ROLLBACK;
