@@ -189,8 +189,13 @@ export class SupabaseAdapter {
   }
 
   async updateLink(id: string, updates: Partial<LinkData>): Promise<LinkData> {
+    // A new short code leaves the old one in the redirect cache; remember it.
+    const previous = updates.shortCode !== undefined ? await this.getLink(id) : null;
     const updatedLink = await this.linkRepo.updateLink(id, updates);
     await this.syncLinkToKv(updatedLink);
+    if (previous?.shortCode && previous.shortCode !== updatedLink.shortCode) {
+      await this.deleteLinkFromKv(previous.shortCode);
+    }
     return updatedLink;
   }
 

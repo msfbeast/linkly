@@ -4,17 +4,24 @@ import { isMainDomain, deploymentHosts } from '../../utils/mainDomains';
 import { isLinkAllowedOnDomain } from '../_lib/customDomainAccess';
 import { recordClick, clickStoreEnvFromProcess, type ClickEvent } from '../_lib/clickStore';
 import { geoFromVercelHeaders } from '../../utils/geoNames';
+import {
+    type KvLinkData, type LinkCacheRow, LINK_CACHE_COLUMNS, LINK_CACHE_TTL_SECONDS,
+    linkCacheKey, toCacheEntry, redirectDecision,
+} from '../_lib/linkCache';
 
 export const config = {
     runtime: 'edge',
 };
 
-interface KvLinkData {
-    url: string;
-    id: string;
-    password?: boolean;
-    expiration?: number;
-    start?: number;
+// A slow cache or database shouldn't hang the visitor.
+const KV_TIMEOUT_MS = 1500;
+const DB_TIMEOUT_MS = 4000;
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, what: string): Promise<T> {
+    return Promise.race([
+        Promise.resolve(promise),
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms} ms`)), ms)),
+    ]);
 }
 
 
@@ -49,35 +56,34 @@ async function linkAllowedOnCustomDomain(hostname: string, code: string): Promis
     return isLinkAllowedOnDomain(supabase, hostname, code);
 }
 
-/** DB fallback when the KV cache misses; rewarms the cache on success. */
-async function lookupFromDatabase(code: string): Promise<KvLinkData | null> {
+/**
+ * DB fallback when the KV cache misses or fails. Archived links and expired
+ * guest links come back as null (not found). Rewarms the cache on success
+ * unless the cache is the thing that just failed.
+ */
+async function lookupFromDatabase(code: string, rewarm: boolean): Promise<KvLinkData | null> {
     const supabase = getAdminClient();
     if (!supabase) {
         console.error('[Edge API] DB fallback unavailable: missing Supabase env');
         return null;
     }
 
-    const { data: row, error } = await supabase
-        .from('links')
-        .select('id, original_url, password_hash, expiration_date, start_date')
-        .eq('short_code', code)
-        .maybeSingle();
+    const { data: row, error } = await withTimeout(
+        supabase.from('links').select(LINK_CACHE_COLUMNS).eq('short_code', code).maybeSingle(),
+        DB_TIMEOUT_MS,
+        'DB lookup',
+    );
+    if (error || !row) return null;
 
-    if (error || !row || !row.original_url) return null;
+    const linkData = toCacheEntry(row as LinkCacheRow);
+    if (!linkData) return null;
 
-    const linkData: KvLinkData = {
-        url: row.original_url,
-        id: row.id,
-        password: !!row.password_hash,
-        expiration: row.expiration_date ?? undefined,
-        start: row.start_date ?? undefined,
-    };
-
-    // Rewarm KV so the next click is fast (best-effort)
-    try {
-        await kv.set(`gather:link:${code}`, linkData);
-    } catch (e) {
-        console.error('[Edge API] KV rewarm failed:', e);
+    if (rewarm) {
+        try {
+            await kv.set(linkCacheKey(code), linkData, { ex: LINK_CACHE_TTL_SECONDS });
+        } catch (e) {
+            console.error('[Edge API] KV rewarm failed:', e);
+        }
     }
 
     return linkData;
@@ -97,9 +103,24 @@ export default async function handler(request: Request, context?: { waitUntil?: 
         // 1. Check Vercel KV; fall back to Supabase on miss (KV can be
         //    incomplete after failed syncs or cache flushes — links must
         //    not die because of a cache problem).
-        let linkData = await kv.get<KvLinkData>(`gather:link:${code}`);
+        let linkData: KvLinkData | null = null;
+        let kvHealthy = true;
+        try {
+            linkData = await withTimeout(kv.get<KvLinkData>(linkCacheKey(code)), KV_TIMEOUT_MS, 'KV get');
+        } catch (e) {
+            // A cache outage must not take every link down: use the database.
+            kvHealthy = false;
+            console.error('[Edge API] KV unavailable, using the database:', e);
+        }
         if (!linkData || !linkData.url) {
-            linkData = await lookupFromDatabase(code);
+            linkData = await lookupFromDatabase(code, kvHealthy);
+        }
+
+        if (linkData && redirectDecision(linkData) === 'gone') {
+            if (kvHealthy) {
+                try { await kv.del(linkCacheKey(code)); } catch { /* best effort */ }
+            }
+            linkData = null;
         }
 
         if (linkData && linkData.url && !isMainDomain(url.hostname, deploymentHosts()) &&
@@ -108,7 +129,20 @@ export default async function handler(request: Request, context?: { waitUntil?: 
         }
 
         if (linkData && linkData.url) {
-            // Record the click without delaying the redirect.
+            // 1. Restrictions (password, expiry, start date, click limit) go
+            //    to the /unlock page, which explains or asks, and counts the
+            //    click itself once the visitor gets through.
+            if (redirectDecision(linkData) === 'interstitial') {
+                // Delegate to the React page which renders password/expiry UI.
+                // IMPORTANT: use /unlock/:code, NOT /r/:code — vercel.json
+                // rewrites /r/:code straight back to this function, which
+                // previously caused an infinite redirect loop for every
+                // password-protected or scheduled link.
+                const appUrl = getAppUrl(url);
+                return Response.redirect(`${appUrl}/unlock/${code}`, 307);
+            }
+
+            // 2. Record the click without delaying the redirect.
             const geo = geoFromVercelHeaders(request.headers);
             const clickEvent: ClickEvent = {
                 linkId: linkData.id,
@@ -131,20 +165,6 @@ export default async function handler(request: Request, context?: { waitUntil?: 
                 context.waitUntil(recording);
             } else {
                 await recording;
-            }
-
-            // 2. Check Restrictions (Password, Expiration, Start Date)
-            const now = Date.now();
-            if (linkData.password ||
-                (linkData.expiration && now > linkData.expiration) ||
-                (linkData.start && now < linkData.start)) {
-                // Delegate to the React page which renders password/expiry UI.
-                // IMPORTANT: use /unlock/:code, NOT /r/:code — vercel.json
-                // rewrites /r/:code straight back to this function, which
-                // previously caused an infinite redirect loop for every
-                // password-protected or scheduled link.
-                const appUrl = getAppUrl(url);
-                return Response.redirect(`${appUrl}/unlock/${code}`, 307);
             }
 
             // Smart Redirect for Mobile Users (to break out of in-app browsers)
