@@ -1,16 +1,9 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
-import { createClient } from '@supabase/supabase-js';
+import { requireAiUser, validUrl } from '../_lib/aiGuard';
 
 // Initialize Gemini on the server side
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
-
-// Initialize Supabase for Auth check
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-const supabase = (supabaseUrl && supabaseAnonKey)
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
 
 // Define the interface for the response
 interface GeminiAnalysisResult {
@@ -29,28 +22,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // 2. Auth Check (fail closed if server is misconfigured)
-    if (!supabase) {
-        console.error('[AI] Supabase not configured on server; refusing request');
-        return res.status(500).json({ error: 'Server misconfiguration' });
-    } else {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) {
-            return res.status(401).json({ error: 'Missing Authorization header' });
-        }
-
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-
-        if (error || !user) {
-            return res.status(401).json({ error: 'Unauthorized', details: error?.message });
-        }
-    }
+    // Signed-in users only, rate limited per user (api/_lib/aiGuard.ts).
+    if (!(await requireAiUser(req, res))) return;
 
     try {
-        const { url } = req.body;
+        const url = validUrl(req.body?.url);
         if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
+            return res.status(400).json({ error: 'A valid http(s) URL is required' });
         }
 
         console.log('[AI] Analyzing URL:', url);
@@ -161,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error: any) {
         console.error('[AI] Analysis failed:', error);
         return res.status(500).json({
-            error: error.message || 'Analysis failed',
+            error: 'Analysis failed',
             fallback: {
                 title: "New Link",
                 description: "Analysis failed, please enter manually.",

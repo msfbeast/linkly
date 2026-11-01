@@ -22,11 +22,18 @@ describe('API v1/links', () => {
     beforeEach(() => {
         vi.clearAllMocks();
 
-        // Setup default mocks
-        mockFrom.mockReturnValue({
+        // Setup default mocks. The profile lookup (plan + affiliate tags) gets
+        // its own chain so it doesn't consume the slug-collision mocks; a Pro
+        // user skips the free link-limit count.
+        const profileChain = {
+            select: () => profileChain,
+            eq: () => profileChain,
+            maybeSingle: async () => ({ data: { subscription_tier: 'pro' }, error: null }),
+        };
+        mockFrom.mockImplementation((table: string) => (table === 'profiles' ? profileChain : {
             select: mockSelect,
             insert: mockInsert,
-        });
+        }));
         mockSelect.mockReturnValue({
             eq: mockEq,
             single: mockSingle, // For insert return

@@ -11,23 +11,37 @@ interface AppMetadata {
 }
 
 /**
- * Extract app ID from iOS App Store URL
- * Examples:
- * - https://apps.apple.com/us/app/notion/id1232780281
- * - https://itunes.apple.com/app/id1232780281
+ * The only URLs this endpoint will look up, parsed strictly by hostname.
+ * It used to check `url.includes('play.google.com')` and then fetch the URL
+ * as given, so anyone could make our server request any address (SSRF) with
+ * e.g. `http://10.0.0.1/?x=play.google.com&id=1`. Now the Play Store page is
+ * fetched from a URL we build, and App Store lookups only send a numeric id
+ * to Apple's API.
  */
-function extractAppStoreId(url: string): string | null {
-    const match = url.match(/\/id(\d+)/);
-    return match ? match[1] : null;
-}
+type ParsedStoreUrl = { platform: 'ios'; appId: string } | { platform: 'android'; packageId: string };
 
-/**
- * Extract package name from Google Play Store URL
- * Example: https://play.google.com/store/apps/details?id=com.notion.android
- */
-function extractPlayStoreId(url: string): string | null {
-    const urlObj = new URL(url);
-    return urlObj.searchParams.get('id');
+const PLAY_PACKAGE = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$/;
+
+export function parseStoreUrl(raw: string): ParsedStoreUrl | null {
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return null;
+    }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    if (u.username || u.password || (u.port && u.port !== '443' && u.port !== '80')) return null;
+    const host = u.hostname.toLowerCase();
+
+    if (host === 'apps.apple.com' || host === 'itunes.apple.com') {
+        const m = u.pathname.match(/\/id(\d{1,15})(?:\/|$)/);
+        return m ? { platform: 'ios', appId: m[1] } : null;
+    }
+    if (host === 'play.google.com' && u.pathname.startsWith('/store/apps/details')) {
+        const id = u.searchParams.get('id');
+        return id && id.length <= 255 && PLAY_PACKAGE.test(id) ? { platform: 'android', packageId: id } : null;
+    }
+    return null;
 }
 
 /**
@@ -35,7 +49,7 @@ function extractPlayStoreId(url: string): string | null {
  */
 async function fetchAppStoreMetadata(appId: string, url: string): Promise<AppMetadata | null> {
     try {
-        const response = await fetch(`https://itunes.apple.com/lookup?id=${appId}&country=US`);
+        const response = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(appId)}&country=US`, { redirect: 'error' });
         if (!response.ok) return null;
 
         const data = await response.json();
@@ -64,8 +78,11 @@ async function fetchAppStoreMetadata(appId: string, url: string): Promise<AppMet
  */
 async function fetchPlayStoreMetadata(packageId: string, url: string): Promise<AppMetadata | null> {
     try {
-        // Try fetching the page and extracting basic info
-        const response = await fetch(url, {
+        // Fetch the canonical page for the validated package id, never the
+        // caller's URL, and don't follow redirects off Google Play.
+        const pageUrl = `https://play.google.com/store/apps/details?id=${encodeURIComponent(packageId)}&hl=en`;
+        const response = await fetch(pageUrl, {
+            redirect: 'error',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                 'Accept-Language': 'en-US,en;q=0.9',
@@ -146,18 +163,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         let metadata: AppMetadata | null = null;
 
-        // Detect platform and extract ID
-        if (url.includes('apps.apple.com') || url.includes('itunes.apple.com')) {
-            const appId = extractAppStoreId(url);
-            if (appId) {
-                metadata = await fetchAppStoreMetadata(appId, url);
-            }
-        } else if (url.includes('play.google.com')) {
-            const packageId = extractPlayStoreId(url);
-            if (packageId) {
-                metadata = await fetchPlayStoreMetadata(packageId, url);
-            }
+        const parsed = url.length <= 2048 ? parseStoreUrl(url) : null;
+        if (!parsed) {
+            return res.status(400).json({ error: 'Only App Store and Google Play app links are supported' });
         }
+        metadata = parsed.platform === 'ios'
+            ? await fetchAppStoreMetadata(parsed.appId, url)
+            : await fetchPlayStoreMetadata(parsed.packageId, url);
 
         if (!metadata) {
             // Fallback: return minimal data
@@ -171,6 +183,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(metadata);
     } catch (error: any) {
         console.error('[AppLookup] Error:', error);
-        return res.status(500).json({ error: error.message || 'Failed to fetch app metadata' });
+        return res.status(500).json({ error: 'Failed to fetch app metadata' });
     }
 }
