@@ -32,12 +32,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const { data: product, error: productError } = await supabase
             .from('products')
-            .select('id, user_id, price, currency')
+            .select('id, user_id, price, currency, type')
             .eq('id', productId)
             .maybeSingle();
 
         if (productError || !product) {
             return res.status(404).json({ error: 'Product not found' });
+        }
+
+        // Only digital products are sold and delivered here; physical ones
+        // link out to the seller's own store.
+        if (product.type !== 'digital') {
+            return res.status(400).json({ error: 'This product is sold on the seller\'s website' });
         }
 
         const price = Number(product.price);

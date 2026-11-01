@@ -195,6 +195,24 @@ const Settings: React.FC = () => {
     { id: 'archive', name: 'Archive', description: 'Database style, structured, curated.', color: 'bg-[#F0F0F0]' },
   ];
 
+  // Every profile's status defaults to 'active', so the plan decides
+  // whether there is a subscription at all; status only matters on paid plans.
+  const billingState = (() => {
+    const tier = user?.preferences?.subscription_tier;
+    const status = user?.preferences?.subscription_status;
+    if (!tier || tier === 'free') {
+      return { badge: 'Free', badgeClass: 'bg-stone-200 text-stone-600', message: 'You are currently on the free plan.' };
+    }
+    if (status === 'past_due') {
+      return {
+        badge: 'Payment due',
+        badgeClass: 'bg-amber-100 text-amber-700',
+        message: 'Your last renewal payment failed. It will be retried automatically; update your payment method to keep your plan.',
+      };
+    }
+    return { badge: 'Active', badgeClass: 'bg-green-100 text-green-700', message: 'Your subscription is active.' };
+  })();
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-6">
       <div className="max-w-4xl mx-auto">
@@ -607,17 +625,10 @@ const Settings: React.FC = () => {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <p className="text-slate-900 font-medium text-lg capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</p>
-                      <p className="text-stone-500 text-sm">
-                        {user?.preferences?.subscription_status === 'active'
-                          ? 'Your subscription is active.'
-                          : 'You are currently on the free plan.'}
-                      </p>
+                      <p className="text-stone-500 text-sm">{billingState.message}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${user?.preferences?.subscription_status === 'active'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-stone-200 text-stone-600'
-                      }`}>
-                      {user?.preferences?.subscription_status === 'active' ? 'Active' : 'Free'}
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${billingState.badgeClass}`}>
+                      {billingState.badge}
                     </span>
                   </div>
 

@@ -151,31 +151,15 @@ export class TeamRepository extends BaseRepository {
         }));
     }
 
-    async acceptInvite(token: string, userId: string): Promise<void> {
+    /**
+     * Accept an invite as the signed-in user. Runs in the database
+     * (accept_team_invite): invitees can't read invites or add themselves
+     * to team_members under RLS, so doing it here always failed.
+     */
+    async acceptInvite(token: string, _userId?: string): Promise<void> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
-        const { data: invite, error: inviteError } = await this.supabase!
-            .from('team_invites')
-            .select('*')
-            .eq('token', token)
-            .single();
-
-        if (inviteError || !invite) throw new Error('Invalid invite');
-
-        if (new Date(invite.expires_at) < new Date()) {
-            throw new Error('Invite expired');
-        }
-
-        const { error: memberError } = await this.supabase!
-            .from('team_members')
-            .insert({
-                team_id: invite.team_id,
-                user_id: userId,
-                role: invite.role,
-            });
-
-        if (memberError) throw memberError;
-
-        await this.supabase!.from('team_invites').delete().eq('id', invite.id);
+        const { error } = await this.supabase!.rpc('accept_team_invite', { p_token: token });
+        if (error) throw new Error(error.message || 'Failed to accept invite');
     }
 }
