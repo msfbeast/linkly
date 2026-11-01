@@ -1182,21 +1182,48 @@ CREATE OR REPLACE FUNCTION public.get_user_click_stats(p_user_id uuid)
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
+DECLARE
+    t_now timestamptz := now();
 BEGIN
     IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
     RETURN QUERY
+    WITH w(name, starts) AS (
+        VALUES ('day', t_now - interval '1 day'),
+               ('week', t_now - interval '7 days'),
+               ('month', t_now - interval '30 days')
+    ),
+    -- First full hour inside each window; the hour before it is partial.
+    edges AS (
+        SELECT name, starts, date_trunc('hour', starts) + interval '1 hour' AS full_from FROM w
+    ),
+    rolled AS (
+        SELECT
+            coalesce(sum(r.clicks), 0)::bigint AS total,
+            coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= (SELECT full_from FROM edges WHERE name = 'day')), 0)::bigint AS day,
+            coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= (SELECT full_from FROM edges WHERE name = 'week')), 0)::bigint AS week,
+            coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= (SELECT full_from FROM edges WHERE name = 'month')), 0)::bigint AS month
+        FROM public.click_rollups r
+        JOIN public.links l ON l.id = r.link_id
+        WHERE l.user_id = p_user_id AND r.dim = 'total'
+    ),
+    partial AS (
+        SELECT e.name, count(ce.*)::bigint AS n
+        FROM edges e
+        LEFT JOIN public.click_events ce
+          ON ce.timestamp > e.starts AND ce.timestamp < e.full_from
+         AND ce.link_id IN (SELECT id FROM public.links WHERE user_id = p_user_id)
+        GROUP BY e.name
+    )
     SELECT
-        coalesce(sum(r.clicks), 0)::bigint,
+        rolled.total,
         (SELECT count(DISTINCT v.visitor_id) FROM public.click_visitors v
            JOIN public.links lv ON lv.id = v.link_id WHERE lv.user_id = p_user_id)::bigint,
-        coalesce(sum(r.clicks) FILTER (WHERE r.bucket > now() - interval '1 day' - interval '1 hour'), 0)::bigint,
-        coalesce(sum(r.clicks) FILTER (WHERE r.bucket > now() - interval '7 days' - interval '1 hour'), 0)::bigint,
-        coalesce(sum(r.clicks) FILTER (WHERE r.bucket > now() - interval '30 days' - interval '1 hour'), 0)::bigint
-    FROM public.click_rollups r
-    JOIN public.links l ON l.id = r.link_id
-    WHERE l.user_id = p_user_id AND r.dim = 'total';
+        rolled.day + (SELECT n FROM partial WHERE name = 'day'),
+        rolled.week + (SELECT n FROM partial WHERE name = 'week'),
+        rolled.month + (SELECT n FROM partial WHERE name = 'month')
+    FROM rolled;
 END;
 $function$
 ;
