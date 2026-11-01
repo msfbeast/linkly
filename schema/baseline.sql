@@ -857,57 +857,6 @@ END;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.get_click_trends(p_user_id uuid, p_days integer DEFAULT 30)
- RETURNS TABLE(day date, click_count bigint)
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'extensions'
-AS $function$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        DATE(ce.timestamp) as day,
-        COUNT(*)::BIGINT as click_count
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id
-      AND ce.timestamp > NOW() - (p_days || ' days')::INTERVAL
-    GROUP BY DATE(ce.timestamp)
-    ORDER BY day ASC;
-END;
-$function$
-;
-
-CREATE OR REPLACE FUNCTION public.get_device_breakdown(p_user_id uuid)
- RETURNS TABLE(device text, browser text, click_count bigint, percentage numeric)
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'extensions'
-AS $function$
-DECLARE
-    v_total BIGINT;
-BEGIN
-    SELECT COUNT(*) INTO v_total
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id;
-
-    RETURN QUERY
-    SELECT 
-        COALESCE(ce.device, 'Unknown') as device,
-        COALESCE(ce.browser, 'Unknown') as browser,
-        COUNT(*)::BIGINT as click_count,
-        ROUND((COUNT(*)::NUMERIC / NULLIF(v_total, 0)) * 100, 1) as percentage
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id
-    GROUP BY ce.device, ce.browser
-    ORDER BY click_count DESC
-    LIMIT 20;
-END;
-$function$
-;
-
 CREATE OR REPLACE FUNCTION public.get_guest_link_by_claim_token(p_token text)
  RETURNS jsonb
  LANGUAGE sql
@@ -1040,77 +989,6 @@ BEGIN
     ) INTO v_result;
 
     RETURN v_result;
-END;
-$function$
-;
-
-CREATE OR REPLACE FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer DEFAULT 10)
- RETURNS TABLE(city text, country text, click_count bigint, percentage numeric)
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'extensions'
-AS $function$
-DECLARE
-    v_total BIGINT;
-BEGIN
-    -- Get total clicks first
-    SELECT COUNT(*) INTO v_total
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id AND ce.city IS NOT NULL;
-
-    RETURN QUERY
-    SELECT 
-        ce.city,
-        ce.country,
-        COUNT(*)::BIGINT as click_count,
-        ROUND((COUNT(*)::NUMERIC / NULLIF(v_total, 0)) * 100, 1) as percentage
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id AND ce.city IS NOT NULL
-    GROUP BY ce.city, ce.country
-    ORDER BY click_count DESC
-    LIMIT p_limit;
-END;
-$function$
-;
-
-CREATE OR REPLACE FUNCTION public.get_traffic_sources(p_user_id uuid)
- RETURNS TABLE(source text, click_count bigint, percentage numeric)
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'extensions'
-AS $function$
-DECLARE
-    v_total BIGINT;
-BEGIN
-    SELECT COUNT(*) INTO v_total
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id;
-
-    RETURN QUERY
-    SELECT 
-        COALESCE(
-            CASE 
-                WHEN ce.referrer ILIKE '%google%' THEN 'Google'
-                WHEN ce.referrer ILIKE '%facebook%' OR ce.referrer ILIKE '%fb.%' THEN 'Facebook'
-                WHEN ce.referrer ILIKE '%twitter%' OR ce.referrer ILIKE '%t.co%' THEN 'Twitter'
-                WHEN ce.referrer ILIKE '%instagram%' THEN 'Instagram'
-                WHEN ce.referrer ILIKE '%linkedin%' THEN 'LinkedIn'
-                WHEN ce.referrer ILIKE '%youtube%' THEN 'YouTube'
-                WHEN ce.referrer IS NULL OR ce.referrer = '' THEN 'Direct'
-                ELSE 'Other'
-            END,
-            'Direct'
-        ) as source,
-        COUNT(*)::BIGINT as click_count,
-        ROUND((COUNT(*)::NUMERIC / NULLIF(v_total, 0)) * 100, 1) as percentage
-    FROM click_events ce
-    INNER JOIN links l ON ce.link_id = l.id
-    WHERE l.user_id = p_user_id
-    GROUP BY source
-    ORDER BY click_count DESC;
 END;
 $function$
 ;
@@ -2281,15 +2159,11 @@ REVOKE ALL ON FUNCTION public.create_team_with_owner(p_name text, p_slug text, p
 REVOKE ALL ON FUNCTION public.current_profile_role() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.enforce_free_link_limit() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.fill_product_url_from_link() FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.get_click_trends(p_user_id uuid, p_days integer) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.get_device_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_guest_link_by_claim_token(p_token text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_link_stats(p_link_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_public_link(p_short_code text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_public_links(p_ids uuid[]) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_shared_analytics(p_share_token text) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.get_traffic_sources(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_click_stats(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
@@ -2346,8 +2220,6 @@ GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO anon;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO service_role;
 GRANT EXECUTE ON FUNCTION public.fill_product_url_from_link() TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_click_trends(p_user_id uuid, p_days integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_device_breakdown(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO service_role;
@@ -2363,8 +2235,6 @@ GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO PUB
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_top_cities(p_user_id uuid, p_limit integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_traffic_sources(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) TO authenticated;
