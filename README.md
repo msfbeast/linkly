@@ -27,7 +27,7 @@ Gather is a link shortener, link-in-bio and storefront platform for creators, bu
 
 1. `/r/:code` (or `/:code` on a custom domain or `links.trak.in`) goes to the edge function `api/r/[code].ts`.
 2. It reads the link from Vercel KV, falling back to Supabase on a miss and refilling the cache.
-3. The click event is published to QStash. `api/queue/process-click` verifies the QStash signature, stores the event with a hashed IP, and increments the link's click count.
+3. The click is stored with a hashed IP and the link's click count is incremented, in the background after the redirect is sent (`api/_lib/clickStore.ts`). With `CLICK_QUEUE=qstash` it goes through QStash and `api/queue/process-click` instead, falling back to a direct write if publishing fails.
 4. Password-protected or scheduled links go to `/unlock/:code`. Mobile visitors go through `/open/…` so the link opens outside in-app browsers.
 
 `api/link/sync` keeps KV in sync when a link is created or edited.
@@ -76,9 +76,10 @@ cp .env.example .env.local   # then fill in the values (see below)
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay API |
 | `RAZORPAY_WEBHOOK_SECRET` | Verifies `api/webhooks/razorpay`. The webhook rejects everything without it |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Transactional email |
-| `QSTASH_URL`, `QSTASH_TOKEN` | Publishing click events |
-| `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` | Verifying click events. Clicks aren't recorded without them |
-| `IP_HASH_SALT` | Secret for hashing visitor IPs (any long random string). Set the same value in the `track-click` Supabase edge function's secrets so both click paths hash a visitor the same way |
+| `CLICK_QUEUE` | Optional. `qstash` to queue clicks through QStash; otherwise they're stored directly |
+| `QSTASH_URL`, `QSTASH_TOKEN` | Publishing click events (only with `CLICK_QUEUE=qstash`) |
+| `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` | Verifying queued click events (only with `CLICK_QUEUE=qstash`) |
+| `IP_HASH_SALT` | Secret for hashing visitor IPs. The value lives in Supabase Vault (`ip_hash_salt`); set the same value here and in the `track-click` edge function's secrets so every click path hashes a visitor the same way |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Vercel KV redirect cache. Set automatically when KV is linked in Vercel |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis for rate limiting |
 | `GEMINI_API_KEY` | AI features (`api/ai/*`) |
