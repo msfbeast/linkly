@@ -13,6 +13,8 @@ const ProductPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [buying, setBuying] = useState(false);
     const [purchased, setPurchased] = useState(false);
+    // Signed download link returned after payment (fileUrl is a private storage path)
+    const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (productId) {
@@ -51,6 +53,12 @@ const ProductPage: React.FC = () => {
 
     const handleBuyNow = async () => {
         if (!product) return;
+        // Physical products are sold on the seller's own site (affiliate
+        // links); only digital products are paid for and delivered here.
+        if (product.type !== 'digital') {
+            if (product.originalUrl) window.open(product.originalUrl, '_blank', 'noopener');
+            return;
+        }
         setBuying(true);
         try {
             // 1. Create Store Order (DB + Razorpay)
@@ -90,6 +98,7 @@ const ProductPage: React.FC = () => {
                         if (verifyData.success) {
                             toast.success('Payment Successful!');
                             setPurchased(true);
+                            if (verifyData.downloadUrl) setDownloadUrl(verifyData.downloadUrl);
                         }
                     } catch (e) {
                         console.error("Verification failed", e);
@@ -204,9 +213,6 @@ const ProductPage: React.FC = () => {
                                 <span className="text-4xl font-bold text-slate-900">
                                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
                                 </span>
-                                <span className="text-stone-400 text-lg line-through font-medium">
-                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price * 1.2)}
-                                </span>
                             </div>
                         </div>
 
@@ -217,7 +223,9 @@ const ProductPage: React.FC = () => {
                         <div className="flex gap-4 sticky bottom-6 z-30 bg-[#FDFBF7]/90 backdrop-blur p-4 -m-4 rounded-t-[2rem] lg:static lg:bg-transparent lg:p-0 lg:m-0">
                             {purchased && product.type === 'digital' ? (
                                 <button
-                                    onClick={() => window.open(product.fileUrl || '#', '_blank')}
+                                    onClick={() => downloadUrl
+                                        ? window.open(downloadUrl, '_blank', 'noopener')
+                                        : toast.error('Download link unavailable. Please contact the seller.')}
                                     className="flex-1 bg-emerald-500 text-white font-bold py-5 rounded-[2rem] hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 text-lg shadow-xl shadow-emerald-500/20"
                                 >
                                     <ShoppingBag className="w-6 h-6" />
@@ -230,7 +238,7 @@ const ProductPage: React.FC = () => {
                                     className="flex-1 bg-slate-900 text-white font-bold py-5 rounded-[2rem] hover:bg-slate-800 transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 text-lg shadow-xl shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {buying ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShoppingBag className="w-6 h-6" />}
-                                    {purchased ? 'Purchased' : 'Buy Now'}
+                                    {purchased ? 'Purchased' : product.type === 'digital' ? 'Buy Now' : 'Visit Store'}
                                 </button>
                             )}
                             <button className="w-16 h-16 bg-white text-slate-900 rounded-[2rem] hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm flex items-center justify-center">
