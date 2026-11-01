@@ -76,3 +76,9 @@ Bob: upload into Alice's product folder                       DENIED
 Alice: upload tech vault image to own folder                  OK row
 Bob: delete Alice's product image (rows)                      OK 0
 anon: upload a tech vault image                               DENIED
+anon: read click rollups                                      DENIED
+Bob: read click visitors                                      DENIED
+Alice: run the rollup backfill                                DENIED
+Alice: rollup breakdown helper directly                       DENIED
+Alice: own clicks counted in rollups                          OK 6
+Alice: own top country from rollups                           OK India 5

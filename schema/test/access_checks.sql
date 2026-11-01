@@ -118,4 +118,10 @@ SELECT pg_temp.probe('Bob: upload into Alice''s product folder', $q$INSERT INTO 
 SELECT pg_temp.probe('Alice: upload tech vault image to own folder', $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('tech-vault', '00000000-0000-0000-0000-00000000000a/i.jpg') RETURNING 'row'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.probe('Bob: delete Alice''s product image (rows)', $q$WITH d AS (DELETE FROM storage.objects WHERE bucket_id = 'product-images' RETURNING 1) SELECT count(*)::text FROM d$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('anon: upload a tech vault image', $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('tech-vault', 'x/i.jpg') RETURNING 'row'$q$, 'anon', null);
+SELECT pg_temp.probe('anon: read click rollups', $q$SELECT count(*)::text FROM public.click_rollups$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: read click visitors', $q$SELECT count(*)::text FROM public.click_visitors$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Alice: run the rollup backfill', $q$SELECT public.backfill_click_rollups(current_date)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Alice: rollup breakdown helper directly', $q$SELECT count(*)::text FROM public.user_rollup_breakdown('00000000-0000-0000-0000-00000000000a', 'country', 5)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Alice: own clicks counted in rollups', $q$SELECT total_clicks::text FROM public.get_user_click_stats('00000000-0000-0000-0000-00000000000a')$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Alice: own top country from rollups', $q$SELECT country || ' ' || click_count FROM public.get_user_country_breakdown('00000000-0000-0000-0000-00000000000a') LIMIT 1$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 ROLLBACK;
