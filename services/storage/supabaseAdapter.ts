@@ -4,7 +4,7 @@ import { isShortAmazonUrl, resolveShortUrl, monetizeUrl } from '../../utils/affi
 import { AnalyticsRepository } from './repositories/AnalyticsRepository';
 import { AssetRepository } from './repositories/AssetRepository';
 import { BioRepository } from './repositories/BioRepository';
-import { LinkRepository } from './repositories/LinkRepository';
+import { LinkRepository, type UnlockResult } from './repositories/LinkRepository';
 import { MiscRepository } from './repositories/MiscRepository';
 import { TeamRepository } from './repositories/TeamRepository';
 import { UserRepository } from './repositories/UserRepository';
@@ -226,8 +226,8 @@ export class SupabaseAdapter {
     return this.linkRepo.getLinkByCode(code);
   }
 
-  /** Checks a link password on the server; the full link, or null if wrong. */
-  async unlockLink(code: string, password: string): Promise<LinkData | null> {
+  /** Checks a link password on the server (guesses are limited). */
+  async unlockLink(code: string, password: string): Promise<UnlockResult> {
     return this.linkRepo.unlockLink(code, password);
   }
 
