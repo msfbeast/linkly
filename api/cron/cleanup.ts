@@ -2,22 +2,29 @@ import { createClient } from '@supabase/supabase-js';
 import { kv } from '@vercel/kv';
 import { linkCacheKey } from '../_lib/linkCache';
 
-// Initialize Supabase Client (Server-side)
-// Note: In a real Vercel function, we'd use process.env
-// For this client-side demo code, we'll simulate the logic.
+// Edge, like every other function that uses @vercel/kv: as a Node function
+// importing @vercel/kv this crashed on load (FUNCTION_INVOCATION_FAILED).
+export const config = {
+    runtime: 'edge',
+};
 
-export default async function handler(req: any, res: any) {
+const json = (body: unknown, status: number) =>
+    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(request: Request): Promise<Response> {
     // 1. Verify Cron Secret. Fail closed when it isn't set: comparing against
     // `Bearer ${undefined}` would accept the literal header "Bearer undefined".
     const secret = process.env.CRON_SECRET;
-    const authHeader = req.headers['authorization'];
+    const authHeader = request.headers.get('authorization');
     if (!secret || authHeader !== `Bearer ${secret}`) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return json({ error: 'Unauthorized' }, 401);
     }
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; // Needs service role for deletion
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     try {
         // 2. Delete Expired Guest Links, and their redirect cache entries
@@ -40,14 +47,14 @@ export default async function handler(req: any, res: any) {
             }
         }
 
-        return res.status(200).json({
+        return json({
             success: true,
             deleted_count: count,
             message: `Cleaned up ${count} expired guest links.`
-        });
+        }, 200);
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('Cleanup Error:', error);
-        return res.status(500).json({ error: 'Cleanup failed' });
+        return json({ error: 'Cleanup failed' }, 500);
     }
 }
