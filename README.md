@@ -78,7 +78,7 @@ cp .env.example .env.local   # then fill in the values (see below)
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Transactional email |
 | `QSTASH_URL`, `QSTASH_TOKEN` | Publishing click events |
 | `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` | Verifying click events. Clicks aren't recorded without them |
-| `IP_HASH_SALT` | Secret for hashing visitor IPs (any long random string) |
+| `IP_HASH_SALT` | Secret for hashing visitor IPs (any long random string). Set the same value in the `track-click` Supabase edge function's secrets so both click paths hash a visitor the same way |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Vercel KV redirect cache. Set automatically when KV is linked in Vercel |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis for rate limiting |
 | `GEMINI_API_KEY` | AI features (`api/ai/*`) |

@@ -1,4 +1,5 @@
 import { Receiver } from '@upstash/qstash';
+import { hashIp } from '../../utils/ipHash';
 
 export const config = {
     runtime: 'edge',
@@ -15,21 +16,6 @@ const receiver = new Receiver({
     currentSigningKey: CURRENT_SIGNING_KEY || '',
     nextSigningKey: NEXT_SIGNING_KEY || CURRENT_SIGNING_KEY || '',
 });
-
-/**
- * Keyed hash of the visitor IP so raw addresses are never stored. A plain
- * hash of an IPv4 address can be reversed by brute force; HMAC with a
- * server secret cannot.
- */
-async function hashIp(rawIp: unknown): Promise<string | null> {
-    if (typeof rawIp !== 'string' || !rawIp || rawIp === 'unknown') return null;
-    const ip = rawIp.split(',')[0].trim();
-    const secret = process.env.IP_HASH_SALT || SUPABASE_KEY || '';
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(ip));
-    return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 export default async function handler(request: Request) {
     if (request.method !== 'POST') {
@@ -77,7 +63,7 @@ export default async function handler(request: Request) {
                 link_id: event.linkId,
                 timestamp: new Date(event.timestamp).toISOString(),
                 raw_user_agent: event.userAgent,
-                ip_hash: await hashIp(event.ip),
+                ip_hash: await hashIp(event.ip, process.env.IP_HASH_SALT || SUPABASE_KEY || ''),
                 country: event.country,
                 city: event.city,
                 region: event.region,
