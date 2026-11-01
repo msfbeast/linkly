@@ -546,6 +546,32 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.can_edit_team(team_uuid uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM public.team_members
+    WHERE team_id = team_uuid AND user_id = auth.uid() AND role IN ('owner', 'admin', 'editor')
+  );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.can_manage_team(team_uuid uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM public.team_members
+    WHERE team_id = team_uuid AND user_id = auth.uid() AND role IN ('owner', 'admin')
+  );
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -864,9 +890,28 @@ CREATE OR REPLACE FUNCTION public.fill_product_url_from_link()
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
+DECLARE
+  l record;
 BEGIN
-  IF coalesce(NEW.original_url, '') = '' AND NEW.link_id IS NOT NULL THEN
-    SELECT original_url INTO NEW.original_url FROM public.links WHERE id = NEW.link_id;
+  IF NEW.link_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT id, user_id, team_id, original_url INTO l FROM public.links WHERE id = NEW.link_id;
+  IF l.id IS NULL THEN
+    RETURN NEW;  -- the foreign key reports a missing link
+  END IF;
+
+  IF l.user_id IS DISTINCT FROM NEW.user_id AND NOT (
+       l.team_id IS NOT NULL AND EXISTS (
+         SELECT 1 FROM public.team_members tm
+         WHERE tm.team_id = l.team_id AND tm.user_id = NEW.user_id
+           AND tm.role IN ('owner', 'admin', 'editor'))) THEN
+    RAISE EXCEPTION 'A product can only use your own links' USING ERRCODE = '42501';
+  END IF;
+
+  IF coalesce(NEW.original_url, '') = '' THEN
+    NEW.original_url := l.original_url;
   END IF;
   RETURN NEW;
 END;
@@ -1381,6 +1426,39 @@ BEGIN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
     RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'referrer', NULL) b;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.guard_link_ownership()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF current_user IN ('authenticated', 'anon')
+     AND OLD.user_id IS NOT NULL
+     AND auth.uid() IS DISTINCT FROM OLD.user_id
+     AND (NEW.user_id IS DISTINCT FROM OLD.user_id OR NEW.team_id IS DISTINCT FROM OLD.team_id) THEN
+    RAISE EXCEPTION 'Only the link owner can change its owner or team' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.guard_team_owner_change()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.owner_id IS DISTINCT FROM OLD.owner_id
+     AND current_user IN ('authenticated', 'anon')
+     AND auth.uid() IS DISTINCT FROM OLD.owner_id THEN
+    RAISE EXCEPTION 'Only the team owner can transfer the team' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
 END;
 $function$
 ;
@@ -1992,9 +2070,11 @@ CREATE TRIGGER count_click_in_rollups AFTER INSERT ON public.click_events FOR EA
 CREATE TRIGGER strip_raw_ip_address BEFORE INSERT OR UPDATE ON public.clicks FOR EACH ROW EXECUTE FUNCTION public.strip_raw_ip_address();
 CREATE TRIGGER protect_domain_verification_columns BEFORE INSERT OR UPDATE ON public.domains FOR EACH ROW EXECUTE FUNCTION public.protect_domain_verification_columns();
 CREATE TRIGGER enforce_free_link_limit BEFORE INSERT ON public.links FOR EACH ROW EXECUTE FUNCTION public.enforce_free_link_limit();
+CREATE TRIGGER guard_link_ownership BEFORE UPDATE OF user_id, team_id ON public.links FOR EACH ROW EXECUTE FUNCTION public.guard_link_ownership();
 CREATE TRIGGER hash_link_password BEFORE INSERT OR UPDATE OF password_hash ON public.links FOR EACH ROW EXECUTE FUNCTION public.hash_link_password();
 CREATE TRIGGER fill_product_url_from_link BEFORE INSERT OR UPDATE OF original_url, link_id ON public.products FOR EACH ROW EXECUTE FUNCTION public.fill_product_url_from_link();
 CREATE TRIGGER protect_profile_privileged_columns BEFORE INSERT OR UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.protect_profile_privileged_columns();
+CREATE TRIGGER guard_team_owner_change BEFORE UPDATE OF owner_id ON public.teams FOR EACH ROW EXECUTE FUNCTION public.guard_team_owner_change();
 CREATE TRIGGER tech_vault_items_updated_at BEFORE UPDATE ON public.tech_vault_items FOR EACH ROW EXECUTE FUNCTION public.update_tech_vault_updated_at();
 
 -- Row level security
@@ -2136,10 +2216,11 @@ CREATE POLICY "Users can delete own links" ON public.links AS PERMISSIVE FOR DEL
     USING ((auth.uid() = user_id));
 
 CREATE POLICY "Users can insert own links" ON public.links AS PERMISSIVE FOR INSERT TO public
-    WITH CHECK ((auth.uid() = user_id));
+    WITH CHECK (((auth.uid() = user_id) AND ((team_id IS NULL) OR public.can_edit_team(team_id))));
 
 CREATE POLICY "Users can update own links" ON public.links AS PERMISSIVE FOR UPDATE TO public
-    USING ((auth.uid() = user_id));
+    USING ((auth.uid() = user_id))
+    WITH CHECK (((auth.uid() = user_id) AND ((team_id IS NULL) OR public.can_edit_team(team_id))));
 
 CREATE POLICY "Users can view own links" ON public.links AS PERMISSIVE FOR SELECT TO public
     USING ((auth.uid() = user_id));
@@ -2213,20 +2294,12 @@ CREATE POLICY "Team admins can view invites" ON public.team_invites AS PERMISSIV
 CREATE POLICY "Members can view own membership" ON public.team_members AS PERMISSIVE FOR SELECT TO public
     USING ((user_id = auth.uid()));
 
-CREATE POLICY "Team admins can add members" ON public.team_members AS PERMISSIVE FOR INSERT TO public
-    WITH CHECK ((EXISTS ( SELECT 1
-   FROM public.team_members tm
-  WHERE ((tm.team_id = team_members.team_id) AND (tm.user_id = auth.uid()) AND (tm.role = ANY (ARRAY['owner'::text, 'admin'::text]))))));
+CREATE POLICY "Team admins can remove members" ON public.team_members AS PERMISSIVE FOR DELETE TO authenticated
+    USING ((public.can_manage_team(team_id) AND (role <> 'owner'::text)));
 
-CREATE POLICY "Team admins can remove members" ON public.team_members AS PERMISSIVE FOR DELETE TO public
-    USING ((EXISTS ( SELECT 1
-   FROM public.team_members tm
-  WHERE ((tm.team_id = team_members.team_id) AND (tm.user_id = auth.uid()) AND (tm.role = ANY (ARRAY['owner'::text, 'admin'::text]))))));
-
-CREATE POLICY "Team admins can update members" ON public.team_members AS PERMISSIVE FOR UPDATE TO public
-    USING ((EXISTS ( SELECT 1
-   FROM public.team_members tm
-  WHERE ((tm.team_id = team_members.team_id) AND (tm.user_id = auth.uid()) AND (tm.role = ANY (ARRAY['owner'::text, 'admin'::text]))))));
+CREATE POLICY "Team admins can update members" ON public.team_members AS PERMISSIVE FOR UPDATE TO authenticated
+    USING ((public.can_manage_team(team_id) AND (role <> 'owner'::text)))
+    WITH CHECK ((public.can_manage_team(team_id) AND (role = ANY (ARRAY['admin'::text, 'editor'::text, 'viewer'::text]))));
 
 CREATE POLICY "Team owners can add themselves" ON public.team_members AS PERMISSIVE FOR INSERT TO public
     WITH CHECK (((user_id = auth.uid()) AND (EXISTS ( SELECT 1
@@ -2236,10 +2309,9 @@ CREATE POLICY "Team owners can add themselves" ON public.team_members AS PERMISS
 CREATE POLICY "Users can view members of their teams" ON public.team_members AS PERMISSIVE FOR SELECT TO public
     USING (((user_id = auth.uid()) OR public.is_team_member(team_id)));
 
-CREATE POLICY "Owners and Admins can update teams" ON public.teams AS PERMISSIVE FOR UPDATE TO public
-    USING (((auth.uid() = owner_id) OR (EXISTS ( SELECT 1
-   FROM public.team_members
-  WHERE ((team_members.team_id = teams.id) AND (team_members.user_id = auth.uid()) AND (team_members.role = ANY (ARRAY['owner'::text, 'admin'::text])))))));
+CREATE POLICY "Owners and Admins can update teams" ON public.teams AS PERMISSIVE FOR UPDATE TO authenticated
+    USING (((auth.uid() = owner_id) OR public.can_manage_team(id)))
+    WITH CHECK (((auth.uid() = owner_id) OR public.can_manage_team(id)));
 
 CREATE POLICY "Users can create teams" ON public.teams AS PERMISSIVE FOR INSERT TO public
     WITH CHECK ((auth.uid() = owner_id));
@@ -2369,6 +2441,8 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 REVOKE ALL ON FUNCTION public.accept_team_invite(p_token text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.aggregate_daily_stats(target_date date) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.backfill_click_rollups(p_month date) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.can_edit_team(team_uuid uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.can_manage_team(team_uuid uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.click_rollup_rows(ce public.click_events) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.count_click_in_rollups() FROM PUBLIC, anon, authenticated, service_role;
@@ -2394,6 +2468,8 @@ REVOKE ALL ON FUNCTION public.get_user_device_breakdown(p_user_id uuid) FROM PUB
 REVOKE ALL ON FUNCTION public.get_user_device_model_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.guard_link_ownership() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.guard_team_owner_change() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.hash_link_password() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.increment_bio_view(profile_id uuid) FROM PUBLIC, anon, authenticated, service_role;
@@ -2419,6 +2495,11 @@ GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO anon
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO service_role;
 GRANT EXECUTE ON FUNCTION public.backfill_click_rollups(p_month date) TO service_role;
+GRANT EXECUTE ON FUNCTION public.can_edit_team(team_uuid uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.can_edit_team(team_uuid uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.can_edit_team(team_uuid uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.can_manage_team(team_uuid uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.can_manage_team(team_uuid uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.click_rollup_rows(ce public.click_events) TO service_role;
@@ -2476,6 +2557,14 @@ GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO authen
 GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO anon;
+GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO service_role;
+GRANT EXECUTE ON FUNCTION public.guard_team_owner_change() TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public.guard_team_owner_change() TO anon;
+GRANT EXECUTE ON FUNCTION public.guard_team_owner_change() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.guard_team_owner_change() TO service_role;
 GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
 GRANT EXECUTE ON FUNCTION public.hash_link_password() TO service_role;
 GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO service_role;
