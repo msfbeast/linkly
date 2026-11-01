@@ -60,3 +60,14 @@ Bob: move own file into Alice's folder                        DENIED
 Bob: delete Alice's avatar (rows changed)                     OK 0
 Bob: read Alice's digital product (rows)                      OK 0
 Alice: read own digital product (rows)                        OK 1
+anon: new guest link returns a claim token                    OK true
+anon: public guest link hides claim token                     OK false
+anon: old guest email setter                                  DENIED
+anon: set guest email, wrong session                          OK called
+server: guest email after stranger                            OK <none>
+anon: set guest email, own session                            OK called
+server: guest email after owner session                       OK me@x.com
+anon: claim a guest link                                      DENIED
+Bob: claim guest link for himself                             OK true
+Bob: claim the same link again                                DENIED
+Bob: claimed link is his, guest data gone                     OK guest=f token=- emai

@@ -489,21 +489,21 @@ CREATE OR REPLACE FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id
  SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_link_id UUID;
+  v_link_id uuid;
 BEGIN
-    IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
-        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
-    END IF;
-  -- Update the link to belong to the user
+  IF p_user_id IS DISTINCT FROM auth.uid() AND coalesce(auth.role(), '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+  END IF;
+
   UPDATE public.links
-  SET 
-    user_id = p_user_id,
-    is_guest = false,
-    claim_token = NULL,
-    expires_at = NULL,
-    guest_session_id = NULL
-  WHERE claim_token = p_claim_token
-  AND is_guest = true
+  SET user_id = p_user_id,
+      is_guest = false,
+      claim_token = NULL,
+      expires_at = NULL,
+      guest_session_id = NULL,
+      metadata = coalesce(metadata, '{}'::jsonb) - 'guest_session_id' - 'guest_email'
+  WHERE claim_token = p_claim_token::text
+    AND is_guest
   RETURNING id INTO v_link_id;
 
   IF v_link_id IS NULL THEN
@@ -552,35 +552,18 @@ CREATE OR REPLACE FUNCTION public.create_guest_link(p_original_url text, p_short
  SET search_path TO 'public'
 AS $function$
 DECLARE
-    new_id UUID;
-    result JSON;
+    new_id uuid := gen_random_uuid();
+    token text := gen_random_uuid()::text;
 BEGIN
-    new_id := gen_random_uuid();
-
     INSERT INTO public.links (
-        id,
-        original_url,
-        short_code,
-        title,
-        clicks,
-        created_at,
-        is_guest,
-        guest_session_id,
-        metadata
+        id, original_url, short_code, title, clicks, created_at,
+        is_guest, guest_session_id, claim_token, metadata
     ) VALUES (
-        new_id,
-        p_original_url,
-        p_short_code,
-        'Guest Link',
-        0,
-        NOW(),
-        TRUE,
-        p_guest_session_id,
+        new_id, p_original_url, p_short_code, 'Guest Link', 0, now(),
+        true, p_guest_session_id, token,
         jsonb_build_object('guest_session_id', p_guest_session_id)
     );
-
-    SELECT json_build_object('id', new_id) INTO result;
-    RETURN result;
+    RETURN json_build_object('id', new_id, 'claim_token', token);
 END;
 $function$
 ;
@@ -1639,17 +1622,22 @@ END;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text)
+CREATE OR REPLACE FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text, p_session_id text)
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
 BEGIN
-    UPDATE public.links
-    SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('guest_email', p_email)
-    WHERE id = p_link_id
-      AND is_guest = TRUE;
+  IF p_email IS NULL OR length(p_email) > 254 OR p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' THEN
+    RAISE EXCEPTION 'Invalid email' USING ERRCODE = '22023';
+  END IF;
+  UPDATE public.links
+  SET metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object('guest_email', p_email)
+  WHERE id = p_link_id
+    AND is_guest
+    AND guest_session_id IS NOT NULL
+    AND guest_session_id = p_session_id;
 END;
 $function$
 ;
@@ -2196,7 +2184,7 @@ REVOKE ALL ON FUNCTION public.protect_profile_privileged_columns() FROM PUBLIC, 
 REVOKE ALL ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.strip_raw_ip_address() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text, p_session_id text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.update_tech_vault_updated_at() FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.accept_team_invite(p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_team_invite(p_token text) TO service_role;
@@ -2286,10 +2274,9 @@ GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO anon;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO service_role;
 GRANT EXECUTE ON FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) TO anon;
-GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text, p_session_id text) TO anon;
+GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text, p_session_id text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text, p_session_id text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.update_tech_vault_updated_at() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.update_tech_vault_updated_at() TO anon;
 GRANT EXECUTE ON FUNCTION public.update_tech_vault_updated_at() TO authenticated;

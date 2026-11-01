@@ -18,7 +18,7 @@ INSERT INTO public.teams (id, name, slug, owner_id) VALUES ('11111111-1111-1111-
 INSERT INTO public.team_members (team_id, user_id, role) VALUES ('11111111-1111-1111-1111-111111111111','00000000-0000-0000-0000-00000000000a','owner'),('11111111-1111-1111-1111-111111111111','00000000-0000-0000-0000-00000000000c','editor');
 INSERT INTO public.links (id, original_url, short_code, title, user_id) VALUES ('22222222-2222-2222-2222-22222222222a','https://a.example','aaa','A','00000000-0000-0000-0000-00000000000a');
 INSERT INTO public.links (id, original_url, short_code, title, user_id, team_id) VALUES ('22222222-2222-2222-2222-22222222222e','https://t.example','ttt','T','00000000-0000-0000-0000-00000000000a','11111111-1111-1111-1111-111111111111');
-INSERT INTO public.links (id, original_url, short_code, title, is_guest, claim_token) VALUES ('22222222-2222-2222-2222-22222222222f','https://g.example','ggg','G', true, '33333333-3333-3333-3333-333333333333');
+INSERT INTO public.links (id, original_url, short_code, title, is_guest, claim_token, guest_session_id) VALUES ('22222222-2222-2222-2222-22222222222f','https://g.example','ggg','G', true, '33333333-3333-3333-3333-333333333333', 'guest-sess');
 INSERT INTO public.click_events (link_id, country, city, device, browser, os, referrer) SELECT '22222222-2222-2222-2222-22222222222a','India','Pune','Mobile','Chrome','Android','direct' FROM generate_series(1,5);
 INSERT INTO public.analytics_share_tokens (user_id, token) VALUES ('00000000-0000-0000-0000-00000000000a','alicetoken');
 INSERT INTO public.links (id, original_url, short_code, title, user_id, password_hash) VALUES ('22222222-2222-2222-2222-22222222222b','https://secret.example','lck','Locked','00000000-0000-0000-0000-00000000000a','opensesame');
@@ -102,4 +102,15 @@ SELECT pg_temp.probe('Bob: move own file into Alice''s folder', $q$WITH u AS (UP
 SELECT pg_temp.probe('Bob: delete Alice''s avatar (rows changed)', $q$WITH d AS (DELETE FROM storage.objects WHERE name = '00000000-0000-0000-0000-00000000000a/avatar.jpg' RETURNING 1) SELECT count(*)::text FROM d$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Bob: read Alice''s digital product (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'digital-products'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Alice: read own digital product (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'digital-products'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: new guest link returns a claim token', $q$SELECT (public.create_guest_link('https://n.example', 'nnn', 's1')::jsonb ? 'claim_token')::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: public guest link hides claim token', $q$SELECT (public.get_public_link('ggg') ? 'claim_token')::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: old guest email setter', $q$SELECT public.update_guest_link_metadata('22222222-2222-2222-2222-22222222222f', 'evil@x.com')::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: set guest email, wrong session', $q$SELECT 'called' FROM (SELECT public.update_guest_link_metadata('22222222-2222-2222-2222-22222222222f', 'evil@x.com', 'other-sess')) x$q$, 'anon', null);
+SELECT pg_temp.probe('server: guest email after stranger', $q$SELECT coalesce(metadata->>'guest_email', '<none>') FROM public.links WHERE id = '22222222-2222-2222-2222-22222222222f'$q$, 'service_role', null);
+SELECT pg_temp.probe('anon: set guest email, own session', $q$SELECT 'called' FROM (SELECT public.update_guest_link_metadata('22222222-2222-2222-2222-22222222222f', 'me@x.com', 'guest-sess')) x$q$, 'anon', null);
+SELECT pg_temp.probe('server: guest email after owner session', $q$SELECT coalesce(metadata->>'guest_email', '<none>') FROM public.links WHERE id = '22222222-2222-2222-2222-22222222222f'$q$, 'service_role', null);
+SELECT pg_temp.probe('anon: claim a guest link', $q$SELECT (public.claim_guest_link('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-00000000000b'))->>'success'$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: claim guest link for himself', $q$SELECT (public.claim_guest_link('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-00000000000b'))->>'success'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: claim the same link again', $q$SELECT (public.claim_guest_link('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-00000000000b'))->>'success'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: claimed link is his, guest data gone', $q$SELECT format('guest=%s token=%s email=%s', is_guest, coalesce(claim_token, '-'), coalesce(metadata->>'guest_email', '-')) FROM public.links WHERE id = '22222222-2222-2222-2222-22222222222f'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 ROLLBACK;
