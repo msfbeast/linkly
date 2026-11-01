@@ -17,16 +17,19 @@ const renderWithTheme = (ui: React.ReactElement) => {
  * render exactly two data series (forecast and actual) with distinct visual styling.
  * **Validates: Requirements 3.2**
  */
+// 100 full chart renders take ~4-5s in jsdom, right at vitest's 5s default.
+const RENDER_TIMEOUT_MS = 30_000;
+
 describe('ClickForecastChart - Property Tests', () => {
-  // Arbitrary for generating day names
-  const dayArbitrary = fc.constantFrom('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun');
+  // Arbitrary for generating x-axis labels (the dashboard passes `date`)
+  const dateArbitrary = fc.constantFrom('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun');
 
   // Arbitrary for generating click counts
   const clickCountArbitrary = fc.nat({ max: 10000 });
 
   // Arbitrary for generating a single data point
   const dataPointArbitrary = fc.record<ClickForecastDataPoint>({
-    day: dayArbitrary,
+    date: dateArbitrary,
     forecast: clickCountArbitrary,
     actual: clickCountArbitrary,
   });
@@ -38,32 +41,24 @@ describe('ClickForecastChart - Property Tests', () => {
     cleanup();
   });
 
-  it('Property 5: Click Chart Dual Series - chart renders with title and subtitle', () => {
+  // The card title ("Click Forecast") now lives in AnalyticsOverview, so the
+  // chart itself is checked for its two series instead.
+  it('Property 5: Click Chart Dual Series - renders both the actual and forecast series', () => {
     fc.assert(
       fc.property(dataArrayArbitrary, (data) => {
         cleanup();
 
         renderWithTheme(<ClickForecastChart data={data} />);
 
-        // Verify chart container is rendered
-        const chartContainer = screen.getByTestId('click-forecast-chart');
-        expect(chartContainer).toBeInTheDocument();
-
-        // Verify title is displayed
-        const title = screen.getByTestId('chart-title');
-        expect(title).toBeInTheDocument();
-        expect(title.textContent).toBe('Click Forecast');
-
-        // Verify subtitle is displayed
-        const subtitle = screen.getByTestId('chart-subtitle');
-        expect(subtitle).toBeInTheDocument();
-        expect(subtitle.textContent).toBe('Projected engagement via analytics');
+        expect(screen.getByTestId('click-forecast-chart')).toBeInTheDocument();
+        expect(screen.getByText('Actual Clicks')).toBeInTheDocument();
+        expect(screen.getByText('Forecast')).toBeInTheDocument();
 
         cleanup();
       }),
       { numRuns: 100 }
     );
-  });
+  }, RENDER_TIMEOUT_MS);
 
   it('Property 5: Click Chart Dual Series - data structure contains both forecast and actual keys', () => {
     fc.assert(
@@ -100,5 +95,5 @@ describe('ClickForecastChart - Property Tests', () => {
       }),
       { numRuns: 100 }
     );
-  });
+  }, RENDER_TIMEOUT_MS);
 });

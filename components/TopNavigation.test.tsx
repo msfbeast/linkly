@@ -13,6 +13,11 @@ vi.mock('../contexts/AuthContext', () => ({
   }),
 }));
 
+// Personal workspace (no team): usePermission grants everything.
+vi.mock('../contexts/TeamContext', () => ({
+  useTeam: () => ({ currentTeam: null, userRole: null, teams: [], switchTeam: vi.fn() }),
+}));
+
 /**
  * Wrapper component that provides necessary context for TopNavigation
  */

@@ -7,8 +7,8 @@ import { parseUserAgent, DeviceType, OSType } from '../userAgentParser';
  * **Validates: Requirements 2.3, 2.6**
  * 
  * For any user agent string, parseUserAgent SHALL return a device value that is one of
- * 'Mobile', 'Desktop', 'Tablet', or 'Other', and an os value that is one of
- * 'iOS', 'Android', 'Windows', 'MacOS', 'Linux', or 'Other'.
+ * 'mobile', 'desktop', 'tablet', or 'unknown', and an os value that is one of
+ * 'ios', 'android', 'windows', 'macos', 'linux', or 'unknown'.
  */
 describe('UserAgentParser Property Tests', () => {
   const validDeviceTypes: DeviceType[] = ['mobile', 'desktop', 'tablet', 'unknown'];
@@ -123,7 +123,7 @@ describe('UserAgentParser Property Tests', () => {
         (device, suffix) => {
           const userAgent = `Mozilla/5.0 (${device}; CPU ${suffix})`;
           const result = parseUserAgent(userAgent);
-          expect(result.os).toBe('iOS');
+          expect(result.os).toBe('ios');
         }
       ),
       { numRuns: 100 }
@@ -144,7 +144,7 @@ describe('UserAgentParser Property Tests', () => {
           const cleanPrefix = prefix.replace(/iphone|ipad|ipod/gi, '');
           const userAgent = `${cleanPrefix}Android${suffix}`;
           const result = parseUserAgent(userAgent);
-          expect(result.os).toBe('Android');
+          expect(result.os).toBe('android');
         }
       ),
       { numRuns: 100 }
@@ -163,7 +163,7 @@ describe('UserAgentParser Property Tests', () => {
         (windowsPattern, suffix) => {
           const userAgent = `Mozilla/5.0 (${windowsPattern} ${suffix})`;
           const result = parseUserAgent(userAgent);
-          expect(result.os).toBe('Windows');
+          expect(result.os).toBe('windows');
         }
       ),
       { numRuns: 100 }
@@ -181,7 +181,7 @@ describe('UserAgentParser Property Tests', () => {
         (suffix) => {
           const userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X ${suffix})`;
           const result = parseUserAgent(userAgent);
-          expect(result.os).toBe('MacOS');
+          expect(result.os).toBe('macos');
         }
       ),
       { numRuns: 100 }
@@ -200,7 +200,7 @@ describe('UserAgentParser Property Tests', () => {
           // iPhone should be detected as Mobile
           const userAgent = `Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 ${suffix})`;
           const result = parseUserAgent(userAgent);
-          expect(result.device).toBe('Mobile');
+          expect(result.device).toBe('mobile');
         }
       ),
       { numRuns: 100 }
@@ -218,7 +218,7 @@ describe('UserAgentParser Property Tests', () => {
         (suffix) => {
           const userAgent = `Mozilla/5.0 (iPad; CPU OS 14_0 ${suffix})`;
           const result = parseUserAgent(userAgent);
-          expect(result.device).toBe('Tablet');
+          expect(result.device).toBe('tablet');
         }
       ),
       { numRuns: 100 }
@@ -236,7 +236,7 @@ describe('UserAgentParser Property Tests', () => {
         (suffix) => {
           const userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64 ${suffix})`;
           const result = parseUserAgent(userAgent);
-          expect(result.device).toBe('Desktop');
+          expect(result.device).toBe('desktop');
         }
       ),
       { numRuns: 100 }
