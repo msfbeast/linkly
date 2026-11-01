@@ -8,6 +8,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from './storage/supabaseClient';
+import { parseLinkAnalytics, type LinkAnalyticsRange, type LinkRangeAnalytics } from '../utils/linkAnalytics';
 
 import { UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, ReferrerBreakdown, OsBreakdown, BrowserBreakdown, DeviceModelBreakdown, DailyClicks, LinkStats } from '../types';
 
@@ -239,6 +240,25 @@ class AggregatedAnalyticsService {
                 topReferrer: row.top_referrer,
                 clicksByDay: row.clicks_by_day || [],
             };
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Cards, timeline and breakdowns for one link and time range, counted on
+     * the server over every click in the range (get_link_analytics).
+     */
+    async getLinkAnalytics(linkId: string, range: LinkAnalyticsRange): Promise<LinkRangeAnalytics | null> {
+        if (!isSupabaseConfigured() || !supabase) return null;
+
+        try {
+            const { data, error } = await supabase.rpc('get_link_analytics', {
+                p_link_id: linkId,
+                p_range: range,
+            });
+            if (error) return null;
+            return parseLinkAnalytics(data);
         } catch {
             return null;
         }

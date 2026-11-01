@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MouseP
 import { LinkData, ClickEvent, getCategoryColor, LinkStats } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
+import { buildTimeline, growth, type LinkRangeAnalytics } from '../utils/linkAnalytics';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie
@@ -20,6 +21,19 @@ const LinkAnalytics: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
     const [currentPage, setCurrentPage] = useState(1);
+    // Counts over every click in the range, from the server. The clicks
+    // downloaded with the link are capped, so they only feed the map, the
+    // recent clicks table and the CSV export (and the charts in local mode).
+    const [rangeStats, setRangeStats] = useState<{ range: typeof timeRange; data: LinkRangeAnalytics } | null>(null);
+
+    useEffect(() => {
+        if (!id) return;
+        let cancelled = false;
+        aggregatedAnalytics.getLinkAnalytics(id, timeRange).then((data) => {
+            if (!cancelled && data) setRangeStats({ range: timeRange, data });
+        });
+        return () => { cancelled = true; };
+    }, [id, timeRange]);
 
     useEffect(() => {
         const fetchLink = async () => {
@@ -93,16 +107,23 @@ const LinkAnalytics: React.FC = () => {
         (now - c.timestamp) > timeLimit && (now - c.timestamp) <= previousTimeLimit
     );
 
-    const calculateGrowth = (current: number, previous: number) => {
-        if (previous === 0) return current > 0 ? 100 : 0;
-        return Math.round(((current - previous) / previous) * 100);
-    };
+    // Server counts for the selected range, when they have arrived.
+    const server = rangeStats?.range === timeRange ? rangeStats.data : null;
 
-    const clickGrowth = calculateGrowth(filteredClicks.length, previousClicks.length);
+    const rangeTotal = server
+        ? server.total
+        : (timeRange === 'all' ? (linkStats?.totalClicks ?? filteredClicks.length) : filteredClicks.length);
+    const clickGrowth = server
+        ? growth(server.total, server.previousTotal)
+        : growth(filteredClicks.length, previousClicks.length);
 
-    const uniqueClicks = new Set(filteredClicks.map(c => c.visitorId).filter(Boolean)).size;
-    const previousUniqueClicks = new Set(previousClicks.map(c => c.visitorId).filter(Boolean)).size;
-    const uniqueGrowth = calculateGrowth(uniqueClicks, previousUniqueClicks);
+    const uniqueClicks = server
+        ? server.unique
+        : new Set(filteredClicks.map(c => c.visitorId).filter(Boolean)).size;
+    const previousUniqueClicks = server
+        ? server.previousUnique
+        : new Set(previousClicks.map(c => c.visitorId).filter(Boolean)).size;
+    const uniqueGrowth = growth(uniqueClicks, previousUniqueClicks);
 
     // Export to CSV
     const handleExportCSV = () => {
@@ -134,8 +155,7 @@ const LinkAnalytics: React.FC = () => {
     };
 
     // 1. Timeline Data
-    // 1. Timeline Data
-    const timelineData = (() => {
+    const timelineData = server ? buildTimeline(server.hourly, timeRange, now) : (() => {
         const days = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14;
         const data: Record<string, number> = {};
 
@@ -178,13 +198,13 @@ const LinkAnalytics: React.FC = () => {
             .sort((a, b) => b.value - a.value);
     };
 
-    const deviceData = getDistribution('device');
-    const browserData = getDistribution('browser');
-    const osData = getDistribution('os');
-    const countryData = getDistribution('country').slice(0, 5);
-    const referrerData = getDistribution('referrer').slice(0, 5);
+    const deviceData = server ? server.device : getDistribution('device');
+    const browserData = server ? server.browser : getDistribution('browser');
+    const osData = server ? server.os : getDistribution('os');
+    const countryData = server ? server.country.slice(0, 5) : getDistribution('country').slice(0, 5);
+    const referrerData = server ? server.referrer.slice(0, 5) : getDistribution('referrer').slice(0, 5);
     // @ts-ignore - deviceModel is optional in interface but valid for runtime access if present
-    const deviceModelData = getDistribution('deviceModel').slice(0, 5);
+    const deviceModelData = server ? server.model.slice(0, 5) : getDistribution('deviceModel').slice(0, 5);
 
     const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#6b7280'];
 
@@ -203,11 +223,12 @@ const LinkAnalytics: React.FC = () => {
         if (!link.abTestConfig?.enabled) return null;
 
         const variants = link.abTestConfig.variants;
-        const totalClicks = filteredClicks.length;
+        const totalClicks = server ? server.total : filteredClicks.length;
 
         // Count clicks per destination URL
         const clickCounts: Record<string, number> = {};
-        filteredClicks.forEach(c => {
+        if (server) server.destination.forEach(d => { clickCounts[d.name] = d.value; });
+        else filteredClicks.forEach(c => {
             if (c.destinationUrl) {
                 clickCounts[c.destinationUrl] = (clickCounts[c.destinationUrl] || 0) + 1;
             } else {
@@ -302,7 +323,7 @@ const LinkAnalytics: React.FC = () => {
                             <span className="text-stone-500 text-sm font-medium">Total Clicks</span>
                         </div>
                         <p className="text-3xl font-bold text-slate-900 mb-1">
-                            {(linkStats?.totalClicks ?? filteredClicks.length).toLocaleString()}
+                            {rangeTotal.toLocaleString()}
                         </p>
                         <div className={`flex items-center text-xs font-medium ${clickGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {clickGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
@@ -318,7 +339,7 @@ const LinkAnalytics: React.FC = () => {
                             <span className="text-stone-500 text-sm font-medium">Unique Visitors</span>
                         </div>
                         <p className="text-3xl font-bold text-slate-900 mb-1">
-                            {(linkStats?.uniqueVisitors ?? uniqueClicks).toLocaleString()}
+                            {uniqueClicks.toLocaleString()}
                         </p>
                         <div className={`flex items-center text-xs font-medium ${uniqueGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {uniqueGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
@@ -517,7 +538,7 @@ const LinkAnalytics: React.FC = () => {
                                     <div className="w-24 h-2 bg-stone-200 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-emerald-500 rounded-full"
-                                            style={{ width: `${(item.value / filteredClicks.length) * 100}%` }}
+                                            style={{ width: `${rangeTotal ? (item.value / rangeTotal) * 100 : 0}%` }}
                                         />
                                     </div>
                                     <span className="text-xs text-stone-500 w-8 text-right">{item.value}</span>
@@ -540,7 +561,7 @@ const LinkAnalytics: React.FC = () => {
                                 {deviceData.map((item) => (
                                     <div key={item.name} className="flex items-center justify-between text-sm">
                                         <span className="text-slate-700">{item.name}</span>
-                                        <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                        <span className="font-medium text-slate-900">{rangeTotal ? Math.round((item.value / rangeTotal) * 100) : 0}%</span>
                                     </div>
                                 ))}
                             </div>
@@ -552,7 +573,7 @@ const LinkAnalytics: React.FC = () => {
                                 {osData.map((item) => (
                                     <div key={item.name} className="flex items-center justify-between text-sm">
                                         <span className="text-slate-700">{item.name}</span>
-                                        <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                        <span className="font-medium text-slate-900">{rangeTotal ? Math.round((item.value / rangeTotal) * 100) : 0}%</span>
                                     </div>
                                 ))}
                             </div>
@@ -568,7 +589,7 @@ const LinkAnalytics: React.FC = () => {
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <span className="text-stone-400 text-xs">{item.value}</span>
-                                            <span className="font-medium text-slate-900">{Math.round((item.value / filteredClicks.length) * 100)}%</span>
+                                            <span className="font-medium text-slate-900">{rangeTotal ? Math.round((item.value / rangeTotal) * 100) : 0}%</span>
                                         </div>
                                     </div>
                                 ))}
@@ -599,7 +620,7 @@ const LinkAnalytics: React.FC = () => {
                                                     <div className="w-16 h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                                         <div
                                                             className="h-full bg-amber-400 rounded-full"
-                                                            style={{ width: `${(item.value / filteredClicks.length) * 100}%` }}
+                                                            style={{ width: `${rangeTotal ? (item.value / rangeTotal) * 100 : 0}%` }}
                                                         />
                                                     </div>
                                                     <span className="font-medium text-slate-900 text-xs w-6 text-right">{item.value}</span>
