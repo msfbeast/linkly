@@ -171,6 +171,12 @@ CREATE TABLE IF NOT EXISTS public.gallery_items (
     updated_at timestamp with time zone DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.link_unlock_failures (
+    link_id uuid NOT NULL,
+    visitor text NOT NULL,
+    failed_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS public.links (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     original_url text NOT NULL,
@@ -1593,26 +1599,42 @@ END;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.unlock_link(p_short_code text, p_password text)
+CREATE OR REPLACE FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text)
  RETURNS jsonb
  LANGUAGE plpgsql
- STABLE SECURITY DEFINER
+ SECURITY DEFINER
  SET search_path TO 'public', 'extensions'
 AS $function$
 DECLARE
   l public.links;
-  out jsonb;
+  v text := coalesce(nullif(p_visitor, ''), 'unknown');
 BEGIN
-  SELECT * INTO l FROM public.links
-  WHERE short_code = p_short_code
-  LIMIT 1;
-  IF NOT FOUND OR coalesce(l.password_hash, '') = '' OR p_password IS NULL
-     OR extensions.crypt(p_password, l.password_hash) <> l.password_hash THEN
-    RETURN NULL;
+  SELECT * INTO l FROM public.links WHERE short_code = p_short_code LIMIT 1;
+  IF NOT FOUND OR coalesce(l.password_hash, '') = '' THEN
+    RETURN jsonb_build_object('status', 'wrong');
   END IF;
+
+  -- One attempt per link at a time, so parallel guesses can't all pass the
+  -- count below before any of their failures is recorded.
+  PERFORM pg_advisory_xact_lock(hashtextextended('unlock:' || l.id::text, 0));
+
+  IF (SELECT count(*) FROM public.link_unlock_failures
+      WHERE link_id = l.id AND visitor = v AND failed_at > now() - interval '15 minutes') >= 5
+     OR (SELECT count(*) FROM public.link_unlock_failures
+      WHERE link_id = l.id AND failed_at > now() - interval '1 hour') >= 100 THEN
+    RETURN jsonb_build_object('status', 'limited');
+  END IF;
+
+  IF p_password IS NULL OR extensions.crypt(p_password, l.password_hash) <> l.password_hash THEN
+    INSERT INTO public.link_unlock_failures (link_id, visitor) VALUES (l.id, v);
+    DELETE FROM public.link_unlock_failures WHERE link_id = l.id AND failed_at < now() - interval '1 day';
+    RETURN jsonb_build_object('status', 'wrong');
+  END IF;
+
+  DELETE FROM public.link_unlock_failures WHERE link_id = l.id AND visitor = v;
   l.password_hash := NULL;              -- unlocked: project as unprotected
-  out := public.link_public_json(l);
-  RETURN out || jsonb_build_object('requires_password', true);
+  RETURN jsonb_build_object('status', 'ok',
+    'link', public.link_public_json(l) || jsonb_build_object('requires_password', true));
 END;
 $function$
 ;
@@ -1709,6 +1731,7 @@ CREATE INDEX idx_domains_domain ON public.domains USING btree (domain);
 CREATE INDEX idx_domains_user_id ON public.domains USING btree (user_id);
 CREATE INDEX idx_gallery_items_sort_order ON public.gallery_items USING btree (sort_order);
 CREATE INDEX idx_gallery_items_user_id ON public.gallery_items USING btree (user_id);
+CREATE INDEX link_unlock_failures_link_time ON public.link_unlock_failures USING btree (link_id, failed_at);
 CREATE INDEX idx_guest_links_expiry ON public.links USING btree (is_guest, expires_at) WHERE (is_guest = true);
 CREATE INDEX idx_links_claim_token ON public.links USING btree (claim_token) WHERE (claim_token IS NOT NULL);
 CREATE INDEX idx_links_expires_at ON public.links USING btree (expires_at);
@@ -1743,6 +1766,7 @@ ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_user_id_fkey FOREIGN KEY 
 ALTER TABLE ONLY public.folders ADD CONSTRAINT folders_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.folders(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.folders ADD CONSTRAINT folders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.gallery_items ADD CONSTRAINT gallery_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.link_unlock_failures ADD CONSTRAINT link_unlock_failures_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.links(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folders(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
@@ -1782,6 +1806,7 @@ ALTER TABLE public.clicks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.domains ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gallery_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.link_unlock_failures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
@@ -2045,6 +2070,7 @@ REVOKE ALL ON TABLE public.clicks FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.domains FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.folders FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.gallery_items FROM anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.link_unlock_failures FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.links FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.newsletter_subscribers FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.orders FROM anon, authenticated, service_role;
@@ -2095,6 +2121,7 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gallery_items TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gallery_items TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gallery_items TO service_role;
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.link_unlock_failures TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.links TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.links TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.links TO service_role;
@@ -2168,7 +2195,7 @@ REVOKE ALL ON FUNCTION public.protect_domain_verification_columns() FROM PUBLIC,
 REVOKE ALL ON FUNCTION public.protect_profile_privileged_columns() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.strip_raw_ip_address() FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.unlock_link(p_short_code text, p_password text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.update_tech_vault_updated_at() FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.accept_team_invite(p_token text) TO authenticated;
@@ -2258,9 +2285,7 @@ GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO anon;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO service_role;
-GRANT EXECUTE ON FUNCTION public.unlock_link(p_short_code text, p_password text) TO anon;
-GRANT EXECUTE ON FUNCTION public.unlock_link(p_short_code text, p_password text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.unlock_link(p_short_code text, p_password text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) TO anon;
 GRANT EXECUTE ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text) TO authenticated;

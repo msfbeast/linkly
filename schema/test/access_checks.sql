@@ -83,8 +83,14 @@ SELECT pg_temp.probe('Alice: save a javascript: link', $q$INSERT INTO public.lin
 SELECT pg_temp.probe('anon: public link has destination', $q$SELECT (length(public.get_public_link('aaa')->>'original_url') > 0)::text$q$, 'anon', null);
 SELECT pg_temp.probe('anon: public link hides password field', $q$SELECT (public.get_public_link('lck') ? 'password_hash')::text$q$, 'anon', null);
 SELECT pg_temp.probe('anon: locked link destination', $q$SELECT '[' || (public.get_public_link('lck')->>'original_url') || ']'$q$, 'anon', null);
-SELECT pg_temp.probe('anon: unlock with wrong password', $q$SELECT coalesce(public.unlock_link('lck', 'nope')::text, 'rejected')$q$, 'anon', null);
-SELECT pg_temp.probe('anon: unlock with right password', $q$SELECT public.unlock_link('lck', 'opensesame')->>'original_url'$q$, 'anon', null);
+SELECT pg_temp.probe('anon: check a link password directly', $q$SELECT public.unlock_link_checked('lck', 'opensesame', 'v')->>'status'$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: check a link password directly', $q$SELECT public.unlock_link_checked('lck', 'opensesame', 'v')->>'status'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('anon: read unlock failures', $q$SELECT count(*)::text FROM public.link_unlock_failures$q$, 'anon', null);
+SELECT pg_temp.probe('server: unlock with wrong password', $q$SELECT public.unlock_link_checked('lck', 'nope', 'v1')->>'status'$q$, 'service_role', null);
+SELECT pg_temp.probe('server: unlock with right password', $q$SELECT public.unlock_link_checked('lck', 'opensesame', 'v1')->'link'->>'original_url'$q$, 'service_role', null);
+SELECT pg_temp.probe('server: 5 wrong guesses from one visitor', $q$SELECT string_agg(public.unlock_link_checked('lck', 'nope' || g, 'v2')->>'status', ',') FROM generate_series(1, 5) g$q$, 'service_role', null);
+SELECT pg_temp.probe('server: that visitor, right password', $q$SELECT public.unlock_link_checked('lck', 'opensesame', 'v2')->>'status'$q$, 'service_role', null);
+SELECT pg_temp.probe('server: another visitor, right password', $q$SELECT public.unlock_link_checked('lck', 'opensesame', 'v3')->>'status'$q$, 'service_role', null);
 SELECT pg_temp.probe('anon: list avatar files (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'avatars'$q$, 'anon', null);
 SELECT pg_temp.probe('Bob: list Alice''s avatar files (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE name LIKE '00000000-0000-0000-0000-00000000000a/%'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Alice: list own avatar files (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'avatars'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');

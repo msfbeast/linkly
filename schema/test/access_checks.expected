@@ -41,8 +41,14 @@ Alice: save a javascript: link                                DENIED
 anon: public link has destination                             OK true
 anon: public link hides password field                        OK false
 anon: locked link destination                                 OK []
-anon: unlock with wrong password                              OK rejected
-anon: unlock with right password                              OK https://secret.examp
+anon: check a link password directly                          DENIED
+Bob: check a link password directly                           DENIED
+anon: read unlock failures                                    DENIED
+server: unlock with wrong password                            OK wrong
+server: unlock with right password                            OK https://secret.examp
+server: 5 wrong guesses from one visitor                      OK wrong,wrong,wrong,wr
+server: that visitor, right password                          OK limited
+server: another visitor, right password                       OK ok
 anon: list avatar files (rows)                                OK 0
 Bob: list Alice's avatar files (rows)                         OK 0
 Alice: list own avatar files (rows)                           OK 1
