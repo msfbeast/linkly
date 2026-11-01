@@ -37,6 +37,13 @@ Postgres 17 and checks that it reproduces `fingerprint.txt`. Running
 `schema-fingerprint.sql` against production at any time shows whether the
 baseline has fallen behind: every row should match `fingerprint.txt`.
 
+The same job then runs `test/access_checks.sql`: it seeds a few users and
+calls the API-exposed functions, tables and views as anon, as the owner, as
+another user and as the service role, and compares who gets in with
+`test/access_checks.expected`. A change that opens analytics to the wrong
+people fails CI. If a change is meant to alter access, update the expected
+file in the same PR.
+
 `test/supabase_stubs.sql` gives plain Postgres the pieces that every Supabase
 project already has (roles, `auth`, `storage`, `vault`), so CI can load the
 baseline. It is not for use on Supabase.

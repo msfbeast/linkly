@@ -1,0 +1,26 @@
+anon: Alice stats via get_user_click_stats                    DENIED
+Bob: Alice stats via get_user_click_stats                     DENIED
+Alice: own stats                                              OK 5
+Alice: own country breakdown                                  OK 1
+Alice: own clicks over time                                   OK 1
+service_role: Alice stats                                     OK 5
+anon: link stats of Alice link                                DENIED
+Bob: link stats of Alice link                                 DENIED
+Alice: own link stats                                         OK 5
+Carol (team member): team link stats                          OK 0
+anon: read share tokens                                       DENIED
+anon: forge share token for Bob                               DENIED
+Bob: read share tokens (sees only own)                        OK <none>
+Alice: read share tokens (sees only own)                      OK alicetoken
+anon: create share token                                      DENIED
+Alice: create share token                                     OK 32
+anon: shared analytics with valid token                       OK User
+anon: shared analytics with bad token                         OK <null>
+anon: click_stats_by_country view                             DENIED
+Bob: click_stats_by_country (0 rows expected)                 OK 0
+Alice: click_stats_by_country (own rows)                      OK 1
+Bob: create team owned by Alice                               DENIED
+Bob: create own team                                          OK Bobs
+Bob: claim guest link for Alice                               DENIED
+anon: record_click on Alice link                              DENIED
+anon: legacy get_top_cities(Alice)                            DENIED
