@@ -247,8 +247,8 @@ export class SupabaseAdapter {
     return this.linkRepo.claimGuestLink(token, userId);
   }
 
-  async updateGuestEmail(linkId: string, email: string): Promise<void> {
-    return this.linkRepo.updateGuestEmail(linkId, email);
+  async updateGuestEmail(linkId: string, email: string, sessionId: string): Promise<void> {
+    return this.linkRepo.updateGuestEmail(linkId, email, sessionId);
   }
 
   // Tags & Folders

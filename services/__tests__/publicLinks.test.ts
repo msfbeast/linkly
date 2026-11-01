@@ -63,6 +63,41 @@ describe('public link reads', () => {
     });
 });
 
+describe('guest link claiming', () => {
+    beforeEach(() => { db.rpc.mockReset(); db.from.mockReset(); });
+
+    it('keeps the claim token create_guest_link returns', async () => {
+        db.rpc
+            .mockResolvedValueOnce({ data: { id: 'l1', claim_token: 'tok-1' }, error: null }) // create_guest_link
+            .mockResolvedValueOnce({ data: row({ is_guest: true }), error: null });          // get_public_link
+        const link = await new LinkRepository().createGuestLink('https://example.com', 'sess');
+        expect(db.rpc.mock.calls[0][0]).toBe('create_guest_link');
+        expect(link.claimToken).toBe('tok-1');
+    });
+
+    it('claims through claim_guest_link, never by updating the links table', async () => {
+        db.rpc.mockResolvedValueOnce({ data: { success: true, link_id: 'l1' }, error: null });
+        const repo = new LinkRepository();
+        const getLink = vi.spyOn(repo, 'getLink').mockResolvedValue(rowToLinkData(row() as any));
+        const link = await repo.claimGuestLink('tok-1', 'user-1');
+        expect(db.rpc).toHaveBeenCalledWith('claim_guest_link', { p_claim_token: 'tok-1', p_user_id: 'user-1' });
+        expect(getLink).toHaveBeenCalledWith('l1');
+        expect(db.from).not.toHaveBeenCalled();
+        expect(link.shortCode).toBe('abc');
+    });
+
+    it('surfaces a refused claim', async () => {
+        db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Invalid or expired claim token.' } });
+        await expect(new LinkRepository().claimGuestLink('bad', 'user-1')).rejects.toMatchObject({ message: 'Invalid or expired claim token.' });
+    });
+
+    it('sends the guest session id with the guest email', async () => {
+        db.rpc.mockResolvedValueOnce({ data: null, error: null });
+        await new LinkRepository().updateGuestEmail('l1', 'g@example.com', 'sess');
+        expect(db.rpc).toHaveBeenCalledWith('update_guest_link_metadata', { p_link_id: 'l1', p_email: 'g@example.com', p_session_id: 'sess' });
+    });
+});
+
 describe('rowToLinkData password field', () => {
     it('marks a locked public link as protected without any password value', () => {
         expect(rowToLinkData(row({ original_url: '', requires_password: true }) as any).password).toBe('protected');

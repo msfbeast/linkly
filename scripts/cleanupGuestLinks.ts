@@ -61,7 +61,7 @@ export async function sendDay5Reminders() {
         if (!guestEmail) continue;
 
         try {
-            const claimUrl = `${process.env.VITE_APP_URL || 'https://gather.link'}/register?claim=${link.claim_token}`;
+            const claimUrl = `${process.env.VITE_APP_URL || 'https://gather.link'}/claim/${link.claim_token}`;
 
             await resend.emails.send({
                 from: 'Gather <notifications@gather.link>',
@@ -123,7 +123,7 @@ export async function sendDay7Warnings() {
         if (!guestEmail) continue;
 
         try {
-            const claimUrl = `${process.env.VITE_APP_URL || 'https://gather.link'}/register?claim=${link.claim_token}`;
+            const claimUrl = `${process.env.VITE_APP_URL || 'https://gather.link'}/claim/${link.claim_token}`;
 
             await resend.emails.send({
                 from: 'Gather <notifications@gather.link>',
