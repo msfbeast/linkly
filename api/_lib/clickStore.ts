@@ -1,5 +1,6 @@
 import { hashIp, hmacIp, normalizeIp } from '../../utils/ipHash';
 import { parseUserAgent } from '../../utils/userAgent';
+import { shouldCount } from './countLimit';
 
 /**
  * Recording a click from the edge redirect (api/r) and the QStash worker
@@ -179,7 +180,12 @@ export async function storeClick(event: ClickEvent, env: ClickStoreEnv): Promise
  * worker host, worker rejecting deliveries), so clicks were lost without
  * any error here.
  */
-export async function recordClick(event: ClickEvent, env: ClickStoreEnv): Promise<'queued' | 'stored' | 'failed'> {
+export async function recordClick(event: ClickEvent, env: ClickStoreEnv): Promise<'queued' | 'stored' | 'limited' | 'failed'> {
+    // Per-visitor, per-link cap (api/_lib/countLimit.ts).
+    if (env.serviceKey && !(await shouldCount('click', event.linkId, await hashIp(event.ip, env.ipHashSalt || env.serviceKey)))) {
+        return 'limited';
+    }
+
     if (env.clickQueue === 'qstash') {
         if (env.qstashUrl && env.qstashToken && env.workerUrl) {
             try {

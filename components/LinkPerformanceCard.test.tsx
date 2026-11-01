@@ -27,6 +27,7 @@ describe('LinkPerformanceCard - Property Tests', () => {
   const dateStringArbitrary = fc.date({
     min: new Date('2020-01-01'),
     max: new Date('2025-12-31'),
+    noInvalidDate: true,
   }).map(d => d.toLocaleDateString());
 
   // Arbitrary for generating click counts

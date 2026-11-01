@@ -3,7 +3,6 @@ import { Loader2, AlertCircle, ArrowRight, Globe, Lock, ArrowLeft, Download, Max
 import { LinkData } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { isSupabaseConfigured } from '../services/storage/supabaseClient';
-import { createClickEventInput, validateClickEvent } from '../services/clickTrackingService';
 import { getLinkByCode as getLocalLinkByCode, incrementClicks } from '../services/storageService';
 import { getAppDeepLink } from '../utils/appDeepLinking';
 import { detectDeviceModel } from '../services/userAgentParser';
@@ -135,91 +134,37 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
   };
 
   /**
-   * Records a click event through /api/track.
-   * Falls back to direct Supabase insert if it is unavailable.
-   * 
-   * Requirements: 2.1, 2.2
+   * Records a click through /api/track (same origin), retrying once.
+   * Clicks are only ever written server-side: the database no longer
+   * accepts click rows from browsers, which let anyone inflate counts.
+   * If both attempts fail the click goes uncounted; the redirect is
+   * never held up.
    */
   const recordClick = async (link: LinkData, destinationUrl?: string): Promise<void> => {
-    const fingerprint = captureDeviceFingerprint();
-
-    try {
-      // Same-origin endpoint: geolocates from Vercel's headers and stores the
-      // click with the IP only as a keyed hash.
-      if (isSupabaseConfigured()) {
+    if (!isSupabaseConfigured()) {
+      incrementClicks(link.id); // local-only mode (no backend)
+      return;
+    }
+    const body = JSON.stringify({
+      linkId: link.id,
+      destinationUrl, // Pass destination URL for A/B testing
+      ...captureDeviceFingerprint(),
+    });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
         const response = await fetch('/api/track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           keepalive: true,
-          body: JSON.stringify({
-            linkId: link.id,
-            destinationUrl, // Pass destination URL for A/B testing
-            ...fingerprint,
-          }),
+          body,
         });
-
-        if (response.ok) {
-          return;
-        } else {
-          console.warn('[Click Tracking] /api/track failed, falling back to direct insert');
-        }
-      }
-
-      // Fallback to direct Supabase insert
-      if (isSupabaseConfigured()) {
-
-
-        // Extract UTM and QR params
-        const searchParams = new URLSearchParams(window.location.search);
-
-        const clickEventInput = createClickEventInput({
-          userAgent: fingerprint.userAgent,
-          referrer: fingerprint.referrer,
-          ipAddress: '',
-          utm_source: searchParams.get('utm_source') || undefined,
-          utm_medium: searchParams.get('utm_medium') || undefined,
-          utm_campaign: searchParams.get('utm_campaign') || undefined,
-          utm_term: searchParams.get('utm_term') || undefined,
-          utm_content: searchParams.get('utm_content') || undefined,
-          trigger_source: searchParams.get('qr') === '1' ? 'qr' : 'link',
-          // Advanced Analytics
-          language: fingerprint.language,
-          timezone: fingerprint.timezone,
-          screenWidth: fingerprint.screenWidth,
-          screenHeight: fingerprint.screenHeight,
-          destinationUrl, // Pass destination URL for A/B testing
-        }, Date.now());
-
-        await supabaseAdapter.recordClick(link.id, { ...clickEventInput, country: 'Unknown', device: clickEventInput.device as any, os: clickEventInput.os as any });
-
-      } else {
-
-        incrementClicks(link.id);
-      }
-    } catch (recordError) {
-      // Log error but don't fail the redirect - graceful degradation
-      console.error('[Click Tracking] Failed to record click:', recordError);
-
-      // Last resort fallback
-      try {
-        if (isSupabaseConfigured()) {
-          const clickEventInput = createClickEventInput({
-            userAgent: fingerprint.userAgent,
-            referrer: fingerprint.referrer,
-            ipAddress: '',
-            // Advanced Analytics
-            language: fingerprint.language,
-            timezone: fingerprint.timezone,
-            screenWidth: fingerprint.screenWidth,
-            screenHeight: fingerprint.screenHeight,
-              destinationUrl, // Pass destination URL for A/B testing
-          }, Date.now());
-          await supabaseAdapter.recordClick(link.id, { ...clickEventInput, country: 'Unknown', device: clickEventInput.device as any, os: clickEventInput.os as any });
-        }
+        // 4xx (bad link id, unknown link) won't succeed on retry.
+        if (response.ok || (response.status >= 400 && response.status < 500)) return;
       } catch {
-        console.error('[Click Tracking] All tracking methods failed');
+        // network error: retry once
       }
     }
+    console.warn('[Click Tracking] /api/track unavailable; click not recorded');
   };
 
   const processRedirect = async (link: LinkData) => {

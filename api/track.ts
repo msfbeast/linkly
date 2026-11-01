@@ -1,5 +1,7 @@
 import { geoFromVercelHeaders } from '../utils/geoNames';
 import { storeClick, clickStoreEnvFromProcess, type ClientDetails, type ClickEvent } from './_lib/clickStore';
+import { shouldCount } from './_lib/countLimit';
+import { hashIp } from '../utils/ipHash';
 
 /**
  * Click tracking for the in-app redirect page (pages/Redirect.tsx).
@@ -80,6 +82,11 @@ export default async function handler(request: Request): Promise<Response> {
         longitude: geo.longitude,
         client: clientDetails(body),
     };
+
+    // Per-visitor, per-link cap. Answer 200 so the page doesn't retry.
+    if (!(await shouldCount('click', linkId, await hashIp(event.ip, env.ipHashSalt || env.serviceKey)))) {
+        return json({ success: true, counted: false });
+    }
 
     const result = await storeClick(event, env);
     if (!result.ok) {
