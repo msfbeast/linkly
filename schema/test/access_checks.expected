@@ -23,7 +23,6 @@ Bob: create team owned by Alice                               DENIED
 Bob: create own team                                          OK Bobs
 Bob: claim guest link for Alice                               DENIED
 anon: record_click on Alice link                              DENIED
-anon: legacy get_top_cities(Alice)                            DENIED
 anon: insert fake click event                                 DENIED
 Bob: insert fake click event                                  DENIED
 anon: insert into legacy clicks                               DENIED

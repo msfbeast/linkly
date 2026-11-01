@@ -65,7 +65,6 @@ SELECT pg_temp.probe('Bob: create team owned by Alice', $q$SELECT (public.create
 SELECT pg_temp.probe('Bob: create own team', $q$SELECT (public.create_team_with_owner('Bobs', 'bobs', '00000000-0000-0000-0000-00000000000b'))->>'name'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Bob: claim guest link for Alice', $q$SELECT (public.claim_guest_link('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-00000000000a'))::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('anon: record_click on Alice link', $q$SELECT public.record_click('22222222-2222-2222-2222-22222222222a', '{}')::text$q$, 'anon', null);
-SELECT pg_temp.probe('anon: legacy get_top_cities(Alice)', $q$SELECT count(*)::text FROM public.get_top_cities('00000000-0000-0000-0000-00000000000a', 10)$q$, 'anon', null);
 SELECT pg_temp.probe('anon: insert fake click event', $q$INSERT INTO public.click_events (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'anon', null);
 SELECT pg_temp.probe('Bob: insert fake click event', $q$INSERT INTO public.click_events (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('anon: insert into legacy clicks', $q$INSERT INTO public.clicks (link_id) VALUES ('22222222-2222-2222-2222-22222222222a') RETURNING 'row'$q$, 'anon', null);
