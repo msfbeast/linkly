@@ -66,7 +66,7 @@ describe('LinkCard - Scheduling Badges', () => {
 
         const badge = screen.getByText('Scheduled');
         expect(badge).toBeInTheDocument();
-        expect(badge.closest('span')).toHaveClass('bg-yellow-100');
+        expect(badge.closest('span')).toHaveClass('bg-blue-100');
     });
 
     it('shows "Expired" badge when expirationDate is in the past', () => {
@@ -82,7 +82,7 @@ describe('LinkCard - Scheduling Badges', () => {
 
     it('shows "Active" badge when currently active (startDate past, expirationDate future)', () => {
         const pastDate = Date.now() - 100000;
-        const futureDate = Date.now() + 100000;
+        const futureDate = Date.now() + 7 * 24 * 60 * 60 * 1000; // well clear of "expiring soon"
         const link = { ...mockLink, startDate: pastDate, expirationDate: futureDate };
 
         renderLinkCard(link);
@@ -90,6 +90,15 @@ describe('LinkCard - Scheduling Badges', () => {
         const badge = screen.getByText('Active');
         expect(badge).toBeInTheDocument();
         expect(badge.closest('span')).toHaveClass('bg-emerald-100');
+    });
+
+    it('shows "Expiring Soon" next to a muted "Active" badge when expiry is close', () => {
+        const link = { ...mockLink, expirationDate: Date.now() + 60 * 60 * 1000 }; // 1 hour
+
+        renderLinkCard(link);
+
+        expect(screen.getByText('Expiring Soon').closest('span')).toHaveClass('bg-amber-100');
+        expect(screen.getByText('Active').closest('span')).toHaveClass('bg-transparent');
     });
 
     it('shows no badge when no dates are set', () => {

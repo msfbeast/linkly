@@ -105,7 +105,7 @@ Security-relevant rules are enforced in the database, not only in the app. For e
 
 ## Deployment
 
-Pushes to `main` deploy to Vercel, and each PR gets a preview deployment. `vercel.json` defines the `/r/:code` rewrite, the SPA fallback and the daily cron. `middleware.ts` routes custom domains and the hybrid `links.trak.in` domain.
+Pushes to `main` deploy to Vercel, and each PR gets a preview deployment. GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, unit tests and a build on every PR and on `main`. `vercel.json` defines the `/r/:code` rewrite, the SPA fallback and the daily cron. `middleware.ts` routes custom domains and the hybrid `links.trak.in` domain.
 
 ## Project layout
 

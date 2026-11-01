@@ -12,20 +12,26 @@ import * as fc from 'fast-check';
  * This test verifies the expected behavior that RLS provides - users only see their own data.
  */
 
-// Mock the supabase client
-const mockGetSession = vi.fn();
-const mockSelect = vi.fn();
-const mockOrder = vi.fn();
-const mockEq = vi.fn();
-const mockSingle = vi.fn();
-const mockFrom = vi.fn();
+import { createFakeSupabase, Responder } from '../../test/fakeSupabase';
+
+// Mock the supabase client: each test sets `db.respond` and `db.session`.
+const db = vi.hoisted(() => ({
+  respond: (() => undefined) as any,
+  session: null as any,
+  calls: [] as any[],
+}));
 
 vi.mock('../storage/supabaseClient', () => ({
   supabase: {
     auth: {
-      getSession: () => mockGetSession(),
+      getSession: async () => ({ data: { session: db.session } }),
     },
-    from: (table: string) => mockFrom(table),
+    from: (table: string) => {
+      const fake = createFakeSupabase((call) => db.respond(call));
+      const builder = fake.from(table);
+      db.calls.push(fake.calls[0]);
+      return builder;
+    },
   },
   isSupabaseConfigured: () => true,
   TABLES: {
@@ -34,13 +40,19 @@ vi.mock('../storage/supabaseClient', () => ({
   },
 }));
 
+function useDb(userId: string | null, respond: Responder) {
+  db.session = userId ? { user: { id: userId }, access_token: 'test-token' } : null;
+  db.respond = respond;
+  db.calls = [];
+}
+
 describe('Data Isolation Property Tests', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   /**
@@ -77,10 +89,8 @@ describe('Data Isolation Property Tests', () => {
 
   /**
    * Property 4: Data isolation - query filtering
-   * For any authenticated user, getLinks should only return links owned by that user
-   * 
-   * This test simulates RLS behavior by verifying that when the database returns
-   * only the user's links (as RLS would enforce), the adapter correctly processes them.
+   * For any authenticated user, getLinks queries only that user's links and
+   * returns exactly what the database (RLS) gives back.
    */
   it('should only return links belonging to the authenticated user', async () => {
     await fc.assert(
@@ -88,70 +98,18 @@ describe('Data Isolation Property Tests', () => {
         userIdArb,
         fc.integer({ min: 0, max: 10 }),
         async (userId, numLinks) => {
-          // Reset mocks for each iteration
-          mockGetSession.mockReset();
-          mockSelect.mockReset();
-          mockOrder.mockReset();
-          mockFrom.mockReset();
-          mockEq.mockReset();
+          const userLinks = fc.sample(linkRowArb(userId), numLinks);
+          useDb(userId, (call) => (call.table === 'links' ? { data: userLinks } : { data: [] }));
 
-          // Generate links owned by this user
-          const userLinks = await fc.sample(linkRowArb(userId), numLinks);
-
-          // Setup: Mock authenticated session
-          mockGetSession.mockResolvedValue({
-            data: {
-              session: {
-                user: { id: userId },
-                access_token: 'test-token',
-              },
-            },
-          });
-
-          // Setup: Mock chainable query builder
-          // The chain is: from -> select -> order -> eq -> is -> await
-
-          const mockIs = vi.fn().mockResolvedValue({ data: userLinks, error: null });
-
-          mockEq.mockReturnValue({ is: mockIs });
-          mockOrder.mockReturnValue({ eq: mockEq });
-          mockSelect.mockReturnValue({ order: mockOrder });
-
-          // If we had teamId, it stops at eq, so eq also needs to be usable? 
-          // For now, let's simplisticly assume the personal workspace path which uses .is()
-
-          mockFrom.mockImplementation((table: string) => {
-            if (table === 'links') {
-              return { select: mockSelect };
-            }
-            // click_events table (used in getLinks -> clickEventsByLinkId)
-            // select -> in -> order -> range
-            return {
-              select: () => ({
-                in: () => ({
-                  order: () => ({
-                    range: vi.fn().mockResolvedValue({ data: [], error: null }),
-                  }),
-                }),
-                // Fallback for previous simple tests if any
-                eq: () => ({ order: vi.fn().mockResolvedValue({ data: [], error: null }) })
-              }),
-            };
-          });
-
-          // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
-          const adapter = new SupabaseAdapter();
+          const links = await new SupabaseAdapter().getLinks();
 
-          // Query links
-          const links = await adapter.getLinks();
-
-          // Verify all returned links belong to the authenticated user
-          // This validates that RLS is working correctly - no other user's links are returned
           expect(links.length).toBe(numLinks);
 
-          // In a real scenario with RLS, the database would filter out other users' links
-          // This test verifies the adapter correctly processes the filtered results
+          // The query itself must be scoped to this user's personal links.
+          const linksQuery = db.calls.find(c => c.table === 'links');
+          expect(linksQuery.has('eq', 'user_id', userId)).toBe(true);
+          expect(linksQuery.has('is', 'team_id', null)).toBe(true);
         }
       ),
       { numRuns: 100 }
@@ -160,55 +118,19 @@ describe('Data Isolation Property Tests', () => {
 
   /**
    * Property 4: Data isolation - single link access
-   * For any authenticated user accessing a link by ID, they should only get their own links
-   * 
-   * This simulates RLS behavior where accessing another user's link returns not found.
+   * Accessing another user's link returns not found (RLS blocks it).
    */
   it('should return null when accessing a link not owned by the user (RLS simulation)', async () => {
     await fc.assert(
       fc.asyncProperty(
         userIdArb,
-        userIdArb.filter(id => id !== ''), // Different user's link
         fc.uuid(), // Link ID
-        async (currentUserId, otherUserId, linkId) => {
-          // Skip if users are the same
-          if (currentUserId === otherUserId) return;
+        async (currentUserId, linkId) => {
+          useDb(currentUserId, () => ({ data: null, error: { code: 'PGRST116', message: 'Not found' } }));
 
-          // Reset mocks for each iteration
-          mockGetSession.mockReset();
-          mockSelect.mockReset();
-          mockEq.mockReset();
-          mockSingle.mockReset();
-          mockFrom.mockReset();
-
-          // Setup: Mock authenticated session
-          mockGetSession.mockResolvedValue({
-            data: {
-              session: {
-                user: { id: currentUserId },
-                access_token: 'test-token',
-              },
-            },
-          });
-
-          // Setup: Mock database query returning not found (RLS blocks access)
-          // When RLS is enabled, accessing another user's link returns PGRST116 (not found)
-          mockSingle.mockResolvedValue({
-            data: null,
-            error: { code: 'PGRST116', message: 'Not found' },
-          });
-          mockEq.mockReturnValue({ single: mockSingle });
-          mockSelect.mockReturnValue({ eq: mockEq });
-          mockFrom.mockReturnValue({ select: mockSelect });
-
-          // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
-          const adapter = new SupabaseAdapter();
+          const link = await new SupabaseAdapter().getLink(linkId);
 
-          // Try to access the link
-          const link = await adapter.getLink(linkId);
-
-          // Verify the link is not accessible (RLS blocks it)
           expect(link).toBeNull();
         }
       ),
@@ -218,73 +140,18 @@ describe('Data Isolation Property Tests', () => {
 
   /**
    * Property 4: Data isolation - user can access their own links
-   * For any authenticated user accessing their own link by ID, they should get the link
    */
   it('should return link when user accesses their own link', async () => {
     await fc.assert(
       fc.asyncProperty(
         userIdArb,
         async (userId) => {
-          // Reset mocks for each iteration
-          mockGetSession.mockReset();
-          mockSelect.mockReset();
-          mockEq.mockReset();
-          mockSingle.mockReset();
-          mockFrom.mockReset();
+          const [userLink] = fc.sample(linkRowArb(userId), 1);
+          useDb(userId, (call) => (call.table === 'links' ? { data: userLink } : { data: [] }));
 
-          // Generate a link owned by this user
-          const [userLink] = await fc.sample(linkRowArb(userId), 1);
-
-          // Setup: Mock authenticated session
-          mockGetSession.mockResolvedValue({
-            data: {
-              session: {
-                user: { id: userId },
-                access_token: 'test-token',
-              },
-            },
-          });
-
-          // Setup: Mock database query returning the user's link
-          mockSingle.mockResolvedValue({
-            data: userLink,
-            error: null,
-          });
-          mockEq.mockReturnValue({ single: mockSingle });
-          mockSelect.mockReturnValue({ eq: mockEq });
-
-          // For click events query
-          const mockClickOrder = vi.fn().mockResolvedValue({ data: [], error: null });
-
-          mockFrom.mockImplementation((table: string) => {
-            if (table === 'links') {
-              return { select: mockSelect };
-            }
-            // click_events table
-            return {
-              select: () => ({
-                eq: () => ({
-                  order: () => ({
-                    range: mockClickOrder, // Add range to support getLink's click event fetch
-                  }),
-                }),
-                in: () => ({
-                  order: () => ({
-                    range: mockClickOrder
-                  })
-                })
-              }),
-            };
-          });
-
-          // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
-          const adapter = new SupabaseAdapter();
+          const link = await new SupabaseAdapter().getLink(userLink.id);
 
-          // Access the link
-          const link = await adapter.getLink(userLink.id);
-
-          // Verify the link is accessible
           expect(link).not.toBeNull();
           expect(link!.id).toBe(userLink.id);
         }

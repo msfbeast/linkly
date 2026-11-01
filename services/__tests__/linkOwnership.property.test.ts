@@ -14,40 +14,49 @@ vi.mock('uuid', () => ({
   v4: vi.fn(() => 'test-link-id'),
 }));
 
-// Mock the supabase client
-const mockGetSession = vi.fn();
-const mockInsert = vi.fn();
-const mockSelect = vi.fn();
-const mockSingle = vi.fn();
-const mockFrom = vi.fn();
+import { createFakeSupabase, QueryCall } from '../../test/fakeSupabase';
+
+// Mock the supabase client: each test sets `db.session`; inserts are recorded.
+const db = vi.hoisted(() => ({
+  session: null as any,
+  inserts: [] as Record<string, unknown>[],
+}));
+
+/** A free-tier user with no links yet; inserts echo back the inserted row. */
+function respond(call: QueryCall) {
+  if (call.table === 'profiles') return { data: { subscription_tier: 'free' } };
+  const inserted = call.arg('insert')?.[0] as Record<string, unknown> | undefined;
+  if (inserted) {
+    db.inserts.push(inserted);
+    return { data: inserted };
+  }
+  if (call.has('select', '*', { count: 'exact', head: true })) return { count: 0 };
+  return { data: null };
+}
 
 vi.mock('../storage/supabaseClient', () => ({
   supabase: {
     auth: {
-      getSession: () => mockGetSession(),
+      getSession: async () => ({ data: { session: db.session } }),
     },
-    from: (table: string) => mockFrom(table),
+    from: (table: string) => createFakeSupabase(respond).from(table),
   },
   isSupabaseConfigured: () => true,
   TABLES: {
     LINKS: 'links',
     CLICK_EVENTS: 'click_events',
+    PROFILES: 'profiles',
   },
 }));
 
 describe('Link Ownership Property Tests', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-
-    // Setup chain: from().insert().select().single()
-    mockSingle.mockImplementation(() => Promise.resolve({ data: null, error: null }));
-    mockSelect.mockReturnValue({ single: mockSingle });
-    mockInsert.mockReturnValue({ select: mockSelect });
-    mockFrom.mockReturnValue({ insert: mockInsert });
+    db.inserts = [];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   /**
@@ -80,68 +89,14 @@ describe('Link Ownership Property Tests', () => {
         userIdArb,
         linkDataArb,
         async (userId, linkData) => {
-          // Reset mocks for each iteration
-          mockGetSession.mockReset();
-          mockInsert.mockReset();
-          mockSelect.mockReset();
-          mockSingle.mockReset();
-          mockFrom.mockReset();
+          db.session = { user: { id: userId }, access_token: 'test-token' };
+          db.inserts = [];
 
-          // Setup: Mock an authenticated session with the generated user ID
-          mockGetSession.mockResolvedValue({
-            data: {
-              session: {
-                user: { id: userId },
-                access_token: 'test-token',
-              },
-            },
-          });
-
-          // Capture the inserted data
-          let capturedInsertData: Record<string, unknown> | null = null;
-
-          mockInsert.mockImplementation((data: Record<string, unknown>) => {
-            capturedInsertData = data;
-            return { select: mockSelect };
-          });
-
-          mockSelect.mockReturnValue({ single: mockSingle });
-          mockSingle.mockResolvedValue({
-            data: {
-              id: 'test-link-id',
-              original_url: linkData.originalUrl,
-              short_code: linkData.shortCode,
-              title: linkData.title,
-              description: linkData.description ?? null,
-              tags: linkData.tags,
-              category: linkData.category ?? null,
-              created_at: new Date(linkData.createdAt).toISOString(),
-              clicks: linkData.clicks,
-              last_clicked_at: null,
-              smart_redirects: null,
-              geo_redirects: null,
-              expiration_date: null,
-              max_clicks: null,
-              password_hash: null,
-              qr_code_data: null,
-              ai_analysis: null,
-              user_id: userId,
-            },
-            error: null,
-          });
-
-          mockFrom.mockReturnValue({ insert: mockInsert });
-
-          // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
-          const adapter = new SupabaseAdapter();
+          await new SupabaseAdapter().createLink(linkData);
 
-          // Create the link
-          await adapter.createLink(linkData);
-
-          // Verify the inserted data contains the correct user_id
-          expect(capturedInsertData).not.toBeNull();
-          expect(capturedInsertData!.user_id).toBe(userId);
+          expect(db.inserts).toHaveLength(1);
+          expect(db.inserts[0].user_id).toBe(userId);
         }
       ),
       { numRuns: 100 }
@@ -149,71 +104,22 @@ describe('Link Ownership Property Tests', () => {
   });
 
   /**
-   * Property 3: Unauthenticated users should have null user_id
-   * For any link created without authentication, user_id should be null
+   * Property 3: Unauthenticated users can't create owned links
+   * Without a session createLink refuses and inserts nothing. (Anonymous
+   * guest links go through dedicated SECURITY DEFINER RPCs instead.)
    */
-  it('should set user_id to null when no authenticated session exists', async () => {
+  it('should refuse to create a link when no authenticated session exists', async () => {
     await fc.assert(
       fc.asyncProperty(
         linkDataArb,
         async (linkData) => {
-          // Reset mocks for each iteration
-          mockGetSession.mockReset();
-          mockInsert.mockReset();
-          mockSelect.mockReset();
-          mockSingle.mockReset();
-          mockFrom.mockReset();
+          db.session = null;
+          db.inserts = [];
 
-          // Setup: Mock no authenticated session
-          mockGetSession.mockResolvedValue({
-            data: { session: null },
-          });
-
-          // Capture the inserted data
-          let capturedInsertData: Record<string, unknown> | null = null;
-
-          mockInsert.mockImplementation((data: Record<string, unknown>) => {
-            capturedInsertData = data;
-            return { select: mockSelect };
-          });
-
-          mockSelect.mockReturnValue({ single: mockSingle });
-          mockSingle.mockResolvedValue({
-            data: {
-              id: 'test-link-id',
-              original_url: linkData.originalUrl,
-              short_code: linkData.shortCode,
-              title: linkData.title,
-              description: linkData.description ?? null,
-              tags: linkData.tags,
-              category: linkData.category ?? null,
-              created_at: new Date(linkData.createdAt).toISOString(),
-              clicks: linkData.clicks,
-              last_clicked_at: null,
-              smart_redirects: null,
-              geo_redirects: null,
-              expiration_date: null,
-              max_clicks: null,
-              password_hash: null,
-              qr_code_data: null,
-              ai_analysis: null,
-              user_id: null,
-            },
-            error: null,
-          });
-
-          mockFrom.mockReturnValue({ insert: mockInsert });
-
-          // Import SupabaseAdapter fresh to use mocked supabase
           const { SupabaseAdapter } = await import('../storage/supabaseAdapter');
-          const adapter = new SupabaseAdapter();
+          await expect(new SupabaseAdapter().createLink(linkData)).rejects.toThrow('User ID is required');
 
-          // Create the link
-          await adapter.createLink(linkData);
-
-          // Verify the inserted data has null user_id
-          expect(capturedInsertData).not.toBeNull();
-          expect(capturedInsertData!.user_id).toBeNull();
+          expect(db.inserts).toHaveLength(0);
         }
       ),
       { numRuns: 100 }
