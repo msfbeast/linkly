@@ -95,16 +95,16 @@ export class LinkRepository extends BaseRepository {
     async getPublicLinks(ids: string[]): Promise<LinkData[]> {
         if (!this.isConfigured() || ids.length === 0) return [];
 
-        const { data: linkRows, error } = await this.supabase!
-            .from(this.TABLES.LINKS)
-            .select('*')
-            .in('id', ids);
+        // Visitors can't read the links table; this returns a safe
+        // projection (no password, tokens or guest email; no destination
+        // while a link is locked or inactive).
+        const { data: linkRows, error } = await this.supabase!.rpc('get_public_links', { p_ids: ids });
 
         if (error) {
             throw new Error(`Failed to fetch public links: ${error.message}`);
         }
 
-        return (linkRows || []).map((row: LinkRow) => rowToLinkData(row));
+        return ((linkRows as LinkRow[] | null) || []).map((row: LinkRow) => rowToLinkData(row));
     }
 
     async getLink(id: string): Promise<LinkData | null> {
@@ -139,11 +139,9 @@ export class LinkRepository extends BaseRepository {
     async getLinkByCode(code: string): Promise<LinkData | null> {
         if (!this.isConfigured()) return null;
 
-        const { data, error } = await this.supabase!
-            .from(this.TABLES.LINKS)
-            .select('*')
-            .eq('short_code', code)
-            .single();
+        // Public projection (see get_public_link): a password-protected
+        // link comes back without its destination; use unlockLink.
+        const { data, error } = await this.supabase!.rpc('get_public_link', { p_short_code: code });
 
         if (error) {
             console.error('[LinkRepository] Error fetching link by code:', error);
@@ -153,6 +151,18 @@ export class LinkRepository extends BaseRepository {
         if (!data) return null;
 
         return rowToLinkData(data as LinkRow);
+    }
+
+    /** The full link for a password-protected short code, or null if the password is wrong. */
+    async unlockLink(code: string, password: string): Promise<LinkData | null> {
+        if (!this.isConfigured()) return null;
+
+        const { data, error } = await this.supabase!.rpc('unlock_link', { p_short_code: code, p_password: password });
+        if (error) {
+            console.error('[LinkRepository] Error unlocking link:', error);
+            return null;
+        }
+        return data ? rowToLinkData(data as LinkRow) : null;
     }
 
     async createGuestLink(originalUrl: string, sessionId: string): Promise<LinkData> {
@@ -174,8 +184,8 @@ export class LinkRepository extends BaseRepository {
             throw error;
         }
 
-        // Fetch the full link data after creation
-        const link = await this.getLink(data.id);
+        // Fetch the created link (guests can't read the links table directly)
+        const link = await this.getLinkByCode(shortCode);
         if (!link) throw new Error('Failed to fetch created guest link');
 
         return link;
@@ -663,12 +673,7 @@ export class LinkRepository extends BaseRepository {
     async getGuestLinkByToken(token: string): Promise<LinkData | null> {
         if (!this.isConfigured()) return null;
 
-        const { data, error } = await this.supabase!
-            .from(this.TABLES.LINKS)
-            .select('*')
-            .eq('claim_token', token)
-            .eq('is_guest', true)
-            .single();
+        const { data, error } = await this.supabase!.rpc('get_guest_link_by_claim_token', { p_token: token });
 
         if (error || !data) return null;
         return rowToLinkData(data as LinkRow);

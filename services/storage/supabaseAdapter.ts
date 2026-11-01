@@ -226,6 +226,11 @@ export class SupabaseAdapter {
     return this.linkRepo.getLinkByCode(code);
   }
 
+  /** Checks a link password on the server; the full link, or null if wrong. */
+  async unlockLink(code: string, password: string): Promise<LinkData | null> {
+    return this.linkRepo.unlockLink(code, password);
+  }
+
   async createGuestLink(url: string, sessionId: string): Promise<LinkData> {
     return this.linkRepo.createGuestLink(url, sessionId);
   }

@@ -163,6 +163,8 @@ export interface LinkRow {
     expiration_date?: number | null;
     max_clicks: number | null;
     password_hash: string | null;
+    /** Set by the public link functions, which never return password_hash. */
+    requires_password?: boolean;
     qr_code_data: string | null;
     ai_analysis: Record<string, unknown> | null;
     user_id: string | null;
@@ -405,7 +407,8 @@ export function rowToLinkData(row: LinkRow, clickHistory: ClickEvent[] = []): Li
         startDate: row.start_date ?? null,
         expirationDate: row.expiration_date ?? null,
         maxClicks: row.max_clicks,
-        password: row.password_hash,
+        // Owners get the stored (hashed) value; visitors only a marker.
+        password: row.password_hash || (row.requires_password ? 'protected' : null),
         qrCodeData: row.qr_code_data ?? undefined,
         aiAnalysis: row.ai_analysis as LinkData['aiAnalysis'] ?? undefined,
         folderId: row.folder_id ?? undefined,
