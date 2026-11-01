@@ -32,3 +32,14 @@ anon: increment_clicks                                        DENIED
 anon: increment_bio_view                                      DENIED
 service_role: record a click                                  OK row
 service_role: count a bio view                                OK 
+anon: read the links table (rows)                             OK 0
+Bob: read Alice's links (rows)                                OK 0
+Carol (team): read team link (rows)                           OK 1
+anon: repoint Alice's link (rows changed)                     OK 0
+Bob: repoint Alice's link (rows changed)                      OK 0
+Alice: save a javascript: link                                DENIED
+anon: public link has destination                             OK true
+anon: public link hides password field                        OK false
+anon: locked link destination                                 OK []
+anon: unlock with wrong password                              OK rejected
+anon: unlock with right password                              OK https://secret.examp
