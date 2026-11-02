@@ -15,13 +15,6 @@ vi.mock('../../services/storage/supabaseAdapter', () => ({ supabaseAdapter: { ge
 vi.mock('../../services/aggregatedAnalyticsService', () => ({
     aggregatedAnalytics: { getLinkStats, getLinkAnalytics, getLinkClicksPage, getAllLinkClicks },
 }));
-// The map draws SVG geography from a remote topology; not what this test is about.
-vi.mock('../../components/LiveWorldMap', () => ({
-    default: (props: { countryCounts?: { name: string; value: number }[] }) => (
-        <div data-testid="map">{(props.countryCounts || []).map(c => `${c.name}:${c.value}`).join(',')}</div>
-    ),
-}));
-
 import LinkAnalytics from '../LinkAnalytics';
 
 const link = {
@@ -76,8 +69,10 @@ describe('link analytics page', () => {
         expect(Date.now() - since).toBeGreaterThan(7 * 864e5 - 60000);
         expect([offset, limit]).toEqual([0, 10]);
         expect(screen.getByText('Country-0')).toBeTruthy();
-        expect(screen.getByTestId('map').textContent).toBe('India:1925');
-        expect(screen.getAllByText('1925 clicks').length).toBeGreaterThan(0); // heatmap cell tooltip
+        expect(screen.getByText('Where they are')).toBeTruthy();
+        expect(screen.getAllByText('India').length).toBeGreaterThan(1); // tab + country bar (no state data: World tab)
+        expect(screen.getByText(/Busiest: Mon 9am to 10am \(1,925 clicks\)/)).toBeTruthy();
+        expect(screen.getAllByText('Direct').length).toBeGreaterThan(1); // 'direct' shown as a source name (sources + table)
     });
 
     it('switches range and goes back to the first page', async () => {
@@ -96,13 +91,15 @@ describe('link analytics page', () => {
         renderPage();
         await screen.findByText('Showing 1 - 10 of 1,925');
         expect(screen.getAllByText('1,925').length).toBeGreaterThan(0); // Total Clicks card
-        expect(screen.getByText(/100% vs previous 7 days/)).toBeTruthy(); // 1925 vs 962.5
+        expect(screen.getByText('↗ 100%')).toBeTruthy(); // 1925 vs 962.5
+        expect(screen.getByText('/ 962.5 previous 7 days'.replace('962.5', '963'))).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: 'All Time' }));
         await screen.findByText('Showing 1 - 10 of 106,935');
-        expect(screen.getAllByText('106,935').length).toBeGreaterThan(0);
-        expect(screen.queryByText(/vs previous/)).toBeNull();
-        expect(screen.getByText('Counted from 1 Nov 2026')).toBeTruthy();
+        expect(screen.getAllByText('1,06,935').length).toBeGreaterThan(0); // Indian digit grouping
+        expect(screen.queryByText(/previous/)).toBeNull();
+        expect(screen.queryByText(/↗|↘/)).toBeNull();
+        expect(screen.getByText(/Counted from 1 Nov 2026/)).toBeTruthy();
     });
 
     it('drops the cards for data clicks never record', async () => {
@@ -111,7 +108,7 @@ describe('link analytics page', () => {
         expect(screen.queryByText('Marketing Campaigns (UTM)')).toBeNull();
         expect(screen.queryByText('Browser Version')).toBeNull();
         expect(screen.queryByText('OS Version')).toBeNull();
-        expect(screen.getByText('Screen & Locale')).toBeTruthy();
+        expect(screen.getByText('More details')).toBeTruthy();
     });
 
     it('says when analytics fail and retries', async () => {

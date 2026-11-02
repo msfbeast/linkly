@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Globe, Monitor, Smartphone, Chrome, MapPin, MousePointer2, Share2, Copy, Check, Split, Download, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Download } from 'lucide-react';
 import { LinkData, ClickEvent, getCategoryColor, LinkAnalytics as LinkAnalyticsData, LinkAnalyticsRange } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
 import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Cell, PieChart, Pie
-} from 'recharts';
-import LiveWorldMap from '../components/LiveWorldMap';
-import { ClickHeatmap } from '../components/ClickHeatmap';
+    Tile, Label, MonoPill, ChangeTag, DotMeter, ShareBars, DotColumns, HeatGrid, HeatLegend, SourceShare,
+    DAY_NAMES, fmt, share, pctLabel, hourLabel, busiestHour, groupSources, sourceName, viewerZoneLabel,
+} from '../components/ui/bento';
 
 const ITEMS_PER_PAGE = 10;
 const RANGE_MS: Record<LinkAnalyticsRange, number | null> = {
@@ -59,6 +57,7 @@ const LinkAnalytics: React.FC = () => {
     // The one page of clicks the table shows.
     const [pageClicks, setPageClicks] = useState<ClickEvent[]>([]);
     const [exporting, setExporting] = useState(false);
+    const [placeTab, setPlaceTab] = useState<'states' | 'cities' | 'world'>('states');
 
     useEffect(() => {
         const fetchLink = async () => {
@@ -110,7 +109,7 @@ const LinkAnalytics: React.FC = () => {
 
     const handleCopy = () => {
         if (!link) return;
-        const url = `${window.location.origin}/#/r/${link.shortCode}`;
+        const url = `${window.location.origin}/r/${link.shortCode}`;
         navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -118,8 +117,8 @@ const LinkAnalytics: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="min-h-screen bg-[#ECEBE7] flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-[#FF5A14] border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
@@ -183,573 +182,284 @@ const LinkAnalytics: React.FC = () => {
         }
     };
 
-    // 1. Timeline Data: 24 hourly points, or one point per day (last 14 days for All Time)
-    const timelineData = (() => {
-        const counts = new Map(stats.timeline.map(p => [p.key, p.clicks]));
-        const points: { date: string; clicks: number }[] = [];
-        if (timeRange === '24h') {
-            for (let i = 23; i >= 0; i--) {
-                const d = new Date(now - i * 60 * 60 * 1000);
-                points.push({
-                    date: d.toLocaleTimeString([], { hour: '2-digit', hour12: true }),
-                    clicks: counts.get(hourKey(d)) ?? 0,
-                });
-            }
-        } else {
-            const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14;
-            for (let i = days - 1; i >= 0; i--) {
-                const d = new Date(now - i * 24 * 60 * 60 * 1000);
-                points.push({
-                    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                    clicks: counts.get(dayKey(d)) ?? 0,
-                });
-            }
-        }
-        return points;
-    })();
-
-    // 2. Device & Browser Data
-    const deviceData = stats.devices;
-    const browserData = stats.browsers;
-    const osData = stats.oses;
-    const countryData = stats.countries.slice(0, 5);
-    const referrerData = stats.referrers;
-    const deviceModelData = stats.deviceModels;
-
-    const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#6b7280'];
+    // 1. Timeline: 24 hourly points, or one point per day (last 14 days for All Time)
+    const counts = new Map(stats.timeline.map(p => [p.key, p.clicks]));
+    const dayCount = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14;
+    const timeline: { key: string; label: string; value: number; sub?: string }[] = timeRange === '24h'
+        ? Array.from({ length: 24 }, (_, i) => {
+            const d = new Date(now - (23 - i) * 60 * 60 * 1000);
+            return { key: hourKey(d), label: hourLabel(d.getHours()).replace('m', ''), value: counts.get(hourKey(d)) ?? 0 };
+        })
+        : Array.from({ length: dayCount }, (_, i) => {
+            const d = new Date(now - (dayCount - 1 - i) * 24 * 60 * 60 * 1000);
+            const v = counts.get(dayKey(d)) ?? 0;
+            return { key: dayKey(d), label: d.toLocaleDateString('en-GB', { weekday: 'short' }), value: v, sub: fmt(v) };
+        });
 
     const itemsPerPage = ITEMS_PER_PAGE;
     const totalPages = Math.ceil(total / itemsPerPage);
-    const paginatedClicks = pageClicks;
-    // Share of the range's clicks, for the percentage bars.
-    const share = (value: number) => (total > 0 ? value / total : 0);
 
-    // 3. A/B Test Data
+    const sources = groupSources(stats.referrers);
+    const heat = new Map(stats.heatmap.map(h => [`${h.day}-${h.hour}`, h.count]));
+    const peak = busiestHour(heat);
+    const heatTotal = [...heat.values()].reduce((a, n) => a + n, 0);
+    const evening = [...heat.entries()].filter(([k]) => Number(k.split('-')[1]) >= 16).reduce((a, [, n]) => a + n, 0);
+
+    const india = stats.countries.find(c => c.name === 'India');
+    const indianStates = stats.regions.filter(r => r.country === 'India').map(r => ({ name: r.region, value: r.value }));
+    const tab = placeTab === 'states' && indianStates.length === 0 ? 'world' : placeTab;
+    const placeRows = tab === 'states' ? indianStates.slice(0, 7)
+        : tab === 'cities' ? stats.cities.map(c => ({ name: c.city, value: c.value })).slice(0, 7)
+        : stats.countries.filter(c => c.name !== 'Unknown').slice(0, 7);
+    const placeTotal = tab === 'states' ? (india?.value ?? total) : total;
+
+    const deviceTotal = stats.devices.reduce((a, d) => a + d.value, 0);
+    const osTotal = stats.oses.reduce((a, d) => a + d.value, 0);
+    const rangeLabel = timeRange === 'all' ? 'All time' : `Last ${PERIOD_LABEL[timeRange]}`;
+
+    // 2. A/B test split
     const abTestData = (() => {
         if (!link.abTestConfig?.enabled) return null;
-
-        const variants = link.abTestConfig.variants;
         const clickCounts: Record<string, number> = {};
         stats.destinations.forEach(d => { clickCounts[d.url] = d.clicks; });
-
-        return variants.map(v => ({
+        return link.abTestConfig.variants.map(v => ({
             ...v,
             clicks: clickCounts[v.url] || 0,
-            percentage: total > 0 ? ((clickCounts[v.url] || 0) / total) * 100 : 0
+            percentage: total > 0 ? ((clickCounts[v.url] || 0) / total) * 100 : 0,
         }));
     })();
 
-    return (
-        <div className="min-h-screen bg-[#FDFBF7] p-8">
-            {/* Header */}
-            <div className="max-w-6xl mx-auto mb-8">
-                <button
-                    onClick={() => navigate('/links')}
-                    className="flex items-center text-stone-500 hover:text-slate-900 mb-4 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Links
-                </button>
+    const destinationHost = (() => { try { return new URL(link.originalUrl).host.replace(/^www\./, ''); } catch { return link.originalUrl; } })();
+    const shortHost = typeof window !== 'undefined' ? window.location.host : 'links.trak.in';
 
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-900 mb-2">{link.title}</h1>
-                        <div className="flex items-center gap-4 text-sm">
-                            <a
-                                href={link.originalUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-stone-500 hover:text-amber-600 flex items-center truncate max-w-md"
-                            >
-                                <Globe className="w-3 h-3 mr-1" />
-                                {link.originalUrl}
+    return (
+        <div className="min-h-screen bg-[#ECEBE7] p-4 sm:p-8 text-[#18181A]">
+            <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <button onClick={() => navigate('/links')} className="mb-3 flex items-center text-[13px] text-[#8C8981] transition-colors hover:text-[#18181A]">
+                    <ArrowLeft className="mr-1.5 h-4 w-4" /> Links
+                </button>
+                <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end">
+                    <div className="min-w-0">
+                        <h1 className="truncate text-[28px] font-medium tracking-tight sm:text-[32px]">{link.title || `/${link.shortCode}`}</h1>
+                        <div className="mt-2.5 flex flex-wrap gap-2">
+                            <button onClick={handleCopy} className="flex items-center gap-2 rounded-full bg-[#18181A] px-3 py-1.5 font-mono text-xs text-white">
+                                {shortHost}/{link.shortCode} {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                            </button>
+                            <a href={link.originalUrl} target="_blank" rel="noreferrer" className="flex max-w-[280px] items-center gap-1.5 truncate rounded-full bg-[#FBFAF8] px-3 py-1.5 font-mono text-xs text-[#8C8981] hover:text-[#18181A]">
+                                → <span className="truncate text-[#18181A]">{destinationHost}</span>
                             </a>
-                            <span className="text-stone-300">|</span>
-                            <div className="flex items-center gap-2">
-                                <span className="font-mono text-slate-900 bg-white border border-stone-200 px-2 py-0.5 rounded">
-                                    /{link.shortCode}
-                                </span>
-                                <button
-                                    onClick={handleCopy}
-                                    className="text-stone-400 hover:text-amber-500 transition-colors"
-                                >
-                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                </button>
-                            </div>
+                            <span className="rounded-full bg-[#FBFAF8] px-3 py-1.5 font-mono text-xs text-[#8C8981]">
+                                created <span className="text-[#18181A]">{new Date(link.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            </span>
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleExportCSV}
-                            disabled={exporting}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-lg text-stone-600 hover:text-slate-900 hover:bg-stone-50 transition-colors text-sm font-medium shadow-sm disabled:opacity-60 disabled:cursor-wait"
-                        >
-                            <Download className="w-4 h-4" />
-                            {exporting ? 'Exporting…' : 'Export CSV'}
-                        </button>
-                        <div className="flex bg-white rounded-lg border border-stone-200 p-1 shadow-sm">
-                            {(['24h', '7d', '30d', 'all'] as const).map((range) => (
+                    <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+                        <div className="flex gap-1 rounded-full bg-[#FBFAF8] p-1">
+                            {(['24h', '7d', '30d', 'all'] as const).map(range => (
                                 <button
                                     key={range}
                                     onClick={() => { setTimeRange(range); setCurrentPage(1); }}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${timeRange === range
-                                        ? 'bg-amber-50 text-amber-700'
-                                        : 'text-stone-500 hover:bg-stone-50'
-                                        }`}
+                                    className={`whitespace-nowrap rounded-full px-2.5 py-1.5 font-mono text-xs transition-colors sm:px-3 ${timeRange === range ? 'bg-[#FF5A14] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}
                                 >
-                                    {range === 'all' ? 'All Time' : range === '24h' ? '24h' : `Last ${range.replace('d', ' Days')}`}
+                                    {range === 'all' ? 'All Time' : range === '24h' ? '24h' : <><span className="hidden sm:inline">Last </span>{range.replace('d', ' Days')}</>}
                                 </button>
                             ))}
                         </div>
+                        <button
+                            onClick={handleExportCSV}
+                            disabled={exporting}
+                            className="flex items-center gap-2 rounded-full bg-[#FBFAF8] px-4 py-2 text-[13px] transition-colors hover:bg-white disabled:cursor-wait disabled:opacity-60"
+                        >
+                            <Download className="h-4 w-4" />
+                            {exporting ? 'Exporting…' : 'Export CSV'}
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            {(analyticsError || !analytics) && (
-                <div className="max-w-6xl mx-auto mb-4">
-                    {analyticsError ? (
-                        <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-700">
-                            <span>Couldn't load analytics for this range.</span>
-                            <button
-                                onClick={() => setAnalyticsAttempt(n => n + 1)}
-                                className="font-semibold underline underline-offset-2 hover:text-red-900"
-                            >
-                                Try again
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 text-sm text-stone-500">
-                            <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                            Loading analytics…
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Overview Cards */}
-                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-amber-50 rounded-xl text-amber-500">
-                                <MousePointer2 className="w-5 h-5" />
+                {(analyticsError || !analytics) && (
+                    <div className="mb-4">
+                        {analyticsError ? (
+                            <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#FBFAF8] px-5 py-3 text-sm text-[#B42318]">
+                                <span>Couldn't load analytics for this range.</span>
+                                <button onClick={() => setAnalyticsAttempt(n => n + 1)} className="font-semibold underline underline-offset-2">Try again</button>
                             </div>
-                            <span className="text-stone-500 text-sm font-medium">Total Clicks</span>
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900 mb-1">
-                            {total.toLocaleString()}
-                        </p>
-                        {timeRange !== 'all' && (
-                            <div className={`flex items-center text-xs font-medium ${clickGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                {clickGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                                {Math.abs(clickGrowth)}% vs previous {PERIOD_LABEL[timeRange]}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-indigo-50 rounded-xl text-indigo-500">
-                                <Smartphone className="w-5 h-5" />
-                            </div>
-                            <span className="text-stone-500 text-sm font-medium">Unique Visitors</span>
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900 mb-1">
-                            {uniqueClicks.toLocaleString()}
-                        </p>
-                        {uniqueNote ? (
-                            <p className="text-xs text-stone-400">{uniqueNote}</p>
                         ) : (
-                            <div className={`flex items-center text-xs font-medium ${uniqueGrowth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                {uniqueGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                                {Math.abs(uniqueGrowth)}% vs previous {PERIOD_LABEL[timeRange]}
+                            <div className="flex items-center gap-2 text-sm text-[#8C8981]">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#FF5A14] border-t-transparent" />
+                                Loading analytics…
                             </div>
                         )}
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-500">
-                                <MapPin className="w-5 h-5" />
-                            </div>
-                            <span className="text-stone-500 text-sm font-medium">Top Location</span>
-                        </div>
-                        <p className="text-xl font-bold text-slate-900 truncate">
-                            {countryData[0]?.name || 'N/A'}
-                        </p>
-                        <p className="text-xs text-stone-400">{(countryData[0]?.value || 0).toLocaleString()} clicks</p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-blue-50 rounded-xl text-blue-500">
-                                <Chrome className="w-5 h-5" />
-                            </div>
-                            <span className="text-stone-500 text-sm font-medium">Top Browser</span>
-                        </div>
-                        <p className="text-xl font-bold text-slate-900 truncate">
-                            {browserData[0]?.name || 'N/A'}
-                        </p>
-                        <p className="text-xs text-stone-400">{(browserData[0]?.value || 0).toLocaleString()} clicks</p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-purple-50 rounded-xl text-purple-500">
-                                <Share2 className="w-5 h-5" />
-                            </div>
-                            <span className="text-stone-500 text-sm font-medium">Top Source</span>
-                        </div>
-                        <p className="text-xl font-bold text-slate-900 truncate">
-                            {referrerData[0]?.name === 'direct' ? 'Direct / Email' : referrerData[0]?.name || 'N/A'}
-                        </p>
-                        <p className="text-xs text-stone-400">{(referrerData[0]?.value || 0).toLocaleString()} clicks</p>
-                    </div>
-                </div>
-
-                {/* A/B Test Performance */}
-                {abTestData && (
-                    <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-amber-50 rounded-xl text-amber-500">
-                                <Split className="w-5 h-5" />
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-900">A/B Test Performance</h3>
-                        </div>
-
-                        <div className="overflow-hidden">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-stone-400 uppercase bg-stone-50">
-                                    <tr>
-                                        <th className="px-4 py-3 rounded-l-lg">Variant URL</th>
-                                        <th className="px-4 py-3">Configured Weight</th>
-                                        <th className="px-4 py-3">Actual Clicks</th>
-                                        <th className="px-4 py-3 rounded-r-lg">Traffic Share</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-stone-100">
-                                    {abTestData.map((variant, idx) => (
-                                        <tr key={idx} className="hover:bg-stone-50/50 transition-colors">
-                                            <td className="px-4 py-3 text-slate-900 font-medium truncate max-w-xs">
-                                                {variant.url}
-                                            </td>
-                                            <td className="px-4 py-3 text-stone-500">
-                                                {variant.weight}%
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-900 font-bold">
-                                                {variant.clicks}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-24 h-2 bg-stone-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-amber-500 rounded-full"
-                                                            style={{ width: `${variant.percentage}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs text-stone-500 w-10 text-right">
-                                                        {variant.percentage.toFixed(1)}%
-                                                    </span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 )}
 
-                {/* Timeline Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6">Click Trends</h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50} initialDimension={{ width: 400, height: 256 }}>
-                            <AreaChart data={timelineData}>
-                                <defs>
-                                    <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                                <XAxis
-                                    dataKey="date"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#9ca3af', fontSize: 12 }}
-                                    dy={10}
-                                />
-                                <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#9ca3af', fontSize: 12 }}
-                                />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="clicks"
-                                    stroke="#f59e0b"
-                                    strokeWidth={3}
-                                    fillOpacity={1}
-                                    fill="url(#colorClicks)"
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Browser Breakdown */}
-                <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6">Browsers</h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50} initialDimension={{ width: 400, height: 256 }}>
-                            <PieChart>
-                                <Pie
-                                    data={browserData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={2}
-                                    dataKey="value"
-                                    startAngle={90}
-                                    endAngle={-270}
-                                >
-                                    {browserData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip contentStyle={{ borderRadius: '8px' }} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="mt-4 flex flex-wrap justify-center gap-4">
-                        {browserData.map((entry, index) => (
-                            <div key={`legend-${index}`} className="flex items-center gap-2">
-                                <div
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                                />
-                                <span className="text-sm text-stone-600">{entry.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Map & Geography Row */}
-                <div className="lg:col-span-2 bg-white p-1 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
-                    <LiveWorldMap
-                        countryCounts={stats.countries}
-                        regionCounts={stats.regions}
-                        serverCityData={stats.cities.map(c => ({ city: c.city, country: c.country, clickCount: c.value }))}
-                        className="h-[400px] w-full rounded-xl border-none"
-                    />
-                </div>
-
-                {/* Geography Table */}
-                <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">Top Locations</h3>
-                    <div className="space-y-3">
-                        {countryData.map((item, idx) => (
-                            <div key={item.name} className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs font-bold text-stone-400 w-4">#{idx + 1}</span>
-                                    <span className="text-sm font-medium text-slate-900">{item.name}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-24 h-2 bg-stone-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-emerald-500 rounded-full"
-                                            style={{ width: `${share(item.value) * 100}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs text-stone-500 w-8 text-right">{item.value}</span>
-                                </div>
-                            </div>
-                        ))}
-                        {countryData.length === 0 && (
-                            <p className="text-stone-400 text-sm text-center py-4">No location data yet</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* Device & OS */}
-                <div className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">Devices & OS</h3>
-                    <div className="space-y-6">
-                        <div>
-                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Device Type</h4>
-                            <div className="space-y-2">
-                                {deviceData.map((item) => (
-                                    <div key={item.name} className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-700">{item.name}</span>
-                                        <span className="font-medium text-slate-900">{Math.round(share(item.value) * 100)}%</span>
-                                    </div>
-                                ))}
-                            </div>
+                <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+                    {/* Anchor: clicks in the range */}
+                    <Tile dark className="lg:col-span-7">
+                        <Label dark right={timeRange !== 'all' && <ChangeTag change={clickGrowth} />}>Clicks · {rangeLabel.toLowerCase()}</Label>
+                        <div className="flex flex-wrap items-baseline gap-x-4">
+                            <span className="font-mono text-[clamp(56px,7vw,96px)] font-medium leading-[0.95] tracking-[-0.04em]">{fmt(total)}</span>
+                            {timeRange !== 'all' && <span className="font-mono text-[15px] text-[#8E8B84]">/ {fmt(stats.previousTotal)} previous {PERIOD_LABEL[timeRange]}</span>}
                         </div>
-                        <div className="h-px bg-stone-100" />
+                        <DotColumns points={timeline} label={timeRange === '24h' ? 'Clicks per hour' : 'Clicks per day'} />
+                    </Tile>
+
+                    {/* All time + visitors */}
+                    <Tile className="flex flex-col gap-6 lg:col-span-2">
                         <div>
-                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Operating System</h4>
-                            <div className="space-y-2">
-                                {osData.map((item) => (
-                                    <div key={item.name} className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-700">{item.name}</span>
-                                        <span className="font-medium text-slate-900">{Math.round(share(item.value) * 100)}%</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <Label>All time</Label>
+                            <div className="font-mono text-4xl font-medium leading-none tracking-[-0.04em]">{fmt(link.clicks)}</div>
+                            <p className="mt-2 text-xs text-[#8C8981]">clicks since {new Date(link.createdAt).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</p>
                         </div>
-                        <div className="h-px bg-stone-100" />
                         <div>
-                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Device Models</h4>
-                            <div className="space-y-2">
-                                {deviceModelData.map((item) => (
-                                    <div key={item.name} className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-700 truncate max-w-[150px]" title={item.name}>
-                                            {item.name === 'Unknown' ? 'Generic / Unknown' : item.name}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-stone-400 text-xs">{item.value}</span>
-                                            <span className="font-medium text-slate-900">{Math.round(share(item.value) * 100)}%</span>
+                            <Label>Visitors</Label>
+                            <div className="font-mono text-4xl font-medium leading-none tracking-[-0.04em]">{fmt(uniqueClicks)}</div>
+                            <p className="mt-2 text-xs leading-relaxed text-[#8C8981]">
+                                unique, {rangeLabel.toLowerCase()}.{uniqueNote ? ` ${uniqueNote}.` : ''}
+                            </p>
+                        </div>
+                    </Tile>
+
+                    {/* Sources */}
+                    <Tile className="lg:col-span-3">
+                        <Label>Where clicks come from</Label>
+                        <SourceShare sources={sources} />
+                    </Tile>
+
+                    {/* A/B test */}
+                    {abTestData && (
+                        <Tile className="lg:col-span-12">
+                            <Label right={<MonoPill>A/B test</MonoPill>}>How the split is going</Label>
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                {abTestData.map((v, i) => (
+                                    <div key={v.id ?? v.url} className="rounded-2xl bg-[#F3F2EF] p-4">
+                                        <div className="mb-1 font-mono text-[11px] text-[#8C8981]">Variant {String.fromCharCode(65 + i)} · {v.weight}% of traffic</div>
+                                        <div className="truncate text-sm" title={v.url}>{v.url}</div>
+                                        <div className="mt-3 flex items-baseline gap-2">
+                                            <span className="font-mono text-2xl">{fmt(v.clicks)}</span>
+                                            <span className="font-mono text-xs text-[#8C8981]">{pctLabel(v.percentage)}</span>
                                         </div>
                                     </div>
                                 ))}
-                                {deviceModelData.length === 0 && <p className="text-stone-400 text-xs">No model data available</p>}
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Activity Heatmap */}
-                <div className="lg:col-span-3 h-[400px]">
-                    <ClickHeatmap counts={stats.heatmap} />
-                </div>
-
-                {/* Screen & Locale */}
-                <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6">Screen & Locale</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {[
-                            { label: 'Screen Width', data: stats.screenWidths, format: (v: string) => (v !== 'Unknown' ? `${v}px` : '-') },
-                            { label: 'Language', data: stats.languages },
-                            { label: 'Timezone', data: stats.timezones },
-                        ].map((metric) => (
-                            <div key={metric.label}>
-                                <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">{metric.label}</h4>
-                                <div className="space-y-2">
-                                    {metric.data.map((item) => (
-                                        <div key={item.name} className="flex items-center justify-between text-sm">
-                                            <span className="text-slate-700 truncate max-w-[180px]" title={item.name}>
-                                                {metric.format ? metric.format(item.name) : (item.name === 'Unknown' ? '-' : item.name)}
-                                            </span>
-                                            <span className="font-medium text-slate-900">{item.value.toLocaleString()}</span>
-                                        </div>
-                                    ))}
-                                    {metric.data.length === 0 && <p className="text-stone-400 text-xs">No data</p>}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Recent Activity Log */}
-                <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-stone-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
-                        <span className="text-sm text-stone-500">
-                            Showing {paginatedClicks.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, total)} of {total.toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="overflow-hidden">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-stone-400 uppercase bg-stone-50">
-                                <tr>
-                                    <th className="px-4 py-3 rounded-l-lg">Time</th>
-                                    <th className="px-4 py-3">Location</th>
-                                    <th className="px-4 py-3">Device</th>
-                                    <th className="px-4 py-3 rounded-r-lg">Referrer</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-stone-100">
-                                {paginatedClicks.map((click, idx) => (
-                                    <tr key={idx} className="hover:bg-stone-50/50 transition-colors">
-                                        <td className="px-4 py-3 text-stone-500">
-                                            {new Date(click.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            <span className="text-xs text-stone-300 ml-2">
-                                                {new Date(click.timestamp).toLocaleDateString()}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-900">{click.country || 'Unknown'}</td>
-                                        <td className="px-4 py-3 text-stone-600">
-                                            {click.browser || 'Unknown'} on {click.os}
-                                        </td>
-                                        <td className="px-4 py-3 text-stone-500 truncate max-w-[150px]">
-                                            {click.referrer === 'direct' ? 'Direct' : click.referrer}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {total === 0 && (
-                                    <tr>
-                                        <td colSpan={4} className="px-4 py-8 text-center text-stone-400">
-                                            No clicks recorded in this period
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-center gap-2 mt-6">
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="px-3 py-1 rounded-lg border border-stone-200 text-stone-500 disabled:opacity-50 hover:bg-stone-50 transition-colors"
-                            >
-                                Previous
-                            </button>
-                            <div className="flex items-center gap-1">
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    // Logic to show window of pages around current
-                                    let p = i + 1;
-                                    if (totalPages > 5) {
-                                        if (currentPage > 3) p = currentPage - 2 + i;
-                                        if (p > totalPages) p = totalPages - 4 + i;
-                                    }
-                                    return (
-                                        <button
-                                            key={p}
-                                            onClick={() => setCurrentPage(p)}
-                                            className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === p
-                                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25'
-                                                : 'text-stone-500 hover:bg-stone-50'
-                                                }`}
-                                        >
-                                            {p}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="px-3 py-1 rounded-lg border border-stone-200 text-stone-500 disabled:opacity-50 hover:bg-stone-50 transition-colors"
-                            >
-                                Next
-                            </button>
-                        </div>
+                        </Tile>
                     )}
-                </div>
 
+                    {/* When */}
+                    <Tile className="lg:col-span-8">
+                        <Label right={<HeatLegend />}>
+                            When people click <span className="ml-2"><MonoPill>{rangeLabel.toLowerCase()} · {viewerZoneLabel}</MonoPill></span>
+                        </Label>
+                        <HeatGrid cells={heat} />
+                        {peak && (
+                            <p className="mt-3 text-xs text-[#8C8981]">
+                                Busiest: {DAY_NAMES[peak.day]} {hourLabel(peak.hour)} to {hourLabel((peak.hour + 1) % 24)} ({fmt(peak.n)} clicks). {pctLabel(share(evening, heatTotal))} of clicks land between 4pm and midnight.
+                            </p>
+                        )}
+                    </Tile>
+
+                    {/* Where */}
+                    <Tile className="lg:col-span-4">
+                        <Label right={
+                            <span className="flex gap-1">
+                                {([['states', 'India'], ['cities', 'Cities'], ['world', 'World']] as const).map(([key, name]) => (
+                                    <button key={key} onClick={() => setPlaceTab(key)} className={`rounded-full px-2.5 py-1 text-xs ${tab === key ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}>{name}</button>
+                                ))}
+                            </span>
+                        }>Where they are</Label>
+                        {placeRows.length ? <ShareBars rows={placeRows} total={placeTotal} showCount={tab !== 'world'} /> : <p className="text-sm text-[#8C8981]">No location data yet.</p>}
+                        {india && (
+                            <p className="mt-4 text-xs text-[#8C8981]">
+                                India {pctLabel(share(india.value, total))} of clicks · {indianStates.length} states and regions{stats.cities[0] ? ` · top city ${stats.cities[0].city}` : ''}
+                            </p>
+                        )}
+                    </Tile>
+
+                    {/* Latest clicks */}
+                    <Tile dark className="lg:col-span-8">
+                        <Label dark right={<MonoPill dark>newest first</MonoPill>}>Latest clicks</Label>
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-separate border-spacing-y-1.5 text-[13px]">
+                                <thead>
+                                    <tr className="text-left text-[11px] text-[#77746D]">
+                                        <th className="px-3 pb-1 font-medium">Time</th>
+                                        <th className="px-3 pb-1 font-medium">Place</th>
+                                        <th className="px-3 pb-1 font-medium">Device</th>
+                                        <th className="px-3 pb-1 font-medium">From</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pageClicks.map((click, idx) => {
+                                        const src = sourceName(click.referrer);
+                                        return (
+                                            <tr key={idx}>
+                                                <td className="rounded-l-xl bg-[#232326] px-3 py-2.5 font-mono text-[#A19E97] whitespace-nowrap">
+                                                    {new Date(click.timestamp).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                </td>
+                                                <td className="bg-[#232326] px-3 py-2.5">{[click.city, click.country].filter(Boolean).join(', ') || 'Unknown'}</td>
+                                                <td className="bg-[#232326] px-3 py-2.5 whitespace-nowrap">{click.device || 'Unknown'}{click.os ? ` · ${click.os}` : ''}</td>
+                                                <td className="rounded-r-xl bg-[#232326] px-3 py-2.5">
+                                                    <span className={`rounded-md px-2 py-0.5 font-mono text-[11px] ${src === 'Direct' ? 'bg-[#2A2A2D] text-[#A19E97]' : 'bg-[#2E2A28] text-[#FF9B6A]'}`}>{src}</span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                            {total === 0 && <p className="py-6 text-center text-sm text-[#8E8B84]">No clicks in this period.</p>}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-[#8E8B84]">
+                            <span>Showing {pageClicks.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, total)} of {total.toLocaleString()}</span>
+                            {totalPages > 1 && (
+                                <span className="flex items-center gap-1">
+                                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="rounded-full px-3 py-1 hover:bg-[#2A2A2D] disabled:opacity-40">Prev</button>
+                                    <span className="font-mono">{currentPage} / {totalPages.toLocaleString()}</span>
+                                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="rounded-full px-3 py-1 hover:bg-[#2A2A2D] disabled:opacity-40">Next</button>
+                                </span>
+                            )}
+                        </div>
+                    </Tile>
+
+                    {/* Devices & systems */}
+                    <Tile className="lg:col-span-4">
+                        <Label>Devices &amp; systems</Label>
+                        {stats.devices.filter(d => d.name !== 'Unknown').slice(0, 2).map(d => (
+                            <DotMeter key={d.name} label={d.name} percent={share(d.value, deviceTotal)} />
+                        ))}
+                        <div className="h-2" />
+                        {stats.oses.filter(o => o.name !== 'Unknown').slice(0, 3).map(o => (
+                            <DotMeter key={o.name} label={o.name} percent={share(o.value, osTotal)} />
+                        ))}
+                    </Tile>
+
+                    {/* More details */}
+                    <Tile className="lg:col-span-12">
+                        <Label>More details</Label>
+                        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                            {[
+                                { title: 'Browsers', rows: stats.browsers.slice(0, 5) },
+                                { title: 'Screen width', rows: stats.screenWidths.map(r => ({ ...r, name: r.name === 'Unknown' ? 'Unknown' : `${r.name}px` })) },
+                                { title: 'Language', rows: stats.languages },
+                                { title: 'Visitor time zone', rows: stats.timezones },
+                            ].map(group => (
+                                <div key={group.title}>
+                                    <h4 className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[#8C8981]">{group.title}</h4>
+                                    <div className="grid gap-2">
+                                        {group.rows.map(r => (
+                                            <div key={r.name} className="flex justify-between text-[13px]">
+                                                <span className="truncate pr-3">{r.name === 'Unknown' ? 'Not recorded' : r.name}</span>
+                                                <span className="font-mono text-[#8C8981]">{fmt(r.value)}</span>
+                                            </div>
+                                        ))}
+                                        {group.rows.length === 0 && <p className="text-xs text-[#8C8981]">No data</p>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </Tile>
+                </div>
             </div>
-        </div >
+        </div>
     );
 };
 
