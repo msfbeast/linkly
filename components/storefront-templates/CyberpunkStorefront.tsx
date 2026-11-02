@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Terminal, Cpu, Wifi } from 'lucide-react';
 import { Product } from '@/types';
+import { formatPrice } from '../../utils/formatPrice';
 
 interface StorefrontTemplateProps {
     products: Product[];
@@ -133,7 +134,7 @@ const CyberpunkStorefront: React.FC<StorefrontTemplateProps> = ({ products, load
                                     <div className="flex justify-between items-start mb-2">
                                         <h3 className="font-bold text-lg uppercase truncate pr-4">{product.name}</h3>
                                         <span className="text-[#ff00ff] font-bold">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                            {formatPrice(product.price, product.currency)}
                                         </span>
                                     </div>
                                     <p className="text-xs text-[#00ff00]/60 line-clamp-2 mb-4 font-sans">

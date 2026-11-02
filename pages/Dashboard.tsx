@@ -20,6 +20,7 @@ import { LinkData, categorizeLink } from '../types'; // generateLinkHealthData, 
 import { PriorityLink } from '../components/PriorityLinksList';
 import { DateRange, generateClickForecastData, generateTrafficSourceData, generateLinkHealthData, getTopPerformingLinks } from '../services/analyticsService';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { titleFromUrl } from '../utils/urlTitle';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
 import { toast } from 'sonner';
@@ -428,7 +429,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       const newLink: Omit<LinkData, 'id'> = {
         originalUrl: url,
         shortCode: '', // Let backend generate it
-        title: new URL(url).hostname, // Default title
+        title: titleFromUrl(url), // Readable default from the URL slug
         createdAt: Date.now(),
         clicks: 0,
         tags: [],

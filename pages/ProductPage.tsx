@@ -5,6 +5,7 @@ import { Product } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { toast } from 'sonner';
 import { safeWebUrl } from '../utils/safeUrl';
+import { formatPrice } from '../utils/formatPrice';
 
 const ProductPage: React.FC = () => {
     const { productId } = useParams<{ productId: string }>();
@@ -213,7 +214,7 @@ const ProductPage: React.FC = () => {
                             </h1>
                             <div className="flex items-baseline gap-4 mb-8 pb-8 border-b border-stone-200">
                                 <span className="text-4xl font-bold text-slate-900">
-                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                    {formatPrice(product.price, product.currency)}
                                 </span>
                             </div>
                         </div>
