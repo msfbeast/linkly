@@ -12,6 +12,7 @@ import { extractProductDetails } from '../services/geminiService';
 import { extractProductMetadata } from '../services/extractionService';
 
 import { useNavigate } from 'react-router-dom';
+import { formatPrice } from '../utils/formatPrice';
 
 const ProductManager: React.FC = () => {
     const navigate = useNavigate();
@@ -515,7 +516,7 @@ const ProductManager: React.FC = () => {
                                             onClick={() => startInlineEdit(product.id, 'price', String(product.price))}
                                             title="Click to edit price"
                                         >
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                            {formatPrice(product.price, product.currency)}
                                         </span>
                                     )}
                                 </div>

@@ -3,6 +3,7 @@ import { X, ShieldCheck, Download, Loader2, CreditCard } from 'lucide-react';
 import { Product } from '@/types';
 import { loadRazorpayScript } from '@/services/razorpayService';
 import { toast } from 'sonner';
+import { formatPrice } from '../utils/formatPrice';
 
 interface CheckoutModalProps {
     product: Product;
@@ -134,7 +135,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
                                 <h2 className="font-bold text-slate-900 mb-1 line-clamp-2">{product.name}</h2>
                                 <p className="text-stone-500 text-sm mb-2">{product.category || 'Digital Product'}</p>
                                 <div className="inline-block px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">
-                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                    {formatPrice(product.price, product.currency)}
                                 </div>
                             </div>
                         </div>
@@ -158,7 +159,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ product, onClose, storeNa
                                 className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                                Pay {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                Pay {formatPrice(product.price, product.currency)}
                             </button>
                         </div>
                     </div>

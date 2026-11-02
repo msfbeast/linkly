@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Star, Zap, ExternalLink, X, DollarSign } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, UserProfile } from '@/types';
+import { formatPrice } from '../../utils/formatPrice';
 
 interface StorefrontTemplateProps {
     products: Product[];
@@ -131,7 +132,7 @@ const VibrantStorefront: React.FC<StorefrontTemplateProps> = ({ products, loadin
                                         </div>
                                     )}
                                     <div className="absolute top-4 right-4 bg-yellow-300 px-3 py-1 rounded-full border-2 border-black font-black text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.price)}
+                                        {formatPrice(product.price, product.currency)}
                                     </div>
                                 </button>
 
