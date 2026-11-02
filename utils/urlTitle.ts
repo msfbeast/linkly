@@ -16,16 +16,17 @@ const KNOWN_HOSTS: Record<string, string> = {
     't.me': 'Telegram',
     'bit.ly': 'Shortened Link',
     'amzn.to': 'Amazon Product',
+    'amzn.in': 'Amazon Product',
 };
 
 /** True for path segments that are IDs, not words: hex blobs, uuids, numbers. */
 const isOpaqueSegment = (seg: string): boolean => {
-    if (!seg) return true;
+    if (seg.length < 2) return true;                          // empty or a single letter
     if (/^[0-9]+$/.test(seg)) return true;                    // pure number
     if (/^[0-9a-f-]{16,}$/i.test(seg)) return true;           // uuid / hex id
     if (/^[A-Z0-9]{6,}$/.test(seg) && /\d/.test(seg)) return true; // product codes, e.g. Amazon ASINs
     if (/^[A-Za-z0-9_-]{15,}$/.test(seg) && !seg.includes('-')) return true; // long random token
-    if (/^(index|home|p|dp|d|s|r|u|v|e|product|products|item|items|view|file|folders)$/i.test(seg)) return true; // structural segments
+    if (/^(index|home|p|dp|d|s|r|u|v|e|product|products|item|items|view|file|folders|prn|prid|buy)$/i.test(seg)) return true; // structural segments
     const letters = (seg.match(/[a-z]/gi) || []).length;
     return letters < seg.length * 0.5;                        // mostly non-letters
 };
@@ -42,9 +43,16 @@ const cleanHostname = (hostname: string): string => {
 
 export const titleFromUrl = (url: string, maxLength = 60): string => {
     try {
-        const parsed = new URL(url);
+        // Pasted addresses often lack the scheme: "amazon.in/...".
+        const parsed = new URL(/^[a-z]+:\/\//i.test(url) || !/^[\w-]+(\.[\w-]+)+(\/|$)/.test(url) ? url : `https://${url}`);
         const host = parsed.hostname.replace(/^www\./, '');
 
+        if (host === 'play.google.com') {
+            // "com.fitbit.FitbitMobile" -> "FitbitMobile · Google Play"
+            const name = (parsed.searchParams.get('id') || '').split('.')
+                .filter(p => p && !/^(com|org|net|ai|in|io|app|android|playstore|mobile)$/i.test(p)).pop();
+            return name ? `${name.charAt(0).toUpperCase() + name.slice(1)} · Google Play` : 'Google Play';
+        }
         if (KNOWN_HOSTS[host]) return KNOWN_HOSTS[host];
 
         // Find the most descriptive path segment (usually the product/article slug)
