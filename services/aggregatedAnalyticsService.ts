@@ -13,6 +13,15 @@ import { UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, Refer
 import { rowToClickEvent } from './storage/mappers';
 import type { ClickEventRow } from './storage/mappers';
 
+export interface UserAnalyticsExtras {
+    thisWeek: number;
+    lastWeek: number;
+    heatmap: { day: number; hour: number; clicks: number }[];
+    recent: { timestamp: string; country: string | null; city: string | null; device: string | null; os: string | null; browser: string | null; referrer: string | null }[];
+    countries: { name: string; value: number }[];
+    regions: { country: string; region: string; value: number }[];
+}
+
 // Columns the link page's click table and CSV export use.
 const LINK_CLICK_COLUMNS = 'timestamp, country, city, device, os, browser, referrer, visitor_id';
 
@@ -290,6 +299,22 @@ class AggregatedAnalyticsService {
             all.push(...page);
             if (page.length < batch) return all;
         }
+    }
+
+    /** This week vs the week before: personal links, or a team's. */
+    async getClickChange(teamId?: string | null): Promise<{ thisWeek: number; lastWeek: number } | null> {
+        if (!isSupabaseConfigured() || !supabase) return null;
+        const { data, error } = await supabase.rpc('get_click_change', { p_team_id: teamId ?? null });
+        if (error) { console.error('[Analytics] get_click_change failed:', error); return null; }
+        return { thisWeek: Number(data.thisWeek) || 0, lastWeek: Number(data.lastWeek) || 0 };
+    }
+
+    /** Global Analytics' map, heatmap, recent clicks and weekly totals. */
+    async getUserAnalyticsExtras(days: number, timeZone: string): Promise<UserAnalyticsExtras | null> {
+        if (!isSupabaseConfigured() || !supabase) return null;
+        const { data, error } = await supabase.rpc('get_user_analytics_extras', { p_days: days, p_tz: timeZone });
+        if (error) { console.error('[Analytics] get_user_analytics_extras failed:', error); return null; }
+        return data as UserAnalyticsExtras;
     }
 
     /**
