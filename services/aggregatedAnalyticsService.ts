@@ -13,6 +13,15 @@ import { UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, Refer
 import { rowToClickEvent } from './storage/mappers';
 import type { ClickEventRow } from './storage/mappers';
 
+export interface TopLink {
+    id: string;
+    title: string;
+    shortCode: string;
+    clicks: number;
+    /** clicks per complete UTC day, oldest first */
+    spark: number[];
+}
+
 export interface UserAnalyticsExtras {
     thisWeek: number;
     lastWeek: number;
@@ -307,6 +316,14 @@ class AggregatedAnalyticsService {
         const { data, error } = await supabase.rpc('get_click_change', { p_team_id: teamId ?? null });
         if (error) { console.error('[Analytics] get_click_change failed:', error); return null; }
         return { thisWeek: Number(data.thisWeek) || 0, lastWeek: Number(data.lastWeek) || 0 };
+    }
+
+    /** The caller's top 5 links over the last `days`, each with a daily trend of complete days. */
+    async getTopLinks(days: number, sparkDays = 13): Promise<TopLink[]> {
+        if (!isSupabaseConfigured() || !supabase) return [];
+        const { data, error } = await supabase.rpc('get_user_top_links', { p_days: days, p_spark_days: sparkDays });
+        if (error) { console.error('[Analytics] get_user_top_links failed:', error); return []; }
+        return ((data || []) as TopLink[]).map(l => ({ ...l, clicks: Number(l.clicks), spark: (l.spark || []).map(Number) }));
     }
 
     /** Global Analytics' map, heatmap, recent clicks and weekly totals. */

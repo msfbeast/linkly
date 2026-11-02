@@ -1,6 +1,6 @@
 // Dashboard v2.0 - Fixed infinite loop issue
 const DASHBOARD_VERSION = '2.0.1'; // Force rebuild
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, ArrowUpRight, AlertCircle, Loader2, Link as LinkIcon, Download, Tag as TagIcon } from 'lucide-react';
@@ -14,15 +14,12 @@ import HeroCreateButton from '../components/HeroCreateButton';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 import DashboardHeader from '../components/dashboard/DashboardHeader';
-import AnalyticsOverview from '../components/dashboard/AnalyticsOverview';
+import OverviewBento from '../components/dashboard/OverviewBento';
 import LinksList from '../components/dashboard/LinksList';
 import { LinkData, categorizeLink } from '../types'; // generateLinkHealthData, getTopPerformingLinks moved to analyticsService
-import { calculateTrafficTotal } from '../components/TrafficSourceChart';
 import { PriorityLink } from '../components/PriorityLinksList';
-import { DateRange, generateClickForecastData, generateTrafficSourceData, generateLinkHealthData, getTopPerformingLinks, aggregateDailyClicksToForecast, categorizeTrafficSourceFromStats } from '../services/analyticsService';
+import { DateRange, generateClickForecastData, generateTrafficSourceData, generateLinkHealthData, getTopPerformingLinks } from '../services/analyticsService';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
-import { UserClickStats, CityBreakdown } from '../types';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
 import { toast } from 'sonner';
@@ -54,20 +51,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   onLinksUpdate,
 }) => {
   const [links, setLinks] = useState<LinkData[]>([]);
-  const [userClickStats, setUserClickStats] = useState<UserClickStats | null>(null);
-  const [serverCityData, setServerCityData] = useState<CityBreakdown[]>([]);
-  const [serverOsData, setServerOsData] = useState<any[]>([]);
-  const [serverBrowserData, setServerBrowserData] = useState<any[]>([]);
-  const [serverReferrerData, setServerReferrerData] = useState<any[]>([]);
   const [internalModalOpen, setInternalModalOpen] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingLink, setEditingLink] = useState<LinkData | null>(null);
   const [priorityLinksChecked, setPriorityLinksChecked] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
-  // Charts load after the links, so a slow analytics query never holds up the page.
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
-  const analyticsRequest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [isExporting, setIsExporting] = useState(false);
@@ -75,8 +64,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
   const [filterStatus, setFilterStatus] = useState<'active' | 'archived'>('active');
   const [totalClicks, setTotalClicks] = useState(0);
-  const [clickForecastData, setClickForecastData] = useState<any[]>([]);
-  const [trafficSourceData, setTrafficSourceData] = useState<any[]>([]);
 
   const { user } = useAuth();
   const { currentTeam } = useTeam();
@@ -153,43 +140,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         const total = data.reduce((sum, link) => sum + link.clicks, 0);
         setTotalClicks(total);
 
-        // Links are on screen now; charts fill in when their data arrives.
+        // The click overview (OverviewBento) loads its own data.
         setIsLoading(false);
-
-        // Fetch Chart Data from Server Aggregation (Parallel)
-        // This replaces the client-side calculation from 50k+ rows
-        const request = ++analyticsRequest.current;
-        if (user?.id && !currentTeam) {
-          setAnalyticsLoading(true);
-          try {
-            const [dailyClicks, referrerStats, cityStats, osStats, browserStats, userStats] = await Promise.all([
-              aggregatedAnalytics.getClicksOverTime(user.id, 30),
-              aggregatedAnalytics.getReferrerBreakdown(user.id),
-              aggregatedAnalytics.getCityBreakdown(user.id),
-              aggregatedAnalytics.getOsBreakdown(user.id),
-              aggregatedAnalytics.getBrowserBreakdown(user.id),
-              aggregatedAnalytics.getUserClickStats(user.id)
-            ]);
-            if (request !== analyticsRequest.current) return; // a newer load is running
-
-            setClickForecastData(aggregateDailyClicksToForecast(dailyClicks));
-            setTrafficSourceData(categorizeTrafficSourceFromStats(referrerStats));
-            setServerCityData(cityStats);
-            setServerOsData(osStats);
-            setServerBrowserData(browserStats);
-            setServerReferrerData(referrerStats);
-            if (userStats) setUserClickStats(userStats);
-          } finally {
-            if (request === analyticsRequest.current) setAnalyticsLoading(false);
-          }
-        } else {
-          // Team Mode Fallback (Client-side or empty)
-          // For team mode, we might need to rely on what we have or accept empty charts for now
-          // pending team analytics implementation
-          setClickForecastData([]);
-          setTrafficSourceData([]);
-          setAnalyticsLoading(false);
-        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load links';
@@ -197,8 +149,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       console.error('Failed to load links:', err);
     } finally {
       setIsLoading(false);
-      // Nothing left to wait for if the links never loaded.
-      setAnalyticsLoading((loading) => (loading && analyticsRequest.current === 0 ? false : loading));
     }
   }, [user?.id, currentTeam?.id, filterStatus]);
 
@@ -378,8 +328,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Derived metrics
   const linkHealthData = generateLinkHealthData(links);
 
-  // Use aggregated total if available (not capped), otherwise fall back to calculated total
-  const trafficSourceTotal = userClickStats?.totalClicks ?? calculateTrafficTotal(trafficSourceData);
 
   // Generate priority links from links that need attention
   const priorityLinks: PriorityLink[] = links
@@ -556,9 +504,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] transition-all duration-300 relative overflow-hidden">
-      {/* Aurora Background Effects */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-yellow-200/40 via-purple-200/40 to-transparent blur-3xl -z-10 rounded-full opacity-60 pointer-events-none" />
+    <div className="min-h-screen bg-[#ECEBE7] transition-all duration-300 relative overflow-hidden">
 
       <TagManager
         isOpen={isTagManagerOpen}
@@ -590,21 +536,10 @@ const Dashboard: React.FC<DashboardProps> = ({
             <HeroCreateButton onClick={handleCreateClick} />
           </div>
 
-          {/* Analytics Overview (Bento Grid) */}
-          {/* Analytics Overview (Bento Grid) */}
-          {(isLoading || !hasNoLinks) && (
+          {/* Click overview (personal links; team analytics aren't available yet) */}
+          {user?.id && !currentTeam && !hasNoLinks && (
             <ErrorBoundary>
-              <AnalyticsOverview
-                links={links}
-                isLoading={isLoading || analyticsLoading}
-                clickForecastData={clickForecastData}
-                trafficSourceData={trafficSourceData}
-                totalClicks={trafficSourceTotal}
-                serverCityData={serverCityData}
-                serverOsData={serverOsData}
-                serverBrowserData={serverBrowserData}
-                serverReferrerData={serverReferrerData}
-              />
+              <OverviewBento userId={user.id} dateRange={dateRange} linkCount={links.length} />
             </ErrorBoundary>
           )}
 
