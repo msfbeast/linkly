@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Globe, MousePointer2, TrendingUp, TrendingDown, Loader2, MapPin, Monitor, Smartphone, Share2, Check, Copy } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
+import { aggregatedAnalytics, type UserAnalyticsExtras } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LinkData,
@@ -76,6 +76,8 @@ const GlobalAnalytics: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [serverData, setServerData] = useState<ServerAnalytics | null>(null);
+  // Map, heatmap, recent clicks and weekly totals (get_user_analytics_extras).
+  const [extras, setExtras] = useState<UserAnalyticsExtras | null>(null);
   const [dateRange, setDateRange] = useState('7d');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
@@ -96,10 +98,13 @@ const GlobalAnalytics: React.FC = () => {
       const days = dateRange === '90d' ? 90 : dateRange === '30d' ? 30 : 7;
 
       // Fetch both links data and server-side aggregations in parallel
-      const [links, fullAnalytics] = await Promise.all([
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const [links, fullAnalytics, extrasData] = await Promise.all([
         supabaseAdapter.getLinks(),
-        user?.id ? aggregatedAnalytics.getFullAnalytics(user.id, days) : null
+        user?.id ? aggregatedAnalytics.getFullAnalytics(user.id, days) : null,
+        user?.id ? aggregatedAnalytics.getUserAnalyticsExtras(days, timeZone) : null,
       ]);
+      setExtras(extrasData);
 
       // Process client-side data (for map visualization)
       const summary = processAnalytics(links);
@@ -304,6 +309,10 @@ const GlobalAnalytics: React.FC = () => {
   const topBrowsers = (serverData?.browsers && serverData.browsers.length > 0) ? serverData.browsers : (analytics?.topBrowsers.map(b => ({ browser: b.browser, clickCount: b.clicks })) || []);
   const topDeviceModels = serverData?.deviceModels || [];
   const maxClicks = Math.max(...(topCountries.map(c => c.clickCount) || [1]));
+  const thisWeek = Number(extras?.thisWeek ?? serverData?.stats?.clicksThisWeek ?? 0);
+  const lastWeek = Number(extras?.lastWeek ?? 0);
+  const heatmap = (extras?.heatmap ?? []).map(h => ({ ...h, clicks: Number(h.clicks) }));
+  const recentClicks = (extras?.recent ?? []).map(c => ({ ...c, timestamp: new Date(c.timestamp).getTime() }));
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-6">
@@ -363,7 +372,7 @@ const GlobalAnalytics: React.FC = () => {
 
         {/* Live Global Map */}
         <div className="w-full">
-          <LiveWorldMap clickHistory={analytics?.filteredClicks || []} serverCityData={topCities} />
+          <LiveWorldMap countryCounts={extras?.countries ?? []} regionCounts={extras?.regions ?? []} serverCityData={topCities} />
         </div>
 
 
@@ -376,15 +385,12 @@ const GlobalAnalytics: React.FC = () => {
                 </div>
                 <span className="text-stone-500 text-sm">This Week</span>
               </div>
-              <GrowthBadge
-                current={serverData?.stats?.clicksThisWeek ?? 0}
-                previous={serverData?.stats?.clicksLastWeek ?? 0}
-              />
+              <GrowthBadge current={thisWeek} previous={lastWeek} />
             </div>
             <p className="text-3xl font-bold text-slate-900">
-              {(serverData?.stats?.clicksThisWeek ?? 0).toLocaleString()}
+              {thisWeek.toLocaleString()}
             </p>
-            <p className="text-xs text-stone-400 mt-1">vs {(serverData?.stats?.clicksLastWeek ?? 0).toLocaleString()} last week</p>
+            <p className="text-xs text-stone-400 mt-1">vs {lastWeek.toLocaleString()} last week</p>
           </div>
           <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -412,7 +418,7 @@ const GlobalAnalytics: React.FC = () => {
               <span className="text-stone-500 text-sm">Avg/Day</span>
             </div>
             <p className="text-3xl font-bold text-slate-900">
-              {serverData?.stats?.clicksThisWeek ? Math.round(serverData.stats.clicksThisWeek / 7) : (analytics?.clicksByDay.length ? Math.round(analytics.totalClicks / analytics.clicksByDay.length) : 0)}
+              {Math.round(thisWeek / 7)}
             </p>
           </div>
         </div>
@@ -498,49 +504,8 @@ const GlobalAnalytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Advanced Analytics: Campaigns & Sources */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* UTM Campaigns */}
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <TrendingUp className="w-5 h-5 text-pink-500" />
-              <h3 className="text-slate-900 font-bold">Top Campaigns</h3>
-            </div>
-            <div className="space-y-4">
-              {analytics?.topCampaigns.length === 0 ? (
-                <p className="text-stone-500 text-sm">No campaign data yet</p>
-              ) : (
-                analytics?.topCampaigns.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
-                    <span className="text-slate-900 text-sm truncate max-w-[150px]" title={item.campaign}>{item.campaign}</span>
-                    <span className="text-stone-500 text-sm">{item.clicks}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* UTM Sources */}
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <Globe className="w-5 h-5 text-orange-500" />
-              <h3 className="text-slate-900 font-bold">Top Sources</h3>
-            </div>
-            <div className="space-y-4">
-              {analytics?.topSources.length === 0 ? (
-                <p className="text-stone-500 text-sm">No source data yet</p>
-              ) : (
-                analytics?.topSources.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
-                    <span className="text-slate-900 text-sm truncate max-w-[150px]" title={item.source}>{item.source}</span>
-                    <span className="text-stone-500 text-sm">{item.clicks}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Traffic Sources */}
+        {/* Traffic Sources (UTM campaign/source panels removed: clicks don't record UTM parameters) */}
+        <div className="grid grid-cols-1 gap-6">
           <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-6">
               <Smartphone className="w-5 h-5 text-purple-500" />
@@ -593,9 +558,9 @@ const GlobalAnalytics: React.FC = () => {
                   <React.Fragment key={day}>
                     <div className="text-xs text-stone-500 flex items-center h-8">{day}</div>
                     {Array.from({ length: 24 }).map((_, hourIndex) => {
-                      const dataPoint = analytics?.heatmapData.find(d => d.day === dayIndex && d.hour === hourIndex);
+                      const dataPoint = heatmap.find(d => d.day === dayIndex && d.hour === hourIndex);
                       const count = dataPoint?.clicks || 0;
-                      const maxClicks = Math.max(...(analytics?.heatmapData.map(d => d.clicks) || [1]));
+                      const maxClicks = Math.max(1, ...heatmap.map(d => d.clicks));
                       const intensity = count > 0 ? Math.max(0.2, count / maxClicks) : 0;
 
                       return (
@@ -672,12 +637,12 @@ const GlobalAnalytics: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {analytics?.recentClicks.length === 0 ? (
+                {recentClicks.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-4 text-stone-500 text-sm">No clicks recorded yet</td>
                   </tr>
                 ) : (
-                  analytics?.recentClicks.map((click, i) => (
+                  recentClicks.map((click, i) => (
                     <tr key={i} className="border-b border-stone-100 last:border-0">
                       <td className="py-3 text-slate-700 text-sm">{new Date(click.timestamp).toLocaleString()}</td>
                       <td className="py-3 text-slate-700 text-sm">{click.country || 'Unknown'}</td>

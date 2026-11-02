@@ -6,6 +6,7 @@ import TopNavigation from './TopNavigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useTeam } from '../contexts/TeamContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
 import CreateLinkModal from './CreateLinkModal';
 import LinkAnalytics from '../pages/LinkAnalytics';
 import Settings from '../pages/Settings';
@@ -60,32 +61,14 @@ const DashboardLayout: React.FC = () => {
                 const realLinks = await supabaseAdapter.getLinks(currentTeam?.id);
                 setLinks(realLinks);
 
-                // Calculate real click change (compare last 7 days vs previous 7 days)
-                const now = Date.now();
-                const oneWeek = 7 * 24 * 60 * 60 * 1000;
-                const twoWeeks = 14 * 24 * 60 * 60 * 1000;
-
-                let recentClicks = 0;
-                let previousClicks = 0;
-
-                realLinks.forEach(link => {
-                    (link.clickHistory || []).forEach(click => {
-                        const age = now - click.timestamp;
-                        if (age < oneWeek) {
-                            recentClicks++;
-                        } else if (age < twoWeeks) {
-                            previousClicks++;
-                        }
-                    });
-                });
-
-                if (previousClicks > 0) {
-                    const change = Math.round(((recentClicks - previousClicks) / previousClicks) * 100);
-                    setClickChange(change);
-                } else if (recentClicks > 0) {
-                    setClickChange(100);
-                } else {
+                // Last 7 days vs the 7 before, counted on the server.
+                const change = await aggregatedAnalytics.getClickChange(currentTeam?.id ?? null);
+                if (!change) {
                     setClickChange(0);
+                } else if (change.lastWeek > 0) {
+                    setClickChange(Math.round(((change.thisWeek - change.lastWeek) / change.lastWeek) * 100));
+                } else {
+                    setClickChange(change.thisWeek > 0 ? 100 : 0);
                 }
             } catch (error) {
                 console.error('Failed to load links:', error);
