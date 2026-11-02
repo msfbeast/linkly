@@ -47,7 +47,7 @@ describe('/api/track', () => {
         // No third-party geolocation call: only Supabase.
         expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith('https://db.example.supabase.co/'))).toBe(true);
 
-        const insert = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/rest/v1/click_events'))!;
+        const insert = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/rest/v1/click_events?select=id'))!;
         const row = JSON.parse(insert[1].body);
         expect(row).toMatchObject({
             link_id: LINK,
@@ -74,6 +74,6 @@ describe('/api/track', () => {
         expect((await handler(post({ linkId: 'not-a-uuid' }))).status).toBe(400);
         expect((await handler(post('{nope'))).status).toBe(400);
         expect((await handler(new Request('https://gather.link/api/track'))).status).toBe(405);
-        expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/click_events'))).toBe(false);
+        expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/click_events'))).toBe(false);
     });
 });
