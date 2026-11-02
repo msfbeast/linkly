@@ -81,6 +81,9 @@ export default async function handler(request: Request): Promise<Response> {
         latitude: geo.latitude,
         longitude: geo.longitude,
         client: clientDetails(body),
+        // One id per visit from the page: its retry (sent when leaving the
+        // page makes the first request look failed) is then stored once.
+        ...(typeof body.eventId === 'string' && UUID.test(body.eventId) ? { eventId: body.eventId } : {}),
     };
 
     // Per-visitor, per-link cap. Answer 200 so the page doesn't retry.

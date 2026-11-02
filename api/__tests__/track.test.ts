@@ -68,6 +68,34 @@ describe('/api/track', () => {
         expect(JSON.stringify(row)).not.toContain('203.0.113.7');
     });
 
+    it('stores a page retry with the same event id once, and counts it once', async () => {
+        const EVENT = '5d3c1e6a-8f2b-4c1d-9a7e-3b2c1d0e9f8a';
+        const stored = new Set<string>();
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (String(url).includes('/rest/v1/links?')) return new Response(JSON.stringify([{ id: LINK }]), { status: 200 });
+            if (String(url).includes('/click_events')) {
+                const id = JSON.parse(String(init!.body)).id;
+                if (stored.has(id)) return new Response('[]', { status: 201 }); // ON CONFLICT DO NOTHING
+                stored.add(id);
+                return new Response(JSON.stringify([{ id }]), { status: 201 });
+            }
+            return new Response('', { status: 200 });
+        });
+        const ua = { 'user-agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile', 'x-forwarded-for': '203.0.113.9' };
+        await handler(post({ linkId: LINK, eventId: EVENT }, ua));
+        await handler(post({ linkId: LINK, eventId: EVENT }, ua));
+
+        const inserts = fetchMock.mock.calls.filter(([u]) => String(u).includes('/click_events'));
+        expect(inserts.map(([, i]) => JSON.parse(String(i.body)).id)).toEqual([EVENT, EVENT]);
+        expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/rpc/increment_link_clicks'))).toHaveLength(1);
+    });
+
+    it('ignores an event id that is not a UUID', async () => {
+        await handler(post({ linkId: LINK, eventId: 'abc; drop table' }, { 'x-forwarded-for': '203.0.113.10' }));
+        const insert = fetchMock.mock.calls.find(([u]) => String(u).includes('/click_events'))!;
+        expect(JSON.parse(String(insert[1].body)).id).toBeUndefined();
+    });
+
     it('rejects unknown links and bad input without storing anything', async () => {
         fetchMock.mockImplementation(async () => new Response('[]', { status: 200 }));
         expect((await handler(post({ linkId: LINK }))).status).toBe(404);
