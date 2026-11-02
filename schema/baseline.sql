@@ -1001,6 +1001,41 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.get_click_change(p_team_id uuid DEFAULT NULL::uuid)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    uid uuid := auth.uid();
+    result json;
+BEGIN
+    IF uid IS NULL THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+    IF p_team_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM public.team_members WHERE team_id = p_team_id AND user_id = uid
+    ) THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+
+    SELECT json_build_object(
+        'thisWeek', coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= date_trunc('hour', now() - interval '7 days')), 0),
+        'lastWeek', coalesce(sum(r.clicks) FILTER (WHERE r.bucket < date_trunc('hour', now() - interval '7 days')), 0)
+    ) INTO result
+    FROM public.click_rollups r
+    JOIN public.links l ON l.id = r.link_id
+    WHERE r.dim = 'total'
+      AND r.bucket >= date_trunc('hour', now() - interval '14 days')
+      AND CASE WHEN p_team_id IS NULL THEN l.user_id = uid AND l.team_id IS NULL
+               ELSE l.team_id = p_team_id END;
+
+    RETURN result;
+END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.get_guest_link_by_claim_token(p_token text)
  RETURNS jsonb
  LANGUAGE sql
@@ -1334,6 +1369,108 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.get_user_analytics_extras(p_days integer DEFAULT 30, p_tz text DEFAULT 'UTC'::text)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
+AS $function$
+DECLARE
+    uid uuid := auth.uid();
+    days integer := least(greatest(coalesce(p_days, 30), 1), 366);
+    tz text := coalesce(p_tz, 'UTC');
+    result json;
+BEGIN
+    IF uid IS NULL THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+    BEGIN
+        PERFORM now() AT TIME ZONE tz;
+    EXCEPTION WHEN OTHERS THEN
+        tz := 'UTC';
+    END;
+
+    WITH my_links AS (
+        SELECT id FROM public.links WHERE user_id = uid
+    ),
+    hours AS (
+        SELECT r.bucket, sum(r.clicks) AS clicks
+        FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+        WHERE r.dim = 'total' AND r.bucket >= date_trunc('hour', now() - days * interval '1 day')
+        GROUP BY r.bucket
+    ),
+    -- Each UTC hour, in the viewer's local time with that date's offset
+    -- (daylight saving included). In zones offset by part of an hour (India
+    -- +5:30) an hour of clicks lands in the local hour it starts in.
+    local_hours AS (
+        SELECT date_trunc('hour', h.bucket AT TIME ZONE tz) AS local_start, h.clicks
+        FROM hours h
+    ),
+    weeks AS (
+        SELECT
+            coalesce(sum(r.clicks) FILTER (WHERE r.bucket >= date_trunc('hour', now() - interval '7 days')), 0) AS this_week,
+            coalesce(sum(r.clicks) FILTER (WHERE r.bucket < date_trunc('hour', now() - interval '7 days')), 0) AS last_week
+        FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+        WHERE r.dim = 'total' AND r.bucket >= date_trunc('hour', now() - interval '14 days')
+    )
+    SELECT json_build_object(
+        'thisWeek', (SELECT this_week FROM weeks),
+        'lastWeek', (SELECT last_week FROM weeks),
+        'heatmap', (
+            SELECT coalesce(json_agg(json_build_object('day', dw, 'hour', hr, 'clicks', n)), '[]'::json)
+            FROM (
+                SELECT extract(dow FROM date_trunc('hour', local_start))::int AS dw,
+                       extract(hour FROM date_trunc('hour', local_start))::int AS hr,
+                       sum(clicks)::bigint AS n
+                FROM local_hours
+                GROUP BY 1, 2
+            ) t
+        ),
+        -- Newest first: each link's latest 10 via its (link_id, timestamp)
+        -- index, then the latest 10 of those.
+        'recent', (
+            SELECT coalesce(json_agg(json_build_object(
+                       'timestamp', c.timestamp, 'country', c.country, 'city', c.city,
+                       'device', c.device, 'os', c.os, 'browser', c.browser, 'referrer', c.referrer)
+                   ORDER BY c.timestamp DESC), '[]'::json)
+            FROM (
+                SELECT ce.* FROM my_links l
+                CROSS JOIN LATERAL (
+                    SELECT timestamp, country, city, device, os, browser, referrer
+                    FROM public.click_events
+                    WHERE link_id = l.id
+                    ORDER BY timestamp DESC
+                    LIMIT 10
+                ) ce
+                ORDER BY ce.timestamp DESC
+                LIMIT 10
+            ) c
+        ),
+        'countries', (
+            SELECT coalesce(json_agg(json_build_object('name', v, 'value', n) ORDER BY n DESC, v), '[]'::json)
+            FROM (
+                SELECT coalesce(nullif(r.val, ''), 'Unknown') AS v, sum(r.clicks) AS n
+                FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+                WHERE r.dim = 'country'
+                GROUP BY 1
+            ) t
+        ),
+        'regions', (
+            SELECT coalesce(json_agg(json_build_object('country', co, 'region', rg, 'value', n) ORDER BY n DESC, co, rg), '[]'::json)
+            FROM (
+                SELECT r.val2 AS co, r.val AS rg, sum(r.clicks) AS n
+                FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+                WHERE r.dim = 'region' AND r.val2 IN ('United States', 'India')
+                GROUP BY 1, 2
+            ) t
+        )
+    ) INTO result;
+
+    RETURN result;
+END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.get_user_browser_breakdown(p_user_id uuid)
  RETURNS TABLE(browser text, click_count bigint)
  LANGUAGE plpgsql
@@ -1509,6 +1646,55 @@ BEGIN
         RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
     END IF;
     RETURN QUERY SELECT b.val, b.click_count FROM public.user_rollup_breakdown(p_user_id, 'referrer', NULL) b;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_user_top_links(p_days integer DEFAULT 7, p_spark_days integer DEFAULT 13)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    uid uuid := auth.uid();
+    days integer := least(greatest(coalesce(p_days, 7), 1), 366);
+    spark_days integer := least(greatest(coalesce(p_spark_days, 13), 2), 60);
+    today timestamptz := date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+    result json;
+BEGIN
+    IF uid IS NULL THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+
+    WITH my_links AS (
+        SELECT id, title, short_code FROM public.links WHERE user_id = uid AND NOT coalesce(is_archived, false)
+    ),
+    totals AS (
+        SELECT r.link_id, r.bucket, r.clicks
+        FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+        WHERE r.dim = 'total' AND r.bucket >= least(now() - days * interval '1 day', today - spark_days * interval '1 day')
+    ),
+    top AS (
+        SELECT link_id, sum(clicks) AS clicks
+        FROM totals WHERE bucket >= date_trunc('hour', now() - days * interval '1 day')
+        GROUP BY link_id ORDER BY 2 DESC LIMIT 5
+    )
+    SELECT coalesce(json_agg(json_build_object(
+               'id', l.id, 'title', l.title, 'shortCode', l.short_code, 'clicks', t.clicks,
+               'spark', (
+                   SELECT json_agg(coalesce(s.n, 0) ORDER BY g.d)
+                   FROM generate_series(today - spark_days * interval '1 day', today - interval '1 day', interval '1 day') AS g(d)
+                   LEFT JOIN LATERAL (
+                       SELECT sum(x.clicks) AS n FROM totals x
+                       WHERE x.link_id = l.id AND x.bucket >= g.d AND x.bucket < g.d + interval '1 day'
+                   ) s ON true
+               ))
+           ORDER BY t.clicks DESC), '[]'::json)
+    INTO result
+    FROM top t JOIN my_links l ON l.id = t.link_id;
+
+    RETURN result;
 END;
 $function$
 ;
@@ -2084,11 +2270,6 @@ CREATE OR REPLACE VIEW public.click_stats_daily WITH (security_invoker=true) AS
 CREATE INDEX idx_analytics_summary_date ON public.analytics_daily_summary USING btree (date);
 CREATE INDEX idx_analytics_summary_link_date ON public.analytics_daily_summary USING btree (link_id, date);
 CREATE INDEX idx_share_tokens_token ON public.analytics_share_tokens USING btree (token);
-CREATE INDEX idx_click_events_browser ON public.click_events USING btree (browser);
-CREATE INDEX idx_click_events_city ON public.click_events USING btree (city);
-CREATE INDEX idx_click_events_country ON public.click_events USING btree (country);
-CREATE INDEX idx_click_events_country_code ON public.click_events USING btree (country_code);
-CREATE INDEX idx_click_events_fingerprint ON public.click_events USING btree (fingerprint);
 CREATE INDEX idx_click_events_link_id ON public.click_events USING btree (link_id);
 CREATE INDEX idx_click_events_link_timestamp ON public.click_events USING btree (link_id, "timestamp" DESC);
 CREATE INDEX idx_click_events_timestamp ON public.click_events USING btree ("timestamp");
@@ -2551,12 +2732,14 @@ REVOKE ALL ON FUNCTION public.custom_domain_username(p_user_id uuid) FROM PUBLIC
 REVOKE ALL ON FUNCTION public.enforce_free_link_limit() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.fill_product_url_from_link() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_bio_analytics(p_days integer) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.get_click_change(p_team_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_guest_link_by_claim_token(p_token text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_link_analytics(p_link_id uuid, p_range text, p_tz text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_link_stats(p_link_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_public_link(p_short_code text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_public_links(p_ids uuid[]) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_shared_analytics(p_share_token text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.get_user_analytics_extras(p_days integer, p_tz text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_click_stats(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
@@ -2566,6 +2749,7 @@ REVOKE ALL ON FUNCTION public.get_user_device_breakdown(p_user_id uuid) FROM PUB
 REVOKE ALL ON FUNCTION public.get_user_device_model_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.get_user_top_links(p_days integer, p_spark_days integer) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.guard_link_ownership() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.guard_team_owner_change() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated, service_role;
@@ -2626,6 +2810,8 @@ GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO service_role;
 GRANT EXECUTE ON FUNCTION public.fill_product_url_from_link() TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_bio_analytics(p_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_bio_analytics(p_days integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_click_change(p_team_id uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_click_change(p_team_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO service_role;
@@ -2643,6 +2829,8 @@ GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO PUB
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_shared_analytics(p_share_token text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_user_analytics_extras(p_days integer, p_tz text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_analytics_extras(p_days integer, p_tz text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_browser_breakdown(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_user_city_breakdown(p_user_id uuid) TO authenticated;
@@ -2661,6 +2849,8 @@ GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO authen
 GRANT EXECUTE ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_user_top_links(p_days integer, p_spark_days integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_top_links(p_days integer, p_spark_days integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO anon;
 GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO authenticated;
