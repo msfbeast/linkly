@@ -146,8 +146,14 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       incrementClicks(link.id); // local-only mode (no backend)
       return;
     }
+    // Same id on both attempts. On phones the redirect right after this
+    // often makes the first (keepalive) request look failed although it
+    // reached the server; the retry then counted the click a second time
+    // (~1 in 5 mobile clicks). The server stores an id only once.
+    const eventId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : undefined;
     const body = JSON.stringify({
       linkId: link.id,
+      eventId,
       destinationUrl, // Pass destination URL for A/B testing
       ...captureDeviceFingerprint(),
     });
