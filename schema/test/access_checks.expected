@@ -97,3 +97,8 @@ Carol (editor): make herself owner (rows)                     OK 0
 Carol (editor): take team ownership (rows)                    OK 0
 Carol (editor): edit team link title                          OK Edited
 Alice: product from her own link                              OK https://a.example
+anon: read private profile fields (rows)                      OK 0
+Bob: read Alice's profile (rows)                              OK 0
+Alice: read own profile (rows)                                OK 1
+anon: is username "nobody-here" taken                         OK false
+anon: custom domain username of Bob                           OK <none>

@@ -141,13 +141,11 @@ export default async function middleware(request: Request) {
         } else {
             // Default: Bio Page
             // We need to find the username first.
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('username')
-                .eq('id', domainData.user_id)
-                .single();
+            // Profiles aren't publicly readable; this returns just the username.
+            const { data: username } = await supabase.rpc('custom_domain_username', { p_user_id: domainData.user_id });
+            const profile = { username: username as string | null };
 
-            if (profile?.username) {
+            if (profile.username) {
                 console.log(`[Middleware] Rewriting ${hostname}/ to /p/${profile.username}`);
                 // Rewrite the URL to the internal path for the bio page
                 url.pathname = `/p/${profile.username}`;

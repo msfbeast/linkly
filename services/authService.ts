@@ -129,18 +129,15 @@ export const authService = {
   async checkUsernameAvailability(username: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase) return false;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', username)
-      .maybeSingle();
+    // Other users' profiles aren't readable; ask the database instead.
+    const { data: taken, error } = await supabase.rpc('is_username_taken', { p_username: username });
 
     if (error) {
       console.error('Error checking username:', error);
       return false;
     }
 
-    return !data; // If no data returned, username is available
+    return taken === false;
   },
 
   /**

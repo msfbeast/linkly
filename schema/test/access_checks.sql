@@ -139,4 +139,9 @@ SELECT pg_temp.probe('Carol (editor): make herself owner (rows)', $q$WITH u AS (
 SELECT pg_temp.probe('Carol (editor): take team ownership (rows)', $q$WITH u AS (UPDATE public.teams SET owner_id = '00000000-0000-0000-0000-00000000000c' WHERE id = '11111111-1111-1111-1111-111111111111' RETURNING 1) SELECT count(*)::text FROM u$q$, 'authenticated', '00000000-0000-0000-0000-00000000000c');
 SELECT pg_temp.probe('Carol (editor): edit team link title', $q$UPDATE public.links SET title = 'Edited' WHERE id = '22222222-2222-2222-2222-22222222222e' RETURNING title$q$, 'authenticated', '00000000-0000-0000-0000-00000000000c');
 SELECT pg_temp.probe('Alice: product from her own link', $q$INSERT INTO public.products (user_id, link_id, original_url, name, price) VALUES ('00000000-0000-0000-0000-00000000000a', '22222222-2222-2222-2222-22222222222a', '', 'x', 0) RETURNING original_url$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: read private profile fields (rows)', $q$SELECT count(*)::text FROM public.profiles WHERE subscription_tier IS NOT NULL OR id IS NOT NULL$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: read Alice''s profile (rows)', $q$SELECT count(*)::text FROM public.profiles WHERE id = '00000000-0000-0000-0000-00000000000a'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Alice: read own profile (rows)', $q$SELECT count(*)::text FROM public.profiles WHERE id = '00000000-0000-0000-0000-00000000000a'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: is username "nobody-here" taken', $q$SELECT public.is_username_taken('nobody-here')::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: custom domain username of Bob', $q$SELECT coalesce(public.custom_domain_username('00000000-0000-0000-0000-00000000000b'), '<none>')$q$, 'anon', null);
 ROLLBACK;
