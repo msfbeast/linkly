@@ -119,7 +119,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
                 <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                    <h3 className="text-lg font-bold text-white mb-4">Step 1: Add CNAME Record</h3>
+                    <h3 className="text-lg font-bold text-white mb-4">Step 1: Add CNAME and TXT Records</h3>
                     <p className="text-slate-200 text-sm mb-4">
                         In your DNS provider, create a CNAME record for your subdomain (e.g., <span className="text-emerald-400 font-bold">links</span>.yourdomain.com) pointing to:
                     </p>
@@ -213,6 +213,24 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
                                     <div className="grid grid-cols-[80px_1fr] gap-4">
                                         <span className="text-slate-500">Value</span>
                                         <span className="text-emerald-400 font-bold select-all">custom.gather.link</span>
+                                    </div>
+
+                                    <div className="mt-5 mb-3 text-xs text-slate-200">
+                                        <p>4. Add a second record that proves the domain is yours:</p>
+                                    </div>
+                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2 bg-slate-800/50 p-2 rounded">
+                                        <span className="text-slate-500">Type</span>
+                                        <span className="font-bold text-white">TXT</span>
+                                    </div>
+                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2">
+                                        <span className="text-slate-500">Name</span>
+                                        <span className="text-white select-all">
+                                            {domain.domain.split('.').length > 2 ? `_gather.${domain.domain.split('.')[0]}` : '_gather'}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-[80px_1fr] gap-4">
+                                        <span className="text-slate-500">Value</span>
+                                        <span className="text-emerald-400 font-bold select-all break-all">gather-verification={domain.verificationToken}</span>
                                     </div>
                                 </div>
                             )}
