@@ -600,14 +600,22 @@ export class SupabaseAdapter {
   async updateTechVaultOrder(items: TechVaultItem[]): Promise<void> {
     return this.miscRepo.updateTechVaultOrder(items);
   }
-  async exportAllData() {
+  async exportAllData(onProgress?: (clicksRead: number) => void) {
     const user = await this.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const [links, clickEvents] = await Promise.all([
-      this.linkRepo.getLinks(null),
-      this.analyticsRepo.getAllUserClickEvents(user.id)
-    ]);
+    // Clicks for exactly the links in the export, a page at a time (this
+    // used to pull every column of every click at once and silently drop
+    // batches that failed or hit the row cap).
+    const links = await this.linkRepo.getLinks(null);
+    const rows = await this.analyticsRepo.getClickEventsForExport(links.map(l => l.id), onProgress);
+    const clickEvents = rows.map(r => ({
+      timestamp: new Date(r.timestamp).getTime(),
+      referrer: r.referrer ?? '',
+      device: (r.device ?? 'unknown') as ClickEvent['device'],
+      os: (r.os ?? 'unknown') as ClickEvent['os'],
+      country: r.country ?? '',
+    })) as ClickEvent[];
 
     return {
       links,

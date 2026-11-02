@@ -343,10 +343,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const exportData = await retryExecute(
-        () => supabaseAdapter.exportAllData(),
-        { maxRetries: 3, baseDelayMs: 1000 }
-      );
+      // Pages are retried individually inside exportAllData; retrying the
+      // whole export would download everything again.
+      const exportData = await supabaseAdapter.exportAllData();
       exportAndDownload(exportData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to export data';

@@ -1,6 +1,16 @@
 import { BaseRepository } from './BaseRepository';
 import { BioAnalyticsData } from '../../../types';
 
+/** The click columns the CSV export writes (plus id for paging). */
+export interface ExportClickRow {
+    id: string;
+    timestamp: string;
+    referrer: string | null;
+    device: string | null;
+    os: string | null;
+    country: string | null;
+}
+
 const STORAGE_KEYS = {
     CLICKS: 'click_events',
 };
@@ -18,36 +28,17 @@ export class AnalyticsRepository extends BaseRepository {
             };
         }
 
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-
-        // 1. Fetch User's Links
-        const { data: links } = await this.supabase!
-            .from('links')
-            .select('id, title, short_code')
-            .eq('user_id', userId);
-
-        const linkIds = links?.map(l => l.id) || [];
-
-        // 2. Fetch Click Events for these links
-        const clicks: any[] = [];
-        const BATCH_SIZE = 5;
-
-        for (let i = 0; i < linkIds.length; i += BATCH_SIZE) {
-            const batch = linkIds.slice(i, i + BATCH_SIZE);
-            const { data: batchClicks, error } = await this.supabase!
-                .from(STORAGE_KEYS.CLICKS)
-                .select('*')
-                .in('link_id', batch);
-
-            if (error) {
-                console.error('Error fetching click batch:', JSON.stringify(error));
-            }
-
-            if (batchClicks) {
-                clicks.push(...batchClicks);
-            }
-        }
+        // Counted in the database (get_bio_analytics, from the click rollups);
+        // this used to download every click on every link.
+        const { data: stats, error: statsError } = await this.supabase!.rpc('get_bio_analytics', { p_days: days });
+        if (statsError) throw statsError;
+        const bio = stats as {
+            total: number;
+            daily: { date: string; clicks: number }[];
+            devices: { name: string; value: number }[];
+            countries: { name: string; value: number }[];
+            topLinks: { title: string; shortCode: string; clicks: number }[];
+        };
 
         // 3. Fetch Subscriber Count
         const { count: subscriberCount } = await this.supabase!
@@ -64,44 +55,21 @@ export class AnalyticsRepository extends BaseRepository {
         const totalViews = profiles?.reduce((acc, curr) => acc + (curr.views || 0), 0) || 0;
 
         // Aggregation
-        const totalClicks = clicks?.length || 0;
+        const totalClicks = Number(bio.total) || 0;
         const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100) : 0;
 
-        // Time Series
-        const clicksByDate = new Map<string, number>();
-        // Initialize dates
-        for (let i = 0; i < days; i++) {
+        // Time Series: every day in the window, UTC dates
+        const dailyClicks = new Map(bio.daily.map(d => [d.date, Number(d.clicks)]));
+        const clicksOverTime: { date: string; clicks: number }[] = [];
+        for (let i = days - 1; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            clicksByDate.set(d.toISOString().split('T')[0], 0);
+            const date = d.toISOString().split('T')[0];
+            clicksOverTime.push({ date, clicks: dailyClicks.get(date) || 0 });
         }
 
-        clicks?.forEach(c => {
-            try {
-                if (!c.timestamp) return;
-                const d = new Date(c.timestamp);
-                if (isNaN(d.getTime())) return;
-
-                const date = d.toISOString().split('T')[0];
-                if (clicksByDate.has(date)) {
-                    clicksByDate.set(date, (clicksByDate.get(date) || 0) + 1);
-                }
-            } catch (e) {
-                // Ignore invalid dates
-            }
-        });
-
-        const clicksOverTime = Array.from(clicksByDate.entries())
-            .map(([date, clicks]) => ({ date, clicks }))
-            .sort((a, b) => a.date.localeCompare(b.date));
-
         // Device
-        const deviceCount: Record<string, number> = {};
-        clicks?.forEach(c => {
-            const device = c.device || 'unknown';
-            deviceCount[device] = (deviceCount[device] || 0) + 1;
-        });
-        const byDevice = Object.entries(deviceCount).map(([name, value]) => ({ name, value }));
+        const byDevice = bio.devices.map(d => ({ name: d.name, value: Number(d.value) }));
 
         // Location
         const locationCount: Record<string, number> = {};
@@ -123,13 +91,9 @@ export class AnalyticsRepository extends BaseRepository {
             'SG': 'Singapore'
         };
 
-        clicks?.forEach(c => {
-            let loc = (c.country || 'Unknown').trim();
-
-            // Skip empty stats
-            if (!loc) {
-                loc = 'Unknown';
-            }
+        bio.countries.forEach(c => {
+            let loc = (c.name || 'Unknown').trim();
+            if (!loc) loc = 'Unknown';
 
             // Check codes first (case-insensitive)
             const upperLoc = loc.toUpperCase();
@@ -140,7 +104,7 @@ export class AnalyticsRepository extends BaseRepository {
                 loc = loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase();
             }
 
-            locationCount[loc] = (locationCount[loc] || 0) + 1;
+            locationCount[loc] = (locationCount[loc] || 0) + Number(c.value);
         });
 
         const byLocation = Object.entries(locationCount)
@@ -149,18 +113,11 @@ export class AnalyticsRepository extends BaseRepository {
             .slice(0, 5); // Top 5
 
         // Top Links
-        const linkClicks: Record<string, number> = {};
-        clicks?.forEach(c => {
-            if (c.link_id) linkClicks[c.link_id] = (linkClicks[c.link_id] || 0) + 1;
-        });
-
-        const topLinks = links?.map(l => ({
+        const topLinks = bio.topLinks.map(l => ({
             title: l.title,
-            url: `/r/${l.short_code}`,
-            clicks: linkClicks[l.id] || 0
-        }))
-            .sort((a, b) => b.clicks - a.clicks)
-            .slice(0, 5) || [];
+            url: `/r/${l.shortCode}`,
+            clicks: Number(l.clicks)
+        }));
 
         return {
             overview: {
@@ -255,37 +212,63 @@ export class AnalyticsRepository extends BaseRepository {
         };
     }
 
-    async getAllUserClickEvents(userId: string): Promise<any[]> {
-        if (!this.isConfigured()) return [];
+    /**
+     * Every click on the given links, with the columns the CSV export writes.
+     *
+     * Pages through each link newest-first on the (link_id, timestamp) index:
+     * each page asks for clicks at or before the last page's oldest timestamp
+     * and drops the few already seen at that exact moment. (Adding id as a
+     * tie-break in ORDER BY made Postgres sort all of a link's clicks per
+     * page: 10 s on a 107k-click link, past the 8 s statement timeout.)
+     * Retries a failed page once, then throws rather than returning a
+     * partial export.
+     */
+    async getClickEventsForExport(
+        linkIds: string[],
+        onProgress?: (rows: number) => void,
+    ): Promise<ExportClickRow[]> {
+        if (!this.isConfigured() || linkIds.length === 0) return [];
+        const PAGE = 2500;
+        const CONCURRENCY = 4;
+        const all: ExportClickRow[] = [];
 
-        // 1. Get all link IDs
-        const { data: links } = await this.supabase!
-            .from('links')
-            .select('id')
-            .eq('user_id', userId);
-
-        const linkIds = links?.map(l => l.id) || [];
-        if (linkIds.length === 0) return [];
-
-        // 2. Fetch all events (batched if necessary, but for export we try to get all)
-        // Note: For very large datasets, this should be paginated or streamed. 
-        // For MVP, simplistic fetch is fine but maybe strict batching is safer.
-        const allClicks: any[] = [];
-        const BATCH_SIZE = 20; // larger batch for export
-
-        for (let i = 0; i < linkIds.length; i += BATCH_SIZE) {
-            const batch = linkIds.slice(i, i + BATCH_SIZE);
-            const { data: batchClicks, error } = await this.supabase!
-                .from(STORAGE_KEYS.CLICKS)
-                .select('*')
-                .in('link_id', batch);
-
-            if (!error && batchClicks) {
-                allClicks.push(...batchClicks);
+        const fetchPage = async (linkId: string, atOrBefore: string | null) => {
+            for (let attempt = 0; ; attempt++) {
+                let query = this.supabase!
+                    .from(STORAGE_KEYS.CLICKS)
+                    .select('id, timestamp, referrer, device, os, country')
+                    .eq('link_id', linkId)
+                    .order('timestamp', { ascending: false })
+                    .limit(PAGE);
+                if (atOrBefore) query = query.lte('timestamp', atOrBefore);
+                const { data, error } = await query;
+                if (!error) return (data || []) as ExportClickRow[];
+                if (attempt >= 1) throw new Error(`Export failed while reading clicks: ${error.message}`);
             }
-        }
+        };
 
-        return allClicks;
+        const exportLink = async (linkId: string) => {
+            let atOrBefore: string | null = null;
+            let seenAtBoundary = new Set<string>();
+            for (;;) {
+                const page = await fetchPage(linkId, atOrBefore);
+                const fresh = page.filter(r => !seenAtBoundary.has(r.id));
+                if (page.length === PAGE && fresh.length === 0) {
+                    throw new Error('Export failed: too many clicks share one timestamp to page through');
+                }
+                all.push(...fresh);
+                onProgress?.(all.length);
+                if (page.length < PAGE) return;
+                atOrBefore = page[page.length - 1].timestamp;
+                seenAtBoundary = new Set(page.filter(r => r.timestamp === atOrBefore).map(r => r.id));
+            }
+        };
+
+        const queue = [...linkIds];
+        await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+            for (let id = queue.shift(); id; id = queue.shift()) await exportLink(id);
+        }));
+        return all;
     }
 
     async runAggregation(): Promise<void> {
