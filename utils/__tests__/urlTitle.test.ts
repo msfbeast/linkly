@@ -13,6 +13,22 @@ describe('titleFromUrl', () => {
         expect(t).toBe('Amazon'); // no slug — brand fallback
     });
 
+    it('names Play Store apps from their package id', () => {
+        expect(titleFromUrl('https://play.google.com/store/apps/details?id=com.fitbit.FitbitMobile')).toBe('FitbitMobile · Google Play');
+        expect(titleFromUrl('https://play.google.com/store/apps/details?id=ai.x.grok')).toBe('Grok · Google Play');
+        expect(titleFromUrl('https://play.google.com/store/apps')).toBe('Google Play');
+    });
+
+    it('reads addresses pasted without https://', () => {
+        expect(titleFromUrl('amazon.in/HyperX-Controlled-Customization-Programmable-Buttons-Black/dp/B07H3GFJJ2/ref=sr_1_1')).toContain('Hyperx Controlled');
+        expect(titleFromUrl('henah1496@gmail.coam')).toBe('Untitled Link');
+    });
+
+    it('skips Blinkit product ids and Amazon short links', () => {
+        expect(titleFromUrl('https://blinkit.com/prn/x/prid/700712')).toBe('Blinkit');
+        expect(titleFromUrl('https://amzn.in/d/0c97RfJm')).toBe('Amazon Product');
+    });
+
     it('skips placeholder segments like /product/', () => {
         expect(titleFromUrl('https://www.flipkart.com/product/p/itmf733f99c22ee6?affid=x')).toBe('Flipkart');
     });
