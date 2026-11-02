@@ -850,6 +850,18 @@ AS $function$
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.custom_domain_username(p_user_id uuid)
+ RETURNS text
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT p.username FROM public.profiles p
+  WHERE p.id = p_user_id
+    AND EXISTS (SELECT 1 FROM public.domains d WHERE d.user_id = p.id AND d.status = 'active');
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.enforce_free_link_limit()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -914,6 +926,77 @@ BEGIN
     NEW.original_url := l.original_url;
   END IF;
   RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_bio_analytics(p_days integer DEFAULT 30)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    uid uuid := auth.uid();
+    days integer := least(greatest(coalesce(p_days, 30), 1), 366);
+    result json;
+BEGIN
+    IF uid IS NULL THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+
+    WITH my_links AS (
+        SELECT id, title, short_code FROM public.links WHERE user_id = uid
+    ),
+    totals AS (
+        SELECT r.link_id, r.bucket, r.clicks
+        FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+        WHERE r.dim = 'total'
+    ),
+    per_link AS (
+        SELECT link_id, sum(clicks) AS clicks FROM totals GROUP BY link_id
+    )
+    SELECT json_build_object(
+        'total', (SELECT coalesce(sum(clicks), 0) FROM per_link),
+        'daily', (
+            SELECT coalesce(json_agg(json_build_object('date', d, 'clicks', n) ORDER BY d), '[]'::json)
+            FROM (
+                SELECT to_char(bucket AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS d, sum(clicks) AS n
+                FROM totals
+                WHERE bucket >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' - (days - 1) * interval '1 day'
+                GROUP BY 1
+            ) t
+        ),
+        'devices', (
+            SELECT coalesce(json_agg(json_build_object('name', v, 'value', n) ORDER BY n DESC, v), '[]'::json)
+            FROM (
+                SELECT CASE WHEN r.val IN ('', 'Unknown') THEN 'unknown' ELSE r.val END AS v, sum(r.clicks) AS n
+                FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+                WHERE r.dim = 'device'
+                GROUP BY 1
+            ) t
+        ),
+        'countries', (
+            SELECT coalesce(json_agg(json_build_object('name', v, 'value', n) ORDER BY n DESC, v), '[]'::json)
+            FROM (
+                SELECT r.val AS v, sum(r.clicks) AS n
+                FROM public.click_rollups r JOIN my_links l ON l.id = r.link_id
+                WHERE r.dim = 'country'
+                GROUP BY 1
+            ) t
+        ),
+        'topLinks', (
+            SELECT coalesce(json_agg(json_build_object('title', title, 'shortCode', short_code, 'clicks', clicks) ORDER BY clicks DESC, title), '[]'::json)
+            FROM (
+                SELECT l.title, l.short_code, coalesce(p.clicks, 0) AS clicks
+                FROM my_links l LEFT JOIN per_link p ON p.link_id = l.id
+                ORDER BY 3 DESC, 1
+                LIMIT 5
+            ) t
+        )
+    ) INTO result;
+
+    RETURN result;
 END;
 $function$
 ;
@@ -1597,6 +1680,16 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.is_username_taken(p_username text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS (SELECT 1 FROM public.profiles WHERE username = p_username);
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.link_public_json(l public.links)
  RETURNS jsonb
  LANGUAGE sql
@@ -2243,13 +2336,16 @@ CREATE POLICY "Allow public read access" ON public.products AS PERMISSIVE FOR SE
 CREATE POLICY "Allow users to manage their own products" ON public.products AS PERMISSIVE FOR ALL TO public
     USING ((auth.uid() = user_id));
 
-CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles AS PERMISSIVE FOR SELECT TO public
-    USING (true);
+CREATE POLICY "Admins can view all profiles" ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated
+    USING ((public.current_profile_role() = ANY (ARRAY['admin'::text, 'super_admin'::text])));
 
 CREATE POLICY "Users can insert their own profile." ON public.profiles AS PERMISSIVE FOR INSERT TO public
     WITH CHECK ((auth.uid() = id));
 
 CREATE POLICY "Users can update own profile." ON public.profiles AS PERMISSIVE FOR UPDATE TO public
+    USING ((auth.uid() = id));
+
+CREATE POLICY "Users can view own profile" ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated
     USING ((auth.uid() = id));
 
 CREATE POLICY "Users can delete own social links" ON public.social_links AS PERMISSIVE FOR DELETE TO public
@@ -2451,8 +2547,10 @@ REVOKE ALL ON FUNCTION public.create_guest_link(p_original_url text, p_short_cod
 REVOKE ALL ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.create_team_with_owner(p_name text, p_slug text, p_owner_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.current_profile_role() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.custom_domain_username(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.enforce_free_link_limit() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.fill_product_url_from_link() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.get_bio_analytics(p_days integer) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_guest_link_by_claim_token(p_token text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_link_analytics(p_link_id uuid, p_range text, p_tz text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_link_stats(p_link_id uuid) FROM PUBLIC, anon, authenticated, service_role;
@@ -2477,6 +2575,7 @@ REVOKE ALL ON FUNCTION public.increment_bio_views(profile_id uuid) FROM PUBLIC, 
 REVOKE ALL ON FUNCTION public.increment_clicks(link_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.is_team_member(team_uuid uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.is_username_taken(p_username text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.link_public_json(l public.links) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.protect_domain_verification_columns() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.protect_profile_privileged_columns() FROM PUBLIC, anon, authenticated, service_role;
@@ -2517,11 +2616,16 @@ GRANT EXECUTE ON FUNCTION public.create_team_with_owner(p_name text, p_slug text
 GRANT EXECUTE ON FUNCTION public.current_profile_role() TO anon;
 GRANT EXECUTE ON FUNCTION public.current_profile_role() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_profile_role() TO service_role;
+GRANT EXECUTE ON FUNCTION public.custom_domain_username(p_user_id uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.custom_domain_username(p_user_id uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.custom_domain_username(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO anon;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.enforce_free_link_limit() TO service_role;
 GRANT EXECUTE ON FUNCTION public.fill_product_url_from_link() TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_bio_analytics(p_days integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_bio_analytics(p_days integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_guest_link_by_claim_token(p_token text) TO service_role;
@@ -2575,6 +2679,9 @@ GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_username_taken(p_username text) TO anon;
+GRANT EXECUTE ON FUNCTION public.is_username_taken(p_username text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_username_taken(p_username text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.link_public_json(l public.links) TO service_role;
 GRANT EXECUTE ON FUNCTION public.protect_domain_verification_columns() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.protect_domain_verification_columns() TO anon;
