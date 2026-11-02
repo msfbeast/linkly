@@ -40,7 +40,7 @@ describe('storeClick', () => {
         expect(await storeClick(event, env)).toEqual({ ok: true });
 
         const [insertUrl, insertInit] = fetchMock.mock.calls[0];
-        expect(insertUrl).toBe('https://db.example.supabase.co/rest/v1/click_events');
+        expect(insertUrl).toBe('https://db.example.supabase.co/rest/v1/click_events?select=id');
         const row = JSON.parse(insertInit.body as string);
         expect(row).toMatchObject({
             link_id: 'link-1',
@@ -52,6 +52,16 @@ describe('storeClick', () => {
         });
         expect(JSON.stringify(row)).not.toContain('1.2.3.4');
         expect(fetchMock.mock.calls[1][0]).toBe('https://db.example.supabase.co/rest/v1/rpc/increment_link_clicks');
+    });
+
+    it('ignores a repeat delivery of the same click and does not count it again', async () => {
+        const fetchMock = stubFetch((url) => (url.includes('/click_events') ? ok('[]') : ok()));
+        const result = await storeClick({ ...event, eventId: '11111111-1111-1111-1111-111111111111' }, env);
+        expect(result.ok).toBe(true);
+        expect(fetchMock).toHaveBeenCalledTimes(1); // no increment_link_clicks
+        const [, init] = fetchMock.mock.calls[0];
+        expect((init.headers as Record<string, string>).Prefer).toBe('resolution=ignore-duplicates,return=representation');
+        expect(JSON.parse(init.body as string).id).toBe('11111111-1111-1111-1111-111111111111');
     });
 
     it('reports a failed insert instead of swallowing it', async () => {
@@ -86,7 +96,17 @@ describe('recordClick', () => {
         const fetchMock = stubFetch((url) => (url.startsWith('https://qstash') ? new Response('nope', { status: 401 }) : ok()));
         vi.spyOn(console, 'error').mockImplementation(() => {});
         expect(await recordClick(event, { ...env, clickQueue: 'qstash' })).toBe('stored');
-        expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/rest/v1/click_events'))).toBe(true);
+        expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/rest/v1/click_events?select=id'))).toBe(true);
+    });
+
+    it('gives the queued click and its direct fallback the same id', async () => {
+        const fetchMock = stubFetch((url) => (url.startsWith('https://qstash') ? new Response('timeout', { status: 504 }) : ok('[{"id":"x"}]')));
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        await recordClick(event, { ...env, clickQueue: 'qstash' });
+        const queued = JSON.parse(fetchMock.mock.calls.find(([u]) => String(u).startsWith('https://qstash'))![1].body as string);
+        const stored = JSON.parse(fetchMock.mock.calls.find(([u]) => String(u).includes('/click_events'))![1].body as string);
+        expect(queued.eventId).toMatch(/^[0-9a-f-]{36}$/);
+        expect(stored.id).toBe(queued.eventId);
     });
 
     it('falls back to storing directly when QStash is selected but not configured', async () => {

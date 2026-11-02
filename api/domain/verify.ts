@@ -7,14 +7,21 @@ import { getAdminClient, getUserFromRequest } from '../_lib/supabaseServer';
  *
  * The DNS check runs here, and only the server (service role) can set a
  * domain's status: a database trigger stops clients doing it directly.
- * Several users may have a pending claim on the same domain; the first one
- * whose DNS actually points at us gets it.
+ * Several users may have a pending claim on the same domain. Pointing the
+ * CNAME at us isn't proof of ownership (cname.vercel-dns.com is shared by
+ * every Vercel customer, and a CNAME left behind after someone removes a
+ * domain keeps pointing here), so the claimant must also publish their own
+ * token: TXT _gather.<domain> = "gather-verification=<token>".
  */
 
 // Must match the instructions shown in components/DomainManager.tsx
 const EXPECTED_TARGETS = ['custom.gather.link', 'cname.vercel-dns.com'];
 
 const normalize = (name: string) => name.toLowerCase().replace(/\.$/, '');
+
+// Must match components/DomainManager.tsx
+export const TXT_PREFIX = '_gather';
+export const txtValue = (token: string) => `gather-verification=${token}`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -39,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data: domainRow } = await supabase
         .from('domains')
-        .select('id, user_id, domain, status')
+        .select('id, user_id, domain, status, verification_token')
         .eq('id', domainId)
         .maybeSingle();
 
@@ -67,6 +74,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             verified: false,
             error: `CNAME for ${domain} does not point to ${EXPECTED_TARGETS[0]}`,
             records,
+        });
+    }
+
+    // Proof the claimant controls the domain's DNS: their own token in TXT.
+    const txtName = `${TXT_PREFIX}.${domain}`;
+    let txt: string[] = [];
+    try {
+        txt = (await dns.resolveTxt(txtName)).map(chunks => chunks.join('').trim());
+    } catch (error: any) {
+        if (error?.code !== 'ENODATA' && error?.code !== 'ENOTFOUND') {
+            console.error(`[DomainVerify] TXT lookup failed for ${txtName}:`, error);
+            return res.status(502).json({ verified: false, error: 'DNS lookup failed, try again shortly' });
+        }
+    }
+    if (!domainRow.verification_token || !txt.includes(txtValue(domainRow.verification_token))) {
+        return res.status(200).json({
+            verified: false,
+            error: `TXT record ${txtName} must be "${txtValue(domainRow.verification_token ?? '')}"`,
         });
     }
 

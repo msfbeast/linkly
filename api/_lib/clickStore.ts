@@ -23,6 +23,11 @@ export interface ClickEvent {
     countryCode?: string | null;
     /** Extra details the redirect page reports from the browser (api/track). */
     client?: ClientDetails;
+    /**
+     * The click's click_events.id, set once when the click happens so a
+     * QStash retry or a queue-then-direct fallback stores it only once.
+     */
+    eventId?: string;
 }
 
 export interface ClientDetails {
@@ -122,10 +127,12 @@ export async function storeClick(event: ClickEvent, env: ClickStoreEnv): Promise
     const client = event.client ?? {};
     const keys = await visitorKeys(event, salt);
 
-    const insertRes = await fetch(`${supabaseUrl}/rest/v1/click_events`, {
+    // Same id on every delivery: a repeat is ignored (and not counted again).
+    const insertRes = await fetch(`${supabaseUrl}/rest/v1/click_events?select=id`, {
         method: 'POST',
-        headers: { ...headers, Prefer: 'return=minimal' },
+        headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=representation' },
         body: JSON.stringify({
+            ...(event.eventId ? { id: event.eventId } : {}),
             link_id: event.linkId,
             timestamp: at,
             raw_user_agent: event.userAgent,
@@ -155,6 +162,10 @@ export async function storeClick(event: ClickEvent, env: ClickStoreEnv): Promise
         }),
     });
     if (!insertRes.ok) return { ok: false, error: `insert ${insertRes.status}: ${await insertRes.text()}` };
+    const inserted = await insertRes.json().catch(() => null);
+    if (Array.isArray(inserted) && inserted.length === 0) {
+        return { ok: true }; // already stored by an earlier delivery
+    }
 
     const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/increment_link_clicks`, {
         method: 'POST',
@@ -181,6 +192,7 @@ export async function storeClick(event: ClickEvent, env: ClickStoreEnv): Promise
  * any error here.
  */
 export async function recordClick(event: ClickEvent, env: ClickStoreEnv): Promise<'queued' | 'stored' | 'limited' | 'failed'> {
+    event = { ...event, eventId: event.eventId ?? crypto.randomUUID() };
     // Per-visitor, per-link cap (api/_lib/countLimit.ts).
     if (env.serviceKey && !(await shouldCount('click', event.linkId, await hashIp(event.ip, env.ipHashSalt || env.serviceKey)))) {
         return 'limited';
