@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Numerals and codes: monospaced (dashboard overview, short codes). */
+@theme {
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 /* Light theme CSS variables (default) - Requirements 2.1, 2.2 */
 :root {
   /* Backgrounds */
