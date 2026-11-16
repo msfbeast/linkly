@@ -5,8 +5,7 @@
  * addresses; an HMAC with a server-side secret can't. Same input and secret
  * always give the same hash, so unique-visitor counts still work.
  *
- * Keep in sync with scripts/lib/ipHashing.js (Node backfill) and
- * supabase/functions/track-click/index.ts (Deno); a test checks the Node copy.
+ * Keep in sync with scripts/lib/ipHashing.js (Node backfill); a test checks it.
  */
 
 /** First address from an x-forwarded-for style value, or null if there is none. */

@@ -22,8 +22,8 @@
  *   node scripts/hash-stored-ips.js --apply    # writes the changes
  *
  * REQUIRES in .env.local: VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and
- * IP_HASH_SALT set to the SAME value as in Vercel (and the track-click edge
- * function), or hashes won't match new clicks. If production has no
+ * IP_HASH_SALT set to the SAME value as in Vercel, or hashes won't match new
+ * clicks. If production has no
  * IP_HASH_SALT (it then falls back to the service role key), pass
  * --salt-is-service-key to do the same here.
  *

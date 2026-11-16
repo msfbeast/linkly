@@ -16,8 +16,7 @@ this file instead.
 1. Create a new Supabase project (Postgres 17).
 2. Run `baseline.sql` in its SQL editor.
 3. Create the Vault secret `ip_hash_salt` (Project Settings → Vault), with the
-   same value as `IP_HASH_SALT` in Vercel and in the edge function's secrets.
-4. Deploy the edge functions in `supabase/functions/`.
+   same value as `IP_HASH_SALT` in Vercel.
 
 Don't run `baseline.sql` against production. It recreates the schema; it isn't
 a migration.
