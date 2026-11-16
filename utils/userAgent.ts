@@ -2,7 +2,7 @@
  * Device / OS / browser from a user-agent string, in the values click
  * analytics already store ('Mobile', 'Windows 10', 'Chrome', ...).
  *
- * Ported from supabase/functions/track-click with one fix: iPhones and
+ * Ported from the retired track-click edge function with one fix: iPhones and
  * iPads send "like Mac OS X", so they were recorded as MacOS. They are now
  * checked first and recorded as iOS.
  */

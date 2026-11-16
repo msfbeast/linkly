@@ -79,7 +79,7 @@ cp .env.example .env.local   # then fill in the values (see below)
 | `CLICK_QUEUE` | Optional. `qstash` to queue clicks through QStash; otherwise they're stored directly |
 | `QSTASH_URL`, `QSTASH_TOKEN` | Publishing click events (only with `CLICK_QUEUE=qstash`) |
 | `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` | Verifying queued click events (only with `CLICK_QUEUE=qstash`) |
-| `IP_HASH_SALT` | Secret for hashing visitor IPs. The value lives in Supabase Vault (`ip_hash_salt`); set the same value here and in the `track-click` edge function's secrets so every click path hashes a visitor the same way |
+| `IP_HASH_SALT` | Secret for hashing visitor IPs. The value lives in Supabase Vault (`ip_hash_salt`); set the same value here so every click path hashes a visitor the same way |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Vercel KV redirect cache. Set automatically when KV is linked in Vercel |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis for rate limiting |
 | `GEMINI_API_KEY` | AI features (`api/ai/*`) |
@@ -116,7 +116,6 @@ services/       Client data layer (Supabase repositories, analytics, auth)
 utils/          Shared helpers (affiliate tagging, deep links, feature flags, domains)
 migrations/     Database SQL (changes)
 schema/         Full schema baseline and its CI check
-supabase/       Supabase edge function (track-click)
 scripts/        One-off maintenance scripts (KV sync, re-tagging links)
 middleware.ts   Edge middleware: custom domains, rate limiting
 ```

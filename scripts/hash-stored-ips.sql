@@ -9,7 +9,7 @@
 --
 -- The salt is read from Supabase Vault (secret name: ip_hash_salt), so it
 -- never appears in this file or in query history. It must be the same value
--- as IP_HASH_SALT in Vercel and in the track-click edge function's secrets.
+-- as IP_HASH_SALT in Vercel.
 --
 -- Run repeatedly until it reports 0 updated (each run handles one batch, to
 -- stay under statement timeouts). Safe to re-run at any time.

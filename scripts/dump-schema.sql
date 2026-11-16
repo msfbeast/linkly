@@ -204,8 +204,7 @@ select concat_ws(E'\n\n',
   || E'-- the database (no data). Not a migration: do not run it against production.\n'
   || E'--\n'
   || E'-- Also needed, not part of the schema: the Vault secret ip_hash_salt\n'
-  || E'-- (same value as IP_HASH_SALT in Vercel), and the edge functions in\n'
-  || E'-- supabase/functions.\n\n'
+  || E'-- (same value as IP_HASH_SALT in Vercel).\n\n'
   || E'SET check_function_bodies = false;\nSET client_min_messages = warning;',
   '-- Extensions' || E'\n' || (select s from sec_extensions),
   '-- Types' || E'\n' || (select s from sec_types),
