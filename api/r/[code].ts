@@ -5,6 +5,7 @@ import { isLinkAllowedOnDomain } from '../_lib/customDomainAccess';
 import { recordClick, clickStoreEnvFromProcess, type ClickEvent } from '../_lib/clickStore';
 import { geoFromVercelHeaders } from '../../utils/geoNames';
 import { isBot, isMobileUserAgent } from '../_lib/botFilter';
+import { safeNavigationUrl } from '../../utils/safeUrl';
 import {
     type KvLinkData, type LinkCacheRow, LINK_CACHE_COLUMNS, LINK_CACHE_TTL_SECONDS,
     linkCacheKey, toCacheEntry, redirectDecision,
@@ -96,7 +97,9 @@ export default async function handler(request: Request, context?: { waitUntil?: 
     const url = new URL(request.url);
     // When accessed via rewrite /r/foo -> /api/r/foo, parse the last segment.
     const pathSegments = url.pathname.split('/');
-    const code = pathSegments[pathSegments.length - 1];
+    // Decoded, so codes saved with spaces ("oppo find x8") resolve.
+    let code = pathSegments[pathSegments.length - 1];
+    try { code = decodeURIComponent(code); } catch { /* malformed escape: use as is */ }
 
     if (!code) {
         return new Response('Missing code', { status: 400 });
@@ -181,7 +184,15 @@ export default async function handler(request: Request, context?: { waitUntil?: 
                 }
             }
 
-            return Response.redirect(linkData.url, 307);
+            // Destinations saved without https:// or with a title in front
+            // used to make this throw (500). Repair them; refuse the rest.
+            const target = safeNavigationUrl(linkData.url);
+            if (!target) {
+                return new Response('This link points to an address that is not a valid web address.', {
+                    status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+                });
+            }
+            return Response.redirect(target, 307);
         } else {
             return new Response('Link not found', { status: 404 });
         }

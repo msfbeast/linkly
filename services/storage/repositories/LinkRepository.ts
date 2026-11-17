@@ -12,6 +12,7 @@ import {
 } from '../mappers';
 import { v4 as uuidv4 } from 'uuid';
 import { FREE_LINK_LIMIT } from '../../../utils/planLimits';
+import { checkShortCode, cleanDestination } from '../../../utils/linkInput';
 
 export type UnlockResult = { status: 'ok'; link: LinkData } | { status: 'wrong' } | { status: 'limited' };
 
@@ -232,6 +233,9 @@ export class LinkRepository extends BaseRepository {
             throw new Error('User ID is required to create a link.');
         }
 
+        // Clear messages before the database's own checks (check_link_fields).
+        link = { ...link, originalUrl: cleanDestination(link.originalUrl), shortCode: checkShortCode(link.shortCode) };
+
         // Use passed ID (for idempotency) or generate new
         const id = link.id || uuidv4();
         const now = Date.now();
@@ -348,14 +352,14 @@ export class LinkRepository extends BaseRepository {
                     .is('team_id', null);
 
                 const totalAfterBulk = (count || 0) + links.length;
-                if (totalAfterBulk > 15) {
-                    // Corrected limit check to 15 (was 50 in logging)
-                    throw new Error(`Bulk creation would exceed the 15-link limit for Free Tier. Remaining capacity: ${Math.max(0, 15 - (count || 0))}`);
+                if (totalAfterBulk > FREE_LINK_LIMIT) {
+                    throw new Error(`Bulk creation would exceed the ${FREE_LINK_LIMIT}-link limit for Free Tier. Remaining capacity: ${Math.max(0, FREE_LINK_LIMIT - (count || 0))}`);
                 }
             }
         }
 
         const rows = links.map(link => {
+            link = { ...link, originalUrl: cleanDestination(link.originalUrl), shortCode: checkShortCode(link.shortCode) };
             const id = uuidv4();
             // Use the resolved userId if link doesn't have one
             const finalUserId = link.userId || userId;
@@ -395,8 +399,8 @@ export class LinkRepository extends BaseRepository {
         // So we manually map the updates we care about.
         const rowUpdates: any = {};
         if (updates.title !== undefined) rowUpdates.title = updates.title;
-        if (updates.originalUrl !== undefined) rowUpdates.original_url = updates.originalUrl;
-        if (updates.shortCode !== undefined) rowUpdates.short_code = updates.shortCode;
+        if (updates.originalUrl !== undefined) rowUpdates.original_url = cleanDestination(updates.originalUrl);
+        if (updates.shortCode !== undefined) rowUpdates.short_code = checkShortCode(updates.shortCode);
         if (updates.description !== undefined) rowUpdates.description = updates.description;
         if (updates.tags !== undefined) rowUpdates.tags = updates.tags;
         if (updates.password !== undefined) rowUpdates.password_hash = updates.password;

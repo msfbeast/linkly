@@ -134,6 +134,32 @@ describe('/api/r/:code', () => {
         expect(res.headers.get('location')).toBe('https://links.trak.in/go/abc');
     });
 
+    it('repairs destinations saved without https:// or with a title in front', async () => {
+        kvGet.mockResolvedValue({ url: 'amazon.in/dp/B0DVC6RV6P?mcid=x', id: 'l1' });
+        let res = await handler(request('abc'), context);
+        expect(res.status).toBe(307);
+        expect(res.headers.get('location')).toBe('https://amazon.in/dp/B0DVC6RV6P?mcid=x');
+
+        kvGet.mockResolvedValue({ url: 'Folo – https://play.google.com/store/apps/details?id=is.follow', id: 'l2' });
+        res = await handler(request('def'), context);
+        expect(res.headers.get('location')).toBe('https://play.google.com/store/apps/details?id=is.follow');
+    });
+
+    it('refuses a destination that is not a web address instead of failing', async () => {
+        kvGet.mockResolvedValue({ url: 'someone@example.coam', id: 'l1' });
+        const res = await handler(request('abc'), context);
+        expect(res.status).toBe(404);
+        kvGet.mockResolvedValue({ url: 'javascript:alert(1)', id: 'l1' });
+        expect((await handler(request('abc'), context)).status).toBe(404);
+    });
+
+    it('decodes the code, so codes with spaces resolve', async () => {
+        kvGet.mockImplementation(async (key: string) => (key.endsWith('oppo find x8') ? { url: DEST, id: 'l1' } : null));
+        const res = await handler(request('oppo%20find%20x8'), context);
+        expect(res.status).toBe(307);
+        expect(res.headers.get('location')).toBe(DEST);
+    });
+
     it('returns 404 for an unknown code', async () => {
         const res = await handler(request('nope'), context);
         expect(res.status).toBe(404);
