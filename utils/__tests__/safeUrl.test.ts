@@ -45,4 +45,18 @@ describe('safeWebUrl', () => {
         expect(safeWebUrl('http://example.com')).toBe('http://example.com/');
         expect(safeWebUrl('example.com')).toBe('https://example.com/');
     });
+
+    it('repairs the shapes of broken destinations saved in production', () => {
+        expect(safeWebUrl('www.amazon.in/b?node=217216394031&ref_=x')).toBe('https://www.amazon.in/b?node=217216394031&ref_=x');
+        expect(safeWebUrl('Folo – https://play.google.com/store/apps/details?id=is.follow'))
+            .toBe('https://play.google.com/store/apps/details?id=is.follow');
+        expect(safeWebUrl('google.com')).toBe('https://google.com/');
+        expect(safeWebUrl('https://example.com/a b')).toBe('https://example.com/a%20b');
+    });
+
+    it('rejects an email address, words and bare hosts', () => {
+        expect(safeWebUrl('henah1496@gmail.coam')).toBeNull();
+        expect(safeWebUrl('just some words')).toBeNull();
+        expect(safeWebUrl('localhost')).toBeNull();
+    });
 });

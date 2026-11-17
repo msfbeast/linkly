@@ -22,14 +22,22 @@ function parse(raw: unknown): URL | null {
     if (!s) return null;
     try {
         return new URL(s);
+    } catch { /* not a full URL; see below */ }
+    // A title pasted with the address ("Folo – https://play.google.com/..."):
+    // use the address.
+    const embedded = /https?:\/\/[^\s<>"']+/i.exec(s);
+    if (embedded) {
+        try { return new URL(embedded[0]); } catch { return null; }
+    }
+    // Saved without a scheme ("example.com/page"): treat as https, as the
+    // link creation form does. Not when it reads as user@host (an email
+    // address typed by mistake), and not when it has spaces.
+    if (/\s/.test(s)) return null;
+    try {
+        const u = new URL(`https://${s}`);
+        return u.username || u.password || !u.hostname.includes('.') ? null : u;
     } catch {
-        // Saved without a scheme ("example.com/page"): treat as https, as
-        // the link creation form does.
-        try {
-            return new URL(`https://${s}`);
-        } catch {
-            return null;
-        }
+        return null;
     }
 }
 
