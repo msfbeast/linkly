@@ -1,660 +1,362 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Globe, MousePointer2, TrendingUp, TrendingDown, Loader2, MapPin, Monitor, Smartphone, Share2, Check, Copy } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Check, Loader2, Share2 } from 'lucide-react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics, type UserAnalyticsExtras } from '../services/aggregatedAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  LinkData,
-  ClickEvent,
-  UserClickStats,
-  CountryBreakdown,
-  CityBreakdown,
-  DeviceBreakdown,
-  ReferrerBreakdown,
-  BrowserBreakdown,
-  DeviceModelBreakdown,
-  DailyClicks
+  BrowserBreakdown, CityBreakdown, CountryBreakdown, DailyClicks, DeviceBreakdown,
+  DeviceModelBreakdown, OsBreakdown, ReferrerBreakdown, UserClickStats,
 } from '../types';
 import LiveWorldMap from '../components/LiveWorldMap';
 import { getCountryName } from '../utils/constants';
+import {
+  Tile, Label, MonoPill, ChangeTag, DotMeter, ShareBars, DotColumns, HeatGrid, HeatLegend, SourceShare,
+  DAY_NAMES, fmt, share, hourLabel, busiestHour, groupSources, sourceName, viewerZoneLabel,
+} from '../components/ui/bento';
 
-interface ServerAnalytics {
+export const ANALYTICS_RANGES = [7, 30, 90] as const;
+export type AnalyticsRange = typeof ANALYTICS_RANGES[number];
+
+const VIEWER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+// Clicks carry a visitor ID only from this date on.
+const VISITOR_TRACKING_LABEL = 'Counted from 1 Nov 2026';
+
+interface AnalyticsData {
   stats: UserClickStats | null;
+  daily: DailyClicks[];
+  extras: UserAnalyticsExtras | null;
   countries: CountryBreakdown[];
   cities: CityBreakdown[];
   devices: DeviceBreakdown[];
-  referrers: ReferrerBreakdown[];
+  oses: OsBreakdown[];
   browsers: BrowserBreakdown[];
-  deviceModels: DeviceModelBreakdown[];
-  clicksOverTime: DailyClicks[];
+  models: DeviceModelBreakdown[];
+  referrers: ReferrerBreakdown[];
+  linkCount: number;
 }
 
-interface AnalyticsSummary {
-  totalClicks: number;
-  totalLinks: number;
-  uniqueCountries: number;
-  topCountries: { country: string; clicks: number }[];
-  topCities: { city: string; country: string; clicks: number }[];
-  topDevices: { device: string; clicks: number }[];
-  topBrowsers: { browser: string; clicks: number }[];
-  clicksByDay: { date: string; clicks: number }[];
-  recentClicks: ClickEvent[];
-  filteredClicks: ClickEvent[]; // Full dataset for map visualization
-  // Advanced Analytics
-  topSources: { source: string; clicks: number }[];
-  topCampaigns: { campaign: string; clicks: number }[];
-  triggerSource: { source: string; clicks: number }[];
-  heatmapData: { day: number; hour: number; clicks: number }[];
+/** Week-over-week change in percent, or null when there's no last week to compare with. */
+export function weekChange(thisWeek: number, lastWeek: number): number | null {
+  return lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : null;
 }
 
-// Country code to full name mapping
-// Country code to full name mapping
-// Removed local definition, using import from ../utils/constants
+/** One point per UTC day for the last `days` days, today last; missing days count 0. */
+export function dailyPoints(daily: DailyClicks[], days: number, now = new Date()) {
+  const byDate = new Map(daily.map(d => [d.date, d.clickCount]));
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() - (days - 1 - i));
+    const key = d.toISOString().slice(0, 10);
+    const label = days > 16 ? String(d.getUTCDate()) : DAY_NAMES[d.getUTCDay()].slice(0, 1);
+    return { key, label, value: byDate.get(key) ?? 0 };
+  });
+}
 
-// Calculate week-over-week growth percentage
-const calculateGrowth = (current: number, previous: number): { percentage: number; isPositive: boolean } => {
-  if (previous === 0) return { percentage: current > 0 ? 100 : 0, isPositive: current > 0 };
-  const percentage = ((current - previous) / previous) * 100;
-  return { percentage: Math.abs(Math.round(percentage)), isPositive: percentage >= 0 };
-};
+const RangePills: React.FC<{ range: AnalyticsRange; isPro: boolean; onRange: (r: AnalyticsRange) => void }> = ({ range, isPro, onRange }) => (
+  <div role="group" aria-label="Period" className="flex gap-1 rounded-full bg-[#FBFAF8] p-1">
+    {ANALYTICS_RANGES.map(r => {
+      const locked = r === 90 && !isPro;
+      return (
+        <button
+          key={r}
+          onClick={() => !locked && onRange(r)}
+          disabled={locked}
+          aria-pressed={range === r}
+          title={locked ? 'Upgrade to Pro for 90 days of history' : undefined}
+          className={`whitespace-nowrap rounded-full px-3 py-1.5 font-mono text-xs transition-colors ${range === r ? 'bg-[#FF5A14] text-white' : locked ? 'cursor-not-allowed text-[#C9C6BF]' : 'text-[#8C8981] hover:text-[#18181A]'}`}
+        >
+          {r} days{locked && <span className="ml-1.5 rounded bg-[#F0EEEA] px-1 py-px text-[9px] text-[#A19E97]">PRO</span>}
+        </button>
+      );
+    })}
+  </div>
+);
 
-// Growth badge component
-const GrowthBadge: React.FC<{ current: number; previous: number }> = ({ current, previous }) => {
-  const { percentage, isPositive } = calculateGrowth(current, previous);
-  if (previous === 0 && current === 0) return null;
-
-  return (
-    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-      }`}>
-      {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-      <span>{percentage}%</span>
-    </div>
-  );
-};
+const Skeleton: React.FC = () => (
+  <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12" aria-busy="true" aria-label="Loading analytics">
+    {['lg:col-span-7 h-[300px] bg-[#18181A]', 'lg:col-span-5 h-[300px]', 'lg:col-span-12 h-[420px]', 'lg:col-span-8 h-[260px]', 'lg:col-span-4 h-[260px]'].map(c => (
+      <div key={c} className={`animate-pulse rounded-3xl bg-[#FBFAF8] ${c}`} />
+    ))}
+  </div>
+);
 
 const GlobalAnalytics: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [serverData, setServerData] = useState<ServerAnalytics | null>(null);
-  // Map, heatmap, recent clicks and weekly totals (get_user_analytics_extras).
-  const [extras, setExtras] = useState<UserAnalyticsExtras | null>(null);
-  const [dateRange, setDateRange] = useState('7d');
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
-  const [copied, setCopied] = useState(false);
   const { user } = useAuth();
+  const [range, setRange] = useState<AnalyticsRange>(7);
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [placeTab, setPlaceTab] = useState<'countries' | 'cities'>('countries');
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [dateRange, user?.id]);
-
-  // Helper to check if user has access to premium features
   const tier = user?.preferences?.subscription_tier as string | undefined;
   const isPro = tier === 'pro' || tier === 'business' || tier === 'premium';
 
-  const loadAnalytics = async () => {
-    setIsLoading(true);
-    try {
-      const days = dateRange === '90d' ? 90 : dateRange === '30d' ? 30 : 7;
-
-      // Fetch both links data and server-side aggregations in parallel
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-      const [links, fullAnalytics, extrasData] = await Promise.all([
-        supabaseAdapter.getLinks(),
-        user?.id ? aggregatedAnalytics.getFullAnalytics(user.id, days) : null,
-        user?.id ? aggregatedAnalytics.getUserAnalyticsExtras(days, timeZone) : null,
-      ]);
-      setExtras(extrasData);
-
-      // Process client-side data (for map visualization)
-      const summary = processAnalytics(links);
-      setAnalytics(summary);
-
-      // Store server-side accurate data
-      if (fullAnalytics) {
-        setServerData(fullAnalytics);
-      }
-    } catch (error) {
-      console.error('Failed to load analytics:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // ... (processAnalytics remains the same) ...
-
-
-  const processAnalytics = (links: LinkData[]): AnalyticsSummary => {
-    const allClicks: ClickEvent[] = [];
-    links.forEach(link => {
-      allClicks.push(...(link.clickHistory || []));
-    });
-
-    const now = Date.now();
-    const rangeMs = dateRange === '7d' ? 7 * 24 * 60 * 60 * 1000
-      : dateRange === '30d' ? 30 * 24 * 60 * 60 * 1000
-        : 90 * 24 * 60 * 60 * 1000;
-    const filteredClicks = allClicks.filter(c => now - c.timestamp < rangeMs);
-
-
-    const countryMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      const country = c.country || 'Unknown';
-      countryMap.set(country, (countryMap.get(country) || 0) + 1);
-    });
-    const topCountries = Array.from(countryMap.entries())
-      .map(([country, clicks]) => ({ country, clicks }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5);
-
-    // Process Top Cities
-    const cityMap = new Map<string, { count: number; country: string }>();
-    filteredClicks.forEach(c => {
-      if (c.city) {
-        const key = `${c.city}, ${c.country || ''}`;
-        const current = cityMap.get(key) || { count: 0, country: c.country || '' };
-        cityMap.set(key, { count: current.count + 1, country: current.country });
-      }
-    });
-    const topCities = Array.from(cityMap.entries())
-      .map(([key, data]) => ({ city: key.split(',')[0], country: data.country, clicks: data.count }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5);
-
-    const deviceMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      const device = c.device || 'Unknown';
-      deviceMap.set(device, (deviceMap.get(device) || 0) + 1);
-    });
-    const topDevices = Array.from(deviceMap.entries())
-      .map(([device, clicks]) => ({ device, clicks }))
-      .sort((a, b) => b.clicks - a.clicks);
-
-    const browserMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      const browser = c.browser || 'Unknown';
-      browserMap.set(browser, (browserMap.get(browser) || 0) + 1);
-    });
-    const topBrowsers = Array.from(browserMap.entries())
-      .map(([browser, clicks]) => ({ browser, clicks }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5);
-
-    const dayMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      const date = new Date(c.timestamp).toISOString().split('T')[0];
-      dayMap.set(date, (dayMap.get(date) || 0) + 1);
-    });
-    const clicksByDay = Array.from(dayMap.entries())
-      .map(([date, clicks]) => ({ date, clicks }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    // Process UTM Sources
-    const sourceMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      if (c.utm_source) {
-        sourceMap.set(c.utm_source, (sourceMap.get(c.utm_source) || 0) + 1);
-      }
-    });
-    const topSources = Array.from(sourceMap.entries())
-      .map(([source, clicks]) => ({ source, clicks }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5);
-
-    // Process UTM Campaigns
-    const campaignMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      if (c.utm_campaign) {
-        campaignMap.set(c.utm_campaign, (campaignMap.get(c.utm_campaign) || 0) + 1);
-      }
-    });
-    const topCampaigns = Array.from(campaignMap.entries())
-      .map(([campaign, clicks]) => ({ campaign, clicks }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5);
-
-    // Process Trigger Source (QR vs Link)
-    const triggerMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      const source = c.trigger_source === 'qr' ? 'QR Code' : 'Direct Link';
-      triggerMap.set(source, (triggerMap.get(source) || 0) + 1);
-    });
-    const triggerSource = Array.from(triggerMap.entries())
-      .map(([source, clicks]) => ({ source, clicks }))
-      .sort((a, b) => b.clicks - a.clicks);
-
-    // Process Heatmap Data (Day of Week + Hour)
-    const heatmapMap = new Map<string, number>();
-    filteredClicks.forEach(c => {
-      const date = new Date(c.timestamp);
-      const day = date.getDay(); // 0-6
-      const hour = date.getHours(); // 0-23
-      const key = `${day}-${hour}`;
-      heatmapMap.set(key, (heatmapMap.get(key) || 0) + 1);
-    });
-    const heatmapData = Array.from(heatmapMap.entries()).map(([key, clicks]) => {
-      const [day, hour] = key.split('-').map(Number);
-      return { day, hour, clicks };
-    });
-
-    return {
-      totalClicks: filteredClicks.length,
-      totalLinks: links.length,
-      uniqueCountries: countryMap.size,
-      topCountries,
-      topCities,
-      topDevices,
-      topBrowsers,
-      clicksByDay,
-      recentClicks: filteredClicks.slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 10),
-      topSources,
-      topCampaigns,
-      triggerSource,
-      heatmapData,
-      filteredClicks, // Pass the full dataset
-    };
-  };
-
-  const generateShareLink = async () => {
+  useEffect(() => {
     if (!user?.id) return;
-    setIsGeneratingShare(true);
+    let cancelled = false;
+    setFailed(false);
+    (async () => {
+      try {
+        const id = user.id;
+        const [stats, daily, extras, countries, cities, devices, oses, browsers, models, referrers, links] = await Promise.all([
+          aggregatedAnalytics.getUserClickStats(id),
+          aggregatedAnalytics.getClicksOverTime(id, range),
+          aggregatedAnalytics.getUserAnalyticsExtras(range, VIEWER_TIME_ZONE),
+          aggregatedAnalytics.getCountryBreakdown(id),
+          aggregatedAnalytics.getCityBreakdown(id),
+          aggregatedAnalytics.getDeviceBreakdown(id),
+          aggregatedAnalytics.getOsBreakdown(id),
+          aggregatedAnalytics.getBrowserBreakdown(id),
+          aggregatedAnalytics.getDeviceModelBreakdown(id),
+          aggregatedAnalytics.getReferrerBreakdown(id),
+          supabaseAdapter.getLinks(null, { includeAnalytics: false }),
+        ]);
+        if (cancelled) return;
+        // The service returns null instead of throwing when the database calls fail.
+        if (!stats && !extras) { setFailed(true); return; }
+        {
+          setData({ stats, daily, extras, countries, cities, devices, oses, browsers, models, referrers, linkCount: links.length });
+        }
+      } catch (err) {
+        console.error('[Analytics] load failed:', err);
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, range, attempt]);
+
+  const shareAnalytics = async () => {
+    if (!user?.id || sharing) return;
+    setSharing(true);
     try {
       const { supabase } = await import('../services/storage/supabaseClient');
       if (!supabase) throw new Error('Supabase not configured');
-
-      const { data, error } = await supabase.rpc('create_analytics_share_token', {
-        p_expires_in_days: 30 // Expires in 30 days
-      });
-
+      const { data: token, error } = await supabase.rpc('create_analytics_share_token', { p_expires_in_days: 30 });
       if (error) throw error;
-
-      const url = `${window.location.origin}/share/${data}`;
-      setShareUrl(url);
-
-      // Copy to clipboard
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(`${window.location.origin}/share/${token}`);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     } catch (err) {
-      console.error('Failed to generate share link:', err);
+      console.error('[Analytics] share link failed:', err);
+      alert('Could not create a share link. Please try again.');
     } finally {
-      setIsGeneratingShare(false);
+      setSharing(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#ECEBE7] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-amber-500 animate-spin mx-auto mb-4" />
-          <p className="text-stone-500">Loading analytics...</p>
+  const header = (
+    <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end">
+      <div>
+        <h1 className="text-[28px] font-medium tracking-tight sm:text-[32px]">Analytics</h1>
+        <p className="mt-1 text-[13px] text-[#8C8981]">Every link together. Open a link for its own numbers.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+        <RangePills range={range} isPro={isPro} onRange={r => { setRange(r); setData(null); }} />
+        <button
+          onClick={shareAnalytics}
+          disabled={sharing}
+          title="Copies a read-only link to these analytics, valid for 30 days"
+          className="flex items-center gap-2 rounded-full bg-[#18181A] px-4 py-2 text-[13px] text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+          {copied ? 'Link copied' : 'Share'}
+        </button>
+      </div>
+    </div>
+  );
+
+  let body: React.ReactNode;
+  if (failed) {
+    body = (
+      <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#FBFAF8] px-5 py-3 text-sm text-[#B42318]">
+        <span>Couldn't load your analytics.</span>
+        <button onClick={() => setAttempt(n => n + 1)} className="font-semibold underline underline-offset-2">Try again</button>
+      </div>
+    );
+  } else if (!data) {
+    body = <Skeleton />;
+  } else {
+    const { stats, extras } = data;
+    const points = dailyPoints(data.daily, range);
+    const rangeTotal = points.reduce((s, p) => s + p.value, 0);
+    const thisWeek = Number(extras?.thisWeek ?? stats?.clicksThisWeek ?? 0);
+    const lastWeek = Number(extras?.lastWeek ?? 0);
+    const change = weekChange(thisWeek, lastWeek);
+    const allTime = stats?.totalClicks ?? 0;
+
+    const heat = new Map((extras?.heatmap ?? []).map(h => [`${h.day}-${h.hour}`, Number(h.clicks)]));
+    const peak = busiestHour(heat);
+
+    const placeRows = placeTab === 'cities'
+      ? data.cities.slice(0, 7).map(c => ({ name: `${c.city}, ${getCountryName(c.country)}`, value: c.clickCount }))
+      : data.countries.filter(c => c.country !== 'Unknown').slice(0, 7).map(c => ({ name: getCountryName(c.country), value: c.clickCount }));
+    const deviceTotal = data.devices.reduce((s, d) => s + d.clickCount, 0);
+    const osTotal = data.oses.reduce((s, d) => s + d.clickCount, 0);
+    const sources = groupSources(data.referrers.map(r => ({ name: r.referrer, value: r.clickCount })));
+    const recent = extras?.recent ?? [];
+
+    body = (
+      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+        {/* Anchor: clicks in the range */}
+        <Tile dark className="lg:col-span-7">
+          <Label dark right={<MonoPill dark>UTC days</MonoPill>}>Clicks · last {range} days</Label>
+          <span className="font-mono text-[clamp(56px,7vw,96px)] font-medium leading-[0.95] tracking-[-0.04em]">{fmt(rangeTotal)}</span>
+          <div className="sm:hidden"><DotColumns points={points.slice(-14)} label="Clicks per day, last 14 days" /></div>
+          <div className="hidden sm:block"><DotColumns points={points} label={`Clicks per day, last ${range} days`} /></div>
+        </Tile>
+
+        {/* Week, all time, visitors, links */}
+        <Tile className="grid grid-cols-2 content-start gap-x-4 gap-y-7 lg:col-span-5">
+          <div>
+            <Label right={change !== null && <ChangeTag change={change} />}>This week</Label>
+            <div className="font-mono text-4xl font-medium leading-none tracking-[-0.04em]">{fmt(thisWeek)}</div>
+            <p className="mt-2 text-xs text-[#8C8981]">{fmt(lastWeek)} the week before</p>
+          </div>
+          <div>
+            <Label>All time</Label>
+            <div className="font-mono text-4xl font-medium leading-none tracking-[-0.04em]">{fmt(allTime)}</div>
+            <p className="mt-2 text-xs text-[#8C8981]">clicks on all your links</p>
+          </div>
+          <div>
+            <Label>Visitors</Label>
+            <div className="font-mono text-4xl font-medium leading-none tracking-[-0.04em]">{fmt(stats?.uniqueVisitors ?? 0)}</div>
+            <p className="mt-2 text-xs text-[#8C8981]">unique, all time. {VISITOR_TRACKING_LABEL}.</p>
+          </div>
+          <div>
+            <Label>Links</Label>
+            <div className="font-mono text-4xl font-medium leading-none tracking-[-0.04em]">{fmt(data.linkCount)}</div>
+            <p className="mt-2 text-xs text-[#8C8981]">{data.linkCount > 0 ? `${fmt(allTime / data.linkCount)} clicks per link` : 'none yet'}</p>
+          </div>
+        </Tile>
+
+        {/* Map */}
+        <div className="lg:col-span-12">
+          <LiveWorldMap
+            countryCounts={extras?.countries ?? []}
+            regionCounts={extras?.regions ?? []}
+            serverCityData={data.cities}
+            title={`Clicks by place · last ${range} days`}
+          />
         </div>
+
+        {/* When */}
+        <Tile className="lg:col-span-8">
+          <Label right={<HeatLegend />}>
+            When people click <span className="ml-2"><MonoPill>last {range} days · {viewerZoneLabel}</MonoPill></span>
+          </Label>
+          <HeatGrid cells={heat} />
+          {peak && (
+            <p className="mt-3 text-xs text-[#8C8981]">
+              Busiest hour: {DAY_NAMES[peak.day]} {hourLabel(peak.hour)} to {hourLabel((peak.hour + 1) % 24)}, {fmt(peak.n)} clicks.
+            </p>
+          )}
+        </Tile>
+
+        {/* Where */}
+        <Tile className="lg:col-span-4">
+          <Label right={
+            <span className="flex items-center gap-1">
+              {([['countries', 'Countries'], ['cities', 'Cities']] as const).map(([key, name]) => (
+                <button key={key} onClick={() => setPlaceTab(key)} aria-pressed={placeTab === key}
+                  className={`rounded-full px-2.5 py-1 text-xs ${placeTab === key ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}>{name}</button>
+              ))}
+              <MonoPill>all time</MonoPill>
+            </span>
+          }>Where they are</Label>
+          {placeRows.length ? <ShareBars rows={placeRows} total={allTime} showCount={placeTab === 'cities'} /> : <p className="text-sm text-[#8C8981]">No location data yet.</p>}
+        </Tile>
+
+        {/* Latest clicks */}
+        <Tile dark className="lg:col-span-8">
+          <Label dark right={<MonoPill dark>newest first</MonoPill>}>Latest clicks</Label>
+          {recent.length === 0 ? (
+            <p className="py-6 text-center text-sm text-[#8E8B84]">No clicks yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-separate border-spacing-y-1.5 text-[13px]">
+                <thead>
+                  <tr className="text-left text-[11px] text-[#77746D]">
+                    <th className="px-3 pb-1 font-medium">Time</th>
+                    <th className="px-3 pb-1 font-medium">Place</th>
+                    <th className="px-3 pb-1 font-medium">Device</th>
+                    <th className="px-3 pb-1 font-medium">From</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((c, i) => {
+                    const src = sourceName(c.referrer);
+                    return (
+                      <tr key={`${c.timestamp}-${i}`}>
+                        <td className="whitespace-nowrap rounded-l-xl bg-[#232326] px-3 py-2.5 font-mono text-[#A19E97]">
+                          {new Date(c.timestamp).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="bg-[#232326] px-3 py-2.5">{[c.city, c.country].filter(Boolean).join(', ') || 'Unknown'}</td>
+                        <td className="whitespace-nowrap bg-[#232326] px-3 py-2.5">{c.device || 'Unknown'}{c.os ? ` · ${c.os}` : ''}</td>
+                        <td className="rounded-r-xl bg-[#232326] px-3 py-2.5">
+                          <span className={`rounded-md px-2 py-0.5 font-mono text-[11px] ${src === 'Direct' ? 'bg-[#2A2A2D] text-[#A19E97]' : 'bg-[#2E2A28] text-[#FF9B6A]'}`}>{src}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Tile>
+
+        {/* Sources */}
+        <Tile className="lg:col-span-4">
+          <Label right={<MonoPill>all time</MonoPill>}>Where clicks come from</Label>
+          <SourceShare sources={sources} />
+        </Tile>
+
+        {/* Devices & systems */}
+        <Tile className="lg:col-span-4">
+          <Label right={<MonoPill>all time</MonoPill>}>Devices &amp; systems</Label>
+          {data.devices.filter(d => d.device !== 'Unknown').slice(0, 3).map(d => (
+            <DotMeter key={d.device} label={d.device} percent={share(d.clickCount, deviceTotal)} />
+          ))}
+          <div className="h-2" />
+          {data.oses.filter(o => o.os !== 'Unknown').slice(0, 3).map(o => (
+            <DotMeter key={o.os} label={o.os} percent={share(o.clickCount, osTotal)} />
+          ))}
+          {deviceTotal === 0 && <p className="text-sm text-[#8C8981]">No clicks yet.</p>}
+        </Tile>
+
+        {/* Browsers and phones */}
+        <Tile className="lg:col-span-8">
+          <Label right={<MonoPill>all time</MonoPill>}>Browsers and phones</Label>
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+            {[
+              { title: 'Browsers', rows: data.browsers.slice(0, 6).map(b => ({ name: b.browser, value: b.clickCount })) },
+              { title: 'Phone models', rows: data.models.slice(0, 6).map(m => ({ name: m.deviceModel.replace(' (Other)', ''), value: m.clickCount })) },
+            ].map(group => (
+              <div key={group.title}>
+                <h4 className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[#8C8981]">{group.title}</h4>
+                <div className="grid gap-2">
+                  {group.rows.map(r => (
+                    <div key={r.name} className="flex justify-between text-[13px]">
+                      <span className="truncate pr-3">{r.name === 'Unknown' ? 'Not recorded' : r.name}</span>
+                      <span className="font-mono text-[#8C8981]">{fmt(r.value)}</span>
+                    </div>
+                  ))}
+                  {group.rows.length === 0 && <p className="text-xs text-[#8C8981]">No data</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Tile>
       </div>
     );
   }
 
-  // Use server data for accurate counts, fallback to client data if server data is empty (RPC failure or not ready)
-  const topCountries = (serverData?.countries && serverData.countries.length > 0)
-    ? serverData.countries
-    : (analytics?.topCountries.map(c => ({ country: c.country, clickCount: c.clicks })) || []);
-
-  const topCities = (serverData?.cities && serverData.cities.length > 0)
-    ? serverData.cities
-    : (analytics?.topCities.map(c => ({ city: c.city, country: c.country, clickCount: c.clicks })) || []);
-
-  const topDevices = (serverData?.devices && serverData.devices.length > 0)
-    ? serverData.devices
-    : (analytics?.topDevices.map(d => ({ device: d.device, clickCount: d.clicks })) || []);
-  const topReferrers = serverData?.referrers || []; // No client fallback for detailed referrers yet
-  const topBrowsers = (serverData?.browsers && serverData.browsers.length > 0) ? serverData.browsers : (analytics?.topBrowsers.map(b => ({ browser: b.browser, clickCount: b.clicks })) || []);
-  const topDeviceModels = serverData?.deviceModels || [];
-  const maxClicks = Math.max(...(topCountries.map(c => c.clickCount) || [1]));
-  const thisWeek = Number(extras?.thisWeek ?? serverData?.stats?.clicksThisWeek ?? 0);
-  const lastWeek = Number(extras?.lastWeek ?? 0);
-  const heatmap = (extras?.heatmap ?? []).map(h => ({ ...h, clicks: Number(h.clicks) }));
-  const recentClicks = (extras?.recent ?? []).map(c => ({ ...c, timestamp: new Date(c.timestamp).getTime() }));
-
   return (
-    <div className="min-h-screen bg-[#ECEBE7] p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Global Analytics</h1>
-            <p className="text-stone-500 text-sm mt-1">Aggregated insights across all your links</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl p-1 shadow-sm">
-              {['7d', '30d'].map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setDateRange(range)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === range ? 'bg-yellow-100 text-slate-900' : 'text-stone-500 hover:text-slate-900'
-                    }`}
-                >
-                  {range === '7d' ? '7 Days' : '30 Days'}
-                </button>
-              ))}
-              <div className="relative group">
-                <button
-                  onClick={() => isPro && setDateRange('90d')}
-                  disabled={!isPro}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === '90d' ? 'bg-yellow-100 text-slate-900' :
-                    !isPro ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:text-slate-900'
-                    }`}
-                >
-                  90 Days
-                  {!isPro && <div className="p-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-400">PRO</div>}
-                </button>
-                {/* Tooltip for non-pro users */}
-                {!isPro && (
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 bg-slate-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
-                    Upgrade to Pro for 90-day history
-                  </div>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={generateShareLink}
-              disabled={isGeneratingShare}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50"
-            >
-              {isGeneratingShare ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : copied ? (
-                <Check className="w-4 h-4" />
-              ) : (
-                <Share2 className="w-4 h-4" />
-              )}
-              {copied ? 'Link Copied!' : 'Share'}
-            </button>
-          </div>
-        </div>
-
-        {/* Live Global Map */}
-        <div className="w-full">
-          <LiveWorldMap countryCounts={extras?.countries ?? []} regionCounts={extras?.regions ?? []} serverCityData={topCities} />
-        </div>
-
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <MousePointer2 className="w-5 h-5 text-yellow-600" />
-                </div>
-                <span className="text-stone-500 text-sm">This Week</span>
-              </div>
-              <GrowthBadge current={thisWeek} previous={lastWeek} />
-            </div>
-            <p className="text-3xl font-bold text-slate-900">
-              {thisWeek.toLocaleString()}
-            </p>
-            <p className="text-xs text-stone-400 mt-1">vs {lastWeek.toLocaleString()} last week</p>
-          </div>
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-indigo-100 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-indigo-600" />
-              </div>
-              <span className="text-stone-500 text-sm">Active Links</span>
-            </div>
-            <p className="text-3xl font-bold text-slate-900">{analytics?.totalLinks}</p>
-          </div>
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Globe className="w-5 h-5 text-emerald-600" />
-              </div>
-              <span className="text-stone-500 text-sm">Countries</span>
-            </div>
-            <p className="text-3xl font-bold text-slate-900">{topCountries.length || analytics?.uniqueCountries}</p>
-          </div>
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
-              </div>
-              <span className="text-stone-500 text-sm">Avg/Day</span>
-            </div>
-            <p className="text-3xl font-bold text-slate-900">
-              {Math.round(thisWeek / 7)}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <MapPin className="w-5 h-5 text-emerald-500" />
-              <h3 className="text-slate-900 font-bold">Top Countries</h3>
-            </div>
-            <div className="space-y-4">
-              {topCountries.length === 0 ? (
-                <p className="text-stone-500 text-sm">No data yet</p>
-              ) : (
-                topCountries.slice(0, 5).map((item, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <span className="text-stone-400 text-sm w-6">{i + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-slate-900 text-sm font-medium">{getCountryName(item.country)}</span>
-                        <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()}</span>
-                      </div>
-                      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(item.clickCount / maxClicks) * 100}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <MapPin className="w-5 h-5 text-cyan-500" />
-              <h3 className="text-slate-900 font-bold">Top Cities</h3>
-            </div>
-            <div className="space-y-4">
-              {topCities.length === 0 ? (
-                <p className="text-stone-500 text-sm">No data yet</p>
-              ) : (
-                topCities.slice(0, 5).map((item, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <span className="text-stone-400 text-sm w-4">{i + 1}</span>
-                      <div>
-                        <p className="text-slate-900 text-sm font-medium">{item.city}</p>
-                        <p className="text-stone-500 text-xs">{item.country}</p>
-                      </div>
-                    </div>
-                    <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <Monitor className="w-5 h-5 text-indigo-500" />
-              <h3 className="text-slate-900 font-bold">Devices</h3>
-            </div>
-            <div className="space-y-4">
-              {topDevices.length === 0 ? (
-                <p className="text-stone-500 text-sm">No data yet</p>
-              ) : (
-                topDevices.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
-                    <div className="flex items-center gap-3">
-                      {item.device.toLowerCase().includes('mobile') ? (
-                        <Smartphone className="w-4 h-4 text-indigo-500" />
-                      ) : (
-                        <Monitor className="w-4 h-4 text-indigo-500" />
-                      )}
-                      <span className="text-slate-900 text-sm">{item.device}</span>
-                    </div>
-                    <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()} clicks</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Traffic Sources (UTM campaign/source panels removed: clicks don't record UTM parameters) */}
-        <div className="grid grid-cols-1 gap-6">
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <Smartphone className="w-5 h-5 text-purple-500" />
-              <h3 className="text-slate-900 font-bold">Traffic Type</h3>
-            </div>
-            <div className="space-y-4">
-              {topReferrers.length === 0 ? (
-                <p className="text-stone-500 text-sm">No data yet</p>
-              ) : (
-                topReferrers.map((item, i) => {
-                  const total = topReferrers.reduce((sum, r) => sum + r.clickCount, 0);
-                  const percentage = Math.round((item.clickCount / total) * 100);
-                  return (
-                    <div key={i} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-900 text-sm">{item.referrer}</span>
-                        <span className="text-stone-500 text-sm">{item.clickCount.toLocaleString()} ({percentage}%)</span>
-                      </div>
-                      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-blue-500"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Engagement Heatmap */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-5 h-5 rounded bg-gradient-to-br from-yellow-400 to-orange-400" />
-            <h3 className="text-slate-900 font-bold">Engagement Heatmap (UTC)</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-[800px]">
-              <div className="grid grid-cols-[auto_repeat(24,1fr)] gap-1">
-                {/* Hours Header */}
-                <div className="h-8" /> {/* Spacer for row labels */}
-                {Array.from({ length: 24 }).map((_, i) => (
-                  <div key={i} className="text-xs text-stone-400 text-center">{i}</div>
-                ))}
-
-                {/* Days Rows */}
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, dayIndex) => (
-                  <React.Fragment key={day}>
-                    <div className="text-xs text-stone-500 flex items-center h-8">{day}</div>
-                    {Array.from({ length: 24 }).map((_, hourIndex) => {
-                      const dataPoint = heatmap.find(d => d.day === dayIndex && d.hour === hourIndex);
-                      const count = dataPoint?.clicks || 0;
-                      const maxClicks = Math.max(1, ...heatmap.map(d => d.clicks));
-                      const intensity = count > 0 ? Math.max(0.2, count / maxClicks) : 0;
-
-                      return (
-                        <div
-                          key={`${dayIndex}-${hourIndex}`}
-                          className={`h-8 rounded-sm transition-all duration-200 hover:ring-1 hover:ring-yellow-400 relative group ${count > 0 ? 'bg-yellow-400' : 'bg-stone-100'}`}
-                          style={{ opacity: count > 0 ? intensity : 1 }}
-                          title={`${day} ${hourIndex}:00 - ${count} clicks`}
-                        >
-                          {count > 0 && (
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none border border-white/10">
-                              {count} clicks
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Globe className="w-5 h-5 text-cyan-500" />
-            <h3 className="text-slate-900 font-bold">Top Browsers</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {topBrowsers.length === 0 ? (
-              <p className="text-stone-500 text-sm col-span-5">No data yet</p>
-            ) : (
-              topBrowsers.slice(0, 5).map((item, i) => (
-                <div key={i} className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
-                  <p className="text-slate-900 font-bold text-lg">{item.clickCount.toLocaleString()}</p>
-                  <p className="text-stone-500 text-sm">{item.browser}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Device Models Breakdown */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Smartphone className="w-5 h-5 text-purple-500" />
-            <h3 className="text-slate-900 font-bold">Device Models</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {topDeviceModels.length === 0 ? (
-              <p className="text-stone-500 text-sm col-span-5">No data yet</p>
-            ) : (
-              topDeviceModels.slice(0, 10).map((item, i) => (
-                <div key={i} className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
-                  <p className="text-slate-900 font-bold text-lg">{item.clickCount.toLocaleString()}</p>
-                  <p className="text-stone-500 text-sm truncate" title={item.deviceModel}>{item.deviceModel}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-slate-900 font-bold mb-4">Recent Clicks</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-stone-500 text-sm border-b border-stone-100">
-                  <th className="pb-3 font-medium">Time</th>
-                  <th className="pb-3 font-medium">Country</th>
-                  <th className="pb-3 font-medium">Device</th>
-                  <th className="pb-3 font-medium">Browser</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentClicks.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-4 text-stone-500 text-sm">No clicks recorded yet</td>
-                  </tr>
-                ) : (
-                  recentClicks.map((click, i) => (
-                    <tr key={i} className="border-b border-stone-100 last:border-0">
-                      <td className="py-3 text-slate-700 text-sm">{new Date(click.timestamp).toLocaleString()}</td>
-                      <td className="py-3 text-slate-700 text-sm">{click.country || 'Unknown'}</td>
-                      <td className="py-3 text-slate-700 text-sm">{click.device || 'Unknown'}</td>
-                      <td className="py-3 text-slate-700 text-sm">{click.browser || 'Unknown'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#ECEBE7] p-4 text-[#18181A] sm:p-8">
+      <div className="mx-auto max-w-7xl">
+        {header}
+        {body}
       </div>
     </div>
   );
