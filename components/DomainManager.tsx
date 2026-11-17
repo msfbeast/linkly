@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { Domain } from '../types';
-import { Trash2, AlertCircle, CheckCircle, Globe, RefreshCw, Copy, ExternalLink, Plus } from 'lucide-react';
+import { Trash2, CheckCircle, RefreshCw, ExternalLink, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DomainManagerProps {
@@ -40,7 +40,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
         let domain = newDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
         if (!domain.includes('.')) {
-            toast.error('Please enter a valid domain (e.g., bio.john.com)');
+            toast.error('Enter a domain like links.yourdomain.com');
             return;
         }
 
@@ -49,7 +49,7 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
             const added = await supabaseAdapter.addDomain(userId, domain);
             setDomains([...domains, added]);
             setNewDomain('');
-            toast.success('Domain added! configure DNS now.');
+            toast.success('Domain added. Now add the DNS records below.');
         } catch (error: any) {
             console.error('Add domain failed', error);
             toast.error(error.message || 'Failed to add domain');
@@ -83,159 +83,112 @@ const DomainManager: React.FC<DomainManagerProps> = ({ userId }) => {
         }
     };
 
+    const recordName = (domain: string, prefix = '') => {
+        const sub = domain.split('.').length > 2 ? domain.split('.')[0] : '';
+        return prefix ? (sub ? `${prefix}.${sub}` : prefix) : (sub || '@');
+    };
+
     return (
-        <div className="space-y-8">
-            <div>
-                <h2 className="text-lg font-semibold text-slate-900">Custom Domains</h2>
-                <p className="text-stone-500 text-sm">Connect your own domain to your Bio Page.</p>
+        <div>
+            <div className="mb-4 flex items-center gap-2 text-[13px] text-[#8C8981]">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-[#FF5A14]" />
+                <span>Custom domains</span>
             </div>
+            <p className="mb-4 text-[13px] text-[#8C8981]">Use your own domain, like links.yourname.com, for your short links and bio page.</p>
 
-            {/* Add Domain Form */}
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-6">
-                <form onSubmit={handleAddDomain} className="flex gap-3">
-                    <div className="relative flex-1">
-                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
-                        <input
-                            type="text"
-                            value={newDomain}
-                            onChange={(e) => setNewDomain(e.target.value)}
-                            placeholder="e.g. bio.yourdomain.com"
-                            className="w-full pl-10 pr-4 py-3 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={adding || !newDomain}
-                        className="px-6 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center gap-2"
-                    >
-                        {adding ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        Connect
-                    </button>
-                </form>
-                <p className="text-xs text-stone-500 mt-3 ml-1">
-                    Replaces standard gather.link URLs with your own brand.
-                </p>
-            </div>
+            <form onSubmit={handleAddDomain} className="flex flex-col gap-2 sm:flex-row">
+                <label htmlFor="domain-input" className="sr-only">Domain</label>
+                <input
+                    id="domain-input"
+                    type="text"
+                    value={newDomain}
+                    onChange={(e) => setNewDomain(e.target.value)}
+                    placeholder="links.yourdomain.com"
+                    className="flex-1 rounded-2xl bg-[#F0EEEA] px-4 py-3 font-mono text-[13px] outline-none ring-[#FF5A14]/40 placeholder:text-[#A19E97] focus:ring-2"
+                />
+                <button
+                    type="submit"
+                    disabled={adding || !newDomain}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#18181A] px-5 py-2.5 text-[13px] font-medium text-white hover:opacity-90 disabled:opacity-40"
+                >
+                    {adding ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Connect
+                </button>
+            </form>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                    <h3 className="text-lg font-bold text-white mb-4">Step 1: Add CNAME and TXT Records</h3>
-                    <p className="text-slate-200 text-sm mb-4">
-                        In your DNS provider, create a CNAME record for your subdomain (e.g., <span className="text-emerald-400 font-bold">links</span>.yourdomain.com) pointing to:
-                    </p>
-                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
-                        <span className="text-emerald-400 font-bold select-all">custom.gather.link</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Domain List */}
-            <div className="space-y-4">
+            <div className="mt-4 grid gap-2">
                 {loading ? (
-                    <div className="text-center py-8 text-stone-400">Loading domains...</div>
+                    <p className="py-4 text-[13px] text-[#8C8981]">Loading domains…</p>
                 ) : domains.length === 0 ? (
-                    <div className="text-center py-8 bg-white border border-stone-100 rounded-xl">
-                        <Globe className="w-12 h-12 text-stone-200 mx-auto mb-3" />
-                        <p className="text-stone-500">No domains connected yet.</p>
-                    </div>
+                    <p className="py-2 text-[13px] text-[#A19E97]">No domains connected yet.</p>
                 ) : (
-                    domains.map(domain => (
-                        <div key={domain.id} className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className={`mt-1 w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${domain.status === 'active' ? 'bg-emerald-100 text-emerald-600' :
-                                        domain.status === 'failed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
-                                        }`}>
-                                        {domain.status === 'active' ? <CheckCircle className="w-5 h-5" /> :
-                                            domain.status === 'failed' ? <AlertCircle className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-900 text-lg">{domain.domain}</h3>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${domain.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                                                'bg-amber-50 text-amber-700 border border-amber-100'
-                                                }`}>
-                                                {domain.status}
-                                            </span>
-                                            <span className="text-xs text-stone-400 flex items-center gap-1">
-                                                <Copy className="w-3 h-3" /> {domain.status === 'active' ? 'Live' : 'DNS Setup Required'}
-                                            </span>
+                    domains.map(domain => {
+                        const active = domain.status === 'active';
+                        const failed = domain.status === 'failed';
+                        return (
+                            <div key={domain.id} className="rounded-2xl bg-[#F3F2EF] p-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className="font-mono text-[14px]">{domain.domain}</span>
+                                    <span className={`rounded-md px-2 py-0.5 font-mono text-[11px] ${active ? 'bg-[#18181A] text-white' : failed ? 'bg-[#FDECEA] text-[#B42318]' : 'bg-[#FFE3D5] text-[#C2410C]'}`}>
+                                        {active ? 'live' : failed ? 'check failed' : 'waiting for DNS'}
+                                    </span>
+                                    <span className="ml-auto flex items-center gap-1">
+                                        {!active && (
+                                            <button
+                                                onClick={() => handleVerify(domain.id)}
+                                                disabled={verifying === domain.id}
+                                                className="inline-flex items-center gap-1.5 rounded-full bg-[#FBFAF8] px-3 py-1.5 text-[12px] hover:bg-white disabled:opacity-50"
+                                            >
+                                                {verifying === domain.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                                Check DNS
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => handleDelete(domain.id)}
+                                            aria-label={`Remove ${domain.domain}`}
+                                            className="rounded-full p-2 text-[#8C8981] hover:bg-[#FBFAF8] hover:text-[#B42318]"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </span>
+                                </div>
+
+                                {!active && (
+                                    <div className="mt-4">
+                                        <p className="mb-2 text-[12px] text-[#8C8981]">
+                                            At your domain provider (GoDaddy, Namecheap, Cloudflare…), add these two records, then press Check DNS.{' '}
+                                            <a href="https://support.google.com/a/answer/47283" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-[#18181A]">
+                                                How <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                        </p>
+                                        <div className="overflow-x-auto rounded-xl bg-[#18181A] p-3 font-mono text-[12px] text-[#F2F1EE]">
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="text-left text-[11px] text-[#77746D]">
+                                                        <th className="pb-1.5 pr-4 font-normal">Type</th>
+                                                        <th className="pb-1.5 pr-4 font-normal">Name</th>
+                                                        <th className="pb-1.5 font-normal">Value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td className="py-1 pr-4">CNAME</td>
+                                                        <td className="select-all py-1 pr-4">{recordName(domain.domain)}</td>
+                                                        <td className="select-all py-1 text-[#FF9B6A]">custom.gather.link</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="py-1 pr-4">TXT</td>
+                                                        <td className="select-all py-1 pr-4">{recordName(domain.domain, '_gather')}</td>
+                                                        <td className="select-all break-all py-1 text-[#FF9B6A]">gather-verification={domain.verificationToken}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    {domain.status !== 'active' && (
-                                        <button
-                                            onClick={() => handleVerify(domain.id)}
-                                            disabled={verifying === domain.id}
-                                            className="px-4 py-2 bg-white border border-stone-200 text-slate-700 font-medium rounded-lg hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm"
-                                        >
-                                            {verifying === domain.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
-                                            Verify DNS
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => handleDelete(domain.id)}
-                                        className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
-                                </div>
+                                )}
                             </div>
-
-                            {domain.status !== 'active' && (
-                                <div className="mt-6 p-4 bg-slate-900 rounded-lg text-slate-300 font-mono text-sm overflow-x-auto">
-                                    <div className="flex items-center justify-between border-b border-slate-700 pb-2 mb-4">
-                                        <span className="text-slate-400 text-xs uppercase tracking-wider">DNS Configuration</span>
-                                        <a href="https://support.google.com/a/answer/47283" target="_blank" rel="noreferrer" className="text-yellow-400 hover:text-yellow-300 text-xs flex items-center gap-1">
-                                            Help <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                    </div>
-
-                                    <div className="mb-4 text-xs text-slate-200 space-y-1">
-                                        <p>1. Log in to your domain provider (e.g., GoDaddy, Namecheap).</p>
-                                        <p>2. Navigate to <strong>DNS Settings</strong> or <strong>DNS Management</strong>.</p>
-                                        <p>3. Add a new record with the following values:</p>
-                                    </div>
-
-                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2 bg-slate-800/50 p-2 rounded">
-                                        <span className="text-slate-500">Type</span>
-                                        <span className="font-bold text-white">CNAME</span>
-                                    </div>
-                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2">
-                                        <span className="text-slate-500">Name</span>
-                                        <span className="text-white">
-                                            {domain.domain.split('.').length > 2 ? domain.domain.split('.')[0] : '@'}
-                                            <span className="text-slate-600 italic ml-2">(subdomain)</span>
-                                        </span>
-                                    </div>
-                                    <div className="grid grid-cols-[80px_1fr] gap-4">
-                                        <span className="text-slate-500">Value</span>
-                                        <span className="text-emerald-400 font-bold select-all">custom.gather.link</span>
-                                    </div>
-
-                                    <div className="mt-5 mb-3 text-xs text-slate-200">
-                                        <p>4. Add a second record that proves the domain is yours:</p>
-                                    </div>
-                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2 bg-slate-800/50 p-2 rounded">
-                                        <span className="text-slate-500">Type</span>
-                                        <span className="font-bold text-white">TXT</span>
-                                    </div>
-                                    <div className="grid grid-cols-[80px_1fr] gap-4 mb-2">
-                                        <span className="text-slate-500">Name</span>
-                                        <span className="text-white select-all">
-                                            {domain.domain.split('.').length > 2 ? `_gather.${domain.domain.split('.')[0]}` : '_gather'}
-                                        </span>
-                                    </div>
-                                    <div className="grid grid-cols-[80px_1fr] gap-4">
-                                        <span className="text-slate-500">Value</span>
-                                        <span className="text-emerald-400 font-bold select-all break-all">gather-verification={domain.verificationToken}</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </div>

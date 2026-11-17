@@ -344,12 +344,13 @@ export const authService = {
    * Sign out the current user
    * Requirements: 3.1
    */
-  async signOut(): Promise<void> {
+  /** Signs out this browser, or every device with `everywhere`. */
+  async signOut(everywhere = false): Promise<void> {
     if (!isSupabaseConfigured() || !supabase) {
       return;
     }
 
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(everywhere ? { scope: 'global' } : undefined);
     sessionStorage.removeItem('gather_session_temp');
   },
 

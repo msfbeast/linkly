@@ -1,704 +1,276 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import StorefrontPreview from '../components/StorefrontPreview';
+import { ArrowRight, Camera, Loader2, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 import DomainManager from '../components/DomainManager';
-import { User, Bell, Shield, Key, Trash2, LogOut, Check, Copy, Eye, EyeOff, LayoutTemplate, ExternalLink, Globe, CreditCard } from 'lucide-react';
+import { Label, Tile } from '../components/ui/bento';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { toast } from 'sonner';
+import { validatePassword, MIN_PASSWORD_LENGTH } from '../services/passwordValidation';
+import { FREE_LINK_LIMIT } from '../utils/planLimits';
 
-/**
- * Settings Page - User account and app preferences
- */
-const Settings: React.FC = () => {
-  const { user, signOut, updateProfile, updatePassword, regenerateApiKey } = useAuth();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('account');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [copied, setCopied] = useState(false);
+const SUPPORT_EMAIL = 'support@gather.link';
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
-  // Account state
-  const [displayName, setDisplayName] = useState(user?.displayName || '');
-  const [isLoading, setIsLoading] = useState(false);
+const inputClass = 'w-full rounded-2xl bg-[#F0EEEA] px-4 py-3 text-[14px] text-[#18181A] placeholder:text-[#A19E97] outline-none ring-[#FF5A14]/40 focus:ring-2 disabled:text-[#8C8981]';
+const primaryButton = 'inline-flex items-center gap-2 rounded-full bg-[#18181A] px-5 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40';
+const secondaryButton = 'inline-flex items-center gap-2 rounded-full bg-[#F0EEEA] px-4 py-2 text-[13px] text-[#18181A] transition-colors hover:bg-[#E6E3DD] disabled:opacity-50';
 
-  // Password state
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+type Tier = 'free' | 'pro' | 'business' | string;
 
-  // Storefront state
-  const [selectedTheme, setSelectedTheme] = useState(user?.storefrontTheme || 'vibrant');
-  const [isSavingTheme, setIsSavingTheme] = useState(false);
+/** What the account's plan includes and whether its billing needs attention. */
+export function planSummary(tier: Tier | undefined, status: string | undefined) {
+    const t = tier || 'free';
+    if (t === 'free') return { name: 'Free', perks: `${FREE_LINK_LIMIT} links, analytics, a store page`, note: null as string | null, upgrade: true };
+    const name = t.charAt(0).toUpperCase() + t.slice(1);
+    const perks = t === 'business' ? 'Unlimited links, 90-day analytics, priority support' : 'Unlimited links, 90-day analytics';
+    const note = status === 'past_due'
+        ? 'Your last renewal payment failed. It will be retried; update your payment method to keep the plan.'
+        : null;
+    return { name, perks, note, upgrade: false };
+}
 
-  // Update local state when user loads
-  React.useEffect(() => {
-    if (user?.displayName) {
-      setDisplayName(user.displayName);
-    }
-    if (user?.storefrontTheme) {
-      setSelectedTheme(user.storefrontTheme);
-    }
-  }, [user]);
-
-  const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      const result = await updateProfile({ displayName });
-      if (result.success) {
-        // Ideally show a toast here
-      }
-    } catch (error) {
-      console.error('Failed to update profile', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Debug logging removed
-
-  const handleSaveTheme = async (theme: string) => {
-    setIsSavingTheme(true);
-    setSelectedTheme(theme);
-    try {
-      const result = await updateProfile({ storefrontTheme: theme });
-      if (result.success) {
-      }
-    } catch (error) {
-      console.error('Failed to update theme', error);
-    } finally {
-      setIsSavingTheme(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (!newPassword) return;
-    setIsLoading(true);
-    setPasswordMessage(null);
-    try {
-      const result = await updatePassword(newPassword);
-      if (result.success) {
-        setPasswordMessage({ type: 'success', text: 'Password updated successfully' });
-        setNewPassword('');
-        setIsChangingPassword(false);
-      } else {
-        setPasswordMessage({ type: 'error', text: result.error || 'Failed to update password' });
-      }
-    } catch (error) {
-      setPasswordMessage({ type: 'error', text: 'An error occurred' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegenerateKey = async () => {
-    if (window.confirm('Are you sure? This will invalidate your old key.')) {
-      setIsLoading(true);
-      try {
-        await regenerateApiKey();
-      } catch (error) {
-        console.error('Failed to regenerate key', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  // Use real API key or fallback
-  const apiKey = user?.apiKey || 'No API Key Generated';
-
-  const handleCopyApiKey = () => {
-    navigator.clipboard.writeText(apiKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const tabs = [
-    { id: 'account', label: 'Account', icon: User },
-    { id: 'storefront', label: 'Storefront', icon: LayoutTemplate },
-    { id: 'domains', label: 'Domains', icon: Globe },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'api', label: 'API Keys', icon: Key },
-    { id: 'billing', label: 'Billing', icon: CreditCard },
-    { id: 'monetization', label: 'Monetization', icon: Check }, // Using Check icon for now, ideally DollarSign
-  ];
-
-  // Monetization state
-  const [flipkartId, setFlipkartId] = useState(user?.flipkartAffiliateId || '');
-  const [amazonTag, setAmazonTag] = useState(user?.amazonAssociateTag || '');
-  const [isSavingMonetization, setIsSavingMonetization] = useState(false);
-
-  // Notification state
-  const [notifications, setNotifications] = useState({
-    email: true,
-    milestones: true,
-    reports: true,
-    security: true
-  });
-
-  React.useEffect(() => {
-    if (user?.flipkartAffiliateId) setFlipkartId(user.flipkartAffiliateId);
-    if (user?.amazonAssociateTag) setAmazonTag(user.amazonAssociateTag);
-    if (user?.settingsNotifications) {
-      setNotifications(user.settingsNotifications);
-    }
-  }, [user]);
-
-  const handleNotificationChange = async (key: keyof typeof notifications) => {
-    const newSettings = { ...notifications, [key]: !notifications[key] };
-    setNotifications(newSettings);
-    try {
-      await supabaseAdapter.updateNotificationSettings(newSettings);
-      toast.success('Notification settings updated!');
-    } catch (error) {
-      console.error('Failed to update notifications', error);
-      toast.error('Failed to update notification settings.');
-    }
-  };
-
-  const handleSaveMonetization = async () => {
-    setIsSavingMonetization(true);
-    try {
-      const result = await updateProfile({
-        flipkartAffiliateId: flipkartId,
-        amazonAssociateTag: amazonTag
-      });
-      if (result.success) {
-        toast.success('Monetization settings saved!');
-        if (user?.id) {
-          toast.info('Updating existing links with new tags...');
-          await supabaseAdapter.propagateAffiliateTags(user.id, amazonTag, flipkartId);
-          toast.success('Existing links updated successfully!');
-        }
-      } else {
-        toast.error(result.error || 'Failed to update monetization settings.');
-      }
-    } catch (error) {
-      console.error('Failed to update monetization settings', error);
-      toast.error('An error occurred while saving monetization settings.');
-    } finally {
-      setIsSavingMonetization(false);
-    }
-  };
-
-  const templates = [
-    { id: 'vibrant', name: 'Vibrant', description: 'Bold colors and dynamic energy.', color: 'bg-[#FF3366]' },
-    { id: 'glass', name: 'Glass (BW)', description: 'Sleek glassmorphism in black & white.', color: 'bg-black' },
-    { id: 'cyberpunk', name: 'Cyberpunk', description: 'Neon lights and glitch effects.', color: 'bg-[#00ff00]' },
-    { id: 'retro', name: 'Retro Pop', description: 'Nostalgic 80s/90s vibe.', color: 'bg-[#FFCC00]' },
-    { id: 'neubrutalism', name: 'Neubrutalism', description: 'Raw, bold, and high contrast.', color: 'bg-[#FF6B6B]' },
-    { id: 'lofi', name: 'Lofi', description: 'Calm, textured, and relaxed.', color: 'bg-[#F7F2E8]' },
-    { id: 'clay', name: 'Claymorphism', description: 'Soft, 3D inflated shapes.', color: 'bg-[#f0f4f8]' },
-    { id: 'bauhaus', name: 'Bauhaus', description: 'Geometric, artistic, primary colors.', color: 'bg-[#f4f1ea]' },
-    { id: 'industrial', name: 'Industrial', description: 'Clean, technical, engineered look.', color: 'bg-[#E2E2E2]' },
-    { id: 'lab', name: 'Lab', description: 'Clinical, white industrial, pure.', color: 'bg-white border border-gray-200' },
-    { id: 'archive', name: 'Archive', description: 'Database style, structured, curated.', color: 'bg-[#F0F0F0]' },
-  ];
-
-  // Every profile's status defaults to 'active', so the plan decides
-  // whether there is a subscription at all; status only matters on paid plans.
-  const billingState = (() => {
-    const tier = user?.preferences?.subscription_tier;
-    const status = user?.preferences?.subscription_status;
-    if (!tier || tier === 'free') {
-      return { badge: 'Free', badgeClass: 'bg-stone-200 text-stone-600', message: 'You are currently on the free plan.' };
-    }
-    if (status === 'past_due') {
-      return {
-        badge: 'Payment due',
-        badgeClass: 'bg-amber-100 text-amber-700',
-        message: 'Your last renewal payment failed. It will be retried automatically; update your payment method to keep your plan.',
-      };
-    }
-    return { badge: 'Active', badgeClass: 'bg-green-100 text-green-700', message: 'Your subscription is active.' };
-  })();
-
-  return (
-    <div className="min-h-screen bg-[#ECEBE7] p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-          <p className="text-stone-500 text-sm mt-1">Manage your account and preferences</p>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar Tabs */}
-          <div className="w-full md:w-56 space-y-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${activeTab === tab.id
-                  ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                  : 'text-stone-500 hover:bg-stone-100 hover:text-slate-900'
-                  }`}
-              >
-                <tab.icon className="w-5 h-5" />
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Content Area */}
-          <div className="flex-1 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
-            {/* Account Tab */}
-            {activeTab === 'account' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-slate-900">Account Information</h2>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-6">
-                    <div className="relative group">
-                      <div className="w-24 h-24 rounded-full overflow-hidden bg-stone-100 border-4 border-white shadow-lg">
-                        {user?.avatar_url ? (
-                          <img
-                            src={user.avatar_url}
-                            alt={displayName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white text-2xl font-bold">
-                            {displayName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <label className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-md cursor-pointer hover:bg-stone-50 transition-colors border border-stone-200">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file || !user) return;
-
-                            // Validate file type
-                            if (!file.type.startsWith('image/')) {
-                              toast.error('Please upload an image file');
-                              return;
-                            }
-
-                            // Validate file size (max 5MB)
-                            if (file.size > 5 * 1024 * 1024) {
-                              toast.error('Image must be less than 5MB');
-                              return;
-                            }
-
-                            try {
-                              setIsLoading(true);
-                              const toastId = toast.loading('Uploading photo...');
-
-                              await supabaseAdapter.uploadAvatar(user.id, file);
-
-                              toast.success('Profile photo updated!', { id: toastId });
-
-                              // Force refresh to show new image
-                              window.location.reload();
-                            } catch (err: any) {
-                              console.error('Upload failed:', err);
-                              toast.error(err.message || 'Failed to upload photo');
-                            } finally {
-                              setIsLoading(false);
-                            }
-                          }}
-                        />
-                        <div className="w-4 h-4 text-slate-900">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
-                          </svg>
-                        </div>
-                      </label>
-                    </div>
-
-                    <div className="flex-1">
-                      <label className="block text-sm text-stone-500 mb-2">Email Address</label>
-                      <input
-                        type="email"
-                        value={user?.email || ''}
-                        disabled
-                        className="w-full bg-stone-50 border border-stone-200 text-stone-500 px-4 py-3 rounded-xl opacity-60"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-stone-500 mb-2">Display Name</label>
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Enter your name"
-                      className="w-full input-premium"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-stone-500 mb-2">Plan</label>
-                    <div className="flex items-center justify-between bg-stone-50 border border-stone-200 px-4 py-3 rounded-xl">
-                      <div>
-                        <span className="text-slate-900 font-medium capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</span>
-                        <p className="text-stone-500 text-sm">
-                          {user?.preferences?.subscription_tier === 'business' ? 'Unlimited links, priority support' :
-                            user?.preferences?.subscription_tier === 'pro' ? 'Unlimited links, storefront access' :
-                              '50 links, basic analytics'}
-                        </p>
-                      </div>
-                      {(user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier) && (
-                        <button
-                          onClick={() => navigate('/pricing')}
-                          className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-semibold rounded-lg text-sm btn-premium shadow-sm shadow-yellow-400/20"
-                        >
-                          Upgrade
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end pt-4">
-                  <button
-                    onClick={handleSave}
-                    disabled={isLoading || displayName === user?.displayName}
-                    className={`px-6 py-2.5 rounded-xl font-semibold btn-premium ${isLoading || displayName === user?.displayName
-                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed scale-100 translate-y-0 shadow-none'
-                      : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20'
-                      }`}
-                  >
-                    {isLoading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-
-                <div className="pt-6 border-t border-stone-100">
-                  <h3 className="text-red-500 font-semibold mb-4">Danger Zone</h3>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 text-red-600 rounded-xl hover:bg-red-100 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                    Delete Account
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Storefront Tab */}
-            {activeTab === 'storefront' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-slate-900">Storefront Template</h2>
-                  <a href={`/store/${user?.id}`} target="_blank" rel="noopener noreferrer" className="text-sm text-yellow-600 hover:text-yellow-700 flex items-center gap-1">
-                    Preview All <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-stone-500 text-sm">Choose the design for your public product store.</p>
-
-                <div className="bg-stone-50 rounded-xl p-6 border border-stone-100 flex justify-center">
-                  <div className="w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden border-4 border-slate-900 bg-white">
-                    <StorefrontPreview theme={selectedTheme} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {templates.map((template) => (
-                    <button
-                      key={template.id}
-                      onClick={() => handleSaveTheme(template.id)}
-                      disabled={isSavingTheme}
-                      className={`relative p-4 rounded-xl border-2 text-left transition-all group ${selectedTheme === template.id
-                        ? 'border-yellow-400 bg-yellow-50/50'
-                        : 'border-stone-100 hover:border-stone-200 bg-white'
-                        }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-lg shadow-sm flex-shrink-0 ${template.color}`}></div>
-                        <div>
-                          <h3 className="font-semibold text-slate-900">{template.name}</h3>
-                          <p className="text-stone-500 text-xs mt-1">{template.description}</p>
-                        </div>
-                      </div>
-                      {selectedTheme === template.id && (
-                        <div className="absolute top-4 right-4 text-yellow-500">
-                          <Check className="w-5 h-5" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Domains Tab */}
-            {activeTab === 'domains' && user && (
-              <DomainManager userId={user.id} />
-            )}
-
-            {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-slate-900">Notification Preferences</h2>
-
-                <div className="space-y-4">
-                  {[
-                    { key: 'email', label: 'Email notifications', desc: 'Receive updates about your links via email' },
-                    { key: 'milestones', label: 'Click milestones', desc: 'Get notified when links reach click milestones' },
-                    { key: 'reports', label: 'Weekly reports', desc: 'Receive weekly analytics summaries' },
-                    { key: 'security', label: 'Security alerts', desc: 'Get notified about suspicious activity' },
-                  ].map((item) => (
-                    <div key={item.key} className="flex items-center justify-between py-3 border-b border-stone-100 last:border-0">
-                      <div>
-                        <p className="text-slate-900 font-medium">{item.label}</p>
-                        <p className="text-stone-500 text-sm">{item.desc}</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={notifications[item.key as keyof typeof notifications]}
-                          onChange={() => handleNotificationChange(item.key as keyof typeof notifications)}
-                        />
-                        <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-400"></div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Security Tab */}
-            {activeTab === 'security' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-slate-900">Security Settings</h2>
-
-                <div className="space-y-4">
-                  <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-slate-900 font-medium">Password</p>
-                          <p className="text-stone-500 text-sm">Update your password securely</p>
-                        </div>
-                        {!isChangingPassword && (
-                          <button
-                            onClick={() => setIsChangingPassword(true)}
-                            className="px-4 py-2 bg-white hover:bg-stone-100 text-slate-900 border border-stone-200 rounded-lg text-sm transition-colors"
-                          >
-                            Change Password
-                          </button>
-                        )}
-                      </div>
-
-                      {isChangingPassword && (
-                        <div className="mt-2 p-4 bg-stone-50 rounded-lg border border-stone-200">
-                          <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Enter new password"
-                            className="w-full mb-3 input-premium"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={handleChangePassword}
-                              disabled={isLoading || !newPassword}
-                              className="px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg btn-premium disabled:opacity-50"
-                            >
-                              {isLoading ? 'Updating...' : 'Update Password'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setIsChangingPassword(false);
-                                setNewPassword('');
-                                setPasswordMessage(null);
-                              }}
-                              className="px-3 py-1.5 bg-white border border-stone-300 text-slate-700 text-sm rounded-lg hover:bg-stone-50"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                          {passwordMessage && (
-                            <p className={`text-sm mt-2 ${passwordMessage.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
-                              {passwordMessage.text}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl opacity-70">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-slate-900 font-medium">Two-Factor Authentication</p>
-                        <p className="text-stone-500 text-sm">Add an extra layer of security</p>
-                      </div>
-                      <button disabled className="px-4 py-2 bg-stone-200 text-stone-500 font-semibold rounded-lg text-sm cursor-not-allowed">
-                        Coming Soon
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
-                    <p className="text-slate-900 font-medium mb-2">Active Sessions</p>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between py-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                          <div>
-                            <p className="text-slate-900 text-sm">Current session</p>
-                            <p className="text-stone-500 text-xs">MacOS • Chrome • Now</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={async () => {
-                    navigate('/');
-                    setTimeout(async () => {
-                      await signOut();
-                    }, 50);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign out of all devices
-                </button>
-              </div>
-            )}
-
-            {/* API Keys Tab */}
-            {activeTab === 'api' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-slate-900">API Keys</h2>
-                <p className="text-stone-500 text-sm">Use API keys to integrate Gather with your applications.</p>
-
-                <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-slate-900 font-medium">Live API Key</p>
-                    {user?.apiKey ? (
-                      <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full border border-emerald-200">Active</span>
-                    ) : (
-                      <span className="px-2 py-1 bg-stone-200 text-stone-600 text-xs rounded-full border border-stone-300">Not Generated</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-white border border-stone-200 rounded-lg px-4 py-3 text-emerald-600 font-mono text-sm overflow-hidden text-ellipsis">
-                      {user?.apiKey ? (showApiKey ? apiKey : '•'.repeat(32)) : 'No API Key Generated'}
-                    </code>
-                    {user?.apiKey && (
-                      <button
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="p-3 bg-white hover:bg-stone-50 text-stone-500 border border-stone-200 rounded-lg transition-colors"
-                      >
-                        {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    )}
-                    {user?.apiKey && (
-                      <button
-                        onClick={handleCopyApiKey}
-                        className="p-3 bg-white hover:bg-stone-50 text-stone-500 border border-stone-200 rounded-lg transition-colors"
-                      >
-                        {copied ? <Check className="w-5 h-5 text-emerald-500" /> : <Copy className="w-5 h-5" />}
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-stone-500 text-xs mt-2">Keep this key secret. Do not share it in client-side code.</p>
-                </div>
-
-                <button
-                  onClick={handleRegenerateKey}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-white hover:bg-stone-50 text-slate-900 border border-stone-200 rounded-lg text-sm transition-colors"
-                >
-                  {user?.apiKey ? 'Regenerate Key' : 'Generate New Key'}
-                </button>
-              </div>
-            )}
-            {/* Billing Tab */}
-            {activeTab === 'billing' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-slate-900">Billing & Subscription</h2>
-                <p className="text-stone-500 text-sm">Manage your plan and payment details.</p>
-
-                <div className="p-6 bg-stone-50 border border-stone-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <p className="text-slate-900 font-medium text-lg capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</p>
-                      <p className="text-stone-500 text-sm">{billingState.message}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${billingState.badgeClass}`}>
-                      {billingState.badge}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-3">
-                    {(user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier) ? (
-                      <button
-                        onClick={() => navigate('/pricing')}
-                        className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-medium btn-premium"
-                      >
-                        Upgrade Plan
-                      </button>
-                    ) : (
-                      <div className="text-sm text-stone-500 italic">
-                        Managed via Razorpay. Contact support for changes.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Monetization Tab */}
-            {activeTab === 'monetization' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-slate-900">Monetization</h2>
-                <p className="text-stone-500 text-sm">Automatically add your affiliate tags to links you create.</p>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-stone-500 mb-2">Flipkart Affiliate ID</label>
-                    <input
-                      type="text"
-                      value={flipkartId}
-                      onChange={(e) => setFlipkartId(e.target.value)}
-                      placeholder="e.g. yourname"
-                      className="w-full input-premium"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-stone-500 mb-2">Amazon Associate Tag</label>
-                    <input
-                      type="text"
-                      value={amazonTag}
-                      onChange={(e) => setAmazonTag(e.target.value)}
-                      placeholder="e.g. yourname-21"
-                      className="w-full input-premium"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end pt-4">
-                  <button
-                    onClick={handleSaveMonetization}
-                    disabled={isSavingMonetization}
-                    className={`px-6 py-2.5 rounded-xl font-semibold btn-premium ${isSavingMonetization
-                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed scale-100 translate-y-0 shadow-none'
-                      : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20'
-                      }`}
-                  >
-                    {isSavingMonetization ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+const Field: React.FC<{ label: string; htmlFor: string; children: React.ReactNode; hint?: React.ReactNode }> = ({ label, htmlFor, children, hint }) => (
+    <div>
+        <label htmlFor={htmlFor} className="mb-1.5 block text-[12px] text-[#8C8981]">{label}</label>
+        {children}
+        {hint && <p className="mt-1.5 text-[12px] text-[#A19E97]">{hint}</p>}
     </div>
-  );
+);
+
+const Settings: React.FC = () => {
+    const { user, signOut, updateProfile, updatePassword } = useAuth();
+    const navigate = useNavigate();
+
+    const [displayName, setDisplayName] = useState(user?.displayName || '');
+    const [savingName, setSavingName] = useState(false);
+    const [uploading, setUploading] = useState(false);
+
+    const [newPassword, setNewPassword] = useState('');
+    const [savingPassword, setSavingPassword] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+
+    const [amazonTag, setAmazonTag] = useState(user?.amazonAssociateTag || '');
+    const [flipkartId, setFlipkartId] = useState(user?.flipkartAffiliateId || '');
+    const [savingTags, setSavingTags] = useState(false);
+
+    const [signingOut, setSigningOut] = useState<'here' | 'everywhere' | null>(null);
+
+    useEffect(() => {
+        if (user?.displayName) setDisplayName(user.displayName);
+        setAmazonTag(user?.amazonAssociateTag || '');
+        setFlipkartId(user?.flipkartAffiliateId || '');
+    }, [user?.displayName, user?.amazonAssociateTag, user?.flipkartAffiliateId]);
+
+    const plan = planSummary(user?.preferences?.subscription_tier, user?.preferences?.subscription_status);
+    const nameChanged = displayName.trim() !== (user?.displayName || '') && displayName.trim().length > 0;
+    const tagsChanged = amazonTag.trim() !== (user?.amazonAssociateTag || '') || flipkartId.trim() !== (user?.flipkartAffiliateId || '');
+
+    const saveName = async () => {
+        setSavingName(true);
+        try {
+            const result = await updateProfile({ displayName: displayName.trim() });
+            if (result.success) toast.success('Name saved');
+            else toast.error(result.error || 'Could not save your name');
+        } finally {
+            setSavingName(false);
+        }
+    };
+
+    const uploadAvatar = async (file: File | undefined) => {
+        if (!file || !user) return;
+        if (!file.type.startsWith('image/')) { toast.error('Choose an image file'); return; }
+        if (file.size > MAX_AVATAR_BYTES) { toast.error('The photo must be under 5 MB'); return; }
+        setUploading(true);
+        const toastId = toast.loading('Uploading photo…');
+        try {
+            await supabaseAdapter.uploadAvatar(user.id, file);
+            toast.success('Photo updated', { id: toastId });
+            window.location.reload();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Could not upload the photo', { id: toastId });
+            setUploading(false);
+        }
+    };
+
+    const savePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const check = validatePassword(newPassword);
+        if (!check.isValid) { setPasswordError(check.errors[0] ?? 'Choose a stronger password'); return; }
+        setSavingPassword(true);
+        setPasswordError(null);
+        try {
+            const result = await updatePassword(newPassword);
+            if (result.success) {
+                setNewPassword('');
+                toast.success('Password changed');
+            } else {
+                setPasswordError(result.error || 'Could not change the password');
+            }
+        } finally {
+            setSavingPassword(false);
+        }
+    };
+
+    const saveTags = async () => {
+        if (!user) return;
+        setSavingTags(true);
+        try {
+            const amazon = amazonTag.trim();
+            const flipkart = flipkartId.trim();
+            const result = await updateProfile({ amazonAssociateTag: amazon, flipkartAffiliateId: flipkart });
+            if (!result.success) { toast.error(result.error || 'Could not save the tags'); return; }
+            await supabaseAdapter.propagateAffiliateTags(user.id, amazon, flipkart);
+            toast.success('Tags saved and added to your existing Amazon and Flipkart links');
+        } catch (err) {
+            console.error('[Settings] saving affiliate tags failed', err);
+            toast.error('Saved, but updating existing links failed. Try saving again.');
+        } finally {
+            setSavingTags(false);
+        }
+    };
+
+    const doSignOut = async (everywhere: boolean) => {
+        if (everywhere && !window.confirm('Sign out on every device, including this one?')) return;
+        setSigningOut(everywhere ? 'everywhere' : 'here');
+        try {
+            await signOut(everywhere);
+            navigate('/');
+        } catch {
+            toast.error('Could not sign out. Try again.');
+            setSigningOut(null);
+        }
+    };
+
+    const initial = (displayName || user?.email || '?').charAt(0).toUpperCase();
+
+    return (
+        <div className="min-h-screen bg-[#ECEBE7] p-4 text-[#18181A] sm:p-8">
+            <div className="mx-auto max-w-5xl">
+                <div className="mb-5">
+                    <h1 className="text-[28px] font-medium tracking-tight sm:text-[32px]">Settings</h1>
+                    <p className="mt-1 text-[13px] text-[#8C8981]">Your account, plan and links.</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+                    {/* Profile */}
+                    <Tile className="lg:col-span-7">
+                        <Label>Profile</Label>
+                        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                            <label className="group relative h-20 w-20 shrink-0 cursor-pointer" aria-label="Change profile photo">
+                                <span className="block h-20 w-20 overflow-hidden rounded-full bg-[#18181A]">
+                                    {user?.avatar_url
+                                        ? <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+                                        : <span className="flex h-full w-full items-center justify-center text-2xl font-medium text-white">{initial}</span>}
+                                </span>
+                                <span className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#FF5A14] text-white ring-4 ring-[#FBFAF8]">
+                                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                                </span>
+                                <input type="file" accept="image/*" className="sr-only" disabled={uploading} onChange={e => uploadAvatar(e.target.files?.[0])} />
+                            </label>
+                            <div className="grid flex-1 gap-4">
+                                <Field label="Name" htmlFor="settings-name">
+                                    <input id="settings-name" className={inputClass} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your name" maxLength={80} />
+                                </Field>
+                                <Field label="Email" htmlFor="settings-email" hint={`To change it, email ${SUPPORT_EMAIL}.`}>
+                                    <input id="settings-email" className={inputClass} value={user?.email || ''} disabled />
+                                </Field>
+                                <div>
+                                    <button onClick={saveName} disabled={!nameChanged || savingName} className={primaryButton}>
+                                        {savingName && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </Tile>
+
+                    {/* Plan */}
+                    <Tile dark className="flex flex-col lg:col-span-5">
+                        <Label dark right={plan.note ? <span className="rounded-md bg-[#2E2A28] px-2 py-0.5 font-mono text-[11px] text-[#FF9B6A]">payment due</span> : undefined}>Plan</Label>
+                        <span className="font-mono text-[clamp(40px,5vw,56px)] font-medium leading-none tracking-[-0.04em]">{plan.name}</span>
+                        <p className="mt-3 text-[13px] text-[#A19E97]">{plan.perks}</p>
+                        {plan.note && <p className="mt-3 text-[13px] text-[#FF9B6A]">{plan.note}</p>}
+                        <div className="mt-auto pt-6">
+                            {plan.upgrade ? (
+                                <button onClick={() => navigate('/pricing')} className="inline-flex items-center gap-2 rounded-full bg-[#FF5A14] px-5 py-2.5 text-[13px] font-medium text-white hover:opacity-90">
+                                    See plans <ArrowRight className="h-4 w-4" />
+                                </button>
+                            ) : (
+                                <p className="text-[12px] text-[#8E8B84]">To change or cancel your plan, email {SUPPORT_EMAIL}.</p>
+                            )}
+                        </div>
+                    </Tile>
+
+                    {/* Affiliate tags */}
+                    <Tile className="lg:col-span-7">
+                        <Label>Affiliate tags</Label>
+                        <p className="mb-4 text-[13px] text-[#8C8981]">Added to every Amazon and Flipkart link you shorten. Saving also updates your existing links.</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Field label="Amazon Associates tag" htmlFor="settings-amazon">
+                                <input id="settings-amazon" className={inputClass} value={amazonTag} onChange={e => setAmazonTag(e.target.value)} placeholder="yourname-21" />
+                            </Field>
+                            <Field label="Flipkart affiliate ID" htmlFor="settings-flipkart">
+                                <input id="settings-flipkart" className={inputClass} value={flipkartId} onChange={e => setFlipkartId(e.target.value)} placeholder="yourname" />
+                            </Field>
+                        </div>
+                        <button onClick={saveTags} disabled={!tagsChanged || savingTags} className={`${primaryButton} mt-4`}>
+                            {savingTags && <Loader2 className="h-4 w-4 animate-spin" />} Save tags
+                        </button>
+                    </Tile>
+
+                    {/* Password */}
+                    <Tile className="lg:col-span-5">
+                        <Label>Password</Label>
+                        <form onSubmit={savePassword} className="grid gap-4">
+                            <Field label="New password" htmlFor="settings-password" hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}>
+                                <input id="settings-password" type="password" autoComplete="new-password" className={inputClass}
+                                    value={newPassword} onChange={e => { setNewPassword(e.target.value); setPasswordError(null); }} />
+                            </Field>
+                            {passwordError && <p role="alert" className="text-[13px] text-[#B42318]">{passwordError}</p>}
+                            <div>
+                                <button type="submit" disabled={!newPassword || savingPassword} className={primaryButton}>
+                                    {savingPassword && <Loader2 className="h-4 w-4 animate-spin" />} Change password
+                                </button>
+                            </div>
+                        </form>
+                    </Tile>
+
+                    {/* Custom domains */}
+                    {user && (
+                        <Tile className="lg:col-span-12">
+                            <DomainManager userId={user.id} />
+                        </Tile>
+                    )}
+
+                    {/* Developer API */}
+                    <Tile className="flex flex-col lg:col-span-6">
+                        <Label>Developer API</Label>
+                        <p className="text-[13px] text-[#8C8981]">Create short links from your own apps and scripts. Keys and docs are on the API page.</p>
+                        <div className="mt-auto pt-4">
+                            <button onClick={() => navigate('/api-access')} className={secondaryButton}>API keys and docs <ArrowRight className="h-4 w-4" /></button>
+                        </div>
+                    </Tile>
+
+                    {/* Sign out */}
+                    <Tile className="flex flex-col lg:col-span-6">
+                        <Label>Sign out</Label>
+                        <p className="text-[13px] text-[#8C8981]">
+                            Signing out everywhere ends every session, on phones and other browsers too. To delete your account, email {SUPPORT_EMAIL}.
+                        </p>
+                        <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                            <button onClick={() => doSignOut(false)} disabled={signingOut !== null} className={secondaryButton}>
+                                {signingOut === 'here' ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Sign out
+                            </button>
+                            <button onClick={() => doSignOut(true)} disabled={signingOut !== null} className={`${secondaryButton} text-[#B42318]`}>
+                                {signingOut === 'everywhere' && <Loader2 className="h-4 w-4 animate-spin" />} Sign out everywhere
+                            </button>
+                        </div>
+                    </Tile>
+                </div>
+
+            </div>
+        </div>
+    );
 };
 
 export default Settings;
