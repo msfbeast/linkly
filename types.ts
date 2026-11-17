@@ -58,7 +58,10 @@ export type WidgetVariant =
   | 'paper'
   | 'luxury'
   | 'gamer'
-  | 'air';
+  | 'air'
+  // Store page looks (pages/StorePage.tsx)
+  | 'light'
+  | 'dark';
 
 export type BioTheme = WidgetVariant;
 
@@ -442,6 +445,8 @@ export interface Product {
   category?: string;
   slug?: string;
   createdAt: number;
+  /** Owner-chosen order on the store page; unset for products never reordered. */
+  position?: number | null;
 
   // Digital Product Fields
   type?: 'physical' | 'digital';

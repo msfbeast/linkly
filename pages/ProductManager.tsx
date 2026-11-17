@@ -1,1066 +1,561 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, ExternalLink, Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Loader2, Zap, Sparkles, ShoppingBag, Upload, Check, X } from 'lucide-react';
-import OrdersList from '../app/components/OrdersList';
-import { Product } from '../types';
-import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowUpRight, GripVertical, ImageIcon, Loader2, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '../services/storage/supabaseClient';
+import {
+    DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import OrdersList from '../app/components/OrdersList';
+import { BioProfile, Product } from '../types';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { useAuth } from '../contexts/AuthContext';
-import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
-
-import { extractProductDetails } from '../services/geminiService';
-import { extractProductMetadata } from '../services/extractionService';
-
-import { useNavigate } from 'react-router-dom';
+import { addProductFromUrl, createProductLink, prepareDestination } from '../services/productQuickAdd';
+import { MAX_BULK_URLS, parseUrlList, sortProducts } from '../utils/productList';
+import { productCategories, storeLook } from '../utils/storePage';
 import { formatPrice } from '../utils/formatPrice';
+import { safeWebUrl } from '../utils/safeUrl';
 import { FEATURES } from '../utils/featureFlags';
 
+/**
+ * Products: paste a seller's link (or several) to add products to the
+ * store page, then arrange, categorise and edit them.
+ */
+
+const tile = 'rounded-3xl bg-[#FBFAF8]';
+const softButton = 'flex h-10 items-center justify-center gap-2 rounded-full bg-[#F0EEEA] px-4 text-[13px] font-medium text-[#4A4843] transition-colors hover:bg-[#E6E3DD] hover:text-[#18181A] disabled:opacity-50';
+const darkButton = 'flex h-10 items-center justify-center gap-2 rounded-full bg-[#18181A] px-5 text-[13px] font-semibold text-[#F2F1EE] transition-colors hover:bg-[#2B2B2E] disabled:cursor-not-allowed disabled:opacity-40';
+const field = 'w-full rounded-2xl border border-[#E6E3DD] bg-white px-3.5 py-2.5 text-[14px] text-[#18181A] placeholder:text-[#A19E97] focus:border-[#18181A] focus:outline-none focus:ring-0';
+const label = 'mb-1.5 block text-[12px] font-medium text-[#8C8981]';
+
 const ProductManager: React.FC = () => {
-    const navigate = useNavigate();
     const { user, updateProfile } = useAuth();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isEditing, setIsEditing] = useState(false);
-    const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({});
-    const [showModal, setShowModal] = useState(false);
-    const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [isSavingSettings, setIsSavingSettings] = useState(false);
-    const [importUrl, setImportUrl] = useState('');
-    const [destinationUrl, setDestinationUrl] = useState('');
-    const [isImporting, setIsImporting] = useState(false);
-    const [uploadingFile, setUploadingFile] = useState(false);
-    const [uploadingProductImage, setUploadingProductImage] = useState(false);
+    const [bioProfile, setBioProfile] = useState<BioProfile | null>(null);
+    const [tab, setTab] = useState<'products' | 'orders'>('products');
+    const [category, setCategory] = useState<string | null>(null);
+    const [editing, setEditing] = useState<Product | null>(null);
+    const [deleting, setDeleting] = useState<Product | null>(null);
+    const [showTags, setShowTags] = useState(false);
 
-    const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
-
-    // Inline editing state
-    const [editingProductId, setEditingProductId] = useState<string | null>(null);
-    const [editingField, setEditingField] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState<string>('');
-
-    const [storeSettings, setStoreSettings] = useState({
-        storeName: '',
-        storeDescription: '',
-        storeButtonText: '',
-        storeLogoUrl: '',
-        storeBannerUrl: '',
-        storeHeroBadge: '',
-        storeMarqueeText: '',
-        storeSocialUrl: '',
-        upiId: '',
-        flipkartAffiliateId: '',
-        amazonAssociateTag: '',
-    });
-
-    useEffect(() => {
-        if (user) {
-            setStoreSettings({
-                storeName: user.storeName || '',
-                storeDescription: user.storeDescription || '',
-                storeButtonText: user.storeButtonText || '',
-                storeLogoUrl: user.storeLogoUrl || '',
-                storeBannerUrl: user.storeBannerUrl || '',
-                storeHeroBadge: user.storeHeroBadge || '',
-                storeMarqueeText: user.storeMarqueeText || '',
-                storeSocialUrl: user.storeSocialUrl || '',
-                upiId: user.upiId || '',
-                flipkartAffiliateId: user.flipkartAffiliateId || '',
-                amazonAssociateTag: user.amazonAssociateTag || '',
-            });
-        }
-    }, [user]);
-
-    const handleSaveSettings = async () => {
-        setIsSavingSettings(true);
-        try {
-            await updateProfile(storeSettings);
-            toast.success('Store settings saved successfully!');
-            setShowSettingsModal(false);
-        } catch (error) {
-            console.error('Error saving store settings:', error);
-            toast.error('Failed to save store settings.');
-        } finally {
-            setIsSavingSettings(false);
-        }
-    };
-
-    const getAffiliateConfig = () => ({
-        flipkartAffiliateId: user?.flipkartAffiliateId,
+    const tags = useMemo(() => ({
         amazonAssociateTag: user?.amazonAssociateTag,
-    });
+        flipkartAffiliateId: user?.flipkartAffiliateId,
+    }), [user?.amazonAssociateTag, user?.flipkartAffiliateId]);
 
-    const fetchProducts = useCallback(async () => {
+    const load = useCallback(async () => {
         if (!user?.id) return;
         try {
-            const data = await supabaseAdapter.getProducts(user.id);
-            setProducts(data);
-        } catch (error) {
-            console.error('Error fetching products:', error);
-            toast.error('Failed to load products');
+            const [list, profile] = await Promise.all([
+                supabaseAdapter.getProducts(user.id),
+                supabaseAdapter.getBioProfile(user.id).catch(() => null),
+            ]);
+            setProducts(sortProducts(FEATURES.DIGITAL_PRODUCTS ? list : list.filter(p => p.type !== 'digital')));
+            setBioProfile(profile);
+        } catch (err) {
+            console.error('Error loading products:', err);
+            toast.error('Could not load your products');
         } finally {
             setLoading(false);
         }
     }, [user?.id]);
 
-    useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
+    useEffect(() => { load(); }, [load]);
 
+    const categories = useMemo(() => productCategories(products), [products]);
+    const shown = category ? products.filter(p => (p.category || '').trim().toLowerCase() === category.toLowerCase()) : products;
+    const storeUrl = bioProfile ? `/@${bioProfile.handle}` : `/store/${user?.id}`;
 
-
-    const handleAutoFill = async () => {
-        // Gate Access (Pro Tier+)
-        const tier = user?.preferences?.subscription_tier;
-        const isFree = !tier || tier === 'free';
-        if (isFree) {
-            toast.error("Auto-fill is a Pro feature. Please upgrade to use.");
-            return;
-        }
-
-        if (!importUrl) return;
-        setIsImporting(true);
-        try {
-            // 2. Use Mock Extraction Service (Phase 2 MVP)
-            const details = await extractProductMetadata(importUrl);
-
-            if (!details) {
-                toast.error('Could not extract details automatically');
-                return;
-            }
-
-            setCurrentProduct(prev => ({
-                ...prev,
-                name: details.title, // Map title -> name
-                price: details.price,
-                currency: details.currency,
-                imageUrl: details.images[0], // Take first image
-                description: details.description,
-                originalUrl: importUrl
-            }));
-            toast.success('Product details auto-filled!');
-        } catch (error) {
-            console.error('Auto-fill error:', error);
-            toast.error('Failed to auto-fill details');
-        } finally {
-            setIsImporting(false);
-        }
-    };
-
-    const handleSave = async () => {
+    // ---- Adding --------------------------------------------------------
+    const addUrls = async (urls: string[], onProgress: (done: number) => void) => {
         if (!user?.id) return;
-        setLoading(true);
+        let added = 0, noDetails = 0, noLink = 0, failed = 0, limit = false;
+        for (const [i, url] of urls.entries()) {
+            try {
+                const result = await addProductFromUrl(url, user.id, tags);
+                added++;
+                if (result.detailsMissing) noDetails++;
+                if (result.linkProblem) { noLink++; if (result.linkProblem === 'limit') limit = true; }
+                setProducts(prev => sortProducts([result.product, ...prev]));
+            } catch (err) {
+                console.error('Could not add product', url, err);
+                failed++;
+            }
+            onProgress(i + 1);
+        }
+        if (added) toast.success(added === 1 ? 'Product added' : `${added} products added`);
+        if (noDetails) toast(`${noDetails === 1 ? 'One product' : `${noDetails} products`} added without details. Click to fill in the price and image.`);
+        if (noLink) toast(limit
+            ? 'You have reached the free plan\'s link limit, so clicks on new products aren\'t counted.'
+            : `${noLink === 1 ? 'One product has' : `${noLink} products have`} no short link, so clicks on it aren't counted.`);
+        if (failed) toast.error(`${failed === 1 ? 'One link' : `${failed} links`} could not be added`);
+    };
+
+    // ---- Arranging -----------------------------------------------------
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
+
+    const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+        if (!over || active.id === over.id) return;
+        const before = products;
+        const from = products.findIndex(p => p.id === active.id);
+        const to = products.findIndex(p => p.id === over.id);
+        const moved = arrayMove(products, from, to).map((p, i) => ({ ...p, position: i }));
+        setProducts(moved);
         try {
-            let monetizedUrl = destinationUrl;
-            if (currentProduct.type !== 'digital' && destinationUrl) {
-                let urlToMonetize = destinationUrl.trim();
-                if (isShortAmazonUrl(urlToMonetize)) {
-                    urlToMonetize = await resolveShortUrl(urlToMonetize);
-                }
-                monetizedUrl = monetizeUrl(urlToMonetize, {
-                    amazonAssociateTag: user?.amazonAssociateTag,
-                    flipkartAffiliateId: user?.flipkartAffiliateId
-                });
-            }
-
-            const productData = {
-                ...currentProduct,
-                userId: user.id,
-                // linkId logic moved below to handle Digital types
-                type: currentProduct.type || 'physical',
-                fileUrl: currentProduct.fileUrl,
-                fileName: currentProduct.fileName,
-                salesCount: currentProduct.salesCount || 0,
-                originalUrl: currentProduct.type !== 'digital' ? monetizedUrl : undefined,
-                // If it's physical, we might need a link. If digital, we might not need a tracked link immediately or we use a different mechanism.
-                // For now, let's keep the link creation logic but only if destinationUrl is present (Physical).
-                linkId: (currentProduct.type !== 'digital' && destinationUrl) ? (await supabaseAdapter.createLink({
-                    originalUrl: monetizedUrl,
-                    shortCode: Math.random().toString(36).substring(7),
-                    title: currentProduct.name || 'Product Link',
-                    clicks: 0,
-                    createdAt: Date.now(),
-                    tags: ['product'],
-                    clickHistory: []
-                })).id : (currentProduct.linkId || null)
-            };
-
-            if (isEditing && currentProduct.id) {
-                await supabaseAdapter.updateProduct(currentProduct.id, productData);
-                toast.success('Product updated successfully');
-            } else {
-                await supabaseAdapter.createProduct(productData as any);
-                toast.success('Product created successfully');
-            }
-            setShowModal(false);
-            fetchProducts();
-        } catch (error) {
-            console.error('Error saving product:', error);
-            toast.error('Failed to save product');
-        } finally {
-            setLoading(false);
+            // Only rows whose position changed.
+            const changed = moved.filter(p => before.find(b => b.id === p.id)?.position !== p.position);
+            await Promise.all(changed.map(p => supabaseAdapter.updateProduct(p.id, { position: p.position })));
+        } catch (err) {
+            console.error('Could not save the order', err);
+            toast.error('Could not save the new order');
+            setProducts(before);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this product?')) return;
+    // ---- Editing -------------------------------------------------------
+    const saveEdit = async (original: Product, draft: Product, destination: string) => {
+        const updates: Partial<Product> = {
+            name: draft.name.trim() || original.name,
+            price: Number(draft.price) || 0,
+            currency: draft.currency || 'INR',
+            category: draft.category?.trim() || '',
+            imageUrl: draft.imageUrl?.trim() || '',
+            description: draft.description || '',
+        };
+        const raw = destination.trim();
+        if (raw && raw !== (original.originalUrl || '')) {
+            const web = safeWebUrl(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+            if (!web) { toast.error('The product link must be a web address'); return false; }
+            const dest = await prepareDestination(web, tags);
+            updates.originalUrl = dest;
+            if (original.linkId) {
+                await supabaseAdapter.updateLink(original.linkId, { originalUrl: dest });
+            } else {
+                const link = await createProductLink(dest, updates.name!);
+                if (link.id) updates.linkId = link.id;
+            }
+        }
+        const saved = await supabaseAdapter.updateProduct(original.id, updates);
+        setProducts(prev => prev.map(p => (p.id === saved.id ? { ...p, ...saved } : p)));
+        toast.success('Product saved');
+        return true;
+    };
+
+    const confirmDelete = async () => {
+        if (!deleting) return;
+        const target = deleting;
+        setDeleting(null);
         try {
-            await supabaseAdapter.deleteProduct(id);
+            await supabaseAdapter.deleteProduct(target.id);
+            setProducts(prev => prev.filter(p => p.id !== target.id));
             toast.success('Product deleted');
-            fetchProducts();
-        } catch (error) {
-            console.error('Error deleting product:', error);
-            toast.error('Failed to delete product');
+        } catch (err) {
+            console.error('Error deleting product:', err);
+            toast.error('Could not delete the product');
         }
     };
 
-    const openModal = (product?: Product) => {
-        if (product) {
-            setCurrentProduct(product);
-            setIsEditing(true);
-            setDestinationUrl(product.originalUrl || '');
-        } else {
-            setCurrentProduct({
-                currency: 'USD',
-                type: 'physical'
-            });
-            setIsEditing(false);
-            setDestinationUrl('');
-            setImportUrl('');
-        }
-        setShowModal(true);
-    };
-
-    // Mock existing links for now or fetch them
-    const existingLinks: any[] = [];
-    const handleLinkSelect = (link: any) => {
-        setDestinationUrl(link.originalUrl);
-    };
-
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0 || !user?.id) return;
-        setUploadingFile(true);
+    const setLook = async (look: 'light' | 'dark') => {
+        if (!bioProfile) return;
+        const previous = bioProfile;
+        setBioProfile({ ...bioProfile, theme: look });
         try {
-            const file = e.target.files[0];
-            const path = await supabaseAdapter.uploadDigitalFile(file, user.id);
-            setCurrentProduct(prev => ({
-                ...prev,
-                fileUrl: path,
-                fileName: file.name
-            }));
-            toast.success('File uploaded successfully');
-        } catch (error) {
-            console.error('Upload failed:', error);
-            toast.error('File upload failed');
-        } finally {
-            setUploadingFile(false);
+            await supabaseAdapter.updateBioProfile(bioProfile.id, { theme: look });
+        } catch (err) {
+            console.error('Could not change the look', err);
+            toast.error('Could not change the look');
+            setBioProfile(previous);
         }
     };
 
-    const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, forModal = false) => {
-        if (!e.target.files || e.target.files.length === 0 || !user?.id) return;
-        setUploadingProductImage(true);
+    const look = storeLook(bioProfile?.theme);
+
+    return (
+        <div className="min-h-screen bg-[#ECEBE7]">
+            <div className="mx-auto max-w-7xl space-y-3.5 px-4 pb-16 sm:px-6">
+                {/* Header */}
+                <div className="flex flex-col justify-between gap-4 pb-2 pt-4 md:flex-row md:items-end">
+                    <div>
+                        <h1 className="text-[clamp(26px,3vw,34px)] font-semibold leading-tight tracking-[-0.02em] text-[#18181A]">Products</h1>
+                        <p className="mt-1 text-sm text-[#8C8981]">
+                            {products.length
+                                ? `${products.length} on your store page`
+                                : 'Paste a link to a product on any shop to add it to your store page.'}
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {bioProfile && (
+                            <div role="group" aria-label="Store page look" className="flex items-center gap-0.5 rounded-full bg-[#FBFAF8] p-1">
+                                {(['light', 'dark'] as const).map(l => (
+                                    <button
+                                        key={l}
+                                        onClick={() => setLook(l)}
+                                        aria-pressed={look === l}
+                                        className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium capitalize transition-colors ${look === l ? 'bg-[#18181A] text-[#F2F1EE]' : 'text-[#6E6B65] hover:text-[#18181A]'}`}
+                                    >
+                                        {l}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <button onClick={() => setShowTags(s => !s)} aria-expanded={showTags} className={`${softButton} bg-[#FBFAF8]`}>
+                            Affiliate tags
+                        </button>
+                        <a href={storeUrl} target="_blank" rel="noopener noreferrer" className={`${softButton} bg-[#FBFAF8]`}>
+                            View store <ArrowUpRight className="h-4 w-4" />
+                        </a>
+                    </div>
+                </div>
+
+                {!bioProfile && !loading && (
+                    <p className={`${tile} px-5 py-4 text-[13px] text-[#6E6B65]`}>
+                        Your products show at <span className="font-mono text-[#18181A]">{window.location.host}{storeUrl}</span>.
+                        {' '}Set up your <a href="/bio" className="font-medium text-[#18181A] underline underline-offset-2">bio page</a> to get a short address like <span className="font-mono">/@yourname</span> and a profile header.
+                    </p>
+                )}
+
+                {showTags && (
+                    <AffiliateTagsTile
+                        initial={tags}
+                        onSave={async values => {
+                            await updateProfile(values);
+                            toast.success('Affiliate tags saved. They are added to products you add from now on.');
+                            setShowTags(false);
+                        }}
+                    />
+                )}
+
+                <QuickAdd onAdd={addUrls} />
+
+                {FEATURES.DIGITAL_PRODUCTS && (
+                    <div role="tablist" className="flex gap-1.5">
+                        {(['products', 'orders'] as const).map(t => (
+                            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+                                className={`rounded-full px-4 py-2 text-[13px] font-medium capitalize ${tab === t ? 'bg-[#18181A] text-[#F2F1EE]' : 'bg-[#FBFAF8] text-[#6E6B65]'}`}>
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {tab === 'orders' && FEATURES.DIGITAL_PRODUCTS ? (
+                    <OrdersList sellerId={user?.id} products={products} />
+                ) : loading ? (
+                    <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-4" aria-busy="true">
+                        {Array.from({ length: 8 }, (_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-3xl bg-[#FBFAF8]" />)}
+                    </div>
+                ) : products.length === 0 ? null : (
+                    <>
+                        {categories.length > 0 && (
+                            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Filter by category">
+                                {[null, ...categories].map(c => (
+                                    <button key={c ?? 'all'} onClick={() => setCategory(c)} aria-pressed={category === c}
+                                        className={`whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${category === c ? 'bg-[#18181A] text-[#F2F1EE]' : 'bg-[#FBFAF8] text-[#6E6B65] hover:text-[#18181A]'}`}>
+                                        {c ?? 'All'}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <p className="text-[12px] text-[#8C8981]">
+                            {category ? 'Show all products to rearrange them.' : 'Drag products to set their order on your store page.'}
+                        </p>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={shown.map(p => p.id)} strategy={rectSortingStrategy}>
+                                <ul className="grid grid-cols-2 gap-3 sm:gap-3.5 md:grid-cols-3 lg:grid-cols-4">
+                                    {shown.map(p => (
+                                        <ProductTile key={p.id} product={p} sortable={!category}
+                                            onEdit={() => setEditing(p)} onDelete={() => setDeleting(p)} />
+                                    ))}
+                                </ul>
+                            </SortableContext>
+                        </DndContext>
+                    </>
+                )}
+            </div>
+
+            {editing && (
+                <EditProduct
+                    product={editing}
+                    categories={categories}
+                    userId={user?.id || ''}
+                    onClose={() => setEditing(null)}
+                    onSave={async (draft, destination) => {
+                        try {
+                            if (await saveEdit(editing, draft, destination)) setEditing(null);
+                        } catch (err) {
+                            console.error('Error saving product:', err);
+                            toast.error('Could not save the product');
+                        }
+                    }}
+                />
+            )}
+
+            {deleting && (
+                <Dialog title="Delete product" onClose={() => setDeleting(null)}>
+                    <p className="text-[14px] leading-relaxed text-[#6E6B65]">
+                        “{deleting.name}” will be removed from your store page. Its short link keeps working.
+                    </p>
+                    <div className="mt-6 flex justify-end gap-2">
+                        <button onClick={() => setDeleting(null)} className={softButton}>Cancel</button>
+                        <button onClick={confirmDelete} className="flex h-10 items-center gap-2 rounded-full bg-red-600 px-5 text-[13px] font-semibold text-white hover:bg-red-700">
+                            <Trash2 className="h-4 w-4" /> Delete
+                        </button>
+                    </div>
+                </Dialog>
+            )}
+        </div>
+    );
+};
+
+/** Paste one link, or switch to a box for many. */
+const QuickAdd: React.FC<{ onAdd: (urls: string[], onProgress: (done: number) => void) => Promise<void> }> = ({ onAdd }) => {
+    const [many, setMany] = useState(false);
+    const [text, setText] = useState('');
+    const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+    const urls = parseUrlList(text);
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!urls.length || progress) return;
+        setProgress({ done: 0, total: urls.length });
         try {
-            const file = e.target.files[0];
-            const publicUrl = await supabaseAdapter.uploadProductImage(file, user.id);
-            if (forModal) {
-                setCurrentProduct(prev => ({
-                    ...prev,
-                    imageUrl: publicUrl
-                }));
-            }
-            toast.success('Image uploaded successfully');
-            return publicUrl;
-        } catch (error) {
-            console.error('Image upload failed:', error);
-            toast.error('Image upload failed');
-            return null;
+            await onAdd(urls, done => setProgress({ done, total: urls.length }));
+            setText('');
         } finally {
-            setUploadingProductImage(false);
+            setProgress(null);
         }
     };
 
-    // Inline editing helpers
-    const startInlineEdit = (productId: string, field: string, currentValue: string) => {
-        setEditingProductId(productId);
-        setEditingField(field);
-        setEditValue(currentValue);
-    };
+    const busy = progress !== null;
+    const submitLabel = busy
+        ? (progress!.total > 1 ? `Adding ${Math.min(progress!.done + 1, progress!.total)} of ${progress!.total}` : 'Adding…')
+        : urls.length > 1 ? `Add ${urls.length} products` : 'Add product';
 
-    const saveInlineEdit = async (productId: string, field: string) => {
+    return (
+        <form onSubmit={submit} className={`${tile} p-2`}>
+            <div className={`flex flex-col gap-2 ${many ? '' : 'sm:flex-row sm:items-center'}`}>
+                <label htmlFor="product-url" className="sr-only">{many ? 'Product links, one per line' : 'Product link'}</label>
+                {many ? (
+                    <textarea
+                        id="product-url"
+                        value={text}
+                        onChange={e => setText(e.target.value)}
+                        disabled={busy}
+                        rows={5}
+                        placeholder={`Paste up to ${MAX_BULK_URLS} product links, one per line`}
+                        className="min-h-[120px] w-full resize-y rounded-2xl border-none bg-transparent px-4 py-3 font-mono text-[13px] text-[#18181A] placeholder:font-sans placeholder:text-[#A19E97] focus:outline-none focus:ring-0"
+                    />
+                ) : (
+                    <input
+                        id="product-url"
+                        type="text"
+                        inputMode="url"
+                        autoComplete="off"
+                        value={text}
+                        onChange={e => setText(e.target.value)}
+                        disabled={busy}
+                        placeholder="Paste a product link from Amazon, Flipkart or any shop"
+                        className="min-w-0 flex-1 rounded-2xl border-none bg-transparent px-4 py-3 text-[15px] text-[#18181A] placeholder:text-[#A19E97] focus:outline-none focus:ring-0"
+                    />
+                )}
+                <div className={`flex gap-2 ${many ? 'justify-end px-1 pb-1' : ''}`}>
+                    <button type="button" onClick={() => setMany(m => !m)} disabled={busy} className={`${softButton} flex-1 sm:flex-none`}>
+                        {many ? 'One link' : 'Add several'}
+                    </button>
+                    <button type="submit" disabled={busy || !urls.length} className={`${darkButton} flex-1 sm:flex-none`}>
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        <span>{submitLabel}</span>
+                    </button>
+                </div>
+            </div>
+            {busy && (
+                <p className="px-4 pb-2 pt-1 text-[12px] text-[#8C8981]">Reading each page for the name, price and photo. This takes a few seconds per link.</p>
+            )}
+        </form>
+    );
+};
+
+const ProductTile: React.FC<{ product: Product; sortable: boolean; onEdit: () => void; onDelete: () => void }> = ({ product, sortable, onEdit, onDelete }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id, disabled: !sortable });
+    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined };
+    const missing = !product.imageUrl || !(Number(product.price) > 0);
+    return (
+        <li ref={setNodeRef} style={style} className={`group relative flex flex-col rounded-3xl bg-white p-2 ${isDragging ? 'shadow-2xl' : ''}`}>
+            <button onClick={onEdit} className="block text-left" aria-label={`Edit ${product.name}`}>
+                <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-[#F7F6F3]">
+                    {product.imageUrl
+                        ? <img src={product.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-contain p-3" />
+                        : <ImageIcon className="h-10 w-10 text-[#C9C6BF]" />}
+                </div>
+                <div className="px-1.5 pb-1 pt-3">
+                    <h2 className="line-clamp-2 text-[14px] font-medium leading-snug text-[#18181A]">{product.name}</h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-[14px] text-[#18181A]">
+                            {Number(product.price) > 0 ? formatPrice(product.price, product.currency) : <span className="text-[#A19E97]">No price</span>}
+                        </span>
+                        {product.category && <span className="rounded-full bg-[#F0EEEA] px-2 py-0.5 text-[11px] text-[#6E6B65]">{product.category}</span>}
+                        {!product.linkId && <span className="rounded-full bg-[#FFE9DE] px-2 py-0.5 text-[11px] text-[#C2410C]" title="Clicks on this product aren't counted">not tracked</span>}
+                    </div>
+                    {missing && <p className="mt-1.5 text-[11px] text-[#C2410C]">Add {!product.imageUrl ? 'a photo' : ''}{!product.imageUrl && !(Number(product.price) > 0) ? ' and ' : ''}{!(Number(product.price) > 0) ? 'a price' : ''}</p>}
+                </div>
+            </button>
+            <div className="absolute right-3 top-3 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                {sortable && (
+                    <button {...attributes} {...listeners} aria-label={`Move ${product.name}`} className="flex h-8 w-8 cursor-grab items-center justify-center rounded-full bg-white/90 text-[#6E6B65] shadow-sm active:cursor-grabbing">
+                        <GripVertical className="h-4 w-4" />
+                    </button>
+                )}
+                <button onClick={onEdit} aria-label={`Edit ${product.name}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#6E6B65] shadow-sm hover:text-[#18181A]">
+                    <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={onDelete} aria-label={`Delete ${product.name}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#6E6B65] shadow-sm hover:text-red-600">
+                    <Trash2 className="h-3.5 w-3.5" />
+                </button>
+            </div>
+        </li>
+    );
+};
+
+const Dialog: React.FC<{ title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }> = ({ title, onClose, children, wide }) => {
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+    return (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
+            <div role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}
+                className={`max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-[#FBFAF8] p-6 sm:rounded-3xl ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}>
+                <div className="mb-5 flex items-center justify-between">
+                    <h2 className="text-[18px] font-semibold text-[#18181A]">{title}</h2>
+                    <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-[#8C8981] hover:bg-[#F0EEEA] hover:text-[#18181A]"><X className="h-5 w-5" /></button>
+                </div>
+                {children}
+            </div>
+        </div>
+    );
+};
+
+const EditProduct: React.FC<{
+    product: Product;
+    categories: string[];
+    userId: string;
+    onClose: () => void;
+    onSave: (draft: Product, destination: string) => Promise<void>;
+}> = ({ product, categories, userId, onClose, onSave }) => {
+    const [draft, setDraft] = useState<Product>(product);
+    const [destination, setDestination] = useState(product.originalUrl || '');
+    const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const set = (patch: Partial<Product>) => setDraft(d => ({ ...d, ...patch }));
+
+    const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !userId) return;
+        setUploading(true);
         try {
-            const updates: Partial<Product> = {};
-            if (field === 'price') {
-                updates.price = Number(editValue);
-            } else {
-                (updates as any)[field] = editValue;
-            }
-            await supabaseAdapter.updateProduct(productId, updates);
-            setProducts(prev => prev.map(p =>
-                p.id === productId ? { ...p, ...updates } : p
-            ));
-            toast.success('Updated successfully');
-        } catch (error) {
-            console.error('Inline edit failed:', error);
-            toast.error('Update failed');
+            set({ imageUrl: await supabaseAdapter.uploadProductImage(file, userId) });
+        } catch (err) {
+            console.error('Image upload failed:', err);
+            toast.error('Could not upload the image');
         } finally {
-            setEditingProductId(null);
-            setEditingField(null);
-            setEditValue('');
-        }
-    };
-
-    const cancelInlineEdit = () => {
-        setEditingProductId(null);
-        setEditingField(null);
-        setEditValue('');
-    };
-
-    const handleInlineKeyDown = (e: React.KeyboardEvent, productId: string, field: string) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            saveInlineEdit(productId, field);
-        } else if (e.key === 'Escape') {
-            cancelInlineEdit();
-        }
-    };
-
-    const handleInlineImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, productId: string) => {
-        if (!e.target.files || e.target.files.length === 0 || !user?.id) return;
-        setUploadingProductImage(true);
-        try {
-            const file = e.target.files[0];
-            const publicUrl = await supabaseAdapter.uploadProductImage(file, user.id);
-            await supabaseAdapter.updateProduct(productId, { imageUrl: publicUrl });
-            setProducts(prev => prev.map(p =>
-                p.id === productId ? { ...p, imageUrl: publicUrl } : p
-            ));
-            toast.success('Image updated');
-        } catch (error) {
-            console.error('Image upload failed:', error);
-            toast.error('Image upload failed');
-        } finally {
-            setUploadingProductImage(false);
+            setUploading(false);
         }
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto pb-24">
-
-            <div className="flex justify-between items-center mb-8">
+        <Dialog title="Edit product" onClose={onClose} wide>
+            <form
+                onSubmit={async e => { e.preventDefault(); setSaving(true); try { await onSave(draft, destination); } finally { setSaving(false); } }}
+                className="grid gap-4 sm:grid-cols-[180px_1fr]"
+            >
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 mb-2">Product Storefront</h1>
-                    <p className="text-stone-500">Manage your products and track their performance.</p>
+                    <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-white">
+                        {draft.imageUrl
+                            ? <img src={draft.imageUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-contain p-2" />
+                            : <ImageIcon className="h-10 w-10 text-[#C9C6BF]" />}
+                    </div>
+                    <label className={`${softButton} mt-2 w-full cursor-pointer`}>
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        Upload photo
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" onChange={upload} className="sr-only" />
+                    </label>
                 </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setShowSettingsModal(true)}
-                        className="bg-white border border-stone-200 hover:border-yellow-400 text-slate-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-sm"
-                    >
-                        <Zap className="w-4 h-4" />
-                        Store Settings
-                    </button>
-                    <a
-                        href={`/store/${user?.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`bg-white border border-stone-200 hover:border-yellow-400 text-slate-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-sm ${!user?.id ? 'opacity-50 pointer-events-none' : ''}`}
-                    >
-                        <ExternalLink className="w-4 h-4" />
-                        View Storefront
-                    </a>
-                    <button
-                        onClick={() => {
-                            const isFree = !user?.preferences?.subscription_tier || user.preferences.subscription_tier === 'free';
-                            if (isFree) {
-                                toast.error("Digital Storefront is a Pro feature. Please upgrade to sell products.");
-                            } else {
-                                navigate('/dashboard/products/add');
-                            }
-                        }}
-                        className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors font-bold shadow-sm shadow-yellow-400/20"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Add Product
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-4 mb-8 border-b border-gray-200">
-                <button
-                    onClick={() => setActiveTab('products')}
-                    className={`pb-3 px-1 font-medium text-sm transition-colors relative ${activeTab === 'products' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Products
-                </button>
-                <button
-                    onClick={() => setActiveTab('orders')}
-                    className={`pb-3 px-1 font-medium text-sm transition-colors relative ${activeTab === 'orders' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Orders
-                </button>
-            </div>
-
-            {activeTab === 'orders' ? (
-                <OrdersList sellerId={user?.id} products={products} />
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {products.map((product) => (
-                        <div key={product.id} className="bg-white border border-stone-200 rounded-[2rem] overflow-hidden group hover:shadow-md transition-all flex flex-col h-full">
-                            <div className="h-64 w-full bg-stone-100 relative overflow-hidden shrink-0">
-                                {product.imageUrl ? (
-                                    <img
-                                        src={product.imageUrl}
-                                        alt={product.name}
-                                        className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
-                                        referrerPolicy="no-referrer"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-stone-300">
-                                        <ImageIcon className="w-12 h-12" />
-                                    </div>
-                                )}
-                                {/* Image upload overlay */}
-                                <label className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all cursor-pointer opacity-0 group-hover:opacity-100">
-                                    <div className="bg-white/90 rounded-full p-3 shadow-lg">
-                                        {uploadingProductImage ? <Loader2 className="w-5 h-5 animate-spin text-stone-600" /> : <Upload className="w-5 h-5 text-stone-600" />}
-                                    </div>
-                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImageUpload(e, product.id)} disabled={uploadingProductImage} />
-                                </label>
-                                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                    <button
-                                        onClick={() => openModal(product)}
-                                        className="p-2 bg-white/90 text-slate-900 rounded-lg hover:bg-yellow-400 transition-colors shadow-sm"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(product.id)}
-                                        className="p-2 bg-white/90 text-slate-900 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="p-5 flex flex-col flex-1">
-                                {/* Category Badge */}
-                                <div className="mb-2">
-                                    {editingProductId === product.id && editingField === 'category' ? (
-                                        <div className="flex items-center gap-1">
-                                            <input
-                                                type="text"
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                onKeyDown={(e) => handleInlineKeyDown(e, product.id, 'category')}
-                                                onBlur={() => saveInlineEdit(product.id, 'category')}
-                                                autoFocus
-                                                className="text-xs uppercase tracking-wider text-stone-600 border-b border-yellow-400 outline-none bg-transparent w-full"
-                                                placeholder="e.g. Physical, Digital..."
-                                            />
-                                            <button onClick={() => saveInlineEdit(product.id, 'category')} className="text-emerald-500 hover:text-emerald-600"><Check className="w-3.5 h-3.5" /></button>
-                                            <button onClick={cancelInlineEdit} className="text-red-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
-                                        </div>
-                                    ) : (
-                                        <span
-                                            className="text-xs uppercase tracking-wider text-stone-400 font-semibold cursor-pointer hover:text-yellow-600 transition-colors"
-                                            onClick={() => startInlineEdit(product.id, 'category', product.category || '')}
-                                            title="Click to edit category"
-                                        >
-                                            {product.category || 'Uncategorized'}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-between items-start mb-2">
-                                    {/* Inline editable name */}
-                                    {editingProductId === product.id && editingField === 'name' ? (
-                                        <div className="flex items-center gap-1 flex-1 mr-2">
-                                            <input
-                                                type="text"
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                onKeyDown={(e) => handleInlineKeyDown(e, product.id, 'name')}
-                                                onBlur={() => saveInlineEdit(product.id, 'name')}
-                                                autoFocus
-                                                className="text-lg font-bold text-slate-900 border-b-2 border-yellow-400 outline-none bg-transparent w-full"
-                                            />
-                                            <button onClick={() => saveInlineEdit(product.id, 'name')} className="text-emerald-500 hover:text-emerald-600"><Check className="w-4 h-4" /></button>
-                                            <button onClick={cancelInlineEdit} className="text-red-400 hover:text-red-500"><X className="w-4 h-4" /></button>
-                                        </div>
-                                    ) : (
-                                        <h3
-                                            className="text-lg font-bold text-slate-900 line-clamp-1 cursor-pointer hover:text-yellow-600 transition-colors"
-                                            onClick={() => startInlineEdit(product.id, 'name', product.name)}
-                                            title="Click to edit name"
-                                        >
-                                            {product.name}
-                                        </h3>
-                                    )}
-
-                                    {/* Inline editable price */}
-                                    {editingProductId === product.id && editingField === 'price' ? (
-                                        <div className="flex items-center gap-1 shrink-0 ml-2">
-                                            <input
-                                                type="number"
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                onKeyDown={(e) => handleInlineKeyDown(e, product.id, 'price')}
-                                                onBlur={() => saveInlineEdit(product.id, 'price')}
-                                                autoFocus
-                                                className="w-24 text-right font-bold text-emerald-600 border-b-2 border-yellow-400 outline-none bg-transparent"
-                                            />
-                                            <button onClick={() => saveInlineEdit(product.id, 'price')} className="text-emerald-500 hover:text-emerald-600"><Check className="w-3 h-3" /></button>
-                                        </div>
-                                    ) : (
-                                        <span
-                                            className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0 ml-2 cursor-pointer hover:bg-emerald-100 transition-colors"
-                                            onClick={() => startInlineEdit(product.id, 'price', String(product.price))}
-                                            title="Click to edit price"
-                                        >
-                                            {formatPrice(product.price, product.currency)}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Inline editable description */}
-                                {editingProductId === product.id && editingField === 'description' ? (
-                                    <div className="mb-4 flex-1">
-                                        <textarea
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            onBlur={() => saveInlineEdit(product.id, 'description')}
-                                            onKeyDown={(e) => { if (e.key === 'Escape') cancelInlineEdit(); }}
-                                            autoFocus
-                                            rows={3}
-                                            className="w-full text-sm text-stone-600 border border-yellow-400 rounded-lg outline-none bg-yellow-50/50 p-2 resize-none"
-                                        />
-                                        <div className="flex gap-1 mt-1">
-                                            <button onClick={() => saveInlineEdit(product.id, 'description')} className="text-xs text-emerald-500 hover:text-emerald-600 font-medium">Save</button>
-                                            <span className="text-xs text-stone-300">|</span>
-                                            <button onClick={cancelInlineEdit} className="text-xs text-red-400 hover:text-red-500 font-medium">Cancel</button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <p
-                                        className="text-stone-500 text-sm mb-4 line-clamp-2 flex-1 cursor-pointer hover:text-stone-700 transition-colors"
-                                        onClick={() => startInlineEdit(product.id, 'description', product.description || '')}
-                                        title="Click to edit description"
-                                    >
-                                        {product.description || 'Click to add description...'}
-                                    </p>
-                                )}
-
-                                <div className="flex items-center justify-between pt-4 border-t border-stone-100 mt-auto">
-                                    <div className="flex items-center gap-2 text-stone-400 text-sm">
-                                        {product.type === 'digital' ? <Zap className="w-4 h-4" /> : <Package className="w-4 h-4" />}
-                                        <span>{product.type === 'digital' ? 'Digital Asset' : 'Physical Item'}</span>
-                                    </div>
-                                    <button className="text-yellow-600 hover:text-yellow-700 text-sm font-bold flex items-center gap-1">
-                                        Analytics <ExternalLink className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            </div>
+                <div className="grid gap-3.5">
+                    <div>
+                        <label htmlFor="p-name" className={label}>Name</label>
+                        <input id="p-name" required maxLength={200} value={draft.name} onChange={e => set({ name: e.target.value })} className={field} />
+                    </div>
+                    <div className="grid grid-cols-[1fr_96px] gap-2">
+                        <div>
+                            <label htmlFor="p-price" className={label}>Price</label>
+                            <input id="p-price" type="number" min="0" step="any" inputMode="decimal" value={draft.price ?? ''} onChange={e => set({ price: e.target.value === '' ? 0 : Number(e.target.value) })} className={`${field} font-mono`} />
                         </div>
-                    ))}
-
-                    {products.length === 0 && (
-                        <div className="col-span-full flex flex-col items-center justify-center py-16 text-stone-400 border-2 border-dashed border-stone-200 rounded-[2rem] bg-stone-50/50">
-                            <Package className="w-12 h-12 mb-4 opacity-50" />
-                            <p className="text-lg font-bold text-slate-900 mb-1">No products yet</p>
-                            <p className="text-sm mb-4">Start selling by adding your first product.</p>
-                            <button
-                                onClick={() => navigate('/dashboard/products/add')}
-                                className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center gap-2"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Create Product
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Store Settings Modal */}
-            {
-                showSettingsModal && (
-                    <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <div className="bg-white border border-stone-200 rounded-[2rem] w-full max-w-2xl p-8 shadow-2xl">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-slate-900">Store Settings</h2>
-                                <button
-                                    onClick={() => setShowSettingsModal(false)}
-                                    className="p-2 hover:bg-stone-100 rounded-full transition-colors text-stone-400 hover:text-slate-900"
-                                >
-                                    <ExternalLink className="w-5 h-5 rotate-45" />
-                                </button>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Store Name</label>
-                                    <input
-                                        type="text"
-                                        value={storeSettings.storeName}
-                                        onChange={e => setStoreSettings({ ...storeSettings, storeName: e.target.value })}
-                                        className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                        placeholder="My Awesome Store"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Store Description</label>
-                                    <textarea
-                                        value={storeSettings.storeDescription}
-                                        onChange={e => setStoreSettings({ ...storeSettings, storeDescription: e.target.value })}
-                                        className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all resize-none"
-                                        placeholder="Welcome to my store! Check out my latest products."
-                                        rows={3}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Button Text (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={storeSettings.storeButtonText}
-                                        onChange={e => setStoreSettings({ ...storeSettings, storeButtonText: e.target.value })}
-                                        className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                        placeholder="e.g. SHOP NOW"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Hero Badge (Optional)</label>
-                                        <input
-                                            type="text"
-                                            value={storeSettings.storeHeroBadge}
-                                            onChange={e => setStoreSettings({ ...storeSettings, storeHeroBadge: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                            placeholder="e.g. Fresh Drop"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Marquee Text (Optional)</label>
-                                        <input
-                                            type="text"
-                                            value={storeSettings.storeMarqueeText}
-                                            onChange={e => setStoreSettings({ ...storeSettings, storeMarqueeText: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                            placeholder="e.g. New Arrivals"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Social URL (Optional)</label>
-                                    <input
-                                        type="url"
-                                        value={storeSettings.storeSocialUrl}
-                                        onChange={e => setStoreSettings({ ...storeSettings, storeSocialUrl: e.target.value })}
-                                        className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                        placeholder="https://instagram.com/yourusername"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Store Logo URL</label>
-                                        <div className="relative">
-                                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                            <input
-                                                type="text"
-                                                value={storeSettings.storeLogoUrl}
-                                                onChange={e => setStoreSettings({ ...storeSettings, storeLogoUrl: e.target.value })}
-                                                className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                                placeholder="https://..."
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Store Banner URL</label>
-                                        <div className="relative">
-                                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                            <input
-                                                type="text"
-                                                value={storeSettings.storeBannerUrl}
-                                                onChange={e => setStoreSettings({ ...storeSettings, storeBannerUrl: e.target.value })}
-                                                className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                                placeholder="https://..."
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
-
-                            <div className="pt-6 border-t border-stone-100">
-                                <h3 className="text-lg font-bold text-slate-900 mb-4">Payment Settings</h3>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">UPI ID (VPA)</label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                        <input
-                                            type="text"
-                                            value={storeSettings.upiId}
-                                            onChange={e => setStoreSettings({ ...storeSettings, upiId: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                            placeholder="merchant@okicici"
-                                        />
-                                    </div>
-                                    <p className="text-xs text-stone-500 mt-1">Accept payments directly via UPI apps.</p>
-                                </div>
-                            </div>
-
-                            <div className="pt-6 border-t border-stone-100">
-                                <h3 className="text-lg font-bold text-slate-900 mb-4">Affiliate Settings</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Amazon Associate Tag</label>
-                                        <input
-                                            type="text"
-                                            value={storeSettings.amazonAssociateTag}
-                                            onChange={e => setStoreSettings({ ...storeSettings, amazonAssociateTag: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                            placeholder="tag-21"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Flipkart Affiliate ID</label>
-                                        <input
-                                            type="text"
-                                            value={storeSettings.flipkartAffiliateId}
-                                            onChange={e => setStoreSettings({ ...storeSettings, flipkartAffiliateId: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                            placeholder="affid"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-4">
-                                <button
-                                    onClick={() => setShowSettingsModal(false)}
-                                    className="px-4 py-2 text-stone-500 hover:text-slate-900 transition-colors font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveSettings}
-                                    disabled={isSavingSettings}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-slate-900/20"
-                                >
-                                    {isSavingSettings && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    Save Settings
-                                </button>
-                            </div>
+                        <div>
+                            <label htmlFor="p-currency" className={label}>Currency</label>
+                            <select id="p-currency" value={draft.currency || 'INR'} onChange={e => set({ currency: e.target.value })} className={field}>
+                                {['INR', 'USD', 'EUR', 'GBP', 'AED'].map(c => <option key={c}>{c}</option>)}
+                            </select>
                         </div>
                     </div>
-                )
-            }
-
-            {/* Edit/Create Modal */}
-            {
-                showModal && (
-                    <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <div className="bg-white border border-stone-200 rounded-[2rem] w-full max-w-5xl p-8 shadow-2xl">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-slate-900">
-                                    {isEditing ? 'Edit Product' : 'New Product'}
-                                </h2>
-                                <button
-                                    onClick={() => setShowModal(false)}
-                                    className="p-2 hover:bg-stone-100 rounded-full transition-colors text-stone-400 hover:text-slate-900"
-                                >
-                                    <ExternalLink className="w-5 h-5 rotate-45" />
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                                {/* Left Column: Auto-fill & Recent Links & Image Preview/Upload */}
-                                <div className="lg:col-span-5 space-y-6">
-                                    <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-3xl border border-yellow-100 shadow-sm relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-200/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-
-                                        <div className="relative z-10">
-                                            <label className="text-base font-bold text-slate-900 flex items-center gap-2 mb-4">
-                                                <div className="p-1.5 bg-yellow-400 rounded-lg text-slate-900 shadow-sm">
-                                                    <Zap className="w-4 h-4" />
-                                                </div>
-                                                Magic Auto-fill
-                                            </label>
-
-                                            <div className="relative group mb-4">
-                                                <input
-                                                    type="url"
-                                                    value={importUrl}
-                                                    onChange={e => setImportUrl(e.target.value)}
-                                                    className="w-full bg-white border-2 border-yellow-400/30 group-hover:border-yellow-400/50 focus:border-yellow-400 rounded-2xl pl-4 pr-32 py-3 text-slate-900 text-base placeholder:text-stone-300 focus:outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all shadow-sm"
-                                                    placeholder="Paste product link..."
-                                                />
-                                                <div className="absolute right-1.5 top-1.5 bottom-1.5">
-                                                    <button
-                                                        onClick={handleAutoFill}
-                                                        disabled={isImporting || !importUrl}
-                                                        className="h-full bg-slate-900 hover:bg-slate-800 text-white px-4 rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md"
-                                                    >
-                                                        {isImporting ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <>
-                                                                <span>Auto-fill</span>
-                                                                <Zap className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <p className="text-xs font-medium text-stone-500 mb-6 flex items-center gap-2">
-                                                <Sparkles className="w-3 h-3 text-yellow-500" />
-                                                AI fetches name, price, and image.
-                                            </p>
-
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
-                                                    Recent Links
-                                                </label>
-
-                                                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
-                                                    {existingLinks.length > 0 ? (
-                                                        existingLinks.slice(0, 4).map(link => (
-                                                            <button
-                                                                key={link.id}
-                                                                onClick={() => handleLinkSelect(link)}
-                                                                className="w-full bg-white/60 hover:bg-white border border-stone-200 hover:border-yellow-400 rounded-xl p-3 text-left transition-all group shadow-sm hover:shadow-md flex items-center gap-3"
-                                                            >
-                                                                <div className="p-2 bg-stone-100 rounded-lg group-hover:bg-yellow-100 transition-colors shrink-0">
-                                                                    <LinkIcon className="w-4 h-4 text-stone-500 group-hover:text-yellow-600" />
-                                                                </div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <h4 className="font-bold text-slate-900 text-sm truncate group-hover:text-yellow-700 transition-colors">
-                                                                        {link.title}
-                                                                    </h4>
-                                                                    <p className="text-xs text-stone-400 truncate">
-                                                                        {link.originalUrl}
-                                                                    </p>
-                                                                </div>
-                                                                <span className="text-[10px] font-bold text-stone-400 bg-stone-50 px-2 py-1 rounded-md border border-stone-100 shrink-0">
-                                                                    {link.clicks}
-                                                                </span>
-                                                            </button>
-                                                        ))
-                                                    ) : (
-                                                        <div className="text-center py-4 text-xs text-stone-400 italic">
-                                                            No recent links found.
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Product Image Preview & Upload Container */}
-                                    <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
-                                        <label className="block text-sm font-bold text-slate-700 mb-4">Product Image</label>
-                                        <div className="aspect-square bg-stone-50 rounded-2xl border-2 border-dashed border-stone-200 flex flex-col items-center justify-center relative overflow-hidden group hover:border-yellow-400 transition-colors">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={e => handleProductImageUpload(e, true)}
-                                                disabled={uploadingProductImage}
-                                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                                            />
-                                            {uploadingProductImage ? (
-                                                <Loader2 className="w-8 h-8 text-stone-400 animate-spin" />
-                                            ) : currentProduct.imageUrl ? (
-                                                <>
-                                                    <img
-                                                        src={currentProduct.imageUrl}
-                                                        alt="Preview"
-                                                        className="w-full h-full object-contain p-4"
-                                                        referrerPolicy="no-referrer"
-                                                    />
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity pointer-events-none">
-                                                        <span className="text-white text-xs font-bold bg-black/60 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                                                            <Upload className="w-3.5 h-3.5" />
-                                                            Change Image
-                                                        </span>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="text-center pointer-events-none p-4">
-                                                    <ImageIcon className="w-12 h-12 text-stone-300 mx-auto mb-2 group-hover:text-yellow-400 transition-colors" />
-                                                    <span className="text-xs font-bold text-slate-500 block">Click to upload image</span>
-                                                    <span className="text-[10px] text-stone-400 block mt-1">or paste URL on the right</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Right Column: Form */}
-                                <div className="lg:col-span-7 flex flex-col h-full">
-                                    <div className="space-y-4 flex-1">
-
-                                        {/* Type Selector */}
-                                        {FEATURES.DIGITAL_PRODUCTS && (<div className="flex gap-4 p-1 bg-stone-100 rounded-xl mb-4">
-                                            <button
-                                                onClick={() => setCurrentProduct({ ...currentProduct, type: 'physical' })}
-                                                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${currentProduct.type !== 'digital' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-900'}`}
-                                            >
-                                                <Package className="w-4 h-4" />
-                                                Physical Item
-                                            </button>
-                                            <button
-                                                onClick={() => setCurrentProduct({ ...currentProduct, type: 'digital' })}
-                                                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${currentProduct.type === 'digital' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-900'}`}
-                                            >
-                                                <Zap className="w-4 h-4" />
-                                                Digital Asset
-                                            </button>
-                                        </div>)}
-
-                                        {currentProduct.type === 'digital' ? (
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1">Upload File (PDF, E-book, etc.)</label>
-                                                <div className="border-2 border-dashed border-stone-200 rounded-xl p-8 text-center hover:bg-stone-50 transition-colors relative">
-                                                    <input
-                                                        type="file"
-                                                        onChange={handleFileUpload}
-                                                        disabled={uploadingFile}
-                                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                                    />
-                                                    {uploadingFile ? (
-                                                        <Loader2 className="w-8 h-8 text-stone-400 animate-spin mx-auto mb-2" />
-                                                    ) : currentProduct.fileName ? (
-                                                        <div className="flex flex-col items-center text-emerald-600">
-                                                            <Package className="w-8 h-8 mb-2" />
-                                                            <span className="font-bold">{currentProduct.fileName}</span>
-                                                            <span className="text-xs text-stone-400 mt-1">Click to replace</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col items-center text-stone-400">
-                                                            <Package className="w-8 h-8 mb-2" />
-                                                            <span className="font-medium text-sm">Drop your file here or click to browse</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1">Destination URL</label>
-                                                <div className="relative">
-                                                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                                    <input
-                                                        type="url"
-                                                        value={destinationUrl}
-                                                        onChange={e => setDestinationUrl(e.target.value)}
-                                                        className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                                        placeholder="https://amazon.com/..."
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Product Name</label>
-                                            <input
-                                                type="text"
-                                                value={currentProduct.name || ''}
-                                                onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })}
-                                                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                                placeholder="e.g. Premium T-Shirt"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Category</label>
-                                            <input
-                                                type="text"
-                                                value={currentProduct.category || ''}
-                                                onChange={e => setCurrentProduct({ ...currentProduct, category: e.target.value })}
-                                                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                                placeholder="e.g. Digital, Physical, Course..."
-                                            />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1">Price</label>
-                                                <div className="relative">
-                                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                                    <input
-                                                        type="number"
-                                                        value={currentProduct.price || ''}
-                                                        onChange={e => setCurrentProduct({ ...currentProduct, price: Number(e.target.value) })}
-                                                        className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                                        placeholder="0.00"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1">Currency</label>
-                                                <select
-                                                    value={currentProduct.currency || 'USD'}
-                                                    onChange={e => setCurrentProduct({ ...currentProduct, currency: e.target.value })}
-                                                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all appearance-none"
-                                                >
-                                                    <option value="USD">USD ($)</option>
-                                                    <option value="INR">INR (₹)</option>
-                                                    <option value="EUR">EUR (€)</option>
-                                                    <option value="GBP">GBP (£)</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Description</label>
-                                            <textarea
-                                                value={currentProduct.description || ''}
-                                                onChange={e => setCurrentProduct({ ...currentProduct, description: e.target.value })}
-                                                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 h-20 resize-none transition-all"
-                                                placeholder="Describe your product..."
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Image URL</label>
-                                            <div className="relative">
-                                                <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                                                <input
-                                                    type="text"
-                                                    value={currentProduct.imageUrl || ''}
-                                                    onChange={e => setCurrentProduct({ ...currentProduct, imageUrl: e.target.value })}
-                                                    className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
-                                                    placeholder="https://..."
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-stone-100">
-                                        <button
-                                            onClick={() => setShowModal(false)}
-                                            className="px-4 py-2 text-stone-500 hover:text-slate-900 transition-colors font-medium"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={handleSave}
-                                            disabled={loading}
-                                            className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-slate-900/20"
-                                        >
-                                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                                            {isEditing ? 'Save Changes' : 'Create Product'}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div>
+                        <label htmlFor="p-category" className={label}>Category</label>
+                        <input id="p-category" list="p-categories" maxLength={40} value={draft.category || ''} onChange={e => set({ category: e.target.value })} placeholder="e.g. Phones" className={field} />
+                        <datalist id="p-categories">{categories.map(c => <option key={c} value={c} />)}</datalist>
                     </div>
-                )
-            }
-        </div >
+                    <div>
+                        <label htmlFor="p-url" className={label}>Product link</label>
+                        <input id="p-url" inputMode="url" value={destination} onChange={e => setDestination(e.target.value)} className={`${field} font-mono text-[12px]`} />
+                        <p className="mt-1 text-[11px] text-[#8C8981]">Your affiliate tag is added when you change this.</p>
+                    </div>
+                    <div>
+                        <label htmlFor="p-image" className={label}>Photo address</label>
+                        <input id="p-image" inputMode="url" value={draft.imageUrl || ''} onChange={e => set({ imageUrl: e.target.value })} placeholder="https://…" className={`${field} font-mono text-[12px]`} />
+                    </div>
+                    <div className="mt-2 flex justify-end gap-2">
+                        <button type="button" onClick={onClose} className={softButton}>Cancel</button>
+                        <button type="submit" disabled={saving || uploading} className={darkButton}>
+                            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </Dialog>
+    );
+};
+
+const AffiliateTagsTile: React.FC<{
+    initial: { amazonAssociateTag?: string; flipkartAffiliateId?: string };
+    onSave: (values: { amazonAssociateTag: string; flipkartAffiliateId: string }) => Promise<void>;
+}> = ({ initial, onSave }) => {
+    const [amazon, setAmazon] = useState(initial.amazonAssociateTag || '');
+    const [flipkart, setFlipkart] = useState(initial.flipkartAffiliateId || '');
+    const [saving, setSaving] = useState(false);
+    return (
+        <form
+            className={`${tile} grid gap-3 p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end`}
+            onSubmit={async e => {
+                e.preventDefault();
+                setSaving(true);
+                try { await onSave({ amazonAssociateTag: amazon.trim(), flipkartAffiliateId: flipkart.trim() }); }
+                catch (err) { console.error(err); toast.error('Could not save the tags'); }
+                finally { setSaving(false); }
+            }}
+        >
+            <div>
+                <label htmlFor="tag-amazon" className={label}>Amazon Associates tag</label>
+                <input id="tag-amazon" value={amazon} onChange={e => setAmazon(e.target.value)} placeholder="yourtag-21" className={`${field} font-mono`} />
+            </div>
+            <div>
+                <label htmlFor="tag-flipkart" className={label}>Flipkart affiliate ID</label>
+                <input id="tag-flipkart" value={flipkart} onChange={e => setFlipkart(e.target.value)} placeholder="yourid" className={`${field} font-mono`} />
+            </div>
+            <button type="submit" disabled={saving} className={darkButton}>{saving && <Loader2 className="h-4 w-4 animate-spin" />} Save tags</button>
+        </form>
     );
 };
 
