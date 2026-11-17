@@ -370,7 +370,7 @@ const Links: React.FC<LinksProps> = ({
     return (
       <div className="min-h-screen bg-[#ECEBE7] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-yellow-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-[#8C8981]" />
           <p className="text-stone-500">Loading your links...</p>
         </div>
       </div>
@@ -388,7 +388,7 @@ const Links: React.FC<LinksProps> = ({
           <p className="text-stone-500 mb-6">{error}</p>
           <button
             onClick={loadData}
-            className="px-6 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
+            className="rounded-full bg-[#18181A] px-5 py-2.5 text-[13px] font-semibold text-[#F2F1EE] hover:bg-[#2B2B2E]"
           >
             Try Again
           </button>
@@ -400,9 +400,9 @@ const Links: React.FC<LinksProps> = ({
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="min-h-screen bg-[#ECEBE7] flex">
-        {/* Folder Sidebar */}
-        <div className="w-64 border-r border-stone-200 bg-white p-4 hidden md:block h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto">
+      <div className="mx-auto flex min-h-screen max-w-7xl items-start gap-3.5 px-4 pb-16 sm:px-6">
+        {/* Folders */}
+        <aside className="sticky top-20 hidden max-h-[calc(100vh-6rem)] w-60 shrink-0 overflow-y-auto rounded-3xl bg-[#FBFAF8] p-4 md:block">
           <FolderTree
             folders={folders}
             selectedFolderId={selectedFolderId}
@@ -412,60 +412,53 @@ const Links: React.FC<LinksProps> = ({
             onDeleteFolder={handleDeleteFolder}
             onMoveFolder={handleMoveFolder}
           />
-        </div>
+        </aside>
 
-        <div className="flex-1 p-6 max-w-5xl mx-auto space-y-6">
+        <div className="min-w-0 flex-1 space-y-3.5">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col justify-between gap-4 pb-2 pt-4 md:flex-row md:items-end">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Your Links</h1>
+                <h1 className="text-[clamp(26px,3vw,34px)] font-semibold leading-tight tracking-[-0.02em] text-[#18181A]">Links</h1>
                 {isRealtimeConnected && (
-                  <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Live</span>
+                  <span className="flex items-center gap-1.5 rounded-full bg-[#FBFAF8] px-2.5 py-1 font-mono text-[11px] text-[#8C8981]" title="Click counts update as they happen">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    live
                   </span>
                 )}
               </div>
-              <p className="text-stone-500 text-sm mt-1">
-                {links.length} {links.length === 1 ? 'link' : 'links'} total
+              <p className="mt-1 text-sm text-[#8C8981]">
+                {filteredLinks.length === links.length
+                  ? `${links.length.toLocaleString('en-IN')} ${links.length === 1 ? 'link' : 'links'}`
+                  : `${filteredLinks.length.toLocaleString('en-IN')} of ${links.length.toLocaleString('en-IN')} links`}
               </p>
             </div>
-
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-sm shadow-yellow-400/20"
-            >
-              <Plus className="w-5 h-5" />
-              Create Link
-            </button>
           </div>
 
-          {/* Search and Tag Manager */}
-          <div className="flex gap-4">
-            <div className="relative group flex-1">
-              <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400 group-focus-within:text-yellow-500 transition-colors" />
+          {/* Search and tags */}
+          <div className="flex gap-2 rounded-3xl bg-[#FBFAF8] p-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A19E97]" />
+              <label htmlFor="links-search" className="sr-only">Search links</label>
               <input
+                id="links-search"
                 type="text"
-                placeholder="Search by title, short code, or URL..."
-                className="w-full bg-white border border-stone-200 text-slate-900 pl-12 pr-6 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all placeholder:text-stone-400 shadow-sm"
+                placeholder="Search by title, short code or URL"
+                className="w-full rounded-2xl border-none bg-transparent py-2.5 pl-11 pr-4 text-[14px] text-[#18181A] placeholder:text-[#A19E97] focus:outline-none focus:ring-0"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <button
               onClick={() => setIsTagManagerOpen(true)}
-              className="px-4 py-3 bg-white border border-stone-200 text-stone-600 font-bold rounded-xl hover:bg-stone-50 hover:text-slate-900 transition-colors flex items-center gap-2"
+              className="flex shrink-0 items-center gap-2 rounded-full bg-[#F0EEEA] px-4 text-[13px] font-medium text-[#4A4843] transition-colors hover:text-[#18181A]"
             >
-              Manage Tags
+              Tags
             </button>
           </div>
 
           {/* Links List */}
-          <div className="space-y-4">
+          <div>
             <AnimatePresence mode="popLayout">
               {filteredLinks.length > 0 ? (
                 filteredLinks.map((link, index) => (
@@ -474,7 +467,7 @@ const Links: React.FC<LinksProps> = ({
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    transition={{ duration: 0.2, delay: Math.min(index, 8) * 0.03 }}
                   >
                     <LinkCard
                       link={link}
@@ -488,13 +481,13 @@ const Links: React.FC<LinksProps> = ({
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-center py-16 bg-white rounded-[2rem] border border-stone-200"
+                  className="rounded-3xl bg-[#FBFAF8] py-16 text-center"
                 >
-                  <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-200">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F0EEEA]">
                     {searchTerm ? (
-                      <Search className="w-6 h-6 text-yellow-600" />
+                      <Search className="h-6 w-6 text-[#8C8981]" />
                     ) : (
-                      <LinkIcon className="w-6 h-6 text-yellow-600" />
+                      <LinkIcon className="h-6 w-6 text-[#8C8981]" />
                     )}
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 mb-2">
@@ -508,7 +501,7 @@ const Links: React.FC<LinksProps> = ({
                   {!searchTerm && (
                     <button
                       onClick={() => setIsModalOpen(true)}
-                      className="text-yellow-600 hover:text-yellow-700 font-bold flex items-center justify-center gap-2 mx-auto text-sm"
+                      className="mx-auto flex items-center justify-center gap-2 rounded-full bg-[#FF5A14] px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-[#E64D0C]"
                     >
                       Create your first link <ArrowUpRight className="w-4 h-4" />
                     </button>

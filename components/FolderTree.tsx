@@ -162,10 +162,10 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
     return (
         <div className="w-full pb-20" onContextMenu={(e) => e.preventDefault()}>
             <div className="flex items-center justify-between mb-4 px-2">
-                <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider">Folders</h3>
+                <h3 className="text-[13px] font-normal text-[#8C8981]">Folders</h3>
                 <button
                     onClick={() => { setIsCreating(true); setCreateParentId(null); }}
-                    className="p-1 text-stone-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                    className="p-1 text-stone-400 hover:text-[#18181A] hover:bg-[#F0EEEA] rounded-lg transition-colors"
                     title="New Root Folder"
                 >
                     <Plus className="w-4 h-4" />
@@ -231,13 +231,13 @@ const RootDropZone = ({ isSelected, onSelect }: { isSelected: boolean; onSelect:
             ref={setNodeRef}
             onClick={onSelect}
             className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${isSelected
-                ? 'bg-amber-50 text-amber-700 font-medium'
+                ? 'bg-[#18181A] text-[#F2F1EE] font-medium'
                 : isOver
-                    ? 'bg-amber-100 ring-2 ring-amber-300 ring-inset'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-slate-900'
+                    ? 'bg-[#FFE9DE] ring-2 ring-[#FF9B6A] ring-inset'
+                    : 'text-stone-600 hover:bg-[#F0EEEA] hover:text-[#18181A]'
                 }`}
         >
-            <FolderIcon className={`w-4 h-4 ${isSelected ? 'fill-amber-500/20 text-amber-500' : 'text-stone-400'}`} />
+            <FolderIcon className={`w-4 h-4 ${isSelected ? 'text-[#FF9B6A]' : 'text-stone-400'}`} />
             All Links
         </button>
     );
@@ -326,8 +326,8 @@ const FolderItem: React.FC<FolderItemProps> = ({
             style={{ paddingLeft: `${depth * 16 + 12}px` }}
             className={`
                 group relative flex items-center gap-2 pr-3 py-2 rounded-lg text-sm cursor-pointer transition-all select-none
-                ${isSelected ? 'bg-amber-50 text-amber-900 font-medium' : 'text-stone-600 hover:bg-stone-50 hover:text-slate-900'}
-                ${isOver && !isDragging ? 'bg-amber-100 ring-2 ring-amber-300 ring-inset' : ''}
+                ${isSelected ? 'bg-[#18181A] text-[#F2F1EE] font-medium' : 'text-stone-600 hover:bg-[#F0EEEA] hover:text-[#18181A]'}
+                ${isOver && !isDragging ? 'bg-[#FFE9DE] ring-2 ring-[#FF9B6A] ring-inset' : ''}
                 ${isDragging ? 'opacity-50' : ''}
             `}
         >
@@ -346,9 +346,9 @@ const FolderItem: React.FC<FolderItemProps> = ({
             </button>
 
             {isExpanded ? (
-                <FolderOpen className={`w-4 h-4 ${isSelected ? 'fill-amber-500/20 text-amber-500' : 'text-stone-400 group-hover:text-amber-500'}`} />
+                <FolderOpen className={`w-4 h-4 ${isSelected ? 'text-[#FF9B6A]' : 'text-stone-400 '}`} />
             ) : (
-                <FolderIcon className={`w-4 h-4 ${isSelected ? 'fill-amber-500/20 text-amber-500' : 'text-stone-400 group-hover:text-amber-500'}`} />
+                <FolderIcon className={`w-4 h-4 ${isSelected ? 'text-[#FF9B6A]' : 'text-stone-400 '}`} />
             )}
 
             <span className="truncate flex-1">{folder.name}</span>
