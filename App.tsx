@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import TopNavigation from './components/TopNavigation';
 import LoadingFallback from './components/LoadingFallback';
@@ -25,7 +25,7 @@ import ResetPassword from './pages/ResetPassword';
 import UpdatePassword from './pages/UpdatePassword';
 import ClaimLinkPage from './pages/ClaimLinkPage';
 import PendingClaimHandler from './components/PendingClaimHandler';
-import BioView from './pages/BioView';
+import StorePage from './pages/StorePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToHashElement from './components/ScrollToHashElement';
 
@@ -37,7 +37,6 @@ import DomainRouter from './components/DomainRouter';
 // Lazy Load Non-Critical Pages
 // Lazy Load Non-Critical Pages
 const DashboardLayout = React.lazy(() => import('./components/DashboardLayout'));
-const Storefront = React.lazy(() => import('./pages/Storefront'));
 const ProductPage = React.lazy(() => import('./pages/ProductPage'));
 const TeamInviteHandler = React.lazy(() => import('./pages/TeamInviteHandler'));
 const AddProduct = React.lazy(() => import('./pages/AddProduct')); // Lazy load
@@ -55,6 +54,14 @@ const AffiliateManager = React.lazy(() => import('./pages/AffiliateManager'));
  * Sets up routing and auth provider
  * Requirements: 4.1, 4.2, 4.3
  */
+/** /@handle shows that store page; any other unknown one-segment path goes home. */
+const AtHandleRoute: React.FC = () => {
+  const { atHandle = '' } = useParams<{ atHandle: string }>();
+  return atHandle.startsWith('@') && atHandle.length > 1
+    ? <StorePage handle={atHandle.slice(1)} />
+    : <Navigate to="/" replace />;
+};
+
 // Legacy Hash Redirect Component
 const LegacyHashHandler: React.FC = () => {
   const navigate = useNavigate();
@@ -115,8 +122,9 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/unlock/:code" element={<Redirect />} />
           {/* Mobile short-link visits, handed over by api/r/[code].ts so native apps open */}
           <Route path="/go/:code" element={<Redirect />} />
-          <Route path="/p/:handle" element={<BioView />} />
-          <Route path="/@:handle" element={<BioView />} /> {/* Added this back as it was removed in the instruction but is a valid route */}
+          <Route path="/p/:handle" element={<StorePage />} />
+          {/* /@handle: React Router can't match "@:handle", so take the whole segment. */}
+          <Route path="/:atHandle" element={<AtHandleRoute />} />
           <Route path="/s/:domain" element={<SmartRedirect />} />
 
           {/* Store Routes */}
@@ -162,7 +170,7 @@ const AnimatedRoutes: React.FC = () => {
               </AdminRoute>
             }
           />
-          <Route path="/store/:userId" element={<Storefront />} />
+          <Route path="/store/:userId" element={<StorePage />} />
 
           <Route
             path="/product/:productId"

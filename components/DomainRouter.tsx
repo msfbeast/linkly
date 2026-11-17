@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import BioView from '../pages/BioView';
+import StorePage from '../pages/StorePage';
 import LoadingFallback from './LoadingFallback';
 import { isMainDomain } from '../utils/mainDomains';
 
@@ -56,7 +56,7 @@ const DomainRouter: React.FC<DomainRouterProps> = ({ children }) => {
         // BioView usually takes params from url /p/:handle
         // But here URL is root /. 
         // We need to modify BioView to accept handle prop optionally.
-        return <BioView handle={handle} />;
+        return <StorePage handle={handle} />;
     }
 
     if (isCustomDomain && !handle) {
