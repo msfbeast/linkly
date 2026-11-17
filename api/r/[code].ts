@@ -6,6 +6,7 @@ import { recordClick, clickStoreEnvFromProcess, type ClickEvent } from '../_lib/
 import { geoFromVercelHeaders } from '../../utils/geoNames';
 import { isBot, isMobileUserAgent } from '../_lib/botFilter';
 import { safeNavigationUrl } from '../../utils/safeUrl';
+import { recordServerError } from '../_lib/errorLog';
 import {
     type KvLinkData, type LinkCacheRow, LINK_CACHE_COLUMNS, LINK_CACHE_TTL_SECONDS,
     linkCacheKey, toCacheEntry, redirectDecision,
@@ -218,6 +219,8 @@ export default async function handler(request: Request, context?: { waitUntil?: 
         }
     } catch (error) {
         console.error('[Edge API] Error:', error);
+        const logging = recordServerError('redirect', error, request);
+        if (context?.waitUntil) context.waitUntil(logging); else await logging;
         return new Response('Internal Server Error', { status: 500 });
     }
 }

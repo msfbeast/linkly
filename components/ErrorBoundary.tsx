@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { reportError } from '../utils/errorReporter';
 
 interface Props {
     children: ReactNode;
@@ -24,6 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
+        reportError(error, { componentStack: errorInfo.componentStack });
 
         // Auto-reload on chunk load errors (stale assets after deploy)
         if (error.message.includes('Failed to fetch dynamically imported module') ||
