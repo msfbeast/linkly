@@ -797,27 +797,6 @@ const GalleryView: React.FC<GalleryViewProps> = ({ link, recordClick }) => {
             </div>
           )}
 
-          {/* Technical Verification widget */}
-          <div className="bg-white border border-stone-200 rounded-[2rem] p-6 space-y-4 shadow-sm">
-            <h4 className="text-xs uppercase tracking-widest font-bold text-stone-400">File Verification</h4>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 text-xs">
-                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div>
-                  <span className="font-bold text-slate-900 block">Virustotal Clean</span>
-                  <span className="text-stone-400 text-[10px]">MD5 check passed</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 text-xs">
-                <Zap className="w-5 h-5 text-yellow-500 shrink-0" />
-                <div>
-                  <span className="font-bold text-slate-900 block">Uncompressed Original</span>
-                  <span className="text-stone-400 text-[10px]">Zero compression. High dynamic range intact.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
         </div>
       </main>
     </div>

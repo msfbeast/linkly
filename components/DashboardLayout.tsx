@@ -15,6 +15,7 @@ import LoadingFallback from './LoadingFallback';
 import TeamSettings from './teams/TeamSettings';
 import { execute as retryExecute } from '../services/retryService';
 import { toast } from 'sonner';
+import { FEATURES } from '../utils/featureFlags';
 
 // Lazy Load Pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
@@ -34,7 +35,7 @@ const DashboardLayout: React.FC = () => {
     const location = useLocation(); // Added useLocation hook
     const [view, setView] = useState<ViewState>(() => {
         const path = window.location.pathname;
-        if (path.includes('/team/settings')) return ViewState.TEAM_SETTINGS;
+        if (FEATURES.TEAMS && path.includes('/team/settings')) return ViewState.TEAM_SETTINGS;
         if (path.includes('/settings')) return ViewState.SETTINGS;
         if (path.includes('/analytics')) return ViewState.ANALYTICS;
         if (path.includes('/products/add')) return ViewState.ADD_PRODUCT;
@@ -82,7 +83,7 @@ const DashboardLayout: React.FC = () => {
         const path = location.pathname;
 
 
-        if (path.includes('/team/settings')) {
+        if (FEATURES.TEAMS && path.includes('/team/settings')) {
             setView(ViewState.TEAM_SETTINGS);
             setActiveSidebarItem('settings');
         } else if (path.includes('/products/add')) {
@@ -340,7 +341,7 @@ const DashboardLayout: React.FC = () => {
                             {view === ViewState.AFFILIATE && <AffiliateManager />}
                             {view === ViewState.AGENCY && <AgencyDashboard />}
                             {view === ViewState.SETTINGS && <Settings />}
-                            {view === ViewState.TEAM_SETTINGS && <TeamSettings />}
+                            {FEATURES.TEAMS && view === ViewState.TEAM_SETTINGS && <TeamSettings />}
                         </Suspense>
                     </main>
                 </div>

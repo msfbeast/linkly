@@ -37,10 +37,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, on
       {/* Sidebar Container */}
       <div className={`fixed left-4 top-4 bottom-4 w-64 bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[2rem] flex flex-col p-6 z-50 transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-[120%]'
         }`}>
-        {/* Team Switcher */}
-        <div className="mb-8 px-2">
-          <TeamSwitcher />
-        </div>
+        {/* Team switcher parked behind feature flag (see utils/featureFlags.ts) */}
+        {FEATURES.TEAMS && (
+          <div className="mb-8 px-2">
+            <TeamSwitcher />
+          </div>
+        )}
 
         <nav className="flex-1 space-y-2">
           {menuItems.map((item) => {

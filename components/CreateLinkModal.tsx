@@ -837,7 +837,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
             {mode === 'single' ? (
               <>
                 {/* Link Type Selector */}
-                <div className="mb-6">
+                {(FEATURES.MEDIA_GALLERY || linkType === 'gallery') && (<div className="mb-6">
                   <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Link Type</label>
                   <div className="flex gap-4 p-1 bg-stone-100 rounded-xl">
                     <button
@@ -863,7 +863,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       🖼️ Media Gallery
                     </button>
                   </div>
-                </div>
+                </div>)}
 
                 {/* URL Input */}
                 <div className="mb-8">
