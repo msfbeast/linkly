@@ -5,7 +5,7 @@ import { Tooltip } from 'react-tooltip';
 import { ClickEvent } from '../types';
 import { subscribeToClickEvents } from '../services/realtimeService';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Maximize2, Minimize2, Globe, Map as MapIcon } from 'lucide-react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
 // URL to a valid TopoJSON file for the world map
 const GEO_URL_WORLD = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -28,6 +28,8 @@ interface LiveWorldMapProps {
     /** Precomputed state counts for the USA and India views. */
     regionCounts?: { country: string; region: string; value: number }[];
     className?: string;
+    /** Heading shown over the map; defaults to a live-view label. */
+    title?: string;
 }
 
 interface MapClick {
@@ -81,7 +83,7 @@ export function countLocations(
     return counts;
 }
 
-const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCityData = [], countryCounts, regionCounts, className = '' }) => {
+const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCityData = [], countryCounts, regionCounts, className = '', title }) => {
     const [recentClicks, setRecentClicks] = useState<MapClick[]>([]);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('world');
@@ -194,7 +196,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
     // Color scale for heatmap - Modern Light Theme
     const colorScale = scaleLinear<string>()
         .domain([0, maxClicks])
-        .range(["#F1F5F9", "#93C5FD"]); // slate-100 to blue-300
+        .range(["#FFE3D5", "#FF5A14"]); // pale orange to the accent
 
     // Subscribe to real-time clicks
     useEffect(() => {
@@ -257,52 +259,54 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
     const { projection, config, center } = getProjectionConfig();
 
     return (
-        <div className={`relative bg-white border border-stone-200 rounded-2xl overflow-hidden transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : 'h-[500px]'} ${className}`}>
+        <div className={`relative overflow-hidden bg-[#FBFAF8] transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : 'h-[420px] rounded-3xl sm:h-[500px]'} ${className}`}>
 
             {/* Header / Controls */}
             <div className="absolute top-4 left-4 z-[5] flex items-center gap-4">
-                <div className="bg-white/80 backdrop-blur-md border border-stone-200 px-4 py-2 rounded-xl shadow-sm">
-                    <h3 className="text-slate-900 font-bold flex items-center gap-2">
-                        <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                        </span>
-                        {viewMode === 'world' ? 'Live Global View' : viewMode === 'usa' ? 'Live US View' : 'Live India View'}
-                    </h3>
-                </div>
+                <h3 className="flex items-center gap-2 rounded-full bg-[#FBFAF8]/90 px-3 py-1.5 text-[13px] text-[#8C8981] backdrop-blur-md">
+                    <span className="relative flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-[3px] bg-[#FF5A14] opacity-60"></span>
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-[3px] bg-[#FF5A14]"></span>
+                    </span>
+                    {title ?? (viewMode === 'world' ? 'Live global view' : viewMode === 'usa' ? 'Live US view' : 'Live India view')}
+                </h3>
             </div>
 
             <div className="absolute top-4 right-4 z-[5] flex gap-2">
                 {/* View Toggle */}
-                <div className="bg-white/80 backdrop-blur-md border border-stone-200 p-1 rounded-xl flex shadow-sm">
+                <div role="group" aria-label="Map" className="flex gap-0.5 rounded-full bg-[#F0EEEA] p-1">
                     <button
                         onClick={() => setViewMode('world')}
-                        className={`p-2 rounded-lg transition-colors ${viewMode === 'world' ? 'bg-blue-50 text-blue-600' : 'text-stone-400 hover:text-slate-900'}`}
-                        title="World View"
+                        aria-pressed={viewMode === 'world'}
+                        className={`rounded-full px-3 py-1 font-mono text-[11px] transition-colors ${viewMode === 'world' ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}
+                        title="World"
                     >
-                        <Globe className="w-5 h-5" />
+                        World
                     </button>
                     <button
                         onClick={() => setViewMode('usa')}
-                        className={`p-2 rounded-lg transition-colors ${viewMode === 'usa' ? 'bg-blue-50 text-blue-600' : 'text-stone-400 hover:text-slate-900'}`}
-                        title="USA View"
+                        aria-pressed={viewMode === 'usa'}
+                        className={`rounded-full px-3 py-1 font-mono text-[11px] transition-colors ${viewMode === 'usa' ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}
+                        title="United States"
                     >
-                        <span className="text-xs font-bold">US</span>
+                        US
                     </button>
                     <button
                         onClick={() => setViewMode('india')}
-                        className={`p-2 rounded-lg transition-colors ${viewMode === 'india' ? 'bg-blue-50 text-blue-600' : 'text-stone-400 hover:text-slate-900'}`}
-                        title="India View"
+                        aria-pressed={viewMode === 'india'}
+                        className={`rounded-full px-3 py-1 font-mono text-[11px] transition-colors ${viewMode === 'india' ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}
+                        title="India"
                     >
-                        <span className="text-xs font-bold">IN</span>
+                        India
                     </button>
                 </div>
 
                 <button
                     onClick={() => setIsFullscreen(!isFullscreen)}
-                    className="bg-white/80 backdrop-blur-md border border-stone-200 p-2 rounded-xl text-stone-500 hover:text-slate-900 transition-colors shadow-sm"
+                    aria-label={isFullscreen ? 'Exit full screen' : 'Full screen'}
+                    className="rounded-full bg-[#F0EEEA] p-2 text-[#8C8981] transition-colors hover:text-[#18181A]"
                 >
-                    {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                    {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </button>
             </div>
 
@@ -311,7 +315,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
                 key={viewMode}
                 projection={projection as any}
                 projectionConfig={config}
-                className="w-full h-full bg-[#FAFAFA]" // Very light grey background
+                className="h-full w-full bg-[#FBFAF8]"
             >
                 <ZoomableGroup center={center || [0, 0]} zoom={1} minZoom={1} maxZoom={4}>
                     <Geographies geography={viewMode === 'world' ? GEO_URL_WORLD : viewMode === 'usa' ? GEO_URL_US : GEO_URL_INDIA}>
@@ -325,13 +329,13 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
                                     <Geography
                                         key={geo.rsmKey}
                                         geography={geo}
-                                        fill={clickCount > 0 ? colorScale(clickCount) : "#F1F5F9"} // slate-100 default
-                                        stroke="#E2E8F0" // slate-200 borders
+                                        fill={clickCount > 0 ? colorScale(clickCount) : "#ECEAE6"}
+                                        stroke="#FBFAF8"
                                         strokeWidth={0.5}
                                         style={{
                                             default: { outline: "none", transition: "all 250ms" },
-                                            hover: { fill: "#BFDBFE", outline: "none", cursor: "pointer" }, // blue-200 hover
-                                            pressed: { fill: "#60A5FA", outline: "none" }, // blue-400 pressed
+                                            hover: { fill: "#18181A", outline: "none", cursor: "pointer" },
+                                            pressed: { fill: "#18181A", outline: "none" },
                                         }}
                                         data-tooltip-id="map-tooltip"
                                         data-tooltip-content={`${locationName}: ${clickCount} clicks`}
@@ -352,9 +356,9 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
                                         exit={{ opacity: 0 }}
                                         transition={{ duration: 1.5, ease: "easeOut" }}
                                         fill="none"
-                                        stroke="#3B82F6" // blue-500
+                                        stroke="#FF5A14"
                                     />
-                                    <circle r={3} fill="#2563EB" /> {/* blue-600 */}
+                                    <circle r={3} fill="#FF5A14" />
                                 </g>
                             </Marker>
                         ))}
@@ -373,9 +377,9 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
                                 >
                                     <circle
                                         r={sizeScale}
-                                        fill="#EF4444"
+                                        fill="#FF5A14"
                                         fillOpacity={0.7}
-                                        stroke="#DC2626"
+                                        stroke="#18181A"
                                         strokeWidth={1.5}
                                     />
                                     <circle r={2} fill="#FEF2F2" />
@@ -386,7 +390,7 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
                                             fontFamily: 'system-ui',
                                             fontSize: 8,
                                             fontWeight: 600,
-                                            fill: '#1F2937',
+                                            fill: '#18181A',
                                             pointerEvents: 'none'
                                         }}
                                     >
@@ -399,13 +403,13 @@ const LiveWorldMap: React.FC<LiveWorldMapProps> = ({ clickHistory = [], serverCi
                 </ZoomableGroup>
             </ComposableMap>
 
-            <Tooltip id="map-tooltip" className="z-50 !bg-slate-900 !opacity-100 !border !border-white/10 !rounded-lg !px-3 !py-2 !text-sm !font-medium" />
+            <Tooltip id="map-tooltip" className="z-50 !rounded-lg !bg-[#18181A] !px-3 !py-2 !font-mono !text-xs !opacity-100" />
 
             {/* Legend */}
-            <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur-md border border-stone-200 px-4 py-2 rounded-xl text-xs text-stone-500 flex items-center gap-2 shadow-sm">
-                <span>Low Activity</span>
-                <div className="w-24 h-2 bg-gradient-to-r from-slate-100 to-blue-300 rounded-full"></div>
-                <span>High Activity</span>
+            <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-[#FBFAF8]/90 px-3 py-1.5 font-mono text-[11px] text-[#8C8981] backdrop-blur-md">
+                <span>fewer</span>
+                <div className="h-2 w-20 rounded-full bg-gradient-to-r from-[#FFE3D5] to-[#FF5A14]"></div>
+                <span>more clicks</span>
             </div>
         </div>
     );
