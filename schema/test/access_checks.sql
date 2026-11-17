@@ -144,4 +144,24 @@ SELECT pg_temp.probe('Bob: read Alice''s profile (rows)', $q$SELECT count(*)::te
 SELECT pg_temp.probe('Alice: read own profile (rows)', $q$SELECT count(*)::text FROM public.profiles WHERE id = '00000000-0000-0000-0000-00000000000a'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.probe('anon: is username "nobody-here" taken', $q$SELECT public.is_username_taken('nobody-here')::text$q$, 'anon', null);
 SELECT pg_temp.probe('anon: custom domain username of Bob', $q$SELECT coalesce(public.custom_domain_username('00000000-0000-0000-0000-00000000000b'), '<none>')$q$, 'anon', null);
+-- Link reports, moderation and error log (Dave is a platform admin)
+INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-00000000000d','d@example.com');
+INSERT INTO public.profiles (id, full_name, role) VALUES ('00000000-0000-0000-0000-00000000000d','Dave','admin') ON CONFLICT (id) DO UPDATE SET role = 'admin';
+INSERT INTO public.link_reports (link_id, reason, reporter) VALUES ('22222222-2222-2222-2222-22222222222a', 'spam', 'r1');
+SELECT pg_temp.probe('Alice: insert link with a javascript: URL', $q$INSERT INTO public.links (original_url, short_code, title, user_id) VALUES ('javascript:alert(1)', 'jsx', 'x', '00000000-0000-0000-0000-00000000000a') RETURNING 'created'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: read link reports', $q$SELECT count(*)::text FROM public.link_reports$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: read link reports (rows)', $q$SELECT count(*)::text FROM public.link_reports$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('anon: admin link reports', $q$SELECT json_array_length((public.admin_link_reports())->'open')::text$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: admin link reports', $q$SELECT json_array_length((public.admin_link_reports())->'open')::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Dave (admin): admin link reports', $q$SELECT json_array_length((public.admin_link_reports())->'open')::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000d');
+SELECT pg_temp.probe('Alice: un-disable her own link directly', $q$UPDATE public.links SET disabled_at = NULL, disabled_reason = 'x' WHERE id = '22222222-2222-2222-2222-22222222222a' RETURNING 'changed'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('Bob: disable Alice''s link via moderation', $q$SELECT public.admin_moderate_link('22222222-2222-2222-2222-22222222222a', 'disable', 'x')$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Dave (admin): disable Alice''s link', $q$SELECT public.admin_moderate_link('22222222-2222-2222-2222-22222222222a', 'disable', 'spam')$q$, 'authenticated', '00000000-0000-0000-0000-00000000000d');
+SELECT pg_temp.probe('anon: public lookup of a disabled link', $q$SELECT format('url=%s reason=%s', nullif((public.get_public_link('aaa'))->>'original_url', ''), coalesce((public.get_public_link('aaa'))->>'disabled_reason', '-'))$q$, 'anon', null);
+SELECT pg_temp.probe('Alice: re-enable her disabled link', $q$UPDATE public.links SET disabled_at = NULL WHERE id = '22222222-2222-2222-2222-22222222222a' RETURNING 'changed'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
+SELECT pg_temp.probe('anon: record an error', $q$SELECT 'called' FROM (SELECT public.record_error('f1', 'browser', 'boom', null, '/', null, null)) x$q$, 'anon', null);
+SELECT pg_temp.probe('server: record an error', $q$SELECT 'called' FROM (SELECT public.record_error('f1', 'browser', 'boom', null, '/', null, null)) x$q$, 'service_role', null);
+SELECT pg_temp.probe('Bob: read error log', $q$SELECT count(*)::text FROM public.error_log$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Bob: admin recent errors', $q$SELECT left((public.admin_recent_errors(7))::text, 20)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Dave (admin): admin recent errors', $q$SELECT json_array_length(public.admin_recent_errors(7)::json)::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000d');
 ROLLBACK;

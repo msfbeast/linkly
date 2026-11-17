@@ -174,6 +174,19 @@ CREATE TABLE IF NOT EXISTS public.domains (
     target_type text DEFAULT 'bio'::text
 );
 
+CREATE TABLE IF NOT EXISTS public.error_log (
+    fingerprint text NOT NULL,
+    source text NOT NULL,
+    message text NOT NULL,
+    stack text,
+    path text,
+    release text,
+    user_agent text,
+    count integer DEFAULT 1 NOT NULL,
+    first_seen timestamp with time zone DEFAULT now() NOT NULL,
+    last_seen timestamp with time zone DEFAULT now() NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS public.folders (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
@@ -193,6 +206,18 @@ CREATE TABLE IF NOT EXISTS public.gallery_items (
     sort_order integer DEFAULT 0,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.link_reports (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    link_id uuid NOT NULL,
+    reason text NOT NULL,
+    details text,
+    reporter text,
+    status text DEFAULT 'open'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    resolved_at timestamp with time zone,
+    resolved_by uuid
 );
 
 CREATE TABLE IF NOT EXISTS public.link_unlock_failures (
@@ -233,7 +258,9 @@ CREATE TABLE IF NOT EXISTS public.links (
     type text DEFAULT 'link'::text,
     layout_config jsonb DEFAULT '{"h": 1, "w": 1}'::jsonb,
     metadata jsonb DEFAULT '{}'::jsonb,
-    is_archived boolean DEFAULT false
+    is_archived boolean DEFAULT false,
+    disabled_at timestamp with time zone,
+    disabled_reason text
 );
 
 CREATE TABLE IF NOT EXISTS public.newsletter_subscribers (
@@ -389,9 +416,15 @@ ALTER TABLE ONLY public.clicks ADD CONSTRAINT clicks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'active'::text, 'failed'::text])));
 ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_target_type_check CHECK ((target_type = ANY (ARRAY['bio'::text, 'store'::text])));
+ALTER TABLE ONLY public.error_log ADD CONSTRAINT error_log_pkey PRIMARY KEY (fingerprint);
+ALTER TABLE ONLY public.error_log ADD CONSTRAINT error_log_source_check CHECK ((source = ANY (ARRAY['browser'::text, 'server'::text])));
 ALTER TABLE ONLY public.folders ADD CONSTRAINT folders_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.folders ADD CONSTRAINT folders_user_id_name_parent_id_key UNIQUE (user_id, name, parent_id);
 ALTER TABLE ONLY public.gallery_items ADD CONSTRAINT gallery_items_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.link_reports ADD CONSTRAINT link_reports_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.link_reports ADD CONSTRAINT link_reports_details_check CHECK ((length(details) <= 1000));
+ALTER TABLE ONLY public.link_reports ADD CONSTRAINT link_reports_reason_check CHECK ((reason = ANY (ARRAY['phishing'::text, 'malware'::text, 'spam'::text, 'scam'::text, 'adult'::text, 'other'::text])));
+ALTER TABLE ONLY public.link_reports ADD CONSTRAINT link_reports_status_check CHECK ((status = ANY (ARRAY['open'::text, 'dismissed'::text, 'actioned'::text])));
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_claim_token_key UNIQUE (claim_token);
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_short_code_key UNIQUE (short_code);
@@ -461,6 +494,105 @@ BEGIN
   DELETE FROM public.team_invites WHERE id = v_invite.id;
 
   RETURN v_invite.team_id;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.admin_link_reports()
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+    IF NOT public.is_platform_admin() THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+    RETURN json_build_object(
+        'open', (
+            SELECT coalesce(json_agg(x ORDER BY x.latest DESC), '[]'::json) FROM (
+                SELECT l.id AS "linkId", l.short_code AS "shortCode", l.title, l.original_url AS "originalUrl",
+                       l.clicks, l.is_guest AS "isGuest", l.created_at AS "linkCreatedAt",
+                       u.email AS "ownerEmail", l.disabled_at AS "disabledAt",
+                       count(r.*) AS reports, count(DISTINCT r.reporter) AS reporters,
+                       max(r.created_at) AS latest,
+                       json_agg(json_build_object('reason', r.reason, 'details', r.details, 'at', r.created_at)
+                                ORDER BY r.created_at DESC) AS items
+                FROM public.link_reports r
+                JOIN public.links l ON l.id = r.link_id
+                LEFT JOIN auth.users u ON u.id = l.user_id
+                WHERE r.status = 'open'
+                GROUP BY l.id, u.email
+            ) x
+        ),
+        'disabled', (
+            SELECT coalesce(json_agg(json_build_object(
+                       'linkId', l.id, 'shortCode', l.short_code, 'title', l.title,
+                       'originalUrl', l.original_url, 'disabledAt', l.disabled_at,
+                       'reason', l.disabled_reason) ORDER BY l.disabled_at DESC), '[]'::json)
+            FROM (SELECT * FROM public.links WHERE disabled_at IS NOT NULL ORDER BY disabled_at DESC LIMIT 200) l
+        )
+    );
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.admin_moderate_link(p_link_id uuid, p_action text, p_reason text DEFAULT NULL::text)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    code text;
+BEGIN
+    IF NOT public.is_platform_admin() THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+    IF p_action = 'disable' THEN
+        UPDATE public.links
+        SET disabled_at = coalesce(disabled_at, now()),
+            disabled_reason = left(coalesce(nullif(btrim(p_reason), ''), 'Reported for abuse'), 200)
+        WHERE id = p_link_id RETURNING short_code INTO code;
+        UPDATE public.link_reports SET status = 'actioned', resolved_at = now(), resolved_by = auth.uid()
+        WHERE link_id = p_link_id AND status = 'open';
+    ELSIF p_action = 'enable' THEN
+        UPDATE public.links SET disabled_at = NULL, disabled_reason = NULL
+        WHERE id = p_link_id RETURNING short_code INTO code;
+    ELSIF p_action = 'dismiss' THEN
+        UPDATE public.link_reports SET status = 'dismissed', resolved_at = now(), resolved_by = auth.uid()
+        WHERE link_id = p_link_id AND status = 'open';
+        SELECT short_code INTO code FROM public.links WHERE id = p_link_id;
+    ELSE
+        RAISE EXCEPTION 'Unknown action' USING ERRCODE = '22023';
+    END IF;
+    IF code IS NULL THEN
+        RAISE EXCEPTION 'Link not found' USING ERRCODE = 'P0002';
+    END IF;
+    RETURN code;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.admin_recent_errors(p_days integer DEFAULT 7)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+    IF NOT public.is_platform_admin() THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+    RETURN (
+        SELECT coalesce(json_agg(json_build_object(
+                   'fingerprint', fingerprint, 'source', source, 'message', message, 'stack', stack,
+                   'path', path, 'release', release, 'userAgent', user_agent, 'count', count,
+                   'firstSeen', first_seen, 'lastSeen', last_seen) ORDER BY last_seen DESC), '[]'::json)
+        FROM (SELECT * FROM public.error_log
+              WHERE last_seen > now() - make_interval(days => least(greatest(coalesce(p_days, 7), 1), 90))
+              ORDER BY last_seen DESC LIMIT 200) e
+    );
 END;
 $function$
 ;
@@ -576,6 +708,35 @@ AS $function$
     SELECT 1 FROM public.team_members
     WHERE team_id = team_uuid AND user_id = auth.uid() AND role IN ('owner', 'admin')
   );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.check_link_fields()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    v text;
+BEGIN
+    IF TG_OP = 'INSERT' OR NEW.original_url IS DISTINCT FROM OLD.original_url THEN
+        IF NEW.original_url IS NOT NULL AND NEW.original_url !~* '^widget://' THEN
+            v := public.normalize_web_url(NEW.original_url);
+            IF v IS NULL THEN
+                RAISE EXCEPTION 'Enter a web address, like https://example.com/page.'
+                    USING ERRCODE = '22023';
+            END IF;
+            NEW.original_url := v;
+        END IF;
+    END IF;
+    IF TG_OP = 'INSERT' OR NEW.short_code IS DISTINCT FROM OLD.short_code THEN
+        IF NEW.short_code IS NULL OR NEW.short_code !~ '^[A-Za-z0-9_-]{1,64}$' THEN
+            RAISE EXCEPTION 'Short codes can only use letters, numbers, hyphens and underscores (up to 64).'
+                USING ERRCODE = '22023';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
 $function$
 ;
 
@@ -759,10 +920,10 @@ DECLARE
 BEGIN
     INSERT INTO public.links (
         id, original_url, short_code, title, clicks, created_at,
-        is_guest, guest_session_id, claim_token, metadata
+        is_guest, guest_session_id, claim_token, expires_at, metadata
     ) VALUES (
         new_id, p_original_url, p_short_code, 'Guest Link', 0, now(),
-        true, p_guest_session_id, token,
+        true, p_guest_session_id, token, now() + interval '7 days',
         jsonb_build_object('guest_session_id', p_guest_session_id)
     );
     RETURN json_build_object('id', new_id, 'claim_token', token);
@@ -1781,6 +1942,27 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.guard_link_disabled()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+    IF current_user NOT IN ('anon', 'authenticated') OR public.is_platform_admin() THEN
+        RETURN NEW;
+    END IF;
+    IF TG_OP = 'INSERT' THEN
+        NEW.disabled_at := NULL;
+        NEW.disabled_reason := NULL;
+    ELSIF NEW.disabled_at IS DISTINCT FROM OLD.disabled_at
+       OR NEW.disabled_reason IS DISTINCT FROM OLD.disabled_reason THEN
+        RAISE EXCEPTION 'Only Gather staff can enable or disable a reported link.' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.guard_link_ownership()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1938,6 +2120,18 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.is_platform_admin()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT coalesce(auth.role(), '') = 'service_role'
+      OR EXISTS (SELECT 1 FROM public.profiles
+                 WHERE id = auth.uid() AND role::text IN ('admin', 'super_admin'));
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.is_team_member(team_uuid uuid)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -1965,6 +2159,25 @@ AS $function$
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.limit_link_creation_rate()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+    IF current_user NOT IN ('anon', 'authenticated') OR NEW.user_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF (SELECT count(*) FROM public.links
+        WHERE user_id = NEW.user_id AND created_at > now() - interval '1 hour') >= 200 THEN
+        RAISE EXCEPTION 'You have made 200 links in the last hour. Please wait a while before making more.'
+            USING ERRCODE = 'P0001';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.link_public_json(l public.links)
  RETURNS jsonb
  LANGUAGE sql
@@ -1978,15 +2191,52 @@ AS $function$
     ELSE s.base END
   FROM (
     SELECT
-      (to_jsonb(l) - 'password_hash' - 'claim_token' - 'guest_session_id' - 'ai_analysis')
+      (to_jsonb(l) - 'password_hash' - 'claim_token' - 'guest_session_id' - 'ai_analysis' - 'disabled_reason')
         || jsonb_build_object(
              'metadata', coalesce(l.metadata, '{}'::jsonb) - 'guest_email' - 'guest_session_id',
              'requires_password', coalesce(l.password_hash, '') <> '') AS base,
       (coalesce(l.password_hash, '') <> ''
+        OR l.disabled_at IS NOT NULL
         OR (l.expiration_date IS NOT NULL AND l.expiration_date < now())
         OR (l.start_date IS NOT NULL AND l.start_date > (extract(epoch FROM now()) * 1000)::bigint)
         OR (l.max_clicks IS NOT NULL AND coalesce(l.clicks, 0) >= l.max_clicks)) AS gated
   ) s;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.normalize_web_url(p_url text)
+ RETURNS text
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    s text := btrim(p_url);
+    found text;
+    host text;
+BEGIN
+    IF s IS NULL OR s = '' THEN
+        RETURN NULL;
+    END IF;
+    IF s ~* '^https?://' THEN
+        s := regexp_replace(s, '\s', '%20', 'g');
+    ELSE
+        found := substring(s from '(?i)https?://[^\s<>"'']+');
+        IF found IS NOT NULL THEN
+            s := found;
+        ELSE
+            host := substring(s from '^[^/?#]*');
+            IF s ~ '\s' OR host ~ '@' OR host !~ '[^.]\.[^.]' THEN
+                RETURN NULL;
+            END IF;
+            s := 'https://' || s;
+        END IF;
+    END IF;
+    IF s !~* '^https?://[^/?#\s]+' THEN
+        RETURN NULL;
+    END IF;
+    RETURN s;
+END;
 $function$
 ;
 
@@ -2211,6 +2461,24 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.record_error(p_fingerprint text, p_source text, p_message text, p_stack text, p_path text, p_release text, p_user_agent text)
+ RETURNS void
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+    INSERT INTO public.error_log AS e (fingerprint, source, message, stack, path, release, user_agent)
+    VALUES (left(p_fingerprint, 64), p_source, left(p_message, 1000), left(p_stack, 4000),
+            left(p_path, 300), left(p_release, 64), left(p_user_agent, 300))
+    ON CONFLICT (fingerprint) DO UPDATE
+    SET count = e.count + 1,
+        last_seen = now(),
+        path = EXCLUDED.path,
+        release = EXCLUDED.release,
+        user_agent = EXCLUDED.user_agent;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.strip_raw_ip_address()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2369,8 +2637,10 @@ CREATE INDEX idx_clicks_visitor_id ON public.clicks USING btree (visitor_id);
 CREATE UNIQUE INDEX domains_active_domain_key ON public.domains USING btree (lower(domain)) WHERE (status = 'active'::text);
 CREATE INDEX idx_domains_domain ON public.domains USING btree (domain);
 CREATE INDEX idx_domains_user_id ON public.domains USING btree (user_id);
+CREATE INDEX error_log_last_seen ON public.error_log USING btree (last_seen DESC);
 CREATE INDEX idx_gallery_items_sort_order ON public.gallery_items USING btree (sort_order);
 CREATE INDEX idx_gallery_items_user_id ON public.gallery_items USING btree (user_id);
+CREATE INDEX link_reports_open ON public.link_reports USING btree (link_id) WHERE (status = 'open'::text);
 CREATE INDEX link_unlock_failures_link_time ON public.link_unlock_failures USING btree (link_id, failed_at);
 CREATE INDEX idx_guest_links_expiry ON public.links USING btree (is_guest, expires_at) WHERE (is_guest = true);
 CREATE INDEX idx_links_claim_token ON public.links USING btree (claim_token) WHERE (claim_token IS NOT NULL);
@@ -2379,6 +2649,7 @@ CREATE INDEX idx_links_is_guest ON public.links USING btree (is_guest);
 CREATE INDEX idx_links_short_code ON public.links USING btree (short_code);
 CREATE INDEX idx_links_team_id ON public.links USING btree (team_id);
 CREATE INDEX idx_links_type ON public.links USING btree (type);
+CREATE INDEX idx_links_user_created ON public.links USING btree (user_id, created_at);
 CREATE INDEX idx_links_user_id ON public.links USING btree (user_id);
 CREATE INDEX idx_newsletter_user_id ON public.newsletter_subscribers USING btree (user_id);
 CREATE INDEX idx_products_category ON public.products USING btree (category);
@@ -2409,6 +2680,8 @@ ALTER TABLE ONLY public.domains ADD CONSTRAINT domains_user_id_fkey FOREIGN KEY 
 ALTER TABLE ONLY public.folders ADD CONSTRAINT folders_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.folders(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.folders ADD CONSTRAINT folders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.gallery_items ADD CONSTRAINT gallery_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.link_reports ADD CONSTRAINT link_reports_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.links(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.link_reports ADD CONSTRAINT link_reports_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.link_unlock_failures ADD CONSTRAINT link_unlock_failures_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.links(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folders(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.links ADD CONSTRAINT links_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE SET NULL;
@@ -2433,9 +2706,12 @@ CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXEC
 CREATE TRIGGER count_click_in_rollups AFTER INSERT ON public.click_events FOR EACH ROW EXECUTE FUNCTION public.count_click_in_rollups();
 CREATE TRIGGER strip_raw_ip_address BEFORE INSERT OR UPDATE ON public.clicks FOR EACH ROW EXECUTE FUNCTION public.strip_raw_ip_address();
 CREATE TRIGGER protect_domain_verification_columns BEFORE INSERT OR UPDATE ON public.domains FOR EACH ROW EXECUTE FUNCTION public.protect_domain_verification_columns();
+CREATE TRIGGER check_link_fields BEFORE INSERT OR UPDATE OF original_url, short_code ON public.links FOR EACH ROW EXECUTE FUNCTION public.check_link_fields();
 CREATE TRIGGER enforce_free_link_limit BEFORE INSERT ON public.links FOR EACH ROW EXECUTE FUNCTION public.enforce_free_link_limit();
+CREATE TRIGGER guard_link_disabled BEFORE INSERT OR UPDATE OF disabled_at, disabled_reason ON public.links FOR EACH ROW EXECUTE FUNCTION public.guard_link_disabled();
 CREATE TRIGGER guard_link_ownership BEFORE UPDATE OF user_id, team_id ON public.links FOR EACH ROW EXECUTE FUNCTION public.guard_link_ownership();
 CREATE TRIGGER hash_link_password BEFORE INSERT OR UPDATE OF password_hash ON public.links FOR EACH ROW EXECUTE FUNCTION public.hash_link_password();
+CREATE TRIGGER limit_link_creation_rate BEFORE INSERT ON public.links FOR EACH ROW EXECUTE FUNCTION public.limit_link_creation_rate();
 CREATE TRIGGER fill_product_url_from_link BEFORE INSERT OR UPDATE OF original_url, link_id ON public.products FOR EACH ROW EXECUTE FUNCTION public.fill_product_url_from_link();
 CREATE TRIGGER protect_profile_privileged_columns BEFORE INSERT OR UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.protect_profile_privileged_columns();
 CREATE TRIGGER guard_team_owner_change BEFORE UPDATE OF owner_id ON public.teams FOR EACH ROW EXECUTE FUNCTION public.guard_team_owner_change();
@@ -2454,8 +2730,10 @@ ALTER TABLE public.click_rollups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.click_visitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clicks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.domains ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.error_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gallery_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.link_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.link_unlock_failures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
@@ -2717,8 +2995,10 @@ REVOKE ALL ON TABLE public.click_stats_daily FROM anon, authenticated, service_r
 REVOKE ALL ON TABLE public.click_visitors FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.clicks FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.domains FROM anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.error_log FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.folders FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.gallery_items FROM anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.link_reports FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.link_unlock_failures FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.links FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.newsletter_subscribers FROM anon, authenticated, service_role;
@@ -2768,12 +3048,14 @@ GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE p
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.domains TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.domains TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.domains TO service_role;
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.error_log TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.folders TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.folders TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.folders TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gallery_items TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gallery_items TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gallery_items TO service_role;
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.link_reports TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.link_unlock_failures TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.links TO anon;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.links TO authenticated;
@@ -2809,10 +3091,14 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.tech_vault_items TO authenticated;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.tech_vault_items TO service_role;
 REVOKE ALL ON FUNCTION public.accept_team_invite(p_token text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_link_reports() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_moderate_link(p_link_id uuid, p_action text, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_recent_errors(p_days integer) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.aggregate_daily_stats(target_date date) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.backfill_click_rollups(p_month date) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.can_edit_team(team_uuid uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.can_manage_team(team_uuid uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.check_link_fields() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.click_rollup_rows(ce public.click_events) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.count_click_in_rollups() FROM PUBLIC, anon, authenticated, service_role;
@@ -2844,6 +3130,7 @@ REVOKE ALL ON FUNCTION public.get_user_device_model_breakdown(p_user_id uuid) FR
 REVOKE ALL ON FUNCTION public.get_user_os_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.get_user_top_links(p_days integer, p_spark_days integer) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.guard_link_disabled() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.guard_link_ownership() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.guard_team_owner_change() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated, service_role;
@@ -2852,14 +3139,18 @@ REVOKE ALL ON FUNCTION public.increment_bio_view(profile_id uuid) FROM PUBLIC, a
 REVOKE ALL ON FUNCTION public.increment_bio_views(profile_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.increment_clicks(link_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.is_platform_admin() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.is_team_member(team_uuid uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.is_username_taken(p_username text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.limit_link_creation_rate() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.link_public_json(l public.links) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.normalize_web_url(p_url text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.protect_domain_verification_columns() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.protect_profile_privileged_columns() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.rebuild_click_rollups(p_batch integer) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.rebuild_link_rollups(p_link_id uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.record_error(p_fingerprint text, p_source text, p_message text, p_stack text, p_path text, p_release text, p_user_agent text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.strip_raw_ip_address() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.unlock_link_checked(p_short_code text, p_password text, p_visitor text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.update_guest_link_metadata(p_link_id uuid, p_email text, p_session_id text) FROM PUBLIC, anon, authenticated, service_role;
@@ -2867,6 +3158,12 @@ REVOKE ALL ON FUNCTION public.update_tech_vault_updated_at() FROM PUBLIC, anon, 
 REVOKE ALL ON FUNCTION public.user_rollup_breakdown(p_user_id uuid, p_dim text, p_limit integer) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.accept_team_invite(p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_team_invite(p_token text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.admin_link_reports() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_link_reports() TO service_role;
+GRANT EXECUTE ON FUNCTION public.admin_moderate_link(p_link_id uuid, p_action text, p_reason text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_moderate_link(p_link_id uuid, p_action text, p_reason text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.admin_recent_errors(p_days integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_recent_errors(p_days integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO anon;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO authenticated;
@@ -2877,6 +3174,7 @@ GRANT EXECUTE ON FUNCTION public.can_edit_team(team_uuid uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_edit_team(team_uuid uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.can_manage_team(team_uuid uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_manage_team(team_uuid uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.check_link_fields() TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_guest_link(p_claim_token uuid, p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.click_rollup_rows(ce public.click_events) TO service_role;
@@ -2947,6 +3245,7 @@ GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO 
 GRANT EXECUTE ON FUNCTION public.get_user_referrer_breakdown(p_user_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_user_top_links(p_days integer, p_spark_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_top_links(p_days integer, p_spark_days integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.guard_link_disabled() TO service_role;
 GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO anon;
 GRANT EXECUTE ON FUNCTION public.guard_link_ownership() TO authenticated;
@@ -2961,6 +3260,8 @@ GRANT EXECUTE ON FUNCTION public.increment_bio_view(profile_id uuid) TO service_
 GRANT EXECUTE ON FUNCTION public.increment_bio_views(profile_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.increment_clicks(link_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.increment_link_clicks(link_id uuid, clicked_at timestamp with time zone) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_platform_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_platform_admin() TO service_role;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO authenticated;
@@ -2968,7 +3269,11 @@ GRANT EXECUTE ON FUNCTION public.is_team_member(team_uuid uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.is_username_taken(p_username text) TO anon;
 GRANT EXECUTE ON FUNCTION public.is_username_taken(p_username text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_username_taken(p_username text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.limit_link_creation_rate() TO service_role;
 GRANT EXECUTE ON FUNCTION public.link_public_json(l public.links) TO service_role;
+GRANT EXECUTE ON FUNCTION public.normalize_web_url(p_url text) TO anon;
+GRANT EXECUTE ON FUNCTION public.normalize_web_url(p_url text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.normalize_web_url(p_url text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.protect_domain_verification_columns() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.protect_domain_verification_columns() TO anon;
 GRANT EXECUTE ON FUNCTION public.protect_domain_verification_columns() TO authenticated;
@@ -2980,6 +3285,7 @@ GRANT EXECUTE ON FUNCTION public.protect_profile_privileged_columns() TO service
 GRANT EXECUTE ON FUNCTION public.rebuild_click_rollups(p_batch integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.rebuild_link_rollups(p_link_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_click(p_link_id uuid, p_click_data jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.record_error(p_fingerprint text, p_source text, p_message text, p_stack text, p_path text, p_release text, p_user_agent text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO anon;
 GRANT EXECUTE ON FUNCTION public.strip_raw_ip_address() TO authenticated;
