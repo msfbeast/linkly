@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Calculator, Save, Upload, Image as ImageIcon, Trash2, Camera, Sliders, Info, RefreshCw, Check, Copy, Download } from 'lucide-react';
+import { X, Sparkles, Link as LinkIcon, Loader2, Wand2, Smartphone, Globe, Layers, Trash, Lock, ChevronDown, ChevronUp, Split, Calendar, Tag, AlertCircle, Upload, Image as ImageIcon, Trash2, Sliders, Info, RefreshCw, Check, Copy } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import UTMBuilderModal from './UTMBuilderModal';
 import { analyzeUrlWithGemini, GeminiAnalysisResult, generateLinkMetadata } from '../services/geminiService';
@@ -16,6 +16,18 @@ import { COUNTRY_NAMES } from '../utils/constants';
 import exifr from 'exifr';
 import { extractDriveFolderId, fetchDriveFolderImages } from '../services/googleDriveService';
 import { FEATURES } from '../utils/featureFlags';
+import { newShortCode } from '../utils/shortCode';
+
+/** Most links one bulk paste creates. */
+export const MAX_BULK_LINKS = 50;
+const SAMPLE_CSV = 'url,slug,title,tags\nhttps://www.amazon.in/dp/B0EXAMPLE,earbuds,Best earbuds under 2000,deals|audio\nhttps://example.com/article,,My article,\n';
+const SAMPLE_CSV_HREF = `data:text/csv;charset=utf-8,${encodeURIComponent(SAMPLE_CSV)}`;
+
+/** The address people see and share, without the protocol. */
+export function shortLinkLabel(link: Pick<LinkData, 'domain' | 'shortCode'>, origin = window.location.origin): string {
+  const domain = link.domain || 'links.trak.in';
+  return domain === 'links.trak.in' ? `${origin.replace(/^https?:\/\//, '')}/r/${link.shortCode}` : `${domain}/${link.shortCode}`;
+}
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -45,91 +57,51 @@ const SuccessView: React.FC<{ links: LinkData[]; onClose: () => void }> = ({ lin
   const isSingle = links.length === 1;
 
   return (
-    <div className="flex flex-col items-center justify-center py-6 text-center animate-fadeIn space-y-6">
-      <div className="relative">
-        <div className="absolute inset-0 bg-emerald-100 rounded-full scale-150 animate-ping opacity-25" />
-        <div className="w-20 h-20 bg-gradient-to-tr from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white relative shadow-lg shadow-emerald-500/20">
-          <Check className="w-10 h-10" />
-        </div>
+    <div className="flex flex-col items-center py-4 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#FF5A14] text-white">
+        <Check className="h-6 w-6" />
       </div>
+      <h3 className="text-[22px] font-medium tracking-tight text-[#18181A]">
+        {isSingle ? 'Link ready' : `${links.length} links ready`}
+      </h3>
+      <p className="mt-1 text-[13px] text-[#8C8981]">
+        {isSingle ? 'Copied to your clipboard.' : 'The first one is copied to your clipboard.'}
+      </p>
 
-      <div>
-        <h3 className="text-2xl font-display font-extrabold text-slate-900 leading-tight">
-          {isSingle ? 'Link Created Successfully!' : `${links.length} Links Created Successfully!`}
-        </h3>
-        <p className="text-sm text-stone-500 mt-2 max-w-sm mx-auto">
-          {isSingle 
-            ? 'Your short link has been generated and auto-copied to your clipboard.' 
-            : 'Your short links have been generated, and the first link has been copied to your clipboard.'}
-        </p>
-      </div>
-
-      <div className="w-full max-w-md bg-stone-50 border border-stone-100 rounded-2xl p-5 space-y-4">
+      <div className="mt-6 w-full max-w-md text-left">
         {isSingle ? (
-          <div className="space-y-4">
-            <div className="text-left space-y-1">
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Destination</span>
-              <p className="text-sm font-medium text-slate-700 truncate">{links[0].originalUrl}</p>
-            </div>
-            
-            <div className="flex items-center bg-white border border-stone-200 rounded-xl pl-4 pr-2 py-2 shadow-sm transition-colors focus-within:border-amber-400">
-              <span className="text-stone-400 font-mono text-sm select-none">{links[0].domain || 'links.trak.in'}/</span>
-              <span className="text-slate-900 font-mono text-sm font-bold truncate flex-1 ml-0.5">{links[0].shortCode}</span>
+          <>
+            <div className="flex items-center gap-2 rounded-2xl bg-[#18181A] py-2 pl-4 pr-2 text-white">
+              <span className="min-w-0 flex-1 truncate font-mono text-[14px]">{shortLinkLabel(links[0])}</span>
               <button
                 onClick={() => handleCopy(links[0], 0)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                  copiedIndex === 0 
-                    ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/10' 
-                    : 'bg-stone-100 hover:bg-stone-200 text-slate-700 active:scale-95'
-                }`}
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium ${copiedIndex === 0 ? 'bg-[#FF5A14] text-white' : 'bg-[#2A2A2D] text-[#F2F1EE] hover:bg-[#333336]'}`}
               >
-                {copiedIndex === 0 ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
-                  </>
-                )}
+                {copiedIndex === 0 ? <><Check className="h-3.5 w-3.5" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
               </button>
             </div>
-
-            <div className="pt-2 flex flex-col items-center justify-center space-y-3">
-              <div className="bg-white p-3 rounded-2xl border border-stone-100 shadow-inner">
-                <QRCodeCanvas
-                  value={getFullShortUrl(links[0])}
-                  size={140}
-                  level="H"
-                  bgColor="#ffffff"
-                  fgColor="#0f172a"
-                />
+            <p className="mt-2 truncate px-1 font-mono text-[11px] text-[#A19E97]">→ {links[0].originalUrl}</p>
+            <div className="mt-5 flex flex-col items-center gap-2">
+              <div className="rounded-2xl bg-white p-3">
+                <QRCodeCanvas value={getFullShortUrl(links[0])} size={132} level="H" bgColor="#ffffff" fgColor="#18181A" />
               </div>
-              <span className="text-[10px] text-stone-400 font-medium">Scan to visit on mobile device</span>
+              <span className="text-[11px] text-[#A19E97]">Scan to open on a phone</span>
             </div>
-          </div>
+          </>
         ) : (
-          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+          <div className="grid max-h-72 gap-1.5 overflow-y-auto pr-1">
             {links.map((link, idx) => (
-              <div key={link.id} className="flex items-center justify-between p-3 bg-white border border-stone-150 rounded-xl text-left shadow-sm gap-4">
+              <div key={link.id} className="flex items-center gap-3 rounded-xl bg-[#F3F2EF] px-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900">
-                    <span className="text-stone-400">{link.domain || 'links.trak.in'}/</span>
-                    <span className="truncate">{link.shortCode}</span>
-                  </div>
-                  <p className="text-[10px] text-stone-400 truncate mt-0.5">{link.originalUrl}</p>
+                  <div className="truncate font-mono text-[12px] text-[#18181A]">{shortLinkLabel(link)}</div>
+                  <p className="mt-0.5 truncate text-[11px] text-[#A19E97]">{link.originalUrl}</p>
                 </div>
                 <button
                   onClick={() => handleCopy(link, idx)}
-                  className={`p-2 rounded-lg transition-all flex-shrink-0 active:scale-95 ${
-                    copiedIndex === idx
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'text-stone-400 hover:text-slate-900 hover:bg-stone-100'
-                  }`}
+                  aria-label={`Copy ${shortLinkLabel(link)}`}
+                  className={`shrink-0 rounded-full p-2 ${copiedIndex === idx ? 'bg-[#FF5A14] text-white' : 'text-[#8C8981] hover:bg-[#E6E3DD] hover:text-[#18181A]'}`}
                 >
-                  {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiedIndex === idx ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </button>
               </div>
             ))}
@@ -137,14 +109,9 @@ const SuccessView: React.FC<{ links: LinkData[]; onClose: () => void }> = ({ lin
         )}
       </div>
 
-      <div className="pt-4 w-full max-w-md">
-        <button
-          onClick={onClose}
-          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-slate-900/10 active:scale-[0.98]"
-        >
-          All Done
-        </button>
-      </div>
+      <button onClick={onClose} className="mt-6 w-full max-w-md rounded-full bg-[#18181A] py-3 text-[14px] font-medium text-white hover:opacity-90">
+        Done
+      </button>
     </div>
   );
 };
@@ -455,7 +422,9 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url || !slug) return;
+    if (!url) return;
+    // No code typed: pick a random one, like bulk and CSV links get.
+    const code = slug.trim() || (editingLink ? editingLink.shortCode : newShortCode());
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -478,7 +447,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
     const commonData = {
       originalUrl: cleanUrl,
-      shortCode: slug,
+      shortCode: code,
       title: title || cleanUrl,
       description: description,
       type: linkType,
@@ -556,6 +525,10 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
   const handleBulkSubmit = async () => {
     const urls = bulkUrls.split('\n').filter(u => u.trim().length > 0);
+    if (urls.length > MAX_BULK_LINKS) {
+      setSubmitError(`Paste up to ${MAX_BULK_LINKS} links at a time; this has ${urls.length}.`);
+      return;
+    }
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -576,7 +549,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           return {
             id: uuidv4(),
             originalUrl: cleanUrl,
-            shortCode: Math.random().toString(36).substring(2, 8),
+            shortCode: newShortCode(),
             title: u.trim(),
             description: 'Bulk created link',
             tags: ['bulk'],
@@ -666,7 +639,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
             id: uuidv4(),
             userId: user.id, // Inject User ID
             originalUrl: cleanUrl,
-            shortCode: slug || uuidv4().slice(0, 8),
+            shortCode: slug || newShortCode(),
             title: title,
             tags: tags,
             clicks: 0,
@@ -746,14 +719,14 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-[#18181A]/50 backdrop-blur-sm transition-opacity"
         />
 
         <motion.div
           initial={{ opacity: 0, y: 100, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 100, scale: 0.95 }}
-          className="relative w-full max-w-2xl transform overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white text-left shadow-xl transition-all h-[90vh] sm:h-auto sm:max-h-[90vh] flex flex-col"
+          className="relative flex h-[90vh] w-full max-w-2xl transform flex-col overflow-hidden rounded-t-3xl bg-[#FBFAF8] text-left text-[#18181A] shadow-2xl transition-all sm:h-auto sm:max-h-[90vh] sm:rounded-3xl"
         >
           {createdLinksSuccess.length > 0 ? (
             <div className="flex-1 overflow-y-auto p-6 flex flex-col justify-center">
@@ -762,75 +735,41 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
           ) : (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-100 bg-white sticky top-0 z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
-                    <LinkIcon className="w-5 h-5 text-slate-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-display font-bold text-slate-900">
-                      {editingLink ? 'Edit Link' : 'Create New Link'}
-                    </h3>
-                    <p className="text-xs text-stone-500">
-                      {mode === 'single' ? 'Shorten a single URL' : 'Batch create multiple links'}
-                    </p>
-                  </div>
+              <div className="sticky top-0 z-10 flex items-center justify-between bg-[#FBFAF8] px-5 pb-2 pt-5 sm:px-7 sm:pt-6">
+                <div>
+                  <h3 className="text-[22px] font-medium tracking-tight">{editingLink ? 'Edit link' : 'New link'}</h3>
+                  <p className="text-[12px] text-[#8C8981]">
+                    {editingLink ? `/${editingLink.shortCode}` : mode === 'single' ? 'Paste a long address, get a short one.' : mode === 'bulk' ? `Up to ${MAX_BULK_LINKS} addresses, one per line.` : 'Upload a CSV of addresses.'}
+                  </p>
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-full hover:bg-stone-100 transition-colors"
-                >
-                  <X className="w-5 h-5 text-stone-400" />
+                <button onClick={onClose} aria-label="Close" className="rounded-full p-2 text-[#8C8981] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]">
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+              <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-6 pt-3 sm:px-7">
                 {submitError && (
-                  <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-sm animate-fadeIn">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <div className="text-left">
-                      <h5 className="font-bold">Error Creating Link</h5>
-                      <p>{submitError}</p>
-                    </div>
+                  <div role="alert" className="flex items-start gap-2.5 rounded-2xl bg-[#FDECEA] p-4 text-[13px] text-[#B42318]">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <p>{submitError}</p>
                   </div>
                 )}
 
             {/* Tabs - Only show in Create Mode */}
             {!editingLink && (
-              <div className="flex border-b border-stone-100 bg-[#FDFBF7]/30">
-                <div className="flex p-1 bg-stone-100 rounded-xl w-full">
+              <div role="group" aria-label="How many links" className="flex gap-1 rounded-full bg-[#F0EEEA] p-1">
+                {([['single', 'One link'], ['bulk', 'Many links'], ['csv', 'CSV file']] as const).map(([m, name]) => (
                   <button
+                    key={m}
                     type="button"
-                    onClick={() => setMode('single')}
-                    className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'single'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'
-                      }`}
+                    onClick={() => setMode(m)}
+                    aria-pressed={mode === m}
+                    className={`flex-1 rounded-full py-2 text-[13px] transition-colors ${mode === m ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}
                   >
-                    Single Link
+                    {name}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode('bulk')}
-                    className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'bulk'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'
-                      }`}
-                  >
-                    Bulk Create
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode('csv')}
-                    className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'csv'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'
-                      }`}
-                  >
-                    Import CSV
-                  </button>
-                </div>
+                ))}
               </div>
             )}
 
@@ -838,15 +777,15 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
               <>
                 {/* Link Type Selector */}
                 {(FEATURES.MEDIA_GALLERY || linkType === 'gallery') && (<div className="mb-6">
-                  <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Link Type</label>
-                  <div className="flex gap-4 p-1 bg-stone-100 rounded-xl">
+                  <label className="mb-1.5 block text-[12px] text-[#8C8981]">Link Type</label>
+                  <div className="flex gap-1 rounded-full bg-[#F0EEEA] p-1">
                     <button
                       type="button"
                       onClick={() => setLinkType('link')}
                       className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
                         linkType === 'link'
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-stone-500 hover:text-stone-900'
+                          ? 'bg-[#18181A] text-white'
+                          : 'text-[#8C8981] hover:text-[#18181A]'
                       }`}
                     >
                       🔗 Redirect Link
@@ -856,8 +795,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       onClick={() => setLinkType('gallery')}
                       className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
                         linkType === 'gallery'
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-stone-500 hover:text-stone-900'
+                          ? 'bg-[#18181A] text-white'
+                          : 'text-[#8C8981] hover:text-[#18181A]'
                       }`}
                     >
                       🖼️ Media Gallery
@@ -867,24 +806,24 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
                 {/* URL Input */}
                 <div className="mb-8">
-                  <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">
+                  <label className="mb-1.5 block text-[12px] text-[#8C8981]">
                     {linkType === 'gallery' ? 'Original RAW Folder URL (e.g. Google Drive)' : 'Destination URL'}
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
                     <div className="relative flex-1">
                       <input
                         type="url"
                         placeholder={linkType === 'gallery' ? 'https://drive.google.com/drive/folders/...' : 'https://example.com/my-long-url'}
-                        className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-4 rounded-xl pl-12 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
+                        className="w-full bg-[#F0EEEA] border border-transparent text-[#18181A] p-4 rounded-2xl pl-12 focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 transition-all shadow-sm"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         required
                       />
-                      <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                      <LinkIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#A19E97]" />
                       <button
                         type="button"
                         onClick={() => setShowUTMBuilder(true)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-stone-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[#8C8981] hover:text-[#FF5A14] hover:bg-[#FBFAF8] rounded-lg transition-colors"
                         title="UTM Builder"
                       >
                         <Tag className="w-4 h-4" />
@@ -894,96 +833,28 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       type="button"
                       onClick={handleAnalyze}
                       disabled={!url || isAnalyzing}
-                      className="ai-mode-button group disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{
-                        '--btn-bg': '#2c303d',
-                        '--btn-text': '#e8e8e8',
-                        '--gradient-green': '#34a853',
-                        '--gradient-yellow': '#ffd314',
-                        '--gradient-red': '#ff4641',
-                        '--gradient-blue': '#3186ff',
-                        background: 'var(--btn-bg)',
-                        border: 'none',
-                        borderRadius: '0.75rem',
-                        cursor: url && !isAnalyzing ? 'pointer' : 'not-allowed',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        height: 'auto',
-                        padding: '0 1.25em',
-                        position: 'relative',
-                        color: 'var(--btn-text)',
-                        overflow: 'visible',
-                        transition: 'transform 0.15s ease',
-                        minWidth: '160px',
-                        alignSelf: 'stretch',
-                      } as React.CSSProperties}
+                      className="flex min-h-[44px] min-w-[132px] items-center justify-center gap-2 self-stretch rounded-2xl bg-[#18181A] px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Fill in the title, description and a short code from the page"
                     >
-                      {/* Outer glow border */}
-                      <span
-                        className="absolute inset-0 rounded-xl border border-white/20 bg-white/5 opacity-40 group-hover:opacity-0 transition-opacity duration-400"
-                      />
-
-                      {/* Blur layer */}
-                      <span className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none opacity-35 blur-[3px]">
-                        <span
-                          className="absolute inset-0 h-[200%] -top-1/2 opacity-0 group-hover:opacity-100 group-hover:animate-[rotate-gradient_2s_linear_infinite] transition-opacity duration-400"
-                          style={{
-                            background: 'conic-gradient(rgba(49,134,255,0) 0deg, #34a853 43deg, #ffd314 65deg, #ff4641 105deg, #3186ff 144deg, #3186ff 180deg, rgba(49,134,255,0) 324deg, rgba(49,134,255,0) 360deg)',
-                            transform: 'rotate(180deg)',
-                            scale: '2 1',
-                          }}
-                        />
-                      </span>
-
-                      {/* Gradient layer */}
-                      <span className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
-                        <span
-                          className="absolute inset-0 h-[200%] -top-1/2 opacity-0 group-hover:opacity-100 group-hover:animate-[rotate-gradient_2s_linear_infinite] transition-opacity duration-400"
-                          style={{
-                            background: 'conic-gradient(rgba(49,134,255,0) 0deg, #34a853 43deg, #ffd314 65deg, #ff4641 105deg, #3186ff 144deg, #3186ff 180deg, rgba(49,134,255,0) 324deg, rgba(49,134,255,0) 360deg)',
-                            transform: 'rotate(180deg)',
-                            scale: '2 1',
-                          }}
-                        />
-                      </span>
-
-                      {/* Inner background */}
-                      <span
-                        className="absolute rounded-[0.65rem] bg-[#2c303d] group-hover:blur-[3px] transition-[filter] duration-1000"
-                        style={{ inset: '2px' }}
-                      />
-
                       {/* Button content */}
-                      <span className="relative z-10 flex items-center gap-2 justify-center">
-                        {isAnalyzing ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Sparkles className="w-4 h-4" />
-                            <span>Auto-Fill with AI</span>
-                          </>
-                        )}
-                      </span>
+                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Sparkles className="h-4 w-4 text-[#FF9B6A]" /> Fill with AI</>}
                     </button>
                   </div>
                 </div>
 
                 {/* AI Analysis Result */}
                 {analysis && (
-                  <div className="mb-8 bg-amber-50 rounded-2xl p-5 border border-amber-100 animate-fadeIn relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <Wand2 className="w-24 h-24 text-amber-500" />
-                    </div>
-                    <div className="flex items-center gap-2 mb-3 text-amber-700 relative z-10">
+                  <div className="relative mb-6 overflow-hidden rounded-2xl bg-[#F3F2EF] p-5">
+                    <div className="mb-2 flex items-center gap-2 text-[12px] text-[#8C8981]">
                       <Wand2 className="w-4 h-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Gemini Insights</span>
+                      <span>Filled in from the page</span>
                     </div>
-                    <h3 className="text-slate-900 font-bold text-lg mb-1 relative z-10">{analysis.title}</h3>
-                    <p className="text-stone-600 text-sm leading-relaxed relative z-10">{analysis.description}</p>
+                    <h3 className="mb-1 text-[16px] font-medium">{analysis.title}</h3>
+                    <p className="text-[13px] leading-relaxed text-[#5F5C56]">{analysis.description}</p>
 
-                    <div className="flex gap-2 mt-4 relative z-10">
+                    <div className="mt-3 flex gap-1.5">
                       {(analysis.tags || []).slice(0, 3).map(tag => (
-                        <span key={tag} className="text-[10px] uppercase font-bold bg-white text-amber-700 px-2 py-1 rounded border border-amber-200">#{tag}</span>
+                        <span key={tag} className="rounded-md bg-[#FBFAF8] px-2 py-0.5 font-mono text-[11px] text-[#8C8981]">#{tag}</span>
                       ))}
                     </div>
                   </div>
@@ -991,34 +862,33 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
                 <form onSubmit={handleSingleSubmit}>
                   <div className="mb-8">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Short Link (Slug)</label>
-                    <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-0 py-0 focus-within:ring-2 focus-within:ring-amber-500/20 focus:border-amber-500 transition-all overflow-hidden relative">
+                    <label htmlFor="link-slug" className="mb-1.5 block text-[12px] text-[#8C8981]">Short code <span className="text-[#A19E97]">· optional, random if empty</span></label>
+                    <div className="flex items-center bg-[#F0EEEA] rounded-2xl px-0 py-0 focus-within:ring-2 focus-within:ring-[#FF5A14]/30 transition-all overflow-hidden relative">
                       {domains.length > 0 ? (
-                        <div className="relative border-r border-stone-200 bg-stone-100/50 h-full flex items-center">
+                        <div className="relative border-r border-[#E2DFD8] h-full flex items-center">
                           <select
                             value={selectedDomain}
                             onChange={(e) => setSelectedDomain(e.target.value)}
-                            className="appearance-none bg-transparent pl-3 pr-8 py-3 text-stone-600 font-mono text-sm font-medium focus:outline-none cursor-pointer hover:bg-stone-200/50 transition-colors h-full"
+                            className="h-full cursor-pointer appearance-none bg-transparent py-3 pl-4 pr-8 font-mono text-sm text-[#5F5C56] focus:outline-none"
                           >
                             <option value="links.trak.in">links.trak.in</option>
                             {domains.map(d => (
                               <option key={d.id} value={d.domain}>{d.domain}</option>
                             ))}
                           </select>
-                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-stone-400 pointer-events-none" />
+                          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[#A19E97]" />
                         </div>
                       ) : (
-                        <span className="text-stone-500 font-mono text-sm pl-4 pr-3 py-3 border-r border-stone-200 bg-stone-100/50">links.trak.in/</span>
+                        <span className="border-r border-[#E2DFD8] py-3 pl-4 pr-3 font-mono text-sm text-[#8C8981]">links.trak.in</span>
                       )}
 
-                      {selectedDomain !== 'links.trak.in' && (
-                        <span className="text-stone-400 font-mono text-sm pl-2 py-3 select-none">/</span>
-                      )}
+                      <span className="select-none py-3 pl-2 font-mono text-sm text-[#A19E97]">{selectedDomain === 'links.trak.in' ? '/r/' : '/'}</span>
 
                       <input
                         type="text"
-                        placeholder="custom-slug"
-                        className="bg-transparent border-none text-slate-900 p-2.5 w-full focus:outline-none focus:ring-0 font-medium placeholder:text-stone-400"
+                        id="link-slug"
+                        placeholder={editingLink ? editingLink.shortCode : 'random'}
+                        className="w-full border-none bg-transparent p-2.5 font-mono text-sm text-[#18181A] placeholder:text-[#A19E97] focus:outline-none focus:ring-0"
                         value={slug}
                         onChange={(e) => setSlug(e.target.value)}
                       />
@@ -1028,12 +898,12 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                   {/* Title and Description */}
                   <div className="space-y-4 mb-8">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Title</label>
+                      <label className="mb-1.5 block text-[12px] text-[#8C8981]">Title</label>
                       <div className="relative">
                         <input
                           type="text"
                           placeholder="My Awesome Link"
-                          className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium pr-10"
+                          className="w-full bg-[#F0EEEA] border border-transparent text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 transition-all font-medium pr-10"
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
                         />
@@ -1048,7 +918,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                             setIsGeneratingTitle(false);
                           }}
                           disabled={!url || isGeneratingTitle}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-[#FF5A14] hover:bg-[#FBFAF8] rounded-lg transition-colors disabled:opacity-50"
                           title="Magic Wand: Generate Smart Title & Summary"
                         >
                           {isGeneratingTitle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
@@ -1056,11 +926,11 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Description</label>
+                      <label className="mb-1.5 block text-[12px] text-[#8C8981]">Description</label>
                       <textarea
                         placeholder="Optional description for your link..."
                         rows={2}
-                        className="w-full bg-stone-50 border border-stone-200 text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all text-sm"
+                        className="w-full bg-[#F0EEEA] border border-transparent text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 transition-all text-sm"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                       />
@@ -1070,7 +940,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                   {/* Tags and Folder */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Tags</label>
+                      <label className="mb-1.5 block text-[12px] text-[#8C8981]">Tags</label>
                       <TagInput
                         userId={user?.id || ''}
                         selectedTags={tags}
@@ -1078,11 +948,11 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Folder</label>
+                      <label className="mb-1.5 block text-[12px] text-[#8C8981]">Folder</label>
                       <select
                         value={folderId || ''}
                         onChange={(e) => setFolderId(e.target.value || null)}
-                        className="w-full bg-stone-50 border border-stone-200 text-slate-900 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                        className="w-full bg-[#F0EEEA] border border-transparent text-[#18181A] rounded-xl p-2.5 focus:outline-none focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30"
                       >
                         <option value="">No Folder</option>
                         {folders.map(folder => (
@@ -1190,8 +1060,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       </div>
 
                       {/* Before / After Configuration */}
-                      <div className="border-t border-stone-200/60 pt-4 space-y-3">
-                        <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                      <div className="border-t border-[#E2DFD8]/60 pt-4 space-y-3">
+                        <h4 className="text-[13px] font-medium text-[#18181A] flex items-center gap-2">
                           <Sliders className="w-4 h-4 text-amber-500" /> Before / After Compare Slider
                         </h4>
                         
@@ -1255,8 +1125,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                       </div>
 
                       {/* Sponsor & Custom Products Ads */}
-                      <div className="border-t border-stone-200/60 pt-4 space-y-4">
-                        <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                      <div className="border-t border-[#E2DFD8]/60 pt-4 space-y-4">
+                        <h4 className="text-[13px] font-medium text-[#18181A] flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-amber-500" /> Monetization Settings
                         </h4>
 
@@ -1366,50 +1236,51 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="w-full flex items-center justify-between text-stone-600 text-sm font-bold mb-4 p-4 bg-stone-50 rounded-xl hover:bg-stone-100 transition-colors border border-stone-200"
+                    aria-expanded={showAdvanced}
+                    className="mb-4 flex w-full items-center justify-between rounded-2xl bg-[#F0EEEA] p-4 text-[13px] text-[#18181A] transition-colors hover:bg-[#E6E3DD]"
                   >
                     <span className="flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-amber-500" />
-                      Advanced Options
+                      <Layers className="h-4 w-4 text-[#FF5A14]" />
+                      More options <span className="text-[#A19E97]">· device and country targets, dates, limits, password</span>
                     </span>
                     {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
 
                   {showAdvanced && (
-                    <div className="space-y-6 mb-8 p-6 bg-stone-50 rounded-2xl border border-stone-200 animate-fadeIn">
+                    <div className="mb-6 space-y-6 rounded-2xl bg-[#F3F2EF] p-5">
 
                       {/* Device Targets */}
                       <div>
-                        <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                          <Smartphone className="w-4 h-4 text-amber-500" /> Device Targeting
+                        <h4 className="text-[13px] font-medium text-[#18181A] mb-4 flex items-center gap-2">
+                          <Smartphone className="h-4 w-4 text-[#FF5A14]" /> Device Targeting
                           <InfoTooltip
                             id="device-targeting-help"
                             content="Redirect users to specific URLs based on their device (iOS, Android, or Desktop). Great for app downloads."
                           />
                         </h4>
                         <div className="space-y-3">
-                          <input type="text" placeholder="iOS Destination (App Store)" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400" value={smartRedirects.ios} onChange={e => setSmartRedirects({ ...smartRedirects, ios: e.target.value })} />
-                          <input type="text" placeholder="Android Destination (Play Store)" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400" value={smartRedirects.android} onChange={e => setSmartRedirects({ ...smartRedirects, android: e.target.value })} />
+                          <input type="text" placeholder="iOS Destination (App Store)" className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 transition-all placeholder:text-stone-400" value={smartRedirects.ios} onChange={e => setSmartRedirects({ ...smartRedirects, ios: e.target.value })} />
+                          <input type="text" placeholder="Android Destination (Play Store)" className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 transition-all placeholder:text-stone-400" value={smartRedirects.android} onChange={e => setSmartRedirects({ ...smartRedirects, android: e.target.value })} />
                         </div>
                       </div>
 
                       {/* Geo Targets */}
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-slate-900 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                            <Globe className="w-4 h-4 text-amber-500" /> Geo-Targeting
+                          <h4 className="text-[13px] font-medium text-[#18181A] flex items-center gap-2">
+                            <Globe className="h-4 w-4 text-[#FF5A14]" /> Geo-Targeting
                             <InfoTooltip
                               id="geo-targeting-help"
                               content="Redirect users to different URLs based on their country. Useful for localized content or regional stores."
                             />
                           </h4>
-                          <button type="button" onClick={handleAddGeoRule} className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg font-bold transition-colors">+ Add Rule</button>
+                          <button type="button" onClick={handleAddGeoRule} className="rounded-full bg-[#FBFAF8] px-3 py-1.5 text-[12px] text-[#18181A] transition-colors hover:bg-white">+ Add Rule</button>
                         </div>
 
                         {geoRedirects.map((rule, idx) => (
                           <div key={idx} className="flex gap-2 mb-2">
                             <select
-                              className="w-[140px] bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium appearance-none cursor-pointer"
+                              className="w-[140px] bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 transition-all font-medium appearance-none cursor-pointer"
                               value={rule.country}
                               onChange={e => updateGeoRule(idx, 'country', e.target.value)}
                             >
@@ -1421,7 +1292,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                             <input
                               type="text"
                               placeholder="https://us.example.com"
-                              className="flex-1 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                              className="flex-1 bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400"
                               value={rule.url}
                               onChange={e => updateGeoRule(idx, 'url', e.target.value)}
                             />
@@ -1435,46 +1306,46 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-stone-200">
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[#E2DFD8]">
                         <div>
-                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <label className="mb-1.5 flex items-center gap-1 text-[12px] text-[#8C8981]">
                             <Calendar className="w-3 h-3" /> Start Date
                           </label>
-                          <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                          <input type="datetime-local" className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30" value={startDate} onChange={e => setStartDate(e.target.value)} />
                         </div>
                         <div>
-                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <label className="mb-1.5 flex items-center gap-1 text-[12px] text-[#8C8981]">
                             <Calendar className="w-3 h-3" /> End Date
                           </label>
-                          <input type="datetime-local" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} />
+                          <input type="datetime-local" className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} />
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-stone-200">
+                      <div className="pt-2 border-t border-[#E2DFD8]">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 block">Click Limit</label>
-                            <input type="number" placeholder="∞" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickLimit} onChange={e => setClickLimit(e.target.value)} />
+                            <label className="mb-1.5 block text-[12px] text-[#8C8981]">Click Limit</label>
+                            <input type="number" placeholder="∞" className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400" value={clickLimit} onChange={e => setClickLimit(e.target.value)} />
                           </div>
                           <div>
-                            <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <label className="mb-1.5 flex items-center gap-1 text-[12px] text-[#8C8981]">
                               🎯 Click Goal
                             </label>
-                            <input type="number" placeholder="e.g. 1000" className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400" value={clickGoal} onChange={e => setClickGoal(e.target.value)} />
+                            <input type="number" placeholder="e.g. 1000" className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400" value={clickGoal} onChange={e => setClickGoal(e.target.value)} />
                           </div>
                         </div>
                         <p className="text-xs text-stone-400 mt-2">Set a click goal to track progress towards your target.</p>
                       </div>
 
                       {/* Password Protection */}
-                      <div className="pt-2 border-t border-stone-200">
-                        <label className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <div className="pt-2 border-t border-[#E2DFD8]">
+                        <label className="mb-1.5 flex items-center gap-1 text-[12px] text-[#8C8981]">
                           <Lock className="w-3 h-3" /> Password Protection
                         </label>
                         <input
                           type="text"
                           placeholder="Optional: Set a password"
-                          className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                          className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400"
                           value={password}
                           onChange={e => setPassword(e.target.value)}
                         />
@@ -1482,9 +1353,9 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
 
                       {/* A/B Testing — parked behind feature flag (utils/featureFlags.ts) */}
                       {FEATURES.AB_TESTING && (
-                      <div className="pt-2 border-t border-stone-200">
+                      <div className="pt-2 border-t border-[#E2DFD8]">
                         <div className="flex items-center justify-between mb-4">
-                          <label className="text-xs text-stone-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <label className="flex items-center gap-1 text-[12px] text-[#8C8981]">
                             <Split className="w-3 h-3" /> A/B Testing
                           </label>
                           <div className="flex items-center gap-2">
@@ -1511,7 +1382,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                                 <input
                                   type="url"
                                   placeholder="https://variant-url.com"
-                                  className="flex-1 bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400"
+                                  className="flex-1 bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400"
                                   value={variant.url}
                                   onChange={e => {
                                     const newVariants = [...variants];
@@ -1525,7 +1396,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                                     placeholder="%"
                                     min="0"
                                     max="100"
-                                    className="w-full bg-white border border-stone-200 text-sm text-slate-900 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 placeholder:text-stone-400 pr-8"
+                                    className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400 pr-8"
                                     value={variant.weight}
                                     onChange={e => {
                                       const newVariants = [...variants];
@@ -1612,115 +1483,84 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                     </div>
                   )}
 
-                  <div className="flex justify-end gap-3 pt-6 border-t border-stone-100">
+                  <div className="flex justify-end gap-2 pt-5">
                     <button
                       type="button"
                       onClick={resetAndClose}
-                      className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold transition-colors hover:bg-stone-50 rounded-xl"
+                      className="rounded-full px-5 py-2.5 text-[13px] text-[#8C8981] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      disabled={!url || !slug || isSubmitting}
-                      className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-amber-400/20 flex items-center gap-2"
+                      disabled={!url || isSubmitting}
+                      className="rounded-full bg-[#FF5A14] px-6 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2"
                     >
                       {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                      {editingLink ? 'Save Changes' : 'Create Link'}
+                      {editingLink ? 'Save changes' : 'Create link'}
                     </button>
                   </div>
                 </form>
               </>
             ) : mode === 'bulk' ? (
-              <div className="flex flex-col h-full bg-white">
+              <div className="flex h-full flex-col">
                 <div className="mb-4">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Paste URLs (One per line)</label>
+                  <label htmlFor="bulk-urls" className="mb-1.5 block text-[12px] text-[#8C8981]">Addresses, one per line</label>
                   <textarea
-                    className="w-full h-64 bg-stone-50 border border-stone-200 text-slate-900 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono text-sm leading-relaxed placeholder:text-stone-400"
+                    id="bulk-urls"
+                    className="w-full h-64 bg-[#F0EEEA] border border-transparent text-[#18181A] rounded-xl p-4 focus:outline-none focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 font-mono text-sm leading-relaxed placeholder:text-stone-400"
                     placeholder={`https://google.com\nhttps://youtube.com\nhttps://twitter.com`}
                     value={bulkUrls}
                     onChange={e => setBulkUrls(e.target.value)}
                   />
-                  <p className="text-xs text-stone-500 mt-2 flex items-center gap-1">
-                    <Layers className="w-3 h-3" /> Up to 50 URLs allowed per batch.
+                  <p className="mt-2 text-[12px] text-[#A19E97]">
+                    Up to {MAX_BULK_LINKS} at a time. Each gets a random short code.
                   </p>
                 </div>
-                <div className="flex justify-end gap-3 pt-6 border-t border-stone-100 mt-auto">
-                  <button onClick={resetAndClose} className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold hover:bg-stone-50 rounded-xl">Cancel</button>
+                <div className="mt-auto flex justify-end gap-2 pt-5">
+                  <button onClick={resetAndClose} className="rounded-full px-5 py-2.5 text-[13px] text-[#8C8981] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]">Cancel</button>
                   <button
                     onClick={handleBulkSubmit}
                     disabled={!bulkUrls.trim() || isSubmitting}
-                    className="bg-amber-400 text-slate-900 hover:bg-amber-500 disabled:opacity-50 px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-amber-400/20"
+                    className="rounded-full bg-[#FF5A14] px-6 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2"
                   >
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-                    Bulk Generate
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Create links
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col h-full bg-white">
+              <div className="flex h-full flex-col">
                 {/* CSV Import Mode */}
-                <div className="flex-1 flex flex-col items-center justify-center p-8 border-2 border-dashed border-stone-200 rounded-2xl bg-stone-50/50 hover:bg-amber-50/30 hover:border-amber-300 transition-all text-center">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-stone-100 mb-4 text-emerald-500">
-                    <Calendar className="w-8 h-8" />
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#DAD7D0] bg-[#F3F2EF] p-8 text-center transition-colors hover:border-[#FF5A14]">
+                  <Upload className="mb-3 h-6 w-6 text-[#FF5A14]" />
+                  <span className="text-[15px] font-medium">{csvFile ? csvFile.name : 'Choose a CSV file'}</span>
+                  <span className="mt-1 max-w-xs text-[12px] text-[#8C8981]">
+                    Columns: <code className="font-mono">url</code>, and optionally <code className="font-mono">slug</code>, <code className="font-mono">title</code>, <code className="font-mono">tags</code> (separated by |).
+                  </span>
+                  <input type="file" accept=".csv" className="sr-only" onChange={(e) => { setCsvFile(e.target.files?.[0] || null); setCsvError(null); }} />
+                </label>
+
+                {csvError && (
+                  <div role="alert" className="mt-3 flex items-center gap-2 rounded-xl bg-[#FDECEA] px-3 py-2 text-[13px] text-[#B42318]">
+                    <AlertCircle className="h-4 w-4" />
+                    {csvError}
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">Import Links via CSV</h3>
-                  <p className="text-stone-500 text-sm max-w-xs mb-6">
-                    Upload a CSV file with columns for <code>url</code>, <code>slug</code>, and <code>title</code>.
-                  </p>
+                )}
 
-                  <label className="relative cursor-pointer">
-                    <span className="bg-slate-900 text-white font-bold px-6 py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" />
-                      Select CSV File
-                    </span>
-                    <input
-                      type="file"
-                      accept=".csv"
-                      className="hidden"
-                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                    />
-                  </label>
+                <p className="mt-3 text-[12px] text-[#8C8981]">
+                  Not sure of the format? <a href={SAMPLE_CSV_HREF} download="gather-links-sample.csv" className="underline underline-offset-2 hover:text-[#18181A]">Download a sample</a>.
+                </p>
 
-                  {csvFile && (
-                    <div className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 animate-fadeIn">
-                      <Tag className="w-4 h-4" />
-                      {csvFile.name}
-                    </div>
-                  )}
-
-                  {csvError && (
-                    <div className="mt-4 flex items-center gap-2 text-sm font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 animate-fadeIn">
-                      <AlertCircle className="w-4 h-4" />
-                      {csvError}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-6 flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-blue-500 font-bold text-xs border border-blue-100 shadow-sm">
-                      CSV
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-blue-900 text-sm">Template Format</h4>
-                      <p className="text-xs text-blue-600 font-mono">url, slug (opt), title (opt), tags (opt)</p>
-                    </div>
-                  </div>
-                  <a href="/template.csv" download className="text-xs font-bold text-blue-600 hover:underline">
-                    Download Sample
-                  </a>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-6 border-t border-stone-100 mt-auto">
-                  <button onClick={resetAndClose} className="px-6 py-3 text-stone-500 hover:text-slate-900 font-bold hover:bg-stone-50 rounded-xl">Cancel</button>
+                <div className="mt-auto flex justify-end gap-2 pt-5">
+                  <button onClick={resetAndClose} className="rounded-full px-5 py-2.5 text-[13px] text-[#8C8981] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]">Cancel</button>
                   <button
                     onClick={handleCsvSubmit}
                     disabled={!csvFile || isProcessingCsv}
-                    className="bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                    className="rounded-full bg-[#FF5A14] px-6 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2"
                   >
-                    {isProcessingCsv ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Import {csvFile ? 'File' : 'CSV'}
+                    {isProcessingCsv && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Import links
                   </button>
                 </div>
               </div>

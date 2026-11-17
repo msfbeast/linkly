@@ -90,7 +90,7 @@ export const TagInput: React.FC<TagInputProps> = ({ userId, selectedTags, onChan
 
     return (
         <div className="w-full">
-            <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+            <div className="flex flex-wrap gap-2 rounded-2xl bg-[#F0EEEA] p-2 focus-within:ring-2 focus-within:ring-[#FF5A14]/30">
                 {selectedTags.map(tagName => {
                     const tag = allTags.find(t => t.name === tagName);
                     const color = tag?.color || '#6b7280';
@@ -122,7 +122,7 @@ export const TagInput: React.FC<TagInputProps> = ({ userId, selectedTags, onChan
                         onFocus={() => inputValue && setShowSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         placeholder={selectedTags.length === 0 ? "Add tags..." : ""}
-                        className="w-full outline-none bg-transparent text-sm py-1"
+                        className="w-full bg-transparent py-1 pl-1 text-sm outline-none placeholder:text-[#A19E97]"
                     />
 
                     {showSuggestions && suggestions.length > 0 && (
