@@ -29,11 +29,13 @@ export interface KvLinkData {
      * page (pages/Redirect.tsx) picks the destination for these.
      */
     appOnly?: boolean;
+    /** taken down after a report (links.disabled_at): show the disabled page */
+    disabled?: boolean;
 }
 
 /** The links columns toCacheEntry needs. */
 export const LINK_CACHE_COLUMNS =
-    'id, original_url, password_hash, expiration_date, start_date, max_clicks, is_archived, is_guest, expires_at, ab_test_config, smart_redirects, geo_redirects';
+    'id, original_url, password_hash, expiration_date, start_date, max_clicks, is_archived, is_guest, expires_at, ab_test_config, smart_redirects, geo_redirects, disabled_at';
 
 export interface LinkCacheRow {
     id: string;
@@ -48,6 +50,7 @@ export interface LinkCacheRow {
     ab_test_config?: { enabled?: boolean; variants?: unknown[] } | null;
     smart_redirects?: Record<string, unknown> | null;
     geo_redirects?: Record<string, unknown> | null;
+    disabled_at?: string | null;
 }
 
 const hasEntries = (value: Record<string, unknown> | null | undefined) =>
@@ -71,6 +74,7 @@ export function toCacheEntry(row: LinkCacheRow, now: number = Date.now()): KvLin
     if (guestExpiresAt !== undefined && now >= guestExpiresAt) return null;
 
     const entry: KvLinkData = { url: row.original_url, id: row.id };
+    if (row.disabled_at) entry.disabled = true;
     if (row.password_hash) entry.password = true;
     const expiration = toMs(row.expiration_date);
     if (expiration !== undefined) entry.expiration = expiration;
@@ -87,13 +91,15 @@ export function toCacheEntry(row: LinkCacheRow, now: number = Date.now()): KvLin
 
 /**
  * What the redirect does with a cached entry:
+ * - 'disabled': taken down after a report; show the disabled page, don't count
  * - 'gone': the guest link has expired (treat as not found)
  * - 'interstitial': password, expired, not started yet, click-limited, or
  *   A/B / device / country destinations; the browser redirect page
  *   (/unlock) explains, asks or picks the destination and counts the click
  * - 'redirect': send the visitor on and count the click
  */
-export function redirectDecision(entry: KvLinkData, now: number = Date.now()): 'gone' | 'interstitial' | 'redirect' {
+export function redirectDecision(entry: KvLinkData, now: number = Date.now()): 'disabled' | 'gone' | 'interstitial' | 'redirect' {
+    if (entry.disabled) return 'disabled';
     if (entry.guestExpiresAt !== undefined && now >= entry.guestExpiresAt) return 'gone';
     const expiration = toMs(entry.expiration);
     const start = toMs(entry.start);

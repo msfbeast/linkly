@@ -52,6 +52,12 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         if (link) {
           setTargetLink(link);
 
+          // 0. Taken down after a report
+          if (link.disabledAt) {
+            setError("This link has been disabled because it was reported and may lead to a harmful or misleading page.");
+            return;
+          }
+
           // 1. Check Expiration and Start Date
           const now = Date.now();
           if (link.expirationDate && now > link.expirationDate) {
@@ -336,6 +342,11 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           <a href="/" className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium">
             Create your own link <ArrowRight className="w-4 h-4 ml-1" />
           </a>
+          {code && (
+            <p className="mt-4 text-xs text-stone-400">
+              <a href={`/report?link=${encodeURIComponent(code)}`} className="hover:underline">Report this link</a>
+            </p>
+          )}
         </div>
       </div>
     );

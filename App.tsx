@@ -38,6 +38,7 @@ import DomainRouter from './components/DomainRouter';
 // Lazy Load Non-Critical Pages
 const DashboardLayout = React.lazy(() => import('./components/DashboardLayout'));
 const ProductPage = React.lazy(() => import('./pages/ProductPage'));
+const ReportLink = React.lazy(() => import('./pages/ReportLink'));
 const TeamInviteHandler = React.lazy(() => import('./pages/TeamInviteHandler'));
 const AddProduct = React.lazy(() => import('./pages/AddProduct')); // Lazy load
 const ApiPage = React.lazy(() => import('./pages/ApiPage'));
@@ -130,6 +131,7 @@ const AnimatedRoutes: React.FC = () => {
           {/* Store Routes */}
           <Route path="/claim/:token" element={<ClaimLinkPage />} /> {/* Changed from /claim-link to /claim/:token */}
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/report" element={<ReportLink />} />
           {FEATURES.TEAMS && <Route path="/team/invite/:token" element={<TeamInviteHandler />} />}
           <Route path="/open/:url" element={<SmartRedirect />} /> {/* Moved here from protected */}
           <Route path="/share/:shareToken" element={<SharedAnalytics />} /> {/* Moved here from protected */}

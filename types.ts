@@ -193,6 +193,8 @@ export interface LinkData {
   claimToken?: string;
   expiresAt?: number;
   isArchived?: boolean;
+  /** Taken down after a report (epoch ms); only staff can change it. */
+  disabledAt?: number;
 }
 
 // Category color mapping for consistent styling across components

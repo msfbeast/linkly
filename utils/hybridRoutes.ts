@@ -15,7 +15,7 @@ export const HYBRID_APP_ROUTES = [
     '/about', '/pricing', '/terms', '/privacy', '/cookies',
     '/login', '/register', '/reset-password', '/update-password',
     '/r', '/go', '/unlock', '/open', '/s', '/p', '/share', '/claim',
-    '/store', '/product', '/team',
+    '/store', '/product', '/team', '/report',
     // signed in
     '/dashboard', '/settings', '/links', '/bio', '/analytics', '/products',
     '/affiliate', '/affiliate-manager', '/agency', '/api-access', '/admin',
