@@ -264,6 +264,7 @@ const LandingPage: React.FC = () => {
                                         <div className="text-left">
                                             <h3 className="font-bold text-slate-900">Link Ready!</h3>
                                             <p className="text-xs text-stone-500 truncate max-w-[200px]">{result.originalUrl}</p>
+                                            <p className="mt-0.5 text-xs font-medium text-amber-700">Works for 7 days. Sign up free to keep it.</p>
                                         </div>
                                     </div>
                                     <button
