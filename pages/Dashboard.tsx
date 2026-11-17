@@ -24,6 +24,7 @@ import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
 import { toast } from 'sonner';
 import { newShortCode } from '../utils/shortCode';
+import { FREE_LINK_LIMIT } from '../utils/planLimits';
 import {
   DndContext,
   closestCenter,
@@ -425,7 +426,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Quick create from the paste box: default settings, short code from the backend.
   const handleQuickCreate = async (url: string) => {
     const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
-    if (isFreePlan && links.length >= 50) {
+    if (isFreePlan && links.length >= FREE_LINK_LIMIT) {
       setUpgradeTrigger('limit_reached');
       setIsUpgradeModalOpen(true);
       return;
@@ -469,7 +470,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
     const linkCount = links.length;
 
-    if (isFreePlan && linkCount >= 50) {
+    if (isFreePlan && linkCount >= FREE_LINK_LIMIT) {
       setUpgradeTrigger('limit_reached');
       setIsUpgradeModalOpen(true);
       return;

@@ -886,7 +886,7 @@ BEGIN
   SELECT count(*) INTO v_count FROM public.links
   WHERE user_id = NEW.user_id AND team_id IS NULL;
 
-  IF v_count >= 15 THEN
+  IF v_count >= 50 THEN
     RAISE EXCEPTION 'Link limit reached for Free Tier. Please upgrade to create more links.'
       USING ERRCODE = 'P0001';
   END IF;
