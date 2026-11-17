@@ -16,7 +16,8 @@ export interface AuthContextType {
   signUp: (email: string, password: string, username?: string) => Promise<AuthResult>;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthResult>;
   signInWithOAuth: (provider: 'google' | 'github') => Promise<AuthResult>;
-  signOut: () => Promise<void>;
+  /** Signs out this browser, or every device with `everywhere`. */
+  signOut: (everywhere?: boolean) => Promise<void>;
   resetPassword: (email: string) => Promise<AuthResult>;
   updatePassword: (newPassword: string) => Promise<AuthResult>;
   updateProfile: (data: {
@@ -126,8 +127,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return await authService.signInWithOAuth(provider);
   }, []);
 
-  const signOut = useCallback(async () => {
-    await authService.signOut();
+  const signOut = useCallback(async (everywhere = false) => {
+    // Only a literal true: a click event passed by mistake must not sign out every device.
+    await authService.signOut(everywhere === true);
     setUser(null);
     setSession(null);
   }, []);
