@@ -87,9 +87,9 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
                                     <button
                                         onClick={onConfirm}
-                                        className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
+                                        className={`flex-1 px-4 py-2.5 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${type === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-900 hover:bg-black'}`}
                                     >
-                                        <Archive className="w-4 h-4" />
+                                        {type === 'danger' ? <Trash2 className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                                         {confirmLabel}
                                     </button>
 
@@ -105,7 +105,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
                                     <button
                                         onClick={onClose}
-                                        className="sm:hidden px-4 py-2.5 text-stone-500 font-semibold hover:bg-stone-50 rounded-xl transition-colors"
+                                        className={`${onSecondary ? 'sm:hidden ' : ''}px-4 py-2.5 text-stone-500 font-semibold hover:bg-stone-50 rounded-xl transition-colors`}
                                     >
                                         Cancel
                                     </button>

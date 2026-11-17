@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock, GripVertical, Clock, AlertCircle, CheckCircle2, Download, Copy as CopyIcon } from 'lucide-react';
+import { Copy, ExternalLink, BarChart2, Share2, Trash2, Calendar, Loader2, Twitter, Smartphone, Globe, Pencil, Lock, GripVertical, Clock, AlertCircle, CheckCircle2, Download, Copy as CopyIcon, QrCode, RotateCcw } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import QRCodeGenerator from './QRCodeGenerator';
@@ -94,8 +94,11 @@ const LinkCard: React.FC<LinkCardProps> = ({
     checkHealth();
   }, [isVisible, link.originalUrl]);
 
+  const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     navigator.clipboard.writeText(fullShortUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const handleGeneratePost = async () => {
@@ -137,44 +140,68 @@ const LinkCard: React.FC<LinkCardProps> = ({
         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
         className={`bg-white border ${selected ? 'border-[#FF5A14] ring-1 ring-[#FF5A14]' : 'border-transparent'} rounded-3xl p-1 transition-colors hover:border-[#E6E3DD] group relative mb-2.5 ${isDragging ? 'opacity-50 rotate-1 shadow-2xl cursor-grabbing' : ''}`}
       >
-        {/* Health Indicator */}
-        <div
-          className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ${getHealthColor(healthStatus)} ring-2 ring-white cursor-help transition-colors duration-300`}
-          title={getHealthTooltip(healthStatus)}
-        >
-          {healthStatus === 'broken' && (
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 opacity-20"></span>
-            </span>
-          )}
-        </div>
-        <div className="p-4 sm:p-5">
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 lg:gap-6">
-            {/* Main Info */}
-            <div className="flex-1 min-w-0">
+        <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {/* Drag handle or checkbox */}
+            {selectable && onSelect ? (
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={(e) => onSelect(link.id, e.target.checked)}
+                aria-label={`Select ${link.title}`}
+                className="h-4 w-4 flex-shrink-0 cursor-pointer rounded border-stone-300 text-[#FF5A14] focus:ring-[#FF5A14]"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <div
+                {...listeners}
+                {...attributes}
+                className="-ml-1 flex-shrink-0 cursor-grab p-1 text-[#D9D6D0] transition-colors hover:text-[#8C8981] active:cursor-grabbing"
+              >
+                <GripVertical className="h-4 w-4" />
+              </div>
+            )}
 
-              {/* Header Row: Drag Handle, Badges, Tags, Date */}
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                {/* Drag Handle or Checkbox */}
-                {selectable && onSelect ? (
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={(e) => onSelect(link.id, e.target.checked)}
-                    className="w-4 h-4 rounded border-stone-300 text-yellow-500 focus:ring-yellow-500 cursor-pointer mr-1"
-                    onClick={(e) => e.stopPropagation()}
+                {/* Website Favicon */}
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F0EEEA]">
+                  <img
+                    src={(() => {
+                      try {
+                        const urlStr = link.originalUrl.startsWith('http') ? link.originalUrl : `https://${link.originalUrl}`;
+                        const u = new URL(urlStr);
+                        return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+                      } catch {
+                        return `https://www.google.com/s2/favicons?domain=oia.bio&sz=64`; // Default fallback
+                      }
+                    })()}
+                    alt=""
+                    className="w-6 h-6 object-contain"
+                    loading="lazy"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = 'none';
+                      const fallback = img.parentElement?.querySelector('.favicon-fallback');
+                      if (fallback) fallback.classList.remove('hidden');
+                    }}
                   />
-                ) : (
-                  <div
-                    {...listeners}
-                    {...attributes}
-                    className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-stone-300 hover:text-stone-500 transition-colors flex-shrink-0"
-                  >
-                    <GripVertical className="w-4 h-4" />
+                  <div className="favicon-fallback hidden items-center justify-center">
+                    <Globe className="w-5 h-5 text-stone-400" />
                   </div>
-                )}
+                </div>
 
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <button
+                  onClick={() => navigate(`/analytics/${link.id}`)}
+                  data-tour="link-card"
+                  className="max-w-full truncate text-left text-[15px] font-semibold text-[#18181A] underline-offset-4 hover:underline"
+                >
+                  {link.title}
+                </button>
+                <span
+                  className={`h-2 w-2 flex-shrink-0 cursor-help rounded-full ${getHealthColor(healthStatus)}`}
+                  title={getHealthTooltip(healthStatus)}
+                />
                 {/* Status Badges */}
                 {(() => {
                   const now = Date.now();
@@ -255,101 +282,72 @@ const LinkCard: React.FC<LinkCardProps> = ({
 
                 {/* Tags */}
                 {link.tags && link.tags.length > 0 && link.tags.map((tag, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100 flex-shrink-0">
+                  <span key={i} className="flex-shrink-0 rounded-full bg-[#F0EEEA] px-2 py-0.5 font-mono text-[10px] text-[#8C8981]">
                     #{tag}
                   </span>
                 ))}
-
-                {/* Date - Pushed to end */}
-                <span className="text-stone-400 text-xs flex items-center gap-1 ml-auto flex-shrink-0">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(link.createdAt).toLocaleDateString()}
-                </span>
               </div>
 
-              <div className="flex items-start gap-3 sm:gap-4">
-                {/* Website Favicon */}
-                <div className="w-10 h-10 rounded-xl bg-blend-soft-light bg-stone-100/50 border border-stone-200 flex items-center justify-center overflow-hidden flex-shrink-0 mt-1">
-                  <img
-                    src={(() => {
-                      try {
-                        const urlStr = link.originalUrl.startsWith('http') ? link.originalUrl : `https://${link.originalUrl}`;
-                        const u = new URL(urlStr);
-                        return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
-                      } catch {
-                        return `https://www.google.com/s2/favicons?domain=oia.bio&sz=64`; // Default fallback
-                      }
-                    })()}
-                    alt=""
-                    className="w-6 h-6 object-contain"
-                    loading="lazy"
-                    onError={(e) => {
-                      const img = e.target as HTMLImageElement;
-                      img.style.display = 'none';
-                      const fallback = img.parentElement?.querySelector('.favicon-fallback');
-                      if (fallback) fallback.classList.remove('hidden');
-                    }}
-                  />
-                  <div className="favicon-fallback hidden items-center justify-center">
-                    <Globe className="w-5 h-5 text-stone-400" />
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <button
-                    onClick={() => navigate(`/analytics/${link.id}`)}
-                    className="text-base sm:text-lg font-bold text-slate-900 truncate group-hover:text-yellow-600 transition-colors text-left hover:underline decoration-yellow-400/50 underline-offset-4 w-full block"
-                  >
-                    {link.title}
-                  </button>
-                  <a href={link.originalUrl} target="_blank" rel="noopener noreferrer" className="text-stone-500 text-xs truncate block hover:text-stone-800 mt-1 flex items-center gap-1">
-                    <ExternalLink className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{link.originalUrl}</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Short Link Action Bar */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4">
-                <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl pl-3 pr-1 py-1 group/bar transition-colors hover:border-yellow-400/50 hover:bg-yellow-50/50 max-w-full">
-                  <span className="text-stone-400 text-xs sm:text-sm flex-shrink-0">{link.domain || 'links.trak.in'}/</span>
-                  <span className="text-slate-900 font-mono text-xs sm:text-sm font-bold ml-0.5 truncate">{link.shortCode}</span>
-                  <div className="w-px h-4 bg-stone-200 mx-2 sm:mx-3 flex-shrink-0"></div>
-                  <button onClick={handleCopy} className="p-1.5 rounded-lg text-stone-400 hover:text-slate-900 hover:bg-stone-200 transition-all active:scale-95 flex-shrink-0" title="Copy">
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1 ml-auto sm:ml-0">
-                  {healthStatus === 'broken' && (
-                    <button
-                      onClick={() => onEdit(link)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors text-xs font-bold mr-2 animate-pulse"
-                      title="Link is broken. Click to fix."
-                    >
-                      <AlertCircle className="w-3.5 h-3.5" /> Fix Link
-                    </button>
-                  )}
-                  <button onClick={() => navigate(`/analytics/${link.id}`)} className="p-2 rounded-lg text-stone-400 hover:text-slate-900 hover:bg-stone-100 transition-all" title="Analytics">
-                    <BarChart2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setShowQr(!showQr)} className={`p-2 rounded-lg transition-all ${showQr ? 'text-yellow-600 bg-yellow-100' : 'text-stone-400 hover:text-slate-900 hover:bg-stone-100'}`} title="QR Code">
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleQuickDownloadQR}
-                    className="p-2 rounded-lg text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                    title="Download QR Code"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
+              <div className="mt-1 flex min-w-0 items-center gap-2 font-mono text-[12px]">
+                <button
+                  onClick={handleCopy}
+                  title="Copy short link"
+                  className="flex flex-shrink-0 items-center gap-1.5 rounded-md text-[#18181A] hover:text-[#C2410C]"
+                >
+                  <span><span className="text-[#8C8981]">{domain}/</span>{link.shortCode}</span>
+                  {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-[#A19E97]" />}
+                </button>
+                <span className="text-[#D9D6D0]">→</span>
+                <a href={link.originalUrl} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate text-[#8C8981] hover:text-[#18181A]">
+                  {link.originalUrl.replace(/^https?:\/\/(www\.)?/, '')}
+                </a>
               </div>
             </div>
+          </div>
 
-            {/* Stats & Actions */}
-            <div className="flex flex-row lg:flex-col items-center lg:items-end gap-4 lg:gap-6 justify-between border-t lg:border-t-0 lg:border-l border-stone-100 pt-4 lg:pt-0 lg:pl-6 mt-2 lg:mt-0">
-              <div className="text-left lg:text-right">
-                <div className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{link.clicks}</div>
-                <div className="text-[10px] sm:text-xs text-stone-500 font-medium uppercase tracking-wider">Clicks</div>
+          <div className="flex items-center justify-between gap-3 lg:justify-end">
+            {/* Actions */}
+            <div className="flex items-center">
+              {healthStatus === 'broken' && (
+                <button
+                  onClick={() => onEdit(link)}
+                  className="mr-1 flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-200"
+                  title="The destination isn't responding. Click to fix."
+                >
+                  <AlertCircle className="h-3.5 w-3.5" /> Fix link
+                </button>
+              )}
+              <button onClick={() => navigate(`/analytics/${link.id}`)} className="rounded-lg p-2 text-[#A19E97] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]" title="Analytics" aria-label="Analytics">
+                <BarChart2 className="h-4 w-4" />
+              </button>
+              <button onClick={() => setShowQr(!showQr)} className={showQr ? 'rounded-lg bg-[#FFE9DE] p-2 text-[#C2410C]' : 'rounded-lg p-2 text-[#A19E97] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]'} title="QR code" aria-label="QR code" aria-expanded={showQr}>
+                <QrCode className="h-4 w-4" />
+              </button>
+              <button onClick={handleQuickDownloadQR} className="rounded-lg p-2 text-[#A19E97] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A] hidden sm:block" title="Download QR code" aria-label="Download QR code">
+                <Download className="h-4 w-4" />
+              </button>
+              <button onClick={() => onEdit(link)} className="rounded-lg p-2 text-[#A19E97] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]" title="Edit" aria-label="Edit">
+                <Pencil className="h-4 w-4" />
+              </button>
+              {onDuplicate && (
+                <button onClick={() => onDuplicate(link)} className="rounded-lg p-2 text-[#A19E97] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A] hidden sm:block" title="Duplicate" aria-label="Duplicate">
+                  <CopyIcon className="h-4 w-4" />
+                </button>
+              )}
+              {onRestore && (
+                <button onClick={() => onRestore(link.id)} className="rounded-lg p-2 text-[#A19E97] transition-colors hover:bg-[#F0EEEA] hover:text-[#18181A]" title="Restore" aria-label="Restore">
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              )}
+              <button onClick={() => setShowDeleteConfirm(true)} className="rounded-lg p-2 text-[#A19E97] transition-colors hover:bg-red-50 hover:text-red-600" title="Delete" aria-label="Delete">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Clicks */}
+            <div className="w-24 flex-shrink-0 text-right">
+              <div className="font-mono text-[22px] font-medium leading-none tracking-[-0.03em] text-[#18181A]">{link.clicks.toLocaleString('en-IN')}</div>
+              <div className="mt-1 text-[11px] text-[#8C8981]">clicks · {new Date(link.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
                 {/* Click Goal Progress Bar */}
                 {link.clickGoal && link.clickGoal > 0 && (
                   <div className="mt-2 w-24 lg:w-20">
@@ -371,49 +369,13 @@ const LinkCard: React.FC<LinkCardProps> = ({
                     <div className="text-[9px] text-stone-400 mt-0.5">{link.clicks}/{link.clickGoal}</div>
                   </div>
                 )}
-              </div>
-
-              <div className="flex gap-1">
-                <button
-                  onClick={() => onEdit(link)}
-                  className="p-2 rounded-lg text-stone-400 hover:text-slate-900 hover:bg-stone-100 transition-all"
-                  title="Edit"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                {onDuplicate && (
-                  <button
-                    onClick={() => onDuplicate(link)}
-                    className="p-2 rounded-lg text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-all"
-                    title="Duplicate Link"
-                  >
-                    <CopyIcon className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  onClick={() => onDelete(link.id)} // This triggers showDeleteConfirm now
-                  className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                {onRestore && (
-                  <button
-                    onClick={() => onRestore(link.id)}
-                    className="p-2 rounded-lg text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition-all font-bold text-xs"
-                    title="Restore Link"
-                  >
-                    RESTORE
-                  </button>
-                )}
-              </div>
             </div>
           </div>
         </div>
 
         {/* Expandable QR Section */}
         {showQr && (
-          <div className="mt-4 p-6 bg-stone-50 border-t border-stone-200 rounded-b-xl animate-fadeIn">
+          <div className="mx-1 mb-1 rounded-[20px] bg-[#F7F6F3] p-6 animate-fadeIn">
             <QRCodeGenerator url={fullShortUrl} title={link.title} />
           </div>
         )}
@@ -431,27 +393,28 @@ const LinkCard: React.FC<LinkCardProps> = ({
         />
       </div>
 
-      <ConfirmationModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={() => {
-          if (onArchive) {
-            onArchive(link.id);
-          } else {
-            // Fallback if no archive prop (shouldn't happen in updated dashboard)
-            onDelete(link.id);
-          }
-          setShowDeleteConfirm(false);
-        }}
-        onSecondary={() => {
-          onDelete(link.id);
-          setShowDeleteConfirm(false);
-        }}
-        title="Delete Link"
-        description="Would you like to archive this link instead? Archived links are hidden but can be restored."
-        confirmLabel="Archive (Recommended)"
-        secondaryLabel="Delete Permanently"
-      />
+      {onArchive ? (
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={() => { onArchive(link.id); setShowDeleteConfirm(false); }}
+          onSecondary={() => { onDelete(link.id); setShowDeleteConfirm(false); }}
+          title="Delete link"
+          description="Would you like to archive this link instead? Archived links are hidden but can be restored."
+          confirmLabel="Archive (Recommended)"
+          secondaryLabel="Delete Permanently"
+        />
+      ) : (
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={() => { onDelete(link.id); setShowDeleteConfirm(false); }}
+          title="Delete link"
+          description={`"${link.title}" will stop working and its click history will be removed. This cannot be undone.`}
+          confirmLabel="Delete permanently"
+          type="danger"
+        />
+      )}
     </>
   );
 };
