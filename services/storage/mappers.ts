@@ -54,6 +54,8 @@ export interface ProductRow {
     file_name: string | null;
     sales_count: number | null;
     download_limit: number | null;
+    /** Missing until migrations/20261117_product_position.sql is applied. */
+    position?: number | null;
 }
 
 export interface OrderRow {
@@ -446,6 +448,7 @@ export function rowToProduct(row: ProductRow): Product {
         fileName: row.file_name ?? undefined,
         salesCount: row.sales_count ?? 0,
         downloadLimit: row.download_limit ?? undefined,
+        position: row.position ?? null,
     };
 }
 

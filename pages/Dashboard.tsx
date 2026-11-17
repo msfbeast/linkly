@@ -23,6 +23,7 @@ import { titleFromUrl } from '../utils/urlTitle';
 import { execute as retryExecute } from '../services/retryService';
 import { exportAndDownload } from '../services/csvExportService';
 import { toast } from 'sonner';
+import { newShortCode } from '../utils/shortCode';
 import {
   DndContext,
   closestCenter,
@@ -109,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         try {
           const newLink: Omit<LinkData, 'id'> = {
             originalUrl: pendingLinkUrl,
-            shortCode: '', // Let backend generate it
+            shortCode: newShortCode(), // the database doesn't make one
             title: new URL(pendingLinkUrl).hostname,
             createdAt: Date.now(),
             clicks: 0,
@@ -259,7 +260,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       // Create a copy with reset stats
       const duplicatedLink: Omit<LinkData, 'id'> = {
         originalUrl: link.originalUrl,
-        shortCode: '', // Let backend generate new code
+        shortCode: newShortCode(),
         title: `${link.title} (Copy)`,
         description: link.description,
         tags: link.tags,
@@ -432,7 +433,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
       const newLink: Omit<LinkData, 'id'> = {
         originalUrl: url,
-        shortCode: '', // Let backend generate it
+        shortCode: newShortCode(), // the database doesn't make one
         title: titleFromUrl(url), // Readable default from the URL slug
         createdAt: Date.now(),
         clicks: 0,

@@ -313,7 +313,7 @@ const DashboardLayout: React.FC = () => {
                         {view === ViewState.API && <ApiPage />}
                         {view === ViewState.ANALYTICS && <GlobalAnalytics />}
                         {view === ViewState.PRODUCTS && <ProductManager />}
-                        {view === ViewState.ADD_PRODUCT && <AddProduct />}
+                        {view === ViewState.ADD_PRODUCT && (FEATURES.DIGITAL_PRODUCTS ? <AddProduct /> : <ProductManager />)}
                         {view === ViewState.AFFILIATE && <AffiliateManager />}
                         {view === ViewState.AGENCY && <AgencyDashboard />}
                         {view === ViewState.SETTINGS && <Settings />}

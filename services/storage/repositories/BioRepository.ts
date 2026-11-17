@@ -309,6 +309,7 @@ export class BioRepository extends BaseRepository {
         if (updates.fileName !== undefined) rowUpdates.file_name = updates.fileName;
         if (updates.salesCount !== undefined) rowUpdates.sales_count = updates.salesCount;
         if (updates.downloadLimit !== undefined) rowUpdates.download_limit = updates.downloadLimit;
+        if (updates.position !== undefined) rowUpdates.position = updates.position;
 
         const { data, error } = await this.supabase!
             .from(this.TABLES.PRODUCTS)

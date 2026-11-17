@@ -39,7 +39,7 @@ export async function extractProductMetadata(url: string): Promise<ExtractedMeta
         return {
             title: data.name || "New Product",
             price: data.price ? Number(data.price) : 0,
-            currency: data.currency || "USD",
+            currency: data.currency || "INR",
             description: data.description || "",
             images: data.imageUrl ? [data.imageUrl] : [],
             originalUrl: url,

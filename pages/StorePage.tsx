@@ -9,6 +9,7 @@ import { BioError } from '../components/BioError';
 import { FEATURES } from '../utils/featureFlags';
 import { formatPrice } from '../utils/formatPrice';
 import { filterProducts, productCategories, productHref, storeLook, StoreLook } from '../utils/storePage';
+import { sortProducts } from '../utils/productList';
 
 /**
  * The public store page: a profile header, a searchable grid of product
@@ -87,7 +88,7 @@ const StorePage: React.FC<StorePageProps> = ({ handle: propHandle }) => {
             const ownerId = profile?.userId || userId;
             const all = await supabaseAdapter.getProducts(ownerId);
             // Digital products (sold here with checkout) are parked.
-            const products = FEATURES.DIGITAL_PRODUCTS ? all : all.filter(p => p.type !== 'digital');
+            const products = sortProducts(FEATURES.DIGITAL_PRODUCTS ? all : all.filter(p => p.type !== 'digital'));
             if (!profile && products.length === 0) return { state: 'missing' } as Loaded;
 
             // One lookup for the owner's links and the products' short links.
