@@ -58,8 +58,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.normalize_web_url(text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.normalize_web_url(text) TO service_role;
+-- check_link_fields runs as the caller (anon for guest links, authenticated
+-- for the app), so they need to be able to call this pure function.
+REVOKE ALL ON FUNCTION public.normalize_web_url(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.normalize_web_url(text) TO anon, authenticated, service_role;
 
 -- Repair what can be repaired.
 UPDATE public.links
