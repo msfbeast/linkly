@@ -102,3 +102,19 @@ Bob: read Alice's profile (rows)                              OK 0
 Alice: read own profile (rows)                                OK 1
 anon: is username "nobody-here" taken                         OK false
 anon: custom domain username of Bob                           OK <none>
+Alice: insert link with a javascript: URL                     DENIED
+anon: read link reports                                       DENIED
+Bob: read link reports (rows)                                 DENIED
+anon: admin link reports                                      DENIED
+Bob: admin link reports                                       DENIED
+Dave (admin): admin link reports                              OK 1
+Alice: un-disable her own link directly                       DENIED
+Bob: disable Alice's link via moderation                      DENIED
+Dave (admin): disable Alice's link                            OK aaa
+anon: public lookup of a disabled link                        OK url= reason=-
+Alice: re-enable her disabled link                            DENIED
+anon: record an error                                         DENIED
+server: record an error                                       OK called
+Bob: read error log                                           DENIED
+Bob: admin recent errors                                      DENIED
+Dave (admin): admin recent errors                             OK 1
