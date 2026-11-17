@@ -173,21 +173,18 @@ export class LinkRepository extends BaseRepository {
     async createGuestLink(originalUrl: string, sessionId: string): Promise<LinkData> {
         if (!this.isConfigured()) throw new Error('Supabase not configured');
 
-        // Generate Short Code
-        const nanoid = (await import('nanoid')).nanoid;
-        const shortCode = nanoid(7);
-
-        // Call Security Definer RPC instead of direct insert to bypass RLS
-        const { data, error } = await this.supabase!.rpc('create_guest_link', {
-            p_original_url: originalUrl,
-            p_short_code: shortCode,
-            p_guest_session_id: sessionId
+        // Through /api/link/guest, which checks the address, makes the code
+        // and limits how many links one visitor can shorten.
+        const res = await fetch('/api/link/guest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: originalUrl, sessionId }),
         });
-
-        if (error) {
-            console.error('[LinkRepository] Error creating guest link via RPC:', error);
-            throw error;
+        const data = await res.json().catch(() => ({})) as { shortCode?: string; claimToken?: string; error?: string; message?: string };
+        if (!res.ok || !data.shortCode) {
+            throw new Error(data.message || data.error || 'Could not shorten the link');
         }
+        const shortCode = data.shortCode;
 
         // Fetch the created link (guests can't read the links table directly).
         // The claim token only comes back from create_guest_link, to the
@@ -195,8 +192,7 @@ export class LinkRepository extends BaseRepository {
         const link = await this.getLinkByCode(shortCode);
         if (!link) throw new Error('Failed to fetch created guest link');
 
-        const claimToken = (data as { claim_token?: string } | null)?.claim_token;
-        return claimToken ? { ...link, claimToken } : link;
+        return data.claimToken ? { ...link, claimToken: data.claimToken } : link;
     }
 
     /**

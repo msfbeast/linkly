@@ -66,13 +66,28 @@ describe('public link reads', () => {
 describe('guest link claiming', () => {
     beforeEach(() => { db.rpc.mockReset(); db.from.mockReset(); });
 
-    it('keeps the claim token create_guest_link returns', async () => {
-        db.rpc
-            .mockResolvedValueOnce({ data: { id: 'l1', claim_token: 'tok-1' }, error: null }) // create_guest_link
-            .mockResolvedValueOnce({ data: row({ is_guest: true }), error: null });          // get_public_link
-        const link = await new LinkRepository().createGuestLink('https://example.com', 'sess');
-        expect(db.rpc.mock.calls[0][0]).toBe('create_guest_link');
-        expect(link.claimToken).toBe('tok-1');
+    it('creates guest links through /api/link/guest and keeps the claim token', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'l1', shortCode: 'abc', claimToken: 'tok-1' }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+        try {
+            db.rpc.mockResolvedValueOnce({ data: row({ is_guest: true }), error: null }); // get_public_link
+            const link = await new LinkRepository().createGuestLink('https://example.com', 'sess');
+            expect(fetchMock).toHaveBeenCalledWith('/api/link/guest', expect.objectContaining({ method: 'POST' }));
+            expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ url: 'https://example.com', sessionId: 'sess' });
+            expect(db.rpc.mock.calls.map(c => c[0])).not.toContain('create_guest_link');
+            expect(link.claimToken).toBe('tok-1');
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('shows the limit message when a guest has made too many links', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'too_many_links', message: 'You can shorten 10 links an hour without an account.' }), { status: 429 })));
+        try {
+            await expect(new LinkRepository().createGuestLink('https://example.com', 'sess')).rejects.toThrow(/10 links an hour/);
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 
     it('claims through claim_guest_link, never by updating the links table', async () => {
