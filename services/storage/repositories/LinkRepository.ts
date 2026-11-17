@@ -11,6 +11,7 @@ import {
     TagRow
 } from '../mappers';
 import { v4 as uuidv4 } from 'uuid';
+import { FREE_LINK_LIMIT } from '../../../utils/planLimits';
 
 export type UnlockResult = { status: 'ok'; link: LinkData } | { status: 'wrong' } | { status: 'limited' };
 
@@ -258,7 +259,7 @@ export class LinkRepository extends BaseRepository {
                         .eq('user_id', userId)
                         .is('team_id', null);
 
-                    if (count && count >= 15) {
+                    if (count && count >= FREE_LINK_LIMIT) {
                         throw new Error('Link limit reached for Free Tier. Please upgrade to create more links.');
                     }
                 }
