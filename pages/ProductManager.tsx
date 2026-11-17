@@ -16,6 +16,9 @@ import { productCategories, storeLook } from '../utils/storePage';
 import { formatPrice } from '../utils/formatPrice';
 import { safeWebUrl } from '../utils/safeUrl';
 import { FEATURES } from '../utils/featureFlags';
+import { aggregatedAnalytics, ProductAnalytics } from '../services/aggregatedAnalyticsService';
+import ProductStats, { ProductStatRange } from '../components/dashboard/ProductStats';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 /**
  * Products: paste a seller's link (or several) to add products to the
@@ -38,6 +41,8 @@ const ProductManager: React.FC = () => {
     const [editing, setEditing] = useState<Product | null>(null);
     const [deleting, setDeleting] = useState<Product | null>(null);
     const [showTags, setShowTags] = useState(false);
+    const [stats, setStats] = useState<ProductAnalytics | null>(null);
+    const [statRange, setStatRange] = useState<ProductStatRange>(30);
 
     const tags = useMemo(() => ({
         amazonAssociateTag: user?.amazonAssociateTag,
@@ -62,6 +67,15 @@ const ProductManager: React.FC = () => {
     }, [user?.id]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Analytics load separately so the products show without waiting.
+    useEffect(() => {
+        if (!user?.id) return;
+        let current = true;
+        aggregatedAnalytics.getProductAnalytics(statRange).then(d => { if (current) setStats(d); });
+        return () => { current = false; };
+    }, [user?.id, statRange, products.length]);
+    const clicksById = useMemo(() => new Map((stats?.products || []).map(p => [p.id, p.clicks])), [stats]);
 
     const categories = useMemo(() => productCategories(products), [products]);
     const shown = category ? products.filter(p => (p.category || '').trim().toLowerCase() === category.toLowerCase()) : products;
@@ -231,6 +245,12 @@ const ProductManager: React.FC = () => {
 
                 <QuickAdd onAdd={addUrls} />
 
+                {stats && products.length > 0 && tab === 'products' && (
+                    <ErrorBoundary>
+                        <ProductStats data={stats} products={products} range={statRange} onRange={setStatRange} />
+                    </ErrorBoundary>
+                )}
+
                 {FEATURES.DIGITAL_PRODUCTS && (
                     <div role="tablist" className="flex gap-1.5">
                         {(['products', 'orders'] as const).map(t => (
@@ -268,6 +288,7 @@ const ProductManager: React.FC = () => {
                                 <ul className="grid grid-cols-2 gap-3 sm:gap-3.5 md:grid-cols-3 lg:grid-cols-4">
                                     {shown.map(p => (
                                         <ProductTile key={p.id} product={p} sortable={!category}
+                                            clicks={stats ? clicksById.get(p.id) ?? (p.linkId ? 0 : undefined) : undefined} days={stats?.days}
                                             onEdit={() => setEditing(p)} onDelete={() => setDeleting(p)} />
                                     ))}
                                 </ul>
@@ -379,7 +400,7 @@ const QuickAdd: React.FC<{ onAdd: (urls: string[], onProgress: (done: number) =>
     );
 };
 
-const ProductTile: React.FC<{ product: Product; sortable: boolean; onEdit: () => void; onDelete: () => void }> = ({ product, sortable, onEdit, onDelete }) => {
+const ProductTile: React.FC<{ product: Product; sortable: boolean; clicks?: number; days?: number; onEdit: () => void; onDelete: () => void }> = ({ product, sortable, clicks, days, onEdit, onDelete }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id, disabled: !sortable });
     const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined };
     const missing = !product.imageUrl || !(Number(product.price) > 0);
@@ -400,6 +421,7 @@ const ProductTile: React.FC<{ product: Product; sortable: boolean; onEdit: () =>
                         {product.category && <span className="rounded-full bg-[#F0EEEA] px-2 py-0.5 text-[11px] text-[#6E6B65]">{product.category}</span>}
                         {!product.linkId && <span className="rounded-full bg-[#FFE9DE] px-2 py-0.5 text-[11px] text-[#C2410C]" title="Clicks on this product aren't counted">not tracked</span>}
                     </div>
+                    {clicks !== undefined && <p className="mt-1.5 font-mono text-[11px] text-[#8C8981]">{clicks.toLocaleString('en-IN')} {clicks === 1 ? 'click' : 'clicks'} · {days}d</p>}
                     {missing && <p className="mt-1.5 text-[11px] text-[#C2410C]">Add {!product.imageUrl ? 'a photo' : ''}{!product.imageUrl && !(Number(product.price) > 0) ? ' and ' : ''}{!(Number(product.price) > 0) ? 'a price' : ''}</p>}
                 </div>
             </button>

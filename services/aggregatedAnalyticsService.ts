@@ -34,6 +34,17 @@ export interface UserAnalyticsExtras {
 // Columns the link page's click table and CSV export use.
 const LINK_CLICK_COLUMNS = 'timestamp, country, city, device, os, browser, referrer, visitor_id';
 
+/** Store page and product clicks for the signed-in user (get_product_analytics). */
+export interface ProductAnalytics {
+    days: number;
+    views: number;
+    viewsAllTime: number;
+    clicks: number;
+    clicksAllTime: number;
+    daily: { date: string; views: number; clicks: number }[];
+    products: { id: string; clicks: number; clicksAllTime: number }[];
+}
+
 class AggregatedAnalyticsService {
     /**
      * Get aggregated click statistics for a user
@@ -319,6 +330,21 @@ class AggregatedAnalyticsService {
     }
 
     /** The caller's top 5 links over the last `days`, each with a daily trend of complete days. */
+    /** Store views and product clicks over the last `days` UTC days; null if unavailable. */
+    async getProductAnalytics(days: number): Promise<ProductAnalytics | null> {
+        if (!isSupabaseConfigured() || !supabase) return null;
+        const { data, error } = await supabase.rpc('get_product_analytics', { p_days: days });
+        if (error) { console.error('[Analytics] get_product_analytics failed:', error); return null; }
+        const d = data as ProductAnalytics;
+        const num = (n: unknown) => Number(n) || 0;
+        return {
+            days: num(d.days), views: num(d.views), viewsAllTime: num(d.viewsAllTime),
+            clicks: num(d.clicks), clicksAllTime: num(d.clicksAllTime),
+            daily: (d.daily || []).map(x => ({ date: x.date, views: num(x.views), clicks: num(x.clicks) })),
+            products: (d.products || []).map(x => ({ id: x.id, clicks: num(x.clicks), clicksAllTime: num(x.clicksAllTime) })),
+        };
+    }
+
     async getTopLinks(days: number, sparkDays = 13): Promise<TopLink[]> {
         if (!isSupabaseConfigured() || !supabase) return [];
         const { data, error } = await supabase.rpc('get_user_top_links', { p_days: days, p_spark_days: sparkDays });
