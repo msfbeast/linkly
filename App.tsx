@@ -123,7 +123,7 @@ const AnimatedRoutes: React.FC = () => {
           {/* Store Routes */}
           <Route path="/claim/:token" element={<ClaimLinkPage />} /> {/* Changed from /claim-link to /claim/:token */}
           <Route path="/pricing" element={<Pricing />} />
-          <Route path="/team/invite/:token" element={<TeamInviteHandler />} /> {/* Moved here from protected */}
+          {FEATURES.TEAMS && <Route path="/team/invite/:token" element={<TeamInviteHandler />} />}
           <Route path="/open/:url" element={<SmartRedirect />} /> {/* Moved here from protected */}
           <Route path="/share/:shareToken" element={<SharedAnalytics />} /> {/* Moved here from protected */}
           <Route path="/about" element={<AboutPage />} /> {/* Moved here from protected */}
@@ -142,7 +142,7 @@ const AnimatedRoutes: React.FC = () => {
             "/products",
             "/affiliate",
             ...(FEATURES.AGENCY_DASHBOARD ? ["/agency"] : []),
-            "/team/settings"
+            ...(FEATURES.TEAMS ? ["/team/settings"] : [])
           ].map((path) => (
             <Route
               key={path}

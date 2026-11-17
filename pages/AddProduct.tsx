@@ -7,6 +7,7 @@ import { extractProductDetails } from '../services/geminiService';
 import { toast } from 'sonner';
 import { Product } from '../types';
 import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
+import { FEATURES } from '../utils/featureFlags';
 
 const AddProduct: React.FC = () => {
     const { user } = useAuth();
@@ -255,7 +256,7 @@ const AddProduct: React.FC = () => {
                     <div className="lg:col-span-2 space-y-6">
                         <div className="bg-white border border-stone-200 rounded-[2rem] p-8 shadow-sm">
                             {/* Type Selector */}
-                            <div className="grid grid-cols-2 gap-4 mb-8">
+                            {FEATURES.DIGITAL_PRODUCTS && (<div className="grid grid-cols-2 gap-4 mb-8">
                                 <button
                                     onClick={() => setProduct({ ...product, type: 'physical' })}
                                     className={`py-3 rounded-xl border-2 font-bold text-sm btn-premium flex items-center justify-center gap-2 ${product.type !== 'digital'
@@ -276,7 +277,7 @@ const AddProduct: React.FC = () => {
                                     <Zap className="w-4 h-4" />
                                     Digital Asset
                                 </button>
-                            </div>
+                            </div>)}
 
                             <div className="space-y-6">
                                 {/* Conditional Logic */}

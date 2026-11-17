@@ -13,6 +13,7 @@ import { extractProductMetadata } from '../services/extractionService';
 
 import { useNavigate } from 'react-router-dom';
 import { formatPrice } from '../utils/formatPrice';
+import { FEATURES } from '../utils/featureFlags';
 
 const ProductManager: React.FC = () => {
     const navigate = useNavigate();
@@ -902,7 +903,7 @@ const ProductManager: React.FC = () => {
                                     <div className="space-y-4 flex-1">
 
                                         {/* Type Selector */}
-                                        <div className="flex gap-4 p-1 bg-stone-100 rounded-xl mb-4">
+                                        {FEATURES.DIGITAL_PRODUCTS && (<div className="flex gap-4 p-1 bg-stone-100 rounded-xl mb-4">
                                             <button
                                                 onClick={() => setCurrentProduct({ ...currentProduct, type: 'physical' })}
                                                 className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${currentProduct.type !== 'digital' ? 'bg-white text-slate-900 shadow-sm' : 'text-stone-500 hover:text-slate-900'}`}
@@ -917,7 +918,7 @@ const ProductManager: React.FC = () => {
                                                 <Zap className="w-4 h-4" />
                                                 Digital Asset
                                             </button>
-                                        </div>
+                                        </div>)}
 
                                         {currentProduct.type === 'digital' ? (
                                             <div>

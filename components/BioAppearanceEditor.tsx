@@ -3,6 +3,7 @@ import { BioProfile, BioThemeConfig } from '../types';
 import { Layout, Type, Palette as PaletteIcon, Shapes, Check, ChevronDown, Monitor, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { FEATURES } from '../utils/featureFlags';
 
 interface BioAppearanceEditorProps {
     profile: BioProfile;
@@ -271,7 +272,7 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
 
                 <div className="space-y-4">
                     {/* Gallery Toggle */}
-                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
+                    {FEATURES.BIO_GALLERY && (<div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
                         <div>
                             <p className="font-bold text-sm text-slate-900">Gallery</p>
                             <p className="text-xs text-stone-500">Show photo gallery</p>
@@ -290,7 +291,7 @@ const BioAppearanceEditor: React.FC<BioAppearanceEditorProps> = ({ profile, onCh
                             />
                             <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
                         </label>
-                    </div>
+                    </div>)}
 
                     {/* App Stack Toggle */}
                     <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">

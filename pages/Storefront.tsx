@@ -17,6 +17,7 @@ import { safeWebUrl } from '../utils/safeUrl';
 import LabStorefront from '../components/storefront-templates/LabStorefront';
 import ArchiveStorefront from '../components/storefront-templates/ArchiveStorefront';
 import CheckoutModal from '../components/CheckoutModal';
+import { FEATURES } from '../utils/featureFlags';
 
 const Storefront: React.FC = () => {
     const { userId } = useParams<{ userId: string }>();
@@ -63,7 +64,11 @@ const Storefront: React.FC = () => {
                 supabaseAdapter.getUserProfile(targetUserId)
             ]);
 
-            setProducts(fetchedProducts);
+            // Digital products (sold here with checkout) are parked; the store
+            // lists links to other sites only.
+            setProducts(FEATURES.DIGITAL_PRODUCTS
+                ? fetchedProducts
+                : fetchedProducts.filter(p => p.type !== 'digital'));
             setStoreProfile(fetchedProfile);
         } catch (err) {
             console.error('Error fetching store data:', err);
@@ -94,7 +99,7 @@ const Storefront: React.FC = () => {
 
     // Render the selected template
     const handleProductSelect = (product: Product) => {
-        if (product.type === 'digital') {
+        if (FEATURES.DIGITAL_PRODUCTS && product.type === 'digital') {
             setSelectedProduct(product);
         } else {
             // Physical/Affiliate Link (seller-provided URL: web links only)

@@ -6,6 +6,7 @@ import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { toast } from 'sonner';
 import { safeWebUrl } from '../utils/safeUrl';
 import { formatPrice } from '../utils/formatPrice';
+import { FEATURES } from '../utils/featureFlags';
 
 const ProductPage: React.FC = () => {
     const { productId } = useParams<{ productId: string }>();
@@ -60,6 +61,11 @@ const ProductPage: React.FC = () => {
         if (product.type !== 'digital') {
             const url = safeWebUrl(product.originalUrl);
             if (url) window.open(url, '_blank', 'noopener');
+            return;
+        }
+        // Checkout for digital products is parked (utils/featureFlags.ts).
+        if (!FEATURES.DIGITAL_PRODUCTS) {
+            toast.error('This product is not available right now.');
             return;
         }
         setBuying(true);

@@ -3,13 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Info, Camera, Aperture, Maximize2, Download } from 'lucide-react';
 import { GalleryItem } from '../../types';
 import { supabaseAdapter } from '../../services/storage/supabaseAdapter';
+import { FEATURES } from '../../utils/featureFlags';
 
 interface GalleryBlockProps {
     items?: GalleryItem[];
     userId?: string;
 }
 
-export const GalleryBlock: React.FC<GalleryBlockProps> = ({ items: propItems, userId }) => {
+// Parked behind a feature flag (utils/featureFlags.ts): renders nothing and
+// fetches nothing while off.
+export const GalleryBlock: React.FC<GalleryBlockProps> = (props) =>
+    FEATURES.BIO_GALLERY ? <GalleryBlockInner {...props} /> : null;
+
+const GalleryBlockInner: React.FC<GalleryBlockProps> = ({ items: propItems, userId }) => {
     const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
     const [fetchedItems, setFetchedItems] = useState<GalleryItem[]>([]);
 
