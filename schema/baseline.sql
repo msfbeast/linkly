@@ -269,7 +269,8 @@ CREATE TABLE IF NOT EXISTS public.products (
     file_url text,
     file_name text,
     sales_count integer DEFAULT 0,
-    download_limit integer
+    download_limit integer,
+    "position" integer
 );
 
 CREATE TABLE IF NOT EXISTS public.profiles (
