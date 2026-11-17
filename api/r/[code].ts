@@ -93,6 +93,22 @@ async function lookupFromDatabase(code: string, rewarm: boolean): Promise<KvLink
     return linkData;
 }
 
+const escapeHtml = (s: string) =>
+    s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+
+/** Shown instead of redirecting when a link was taken down after a report. */
+function disabledPage(appUrl: string, code: string): Response {
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Link disabled · Gather</title><meta name="robots" content="noindex">
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#ECEBE7;color:#18181A;font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:420px;margin:16px;padding:32px;border-radius:24px;background:#FBFAF8}h1{font-size:22px;margin:0 0 8px}p{color:#6E6B65;margin:0 0 16px}
+a{color:#18181A}code{background:#F0EEEA;padding:2px 6px;border-radius:6px}</style></head>
+<body><main><h1>This link has been disabled</h1>
+<p>The short link <code>${escapeHtml(code)}</code> was reported and taken down because it may lead to a harmful or misleading page.</p>
+<p><a href="${escapeHtml(appUrl)}/">Go to Gather</a></p></main></body></html>`;
+    return new Response(html, { status: 410, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
 export default async function handler(request: Request, context?: { waitUntil?: (promise: Promise<unknown>) => void }) {
     const url = new URL(request.url);
     // When accessed via rewrite /r/foo -> /api/r/foo, parse the last segment.
@@ -127,6 +143,10 @@ export default async function handler(request: Request, context?: { waitUntil?: 
                 try { await kv.del(linkCacheKey(code)); } catch { /* best effort */ }
             }
             linkData = null;
+        }
+
+        if (linkData && redirectDecision(linkData) === 'disabled') {
+            return disabledPage(getAppUrl(url), code);
         }
 
         if (linkData && linkData.url && !isMainDomain(url.hostname, deploymentHosts()) &&

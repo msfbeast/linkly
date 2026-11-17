@@ -202,6 +202,11 @@ const LinkCard: React.FC<LinkCardProps> = ({
                   className={`h-2 w-2 flex-shrink-0 cursor-help rounded-full ${getHealthColor(healthStatus)}`}
                   title={getHealthTooltip(healthStatus)}
                 />
+                {link.disabledAt && (
+                  <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-700" title="Taken down after a report. Contact support if you think this is a mistake.">
+                    <AlertCircle className="h-3 w-3" /> Disabled
+                  </span>
+                )}
                 {/* Status Badges */}
                 {(() => {
                   const now = Date.now();

@@ -271,6 +271,8 @@ const StorePage: React.FC<StorePageProps> = ({ handle: propHandle }) => {
 
                 <footer className={`mt-12 text-center text-[12px] ${look.muted}`}>
                     <a href="/" className="hover:underline">Made with Gather</a>
+                    <span className="mx-2" aria-hidden>·</span>
+                    <a href="/report" className="hover:underline">Report a link</a>
                 </footer>
             </div>
         </div>

@@ -16,6 +16,7 @@ import {
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { UserProfile } from '../types';
 import { toast } from 'sonner';
+import LinkReports from '../components/admin/LinkReports';
 
 export default function AdminDashboard() {
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -125,6 +126,8 @@ export default function AdminDashboard() {
                         color="emerald"
                     />
                 </div>
+
+                <LinkReports />
 
                 {/* Users Table */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

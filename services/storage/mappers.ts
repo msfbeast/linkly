@@ -181,6 +181,7 @@ export interface LinkRow {
     metadata?: Record<string, any>;
     ab_test_config: { variants: { id: string; url: string; weight: number }[]; enabled: boolean } | null;
     is_archived?: boolean;
+    disabled_at?: string | null;
 }
 
 export interface GalleryItemRow {
@@ -423,7 +424,8 @@ export function rowToLinkData(row: LinkRow, clickHistory: ClickEvent[] = []): Li
         isGuest: !!row.is_guest,
         claimToken: row.claim_token ?? undefined,
         expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined,
-        isArchived: !!row.is_archived
+        isArchived: !!row.is_archived,
+        disabledAt: row.disabled_at ? new Date(row.disabled_at).getTime() : undefined
     };
 }
 

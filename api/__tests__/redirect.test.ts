@@ -160,6 +160,19 @@ describe('/api/r/:code', () => {
         expect(res.headers.get('location')).toBe(DEST);
     });
 
+    it('shows the disabled page for a taken-down link and counts nothing', async () => {
+        kvGet.mockResolvedValue({ url: DEST, id: 'l1', disabled: true });
+        const res = await handler(request('abc'), context);
+        expect(res.status).toBe(410);
+        expect(res.headers.get('location')).toBeNull();
+        expect(await res.text()).toMatch(/has been disabled/);
+        expect(recordClick).not.toHaveBeenCalled();
+
+        kvGet.mockResolvedValue(null);
+        dbRow.current = { id: 'l1', original_url: DEST, disabled_at: '2026-11-17T10:00:00Z' };
+        expect((await handler(request('abc', IPHONE), context)).status).toBe(410);
+    });
+
     it('returns 404 for an unknown code', async () => {
         const res = await handler(request('nope'), context);
         expect(res.status).toBe(404);
