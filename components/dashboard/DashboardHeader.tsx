@@ -1,6 +1,5 @@
 import React from 'react';
-import { Download, Link as LinkIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Download } from 'lucide-react';
 import DateRangeSelector from '../DateRangeSelector';
 import { DateRange } from '../../services/analyticsService';
 
@@ -12,37 +11,26 @@ interface DashboardHeaderProps {
     isExporting: boolean;
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-    user,
-    dateRange,
-    setDateRange,
-    onExport,
-    isExporting,
-}) => {
+const DashboardHeader: React.FC<DashboardHeaderProps> = ({ user, dateRange, setDateRange, onExport, isExporting }) => {
+    const name = user?.displayName || user?.email?.split('@')[0];
     return (
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div className="flex flex-col justify-between gap-4 pb-2 pt-4 md:flex-row md:items-end">
             <div>
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-2"
-                >
-                    <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
-                        Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">@{user?.displayName || user?.email?.split('@')[0] || 'Creator'}</span>
-                    </h1>
-                </motion.div>
-                <p className="text-stone-500">Here's what's happening with your links today.</p>
+                <h1 className="text-[clamp(26px,3vw,34px)] font-semibold leading-tight tracking-[-0.02em] text-[#18181A]">
+                    {name ? `Welcome back, ${name}` : 'Welcome back'}
+                </h1>
+                <p className="mt-1 text-sm text-[#8C8981]">How your links are doing.</p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
                 <DateRangeSelector selectedRange={dateRange} onRangeChange={setDateRange} />
                 <button
                     onClick={onExport}
                     disabled={isExporting}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-xl text-stone-600 hover:text-slate-900 hover:border-stone-300 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                    className="flex h-[38px] items-center gap-2 rounded-full bg-[#FBFAF8] px-4 text-[13px] font-medium text-[#4A4843] transition-colors hover:text-[#18181A] disabled:opacity-50"
                 >
-                    <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
-                    <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">{isExporting ? 'Exporting…' : 'Export CSV'}</span>
                 </button>
             </div>
         </div>

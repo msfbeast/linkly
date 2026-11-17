@@ -3,7 +3,6 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import Sidebar from './components/Sidebar';
 import TopNavigation from './components/TopNavigation';
 import LoadingFallback from './components/LoadingFallback';
 import { AuthProvider } from './contexts/AuthContext';

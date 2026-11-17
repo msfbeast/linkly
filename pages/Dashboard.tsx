@@ -10,7 +10,6 @@ import CreateLinkModal from '../components/CreateLinkModal';
 import { TagManager } from '../components/TagManager';
 import { UpgradeModal } from '../components/UpgradeModal';
 import QuickLinkInput from '../components/QuickLinkInput';
-import HeroCreateButton from '../components/HeroCreateButton';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 import DashboardHeader from '../components/dashboard/DashboardHeader';
@@ -422,10 +421,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
-  // Quick Link Creation Handler
+  // Quick create from the paste box: default settings, short code from the backend.
   const handleQuickCreate = async (url: string) => {
+    const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
+    if (isFreePlan && links.length >= 50) {
+      setUpgradeTrigger('limit_reached');
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     try {
-      // Create link with default settings
       const newLink: Omit<LinkData, 'id'> = {
         originalUrl: url,
         shortCode: '', // Let backend generate it
@@ -444,10 +448,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       await loadLinks();
       onLinksUpdate?.();
+      toast.success('Short link created');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create link';
-      setError(errorMessage);
       console.error('Failed to quick create link:', err);
+      toast.error(err instanceof Error ? err.message : 'Could not create the link');
+      throw err; // keep the pasted URL in the box
     }
   };
 
@@ -505,7 +510,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#ECEBE7] transition-all duration-300 relative overflow-hidden">
+    <div className="min-h-screen bg-[#ECEBE7]">
 
       <TagManager
         isOpen={isTagManagerOpen}
@@ -520,8 +525,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         trigger={upgradeTrigger}
       />
 
-      <div className="w-full pr-8">
-        <div className="p-6 max-w-7xl mx-auto space-y-8">
+      <div className="w-full">
+        <div className="mx-auto max-w-7xl space-y-3.5 px-4 pb-16 sm:px-6">
 
           {/* Header Section */}
           <DashboardHeader
@@ -532,10 +537,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             isExporting={isExporting}
           />
 
-          {/* Hero Input */}
-          <div className="relative z-10 max-w-3xl mx-auto mb-12">
-            <HeroCreateButton onClick={handleCreateClick} />
-          </div>
+          {/* Paste a link to shorten it */}
+          <QuickLinkInput onCreate={handleQuickCreate} onMoreOptions={handleCreateClick} />
 
           {/* Click overview (personal links; team analytics aren't available yet) */}
           {user?.id && !currentTeam && !hasNoLinks && (
@@ -545,38 +548,36 @@ const Dashboard: React.FC<DashboardProps> = ({
           )}
 
           {/* Links List Section */}
-          <div className="bg-white/60 backdrop-blur-xl border border-white/40 rounded-[2.5rem] p-8 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Your Links</h2>
-              <button
-                onClick={() => setIsTagManagerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-xl text-stone-600 hover:text-slate-900 hover:border-stone-300 transition-all shadow-sm"
-              >
-                <TagIcon className="w-4 h-4" />
-                <span>Manage Tags</span>
-              </button>
-            </div>
-
-            {/* Filter Tabs */}
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setFilterStatus('active')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filterStatus === 'active'
-                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
-                  : 'bg-white text-stone-500 hover:bg-stone-50'
-                  }`}
-              >
-                Active Links
-              </button>
-              <button
-                onClick={() => setFilterStatus('archived')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filterStatus === 'archived'
-                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
-                  : 'bg-white text-stone-500 hover:bg-stone-50'
-                  }`}
-              >
-                Archived
-              </button>
+          <div className="rounded-3xl bg-[#FBFAF8] p-4 sm:p-6">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-[13px] text-[#8C8981]">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-[#FF5A14]" />
+                <h2 className="text-[13px] font-normal">Your links</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <div role="group" aria-label="Show links" className="flex items-center gap-0.5 rounded-full bg-[#F0EEEA] p-1">
+                  {(['active', 'archived'] as const).map(status => (
+                    <button
+                      key={status}
+                      onClick={() => setFilterStatus(status)}
+                      aria-pressed={filterStatus === status}
+                      className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium capitalize transition-colors ${filterStatus === status
+                        ? 'bg-[#18181A] text-[#F2F1EE]'
+                        : 'text-[#6E6B65] hover:text-[#18181A]'}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setIsTagManagerOpen(true)}
+                  data-tour="tag-filter"
+                  className="flex h-[34px] items-center gap-2 rounded-full bg-[#F0EEEA] px-3.5 text-[12px] font-medium text-[#4A4843] transition-colors hover:text-[#18181A]"
+                >
+                  <TagIcon className="h-3.5 w-3.5" />
+                  <span>Tags</span>
+                </button>
+              </div>
             </div>
 
             <ErrorBoundary>

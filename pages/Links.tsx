@@ -368,7 +368,7 @@ const Links: React.FC<LinksProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECEBE7] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-yellow-500 animate-spin mx-auto mb-4" />
           <p className="text-stone-500">Loading your links...</p>
@@ -379,7 +379,7 @@ const Links: React.FC<LinksProps> = ({
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECEBE7] flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-500" />
@@ -400,9 +400,9 @@ const Links: React.FC<LinksProps> = ({
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="min-h-screen bg-[#FDFBF7] flex">
+      <div className="min-h-screen bg-[#ECEBE7] flex">
         {/* Folder Sidebar */}
-        <div className="w-64 border-r border-stone-200 bg-white p-4 hidden md:block h-screen sticky top-0 overflow-y-auto">
+        <div className="w-64 border-r border-stone-200 bg-white p-4 hidden md:block h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto">
           <FolderTree
             folders={folders}
             selectedFolderId={selectedFolderId}

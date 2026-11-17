@@ -284,7 +284,7 @@ const GlobalAnalytics: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECEBE7] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-amber-500 animate-spin mx-auto mb-4" />
           <p className="text-stone-500">Loading analytics...</p>
@@ -315,7 +315,7 @@ const GlobalAnalytics: React.FC = () => {
   const recentClicks = (extras?.recent ?? []).map(c => ({ ...c, timestamp: new Date(c.timestamp).getTime() }));
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] p-6">
+    <div className="min-h-screen bg-[#ECEBE7] p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
