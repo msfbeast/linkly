@@ -63,6 +63,10 @@ export default defineConfig(({ mode }) => {
     },
     // SECURITY: Never inline GEMINI_API_KEY (or any secret) into the client
     // bundle via `define`. All AI calls go through /api/ai/* server endpoints.
+    // The commit being built, so reported errors say which release they're from.
+    define: {
+      __APP_RELEASE__: JSON.stringify((process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 12)),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -2,6 +2,7 @@ import { hashIp } from '../../utils/ipHash';
 import { safeWebUrl } from '../../utils/safeUrl';
 import { newShortCode } from '../../utils/shortCode';
 import { allowGuestLink, GUEST_LINKS_PER_HOUR } from '../_lib/guestLimit';
+import { recordServerError } from '../_lib/errorLog';
 
 /**
  * Shortens a link for a visitor without an account (the landing page).
@@ -72,6 +73,7 @@ export default async function handler(request: Request): Promise<Response> {
         const text = await res.text();
         if (res.status === 409 || /23505|duplicate key/.test(text)) continue;
         console.error('[guest-link] create failed:', res.status, text);
+        await recordServerError('guest-link', new Error(`create_guest_link ${res.status}: ${text.slice(0, 300)}`), request);
         if (res.status === 400 && /22023/.test(text)) {
             return json({ error: 'Enter a web address, like https://example.com/page.' }, 400);
         }

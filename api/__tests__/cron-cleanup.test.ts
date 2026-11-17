@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-const { kvDel, deleted } = vi.hoisted(() => ({ kvDel: vi.fn(), deleted: { rows: [] as { short_code: string }[] } }));
+const { kvDel, deleted, prunedErrors } = vi.hoisted(() => ({ kvDel: vi.fn(), deleted: { rows: [] as { short_code: string }[] }, prunedErrors: { calls: 0 } }));
 vi.mock('@vercel/kv', () => ({ kv: { del: kvDel } }));
 vi.mock('@supabase/supabase-js', () => ({
     createClient: () => ({
         from: () => ({
-            delete: () => ({ eq: () => ({ lt: () => ({ select: async () => ({ data: deleted.rows, error: null }) }) }) }),
+            delete: () => ({
+                eq: () => ({ lt: () => ({ select: async () => ({ data: deleted.rows, error: null }) }) }),
+                lt: async () => { prunedErrors.calls++; return { error: null }; }, // error_log prune
+            }),
         }),
     }),
 }));
@@ -37,5 +40,6 @@ describe('/api/cron/cleanup', () => {
         expect(res.status).toBe(200);
         expect((await res.json()).deleted_count).toBe(2);
         expect(kvDel).toHaveBeenCalledWith('gather:link:g1', 'gather:link:g2');
+        expect(prunedErrors.calls).toBe(1);
     });
 });

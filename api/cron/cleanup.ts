@@ -47,6 +47,13 @@ export default async function handler(request: Request): Promise<Response> {
             }
         }
 
+        // Errors not seen for 30 days (admin dashboard keeps the recent ones).
+        const { error: pruneError } = await supabase
+            .from('error_log')
+            .delete()
+            .lt('last_seen', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        if (pruneError) console.error('Cleanup: error_log prune failed:', pruneError);
+
         return json({
             success: true,
             deleted_count: count,
