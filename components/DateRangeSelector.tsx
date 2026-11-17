@@ -1,5 +1,4 @@
 import React from 'react';
-import { Calendar } from 'lucide-react';
 import { DateRange } from '../services/analyticsService';
 
 interface DateRangeSelectorProps {
@@ -7,42 +6,33 @@ interface DateRangeSelectorProps {
   onRangeChange: (range: DateRange) => void;
 }
 
-const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
-  { value: '24h', label: '24hr' },
-  { value: '7d', label: '7 Days' },
-  { value: '30d', label: '30 Days' },
-  { value: '90d', label: '90 Days' },
-  { value: 'all', label: 'All Time' },
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string; name: string }[] = [
+  { value: '24h', label: '24h', name: '24 hours' },
+  { value: '7d', label: '7d', name: '7 days' },
+  { value: '30d', label: '30d', name: '30 days' },
+  { value: '90d', label: '90d', name: '90 days' },
+  { value: 'all', label: 'All', name: 'all time' },
 ];
 
-const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
-  selectedRange,
-  onRangeChange,
-}) => {
-  return (
-    <div className="flex items-center gap-2">
-      <Calendar className="w-4 h-4 text-stone-400" />
-      <div className="flex items-center gap-1 bg-white rounded-lg border border-stone-200 p-1 transition-colors duration-200 shadow-sm">
-        {DATE_RANGE_OPTIONS.map((option) => {
-          const isActive = selectedRange === option.value;
-          return (
-            <button
-              key={option.value}
-              onClick={() => onRangeChange(option.value)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${isActive
-                ? 'bg-yellow-100 text-yellow-700'
-                : 'text-stone-500 hover:text-slate-900 hover:bg-stone-100'
-                }`}
-              aria-pressed={isActive}
-              aria-label={`Filter by ${option.label}`}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({ selectedRange, onRangeChange }) => (
+  <div role="group" aria-label="Date range" className="flex items-center gap-0.5 rounded-full bg-[#FBFAF8] p-1">
+    {DATE_RANGE_OPTIONS.map((option) => {
+      const isActive = selectedRange === option.value;
+      return (
+        <button
+          key={option.value}
+          onClick={() => onRangeChange(option.value)}
+          className={`rounded-full px-3 py-1.5 font-mono text-[12px] transition-colors ${isActive
+            ? 'bg-[#18181A] text-[#F2F1EE]'
+            : 'text-[#8C8981] hover:bg-[#F0EEEA] hover:text-[#18181A]'}`}
+          aria-pressed={isActive}
+          aria-label={`Filter by ${option.name}`}
+        >
+          {option.label}
+        </button>
+      );
+    })}
+  </div>
+);
 
 export default DateRangeSelector;

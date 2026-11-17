@@ -152,7 +152,7 @@ const AddProduct: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#FDFBF7] p-6 pb-24">
+        <div className="min-h-screen bg-[#ECEBE7] p-6 pb-24">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">

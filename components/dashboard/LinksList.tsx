@@ -107,12 +107,12 @@ const LinksList: React.FC<LinksListProps> = ({
         return (
             <div className="space-y-6">
                 {/* Search Skeleton */}
-                <div className="h-12 bg-white/60 backdrop-blur-xl border border-white/40 rounded-2xl animate-pulse" />
+                <div className="h-12 animate-pulse rounded-2xl bg-[#F0EEEA]" />
 
                 {/* List Skeletons */}
                 <div className="space-y-4">
                     {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="h-24 bg-white rounded-2xl border border-stone-100 shadow-sm animate-pulse flex items-center p-4 gap-4">
+                        <div key={i} className="flex h-24 animate-pulse items-center gap-4 rounded-3xl bg-white p-4">
                             <div className="w-12 h-12 bg-stone-100 rounded-xl" />
                             <div className="flex-1 space-y-2">
                                 <div className="h-4 w-1/3 bg-stone-100 rounded-full" />
@@ -129,7 +129,7 @@ const LinksList: React.FC<LinksListProps> = ({
     return (
         <div className="space-y-6">
             {/* Search and Filter Bar */}
-            <div className="flex items-center justify-between gap-4 bg-white/60 backdrop-blur-xl border border-white/40 p-2 rounded-2xl shadow-sm">
+            <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#F0EEEA] p-1.5">
                 <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                     <input
@@ -196,7 +196,7 @@ const LinksList: React.FC<LinksListProps> = ({
                     items={filteredLinks.map(l => l.id)}
                     strategy={verticalListSortingStrategy}
                 >
-                    <div className="space-y-4">
+                    <div>
                         <AnimatePresence mode='popLayout'>
                             {filteredLinks.length > 0 ? (
                                 filteredLinks.map((link) => (
@@ -218,7 +218,7 @@ const LinksList: React.FC<LinksListProps> = ({
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="text-center py-12 bg-white/40 backdrop-blur-sm rounded-[2rem] border border-white/40 border-dashed"
+                                    className="rounded-3xl border border-dashed border-[#D9D6D0] py-12 text-center"
                                 >
                                     <div className="w-16 h-16 bg-stone-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                         <LinkIcon className="w-8 h-8 text-stone-400" />
@@ -230,7 +230,7 @@ const LinksList: React.FC<LinksListProps> = ({
                                     {!searchTerm && (
                                         <button
                                             onClick={onCreateFirstLink}
-                                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors"
+                                            className="inline-flex items-center gap-2 rounded-full bg-[#FF5A14] px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#E64D0C]"
                                         >
                                             Create Link <ArrowUpRight className="w-4 h-4" />
                                         </button>

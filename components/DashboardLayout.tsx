@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Sidebar from './Sidebar';
 import { ViewState, LinkData } from '../types';
 import TopNavigation from './TopNavigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -262,89 +261,65 @@ const DashboardLayout: React.FC = () => {
         }
     };
 
+    // One place that changes section: keeps the view and the URL together.
+    const changeView = (newView: ViewState) => {
+        setView(newView);
+        const pathMap: Record<string, string> = {
+            [ViewState.DASHBOARD]: '/dashboard',
+            [ViewState.LINKS]: '/links',
+            [ViewState.ANALYTICS]: '/analytics',
+            [ViewState.SETTINGS]: '/settings',
+            [ViewState.PRODUCTS]: '/dashboard/products',
+            [ViewState.ADD_PRODUCT]: '/dashboard/products/add',
+            [ViewState.AFFILIATE]: '/affiliate',
+            [ViewState.BIO_PAGES]: '/bio',
+            [ViewState.API]: '/api-access',
+            [ViewState.TEAM_SETTINGS]: '/team/settings',
+            [ViewState.AGENCY]: '/agency'
+        };
+        if (pathMap[newView]) navigate(pathMap[newView]);
+    };
+
     return (
-        <div className="flex min-h-screen bg-[#FDFBF7] text-slate-900 relative overflow-hidden">
-            {/* Aurora Background */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-200/30 rounded-full blur-[120px] animate-pulse" />
-                <div className="absolute top-[20%] right-[-10%] w-[30%] h-[30%] bg-yellow-200/30 rounded-full blur-[100px] animate-pulse delay-1000" />
-                <div className="absolute bottom-[-10%] left-[20%] w-[35%] h-[35%] bg-pink-200/20 rounded-full blur-[120px] animate-pulse delay-2000" />
-            </div>
-            {/* Sidebar - Responsive */}
-            <div>
-                <Sidebar
-                    currentView={view}
-                    onChangeView={(newView) => {
-                        // Agency is now handled internally, no need for special return
-                        setView(newView);
-                        // Update URL when view changes
-                        const pathMap: Record<string, string> = {
-                            [ViewState.DASHBOARD]: '/dashboard',
-                            [ViewState.LINKS]: '/links',
-                            [ViewState.ANALYTICS]: '/analytics',
-                            [ViewState.SETTINGS]: '/settings',
-                            [ViewState.PRODUCTS]: '/dashboard/products',
-                            [ViewState.ADD_PRODUCT]: '/dashboard/products/add',
-                            [ViewState.AFFILIATE]: '/affiliate',
-                            [ViewState.BIO_PAGES]: '/bio',
-                            [ViewState.API]: '/api-access',
-                            [ViewState.TEAM_SETTINGS]: '/team/settings',
-                            [ViewState.AGENCY]: '/agency'
-                        };
-                        if (pathMap[newView]) {
-                            // Use navigate instead of manual pushState for better router sync
-                            navigate(pathMap[newView]);
-                        }
-                    }}
-                    isOpen={isSidebarOpen}
-                    onClose={() => setIsSidebarOpen(false)}
-                /></div>
+        <div className="flex min-h-screen flex-col bg-[#ECEBE7] text-[#18181A]">
+            <TopNavigation
+                totalClicks={links.reduce((acc, link) => acc + (link.clicks || 0), 0)}
+                clickChange={clickChange}
+                onNewLinkClick={() => setIsModalOpen(true)}
+                currentView={view}
+                onChangeView={changeView}
+            />
 
-            {/* Main Content Area */}
-            <div className="flex-1 md:ml-[300px] flex flex-col transition-all duration-300">
-                {/* Top Navigation */}
-                <TopNavigation
-                    totalClicks={links.reduce((acc, link) => acc + (link.clicks || 0), 0)}
-                    clickChange={clickChange}
-                    onNewLinkClick={() => setIsModalOpen(true)}
-                    onSettingsClick={() => setView(ViewState.SETTINGS)}
-                    currentView={view}
-                    onChangeView={setView}
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                />
+            <div className="flex min-w-0 flex-1 flex-col">
+                <TrialCountdown />
 
-                {/* Page Content */}
-                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                    <TrialCountdown />
-
-                    <main className="flex-1 overflow-y-auto bg-[#FDFBF7] scroll-smooth">
-                        <Suspense fallback={<LoadingFallback />}>
-                            {view === ViewState.DASHBOARD && (
-                                <Dashboard
-                                    externalModalOpen={isModalOpen}
-                                    setExternalModalOpen={setIsModalOpen}
-                                    onLinksUpdate={handleLinksUpdate}
-                                />
-                            )}
-                            {view === ViewState.LINKS && (
-                                <Links
-                                    externalModalOpen={isModalOpen}
-                                    setExternalModalOpen={setIsModalOpen}
-                                    onLinksUpdate={handleLinksUpdate}
-                                />
-                            )}
-                            {view === ViewState.BIO_PAGES && <BioDashboard />}
-                            {view === ViewState.API && <ApiPage />}
-                            {view === ViewState.ANALYTICS && <GlobalAnalytics />}
-                            {view === ViewState.PRODUCTS && <ProductManager />}
-                            {view === ViewState.ADD_PRODUCT && <AddProduct />}
-                            {view === ViewState.AFFILIATE && <AffiliateManager />}
-                            {view === ViewState.AGENCY && <AgencyDashboard />}
-                            {view === ViewState.SETTINGS && <Settings />}
-                            {FEATURES.TEAMS && view === ViewState.TEAM_SETTINGS && <TeamSettings />}
-                        </Suspense>
-                    </main>
-                </div>
+                <main className="flex-1">
+                    <Suspense fallback={<LoadingFallback />}>
+                        {view === ViewState.DASHBOARD && (
+                            <Dashboard
+                                externalModalOpen={isModalOpen}
+                                setExternalModalOpen={setIsModalOpen}
+                                onLinksUpdate={handleLinksUpdate}
+                            />
+                        )}
+                        {view === ViewState.LINKS && (
+                            <Links
+                                externalModalOpen={isModalOpen}
+                                setExternalModalOpen={setIsModalOpen}
+                                onLinksUpdate={handleLinksUpdate}
+                            />
+                        )}
+                        {view === ViewState.BIO_PAGES && <BioDashboard />}
+                        {view === ViewState.API && <ApiPage />}
+                        {view === ViewState.ANALYTICS && <GlobalAnalytics />}
+                        {view === ViewState.PRODUCTS && <ProductManager />}
+                        {view === ViewState.ADD_PRODUCT && <AddProduct />}
+                        {view === ViewState.AFFILIATE && <AffiliateManager />}
+                        {view === ViewState.AGENCY && <AgencyDashboard />}
+                        {view === ViewState.SETTINGS && <Settings />}
+                        {FEATURES.TEAMS && view === ViewState.TEAM_SETTINGS && <TeamSettings />}
+                    </Suspense>
+                </main>
             </div>
 
             {/* Keyboard Shortcuts Help Modal */}

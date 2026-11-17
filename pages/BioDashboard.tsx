@@ -291,7 +291,7 @@ const BioDashboard: React.FC = () => {
 
     if (isEditing) {
         return (
-            <div className="min-h-screen bg-[#FDFBF7]">
+            <div className="min-h-screen bg-[#ECEBE7]">
                 <div className="p-4 md:p-8 max-w-[1600px] mx-auto">
                     <div className="flex items-center justify-between mb-6 md:mb-8">
                         {/* ... Header ... */}
@@ -720,7 +720,7 @@ const BioDashboard: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#FDFBF7]">
+        <div className="min-h-screen bg-[#ECEBE7]">
             <div className="p-8 max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <div>

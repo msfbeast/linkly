@@ -214,7 +214,7 @@ const Settings: React.FC = () => {
   })();
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] p-6">
+    <div className="min-h-screen bg-[#ECEBE7] p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">

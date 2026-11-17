@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, TrendingUp, TrendingDown, LogOut, User, ChevronDown, Menu, ShoppingBag, LayoutDashboard, Link as LinkIcon, BarChart2, Settings, Code2 } from 'lucide-react';
+import { Plus, LogOut, User, Settings, Code2, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ViewState } from '../types';
 import { usePermission } from '../hooks/usePermission';
+import { FEATURES } from '../utils/featureFlags';
+import TeamSwitcher from './TeamSwitcher';
 
 export type TabType = 'overview' | 'links' | 'analytics' | 'settings';
 
@@ -17,45 +19,50 @@ interface TopNavigationProps {
   onMenuClick?: () => void;
 }
 
-// ... (existing helper types)
+/** Main sections, shown as pills in the bar. Everything else is in the account menu. */
+const NAV_ITEMS: { id: ViewState; label: string; tour?: string }[] = [
+  { id: ViewState.DASHBOARD, label: 'Dashboard' },
+  { id: ViewState.LINKS, label: 'Links' },
+  { id: ViewState.PRODUCTS, label: 'Products' },
+  { id: ViewState.BIO_PAGES, label: 'Bio page', tour: 'bio-nav' },
+  { id: ViewState.ANALYTICS, label: 'Analytics' },
+];
+
+/** Views that belong to a pill without being one (e.g. the add-product form). */
+const PARENT_VIEW: Partial<Record<ViewState, ViewState>> = {
+  [ViewState.ADD_PRODUCT]: ViewState.PRODUCTS,
+};
 
 const TopNavigation: React.FC<TopNavigationProps> = ({
   totalClicks,
   clickChange,
   onNewLinkClick,
-  onSettingsClick,
   currentView,
   onChangeView,
-  onMenuClick,
 }) => {
   const { user, signOut } = useAuth();
-  const { can } = usePermission(); // Use hook
+  const { can } = usePermission();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
       navigate('/');
-      // Small delay to ensure navigation completes before auth state clears
-      // This prevents ProtectedRoute from triggering a redirect to /login
+      // Small delay so navigation completes before auth state clears;
+      // otherwise ProtectedRoute redirects to /login.
       setTimeout(async () => {
         await signOut();
       }, 50);
@@ -65,182 +72,110 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
     }
   };
 
-  const navItems = [
-    { id: ViewState.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
-    { id: ViewState.PRODUCTS, label: 'Products', icon: ShoppingBag },
-    { id: ViewState.LINKS, label: 'Links', icon: LinkIcon },
-    { id: ViewState.ANALYTICS, label: 'Analytics', icon: BarChart2 },
-    { id: ViewState.SETTINGS, label: 'Settings', icon: Settings },
-  ];
+  const go = (view: ViewState) => {
+    onChangeView?.(view);
+    setIsUserMenuOpen(false);
+  };
 
-  const checklistItems = [
-    { id: 'signup', label: 'Create your account', completed: true },
-    { id: 'first-link', label: 'Create your first link', completed: totalClicks > 0 || clickChange !== 0 }, // Simplified check
-    { id: 'customize', label: 'Customize your profile', completed: !!user?.user_metadata?.avatar_url },
-    { id: 'share', label: 'Share your link', completed: totalClicks > 5 },
-  ];
+  const activeView = currentView ? PARENT_VIEW[currentView] ?? currentView : undefined;
 
-  const completedCount = checklistItems.filter(i => i.completed).length;
-  const progress = (completedCount / checklistItems.length) * 100;
-  const radius = 18;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const pills = (
+    <nav aria-label="Main" className="flex items-center gap-1 rounded-full bg-[#FBFAF8] p-1">
+      {NAV_ITEMS.map(item => {
+        const active = activeView === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => go(item.id)}
+            data-tour={item.tour}
+            aria-current={active ? 'page' : undefined}
+            className={`whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${active
+              ? 'bg-[#18181A] text-[#F2F1EE]'
+              : 'text-[#6E6B65] hover:bg-[#F0EEEA] hover:text-[#18181A]'}`}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+
+  const menuItem = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] text-[#4A4843] hover:bg-[#F0EEEA] hover:text-[#18181A]';
 
   return (
-    <>
-      <div className="h-20 flex items-center justify-between px-6 md:px-8 sticky top-0 z-40 bg-[#FDFBF7]/80 backdrop-blur-md">
-        {/* Left: Logo and Tabs */}
-        <div className="flex items-center gap-4 md:gap-8">
-          {/* Mobile Menu Button */}
+    <header className="sticky top-0 z-40 bg-[#ECEBE7]/85 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
+        {/* Brand */}
+        <button onClick={() => go(ViewState.DASHBOARD)} className="flex shrink-0 items-center gap-2" aria-label="Gather dashboard">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#18181A]">
+            <span className="h-2.5 w-2.5 rounded-[3px] bg-[#FF5A14]" />
+          </span>
+          <span className="hidden text-[17px] font-semibold tracking-tight text-[#18181A] sm:block">Gather</span>
+        </button>
+
+        {FEATURES.TEAMS && <div className="hidden w-48 lg:block"><TeamSwitcher /></div>}
+
+        {/* Section pills (desktop) */}
+        <div className="hidden flex-1 justify-center md:flex">{pills}</div>
+        <div className="flex-1 md:hidden" />
+
+        {/* Clicks */}
+        <div className="hidden items-center gap-2 rounded-full bg-[#FBFAF8] px-3.5 py-2 font-mono text-[12px] text-[#8C8981] lg:flex" title="Total clicks on your links">
+          <span className="text-[#18181A]">{totalClicks.toLocaleString()}</span>
+          <span>clicks</span>
+          {clickChange !== 0 && (
+            <span className="rounded-md bg-[#F0EEEA] px-1.5 py-0.5 text-[11px] text-[#C2410C]">
+              {clickChange > 0 ? '+' : ''}{clickChange}%
+            </span>
+          )}
+        </div>
+
+        {can('create_link') && (
           <button
-            className="md:hidden p-2 text-stone-400 hover:text-slate-900 transition-colors"
-            onClick={onMenuClick}
+            onClick={onNewLinkClick}
+            data-tour="create-link-button"
+            className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#FF5A14] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#E64D0C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181A]"
           >
-            <Menu className="w-6 h-6" />
+            <Plus className="h-4 w-4" />
+            <span>New link</span>
+          </button>
+        )}
+
+        {/* Account menu */}
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            onClick={() => setIsUserMenuOpen(o => !o)}
+            aria-label="Account menu"
+            aria-expanded={isUserMenuOpen}
+            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#FBFAF8] text-[#6E6B65] hover:text-[#18181A]"
+          >
+            {user?.user_metadata?.avatar_url
+              ? <img src={user.user_metadata.avatar_url} alt="" className="h-full w-full object-cover" />
+              : <User className="h-4 w-4" />}
           </button>
 
-          {/* Logo - Only visible on mobile since Sidebar has it on desktop */}
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-              <ShoppingBag className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 hidden sm:block tracking-tight">Gather<span className="text-yellow-500">.</span></h1>
-          </div>
-        </div>
-
-        {/* Right: Clicks Display, New Link Button, and User Menu */}
-        <div className="flex items-center gap-4 md:gap-6">
-          {/* Total Clicks Display */}
-          <div className="hidden sm:flex items-center gap-3 px-2">
-            <div className={`p-2 rounded-full ${clickChange >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
-              {clickChange >= 0 ? (
-                <TrendingUp className={`w-4 h-4 ${clickChange >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
-              ) : (
-                <TrendingDown className="w-4 h-4 text-red-600" />
-              )}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-0.5">Total Clicks</span>
-              <div className="flex items-baseline gap-2 leading-none">
-                <span className="text-lg font-bold text-slate-900">{totalClicks.toLocaleString()}</span>
-                {clickChange !== 0 && (
-                  <span className={`text-xs font-bold ${clickChange > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {clickChange > 0 ? '+' : ''}{clickChange}%
-                  </span>
-                )}
+          {isUserMenuOpen && (
+            <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl bg-[#FBFAF8] p-2 shadow-[0_12px_40px_rgba(24,24,26,0.14)] ring-1 ring-black/5">
+              <div className="px-3 pb-2 pt-1.5">
+                <p className="truncate text-[13px] font-medium text-[#18181A]">{user?.email}</p>
+                <p className="font-mono text-[11px] capitalize text-[#8C8981]">{user?.preferences?.subscription_tier || 'free'} plan</p>
               </div>
+              <div className="my-1 h-px bg-[#ECEAE6]" />
+              <button onClick={() => go(ViewState.SETTINGS)} className={menuItem}><Settings className="h-4 w-4" /> Settings</button>
+              <button onClick={() => go(ViewState.AFFILIATE)} className={menuItem}><Zap className="h-4 w-4" /> Affiliate tags</button>
+              <button onClick={() => go(ViewState.API)} className={menuItem}><Code2 className="h-4 w-4" /> Developer API</button>
+              <div className="my-1 h-px bg-[#ECEAE6]" />
+              <button onClick={handleLogout} disabled={isLoggingOut} className={`${menuItem} text-[#B42318] hover:text-[#B42318]`}>
+                <LogOut className="h-4 w-4" /> {isLoggingOut ? 'Signing out…' : 'Sign out'}
+              </button>
             </div>
-          </div>
-
-          <div className="h-8 w-px bg-stone-200 hidden sm:block"></div>
-
-          {/* New Link Button */}
-          {/* New Link Button - Hide on Dashboard since we have the Hero button */}
-          {currentView !== ViewState.DASHBOARD && can('create_link') && (
-            <button
-              onClick={onNewLinkClick}
-              className="flex items-center gap-2 px-5 h-11 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full btn-premium shadow-[0_4px_14px_0_rgba(15,23,42,0.39)] text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden md:inline">New Link</span>
-            </button>
           )}
-
-          {/* User Menu */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-stone-100 transition-colors"
-            >
-              {/* Progress Ring */}
-              {/* Progress Ring - Only show if not complete */}
-              {progress < 100 && (
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 40 40">
-                  <circle
-                    cx="20"
-                    cy="20"
-                    r={radius}
-                    fill="none"
-                    stroke="#E5E7EB"
-                    strokeWidth="2"
-                  />
-                  <circle
-                    cx="20"
-                    cy="20"
-                    r={radius}
-                    fill="none"
-                    stroke="#9333EA"
-                    strokeWidth="2"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    className="transition-all duration-1000 ease-out"
-                  />
-                </svg>
-              )}
-
-              <div className="w-8 h-8 bg-stone-200 rounded-full flex items-center justify-center overflow-hidden border border-stone-300 relative z-10">
-                {user?.user_metadata?.avatar_url ? (
-                  <img src={user.user_metadata.avatar_url} alt="User" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-4 h-4 text-stone-500" />
-                )}
-              </div>
-            </button>
-
-            {isUserMenuOpen && (
-              <div className="absolute right-0 mt-3 w-72 glass-card rounded-2xl py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50 ring-1 ring-black/5">
-                <div className="px-4 py-3 border-b border-stone-100">
-                  <p className="text-sm font-bold text-slate-900 truncate">{user?.email}</p>
-                  <p className="text-xs text-stone-500 capitalize">{user?.preferences?.subscription_tier || 'Free'} Plan</p>
-                </div>
-
-                {/* Setup Checklist */}
-                {progress < 100 && (
-                  <div className="px-4 py-3 border-b border-stone-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Setup Progress</span>
-                      <span className="text-xs font-bold text-purple-600">{Math.round(progress)}%</span>
-                    </div>
-                    <div className="space-y-2">
-                      {checklistItems.map((item) => (
-                        <div key={item.id} className="flex items-start gap-2">
-                          <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center border ${item.completed ? 'bg-purple-100 border-purple-200' : 'border-stone-200'}`}>
-                            {item.completed && <div className="w-2 h-2 bg-purple-500 rounded-full" />}
-                          </div>
-                          <span className={`text-xs ${item.completed ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
-                            {item.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => {
-                    onChangeView?.(ViewState.SETTINGS);
-                    setIsUserMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-stone-600 hover:bg-stone-50 hover:text-slate-900 flex items-center gap-2"
-                >
-                  <Settings className="w-4 h-4" /> Settings
-                </button>
-                <div className="border-t border-stone-100 my-1"></div>
-                <button
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  {isLoggingOut ? 'Signing out...' : 'Sign Out'}
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
-    </>
+
+      {/* Section pills (mobile): one scrollable row under the bar */}
+      <div className="overflow-x-auto px-4 pb-2 md:hidden [scrollbar-width:none]">{pills}</div>
+    </header>
   );
 };
 
