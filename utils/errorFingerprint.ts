@@ -11,6 +11,8 @@ const IGNORED = [
     /AbortError|The user aborted a request|signal is aborted/i,
     /\bLoad failed\b/i, // Safari: fetch cancelled by navigation
     /chrome-extension:\/\/|moz-extension:\/\/|safari-extension:\/\//i,
+    /window\.ethereum|ethereum\.selectedAddress/i, // crypto wallet extensions
+    /\/_vercel\/(speed-insights|insights)\//i, // Vercel's scripts on old webviews
 ];
 
 export function isIgnoredError(message: string, stack?: string | null): boolean {
