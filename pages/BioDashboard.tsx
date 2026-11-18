@@ -1,922 +1,424 @@
-import React, { useState, useEffect } from 'react';
-import {
-    Layout, Palette, Camera, Mail, Smartphone,
-    UserCircle2, ExternalLink, Edit, Search, Sparkles, Wand2, Loader2,
-    Music, MapPin, Play, Plus, Trash2, GripVertical, Save, X, Eye, ChevronDown, Upload
-} from 'lucide-react';
-import { BioProfile, LinkData, LinkType } from '../types';
-import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { monetizeUrl, isShortAmazonUrl, resolveShortUrl } from '../utils/affiliateUtils';
-import { generateBio } from '../services/geminiService';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUpRight, Camera, Check, ExternalLink, GripVertical, Loader2, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
-import { v4 as uuidv4 } from 'uuid';
-import BioPreview from '../components/BioPreview';
-import BioAppearanceEditor from '../components/BioAppearanceEditor';
-import BioSeoEditor from '../components/BioSeoEditor';
-import { SortableBioLinkItem } from '../components/SortableBioLinkItem';
-
-import { AppStackManager } from '../components/AppStackManager';
-import { ThemeGallery } from '../components/ThemeGallery';
 import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent
+    DndContext, DragEndEvent, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
 } from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
-    rectSortingStrategy,
-} from '@dnd-kit/sortable';
-import { BioBlock } from '../components/BioBlock';
-import { BioAnalyticsDashboard } from '../components/BioAnalyticsDashboard';
-import { BlockGalleryModal, BlockType } from '../components/BlockGalleryModal';
-import { WidgetConfigModal } from '../components/WidgetConfigModal';
-import { BarChart3 } from 'lucide-react';
-import { BioDashboardSkeleton } from '../components/skeletons/BioDashboardSkeleton';
-import { CollapsibleWidget } from '../components/CollapsibleWidget';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useAuth } from '../contexts/AuthContext';
+import { supabaseAdapter } from '../services/storage/supabaseAdapter';
+import { BioProfile, BioTheme, LinkData } from '../types';
+import { Label, Tile } from '../components/ui/bento';
+import { storeLook, StoreLook } from '../utils/storePage';
+import { STORE_LOOKS } from '../utils/storeLooks';
+
+const MAX_BIO = 300;
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+const inputClass = 'w-full rounded-2xl bg-[#F0EEEA] px-4 py-3 text-[14px] text-[#18181A] outline-none placeholder:text-[#A19E97] focus:ring-2 focus:ring-[#FF5A14]/30';
+
+/** Handles become /@handle: lowercase letters, numbers, dots, dashes and underscores. */
+export const cleanHandle = (v: string) => v.toLowerCase().replace(/^@/, '').replace(/[^a-z0-9._-]/g, '').slice(0, 30);
+
+interface Draft {
+    displayName: string;
+    handle: string;
+    bio: string;
+    avatarUrl: string;
+    look: StoreLook;
+    links: string[];
+}
+
+const draftOf = (p: BioProfile): Draft => ({
+    displayName: p.displayName || '',
+    handle: p.handle,
+    bio: p.bio || '',
+    avatarUrl: p.avatarUrl || '',
+    look: storeLook(p.theme),
+    links: p.links || [],
+});
+
+/** Which saved fields a draft changes; empty when there's nothing to save. */
+export function draftChanges(saved: Draft, draft: Draft): Partial<BioProfile> {
+    const out: Partial<BioProfile> = {};
+    if (draft.displayName.trim() !== saved.displayName) out.displayName = draft.displayName.trim();
+    if (draft.handle !== saved.handle) out.handle = draft.handle;
+    if (draft.bio.trim() !== saved.bio) out.bio = draft.bio.trim();
+    if (draft.avatarUrl !== saved.avatarUrl) out.avatarUrl = draft.avatarUrl;
+    if (draft.look !== saved.look) out.theme = draft.look as BioTheme;
+    if (draft.links.join(',') !== saved.links.join(',')) out.links = draft.links;
+    return out;
+}
+
+const SortableRow: React.FC<{ link: LinkData; onRemove: () => void }> = ({ link, onRemove }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: link.id });
+    return (
+        <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+            className={`flex items-center gap-2 rounded-2xl bg-[#F3F2EF] py-2 pl-1.5 pr-2 ${isDragging ? 'z-10 shadow-lg' : ''}`}>
+            <button type="button" {...attributes} {...listeners} aria-label={`Move ${link.title || link.shortCode}`}
+                className="cursor-grab rounded-lg p-1.5 text-[#A19E97] hover:text-[#18181A] active:cursor-grabbing">
+                <GripVertical className="h-4 w-4" />
+            </button>
+            <div className="min-w-0 flex-1">
+                <div className="truncate text-[14px]">{link.title || `/${link.shortCode}`}</div>
+                <div className="truncate font-mono text-[11px] text-[#A19E97]">/{link.shortCode}</div>
+            </div>
+            <button type="button" onClick={onRemove} aria-label={`Remove ${link.title || link.shortCode} from the page`}
+                className="rounded-full p-1.5 text-[#8C8981] hover:bg-[#E6E3DD] hover:text-[#18181A]">
+                <X className="h-4 w-4" />
+            </button>
+        </li>
+    );
+};
+
+/** What visitors see, drawn from the draft: same look classes as the store page. */
+const Preview: React.FC<{ draft: Draft; links: LinkData[] }> = ({ draft, links }) => {
+    const look = STORE_LOOKS[draft.look];
+    const name = draft.displayName.trim() || `@${draft.handle}`;
+    return (
+        <div className={`overflow-hidden rounded-[28px] p-3 ${look.page}`} aria-label="Preview">
+            <div className={`flex flex-col items-center rounded-3xl px-4 py-6 text-center ${look.tile}`}>
+                <div className={`flex h-16 w-16 items-center justify-center overflow-hidden rounded-full text-xl font-semibold ${look.soft}`}>
+                    {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : name.replace(/^@/, '').charAt(0).toUpperCase()}
+                </div>
+                <div className="mt-3 text-[18px] font-semibold leading-tight">{name}</div>
+                {draft.displayName.trim() && <div className={`mt-0.5 font-mono text-[11px] ${look.muted}`}>@{draft.handle}</div>}
+                {draft.bio.trim() && <p className={`mt-2 whitespace-pre-line text-[12px] leading-relaxed ${look.muted}`}>{draft.bio.trim()}</p>}
+            </div>
+            <div className="mt-2.5 grid gap-2">
+                {links.length === 0 && <p className={`py-6 text-center text-[12px] ${look.muted}`}>No links on the page yet.</p>}
+                {links.slice(0, 8).map(l => (
+                    <div key={l.id} className={`flex items-center justify-between gap-2 rounded-2xl px-4 py-3 text-[13px] font-medium ${look.card}`}>
+                        <span className="truncate">{l.title || `/${l.shortCode}`}</span>
+                        <ArrowUpRight className={`h-4 w-4 shrink-0 ${look.muted}`} />
+                    </div>
+                ))}
+                {links.length > 8 && <p className={`text-center text-[11px] ${look.muted}`}>and {links.length - 8} more</p>}
+            </div>
+        </div>
+    );
+};
 
 const BioDashboard: React.FC = () => {
     const { user } = useAuth();
-    const [profiles, setProfiles] = useState<BioProfile[]>([]);
-    const [isEditing, setIsEditing] = useState(false);
-    const [currentProfile, setCurrentProfile] = useState<Partial<BioProfile>>({});
-    const [availableLinks, setAvailableLinks] = useState<LinkData[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isGeneratingBio, setIsGeneratingBio] = useState(false);
-    const [showBioPrompt, setShowBioPrompt] = useState(false);
-    const [bioPrompt, setBioPrompt] = useState('');
-    const [showLinkModal, setShowLinkModal] = useState(false);
-    const [showAnalytics, setShowAnalytics] = useState(false);
-    const [showBlockGallery, setShowBlockGallery] = useState(false);
-    const [configWidgetType, setConfigWidgetType] = useState<BlockType | null>(null);
-    const [showMobilePreview, setShowMobilePreview] = useState(false);
-
-    useEffect(() => {
-        if (user) {
-            fetchData();
-        }
-    }, [user]);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            if (!user) return;
-            const [fetchedProfiles, fetchedLinks] = await Promise.all([
-                supabaseAdapter.getBioProfiles(user.id),
-                supabaseAdapter.getLinks()
-            ]);
-            setProfiles(fetchedProfiles);
-            setAvailableLinks(fetchedLinks);
-        } catch (error) {
-            console.error('Error fetching bio data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const [profile, setProfile] = useState<BioProfile | null>(null);
+    const [allLinks, setAllLinks] = useState<LinkData[]>([]);
+    const [draft, setDraft] = useState<Draft | null>(null);
+    const [state, setState] = useState<'loading' | 'ready' | 'none' | 'error'>('loading');
+    const [attempt, setAttempt] = useState(0);
+    const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [handleState, setHandleState] = useState<'same' | 'checking' | 'free' | 'taken' | 'short'>('same');
+    const [picking, setPicking] = useState(false);
+    const [query, setQuery] = useState('');
+    const latestCheck = useRef(0);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8, // Require 8px movement before drag starts (prevents accidental drags when scrolling)
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
+        useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
-    const handleAddWidget = async (type: BlockType) => {
-        // Enforce Free Tier Limits
-        const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
+    useEffect(() => {
+        if (!user?.id) return;
+        let cancelled = false;
+        setState('loading');
+        Promise.all([supabaseAdapter.getBioProfiles(user.id), supabaseAdapter.getLinks(null, { includeAnalytics: false })])
+            .then(([profiles, links]) => {
+                if (cancelled) return;
+                setAllLinks(links);
+                const p = profiles[0] ?? null;
+                setProfile(p);
+                setDraft(p ? draftOf(p) : { displayName: user.displayName || '', handle: '', bio: '', avatarUrl: '', look: 'light', links: [] });
+                setHandleState(p ? 'same' : 'short');
+                setState(p ? 'ready' : 'none');
+            })
+            .catch(err => { console.error('[Bio] load failed', err); if (!cancelled) setState('error'); });
+        return () => { cancelled = true; };
+    }, [user?.id, attempt]);
 
-        if (isFreePlan && (type === 'map' || type === 'tip_jar')) {
-            toast.error("That is a Pro feature. Please upgrade.");
-            return;
-        }
+    const byId = useMemo(() => new Map(allLinks.map(l => [l.id, l])), [allLinks]);
+    const pageLinks = useMemo(() => (draft?.links ?? []).map(id => byId.get(id)).filter((l): l is LinkData => !!l), [draft?.links, byId]);
+    const saved = profile ? draftOf(profile) : null;
+    const changes = saved && draft ? draftChanges(saved, draft) : {};
+    const dirty = Object.keys(changes).length > 0;
 
-        // Handle types that don't need configuration first
-        if (type === 'newsletter') {
-            document.getElementById('newsletter-section')?.scrollIntoView({ behavior: 'smooth' });
-            return;
-        } else if (type === 'link') {
-            setShowLinkModal(true);
-            return;
-        } else if (type === 'tip_jar' || type === 'qr_code') {
-            handleWidgetConfigSubmit({}, type); // No config needed
-            return;
-        }
+    const set = (patch: Partial<Draft>) => setDraft(d => (d ? { ...d, ...patch } : d));
 
-        // Open config modal for others
-        setConfigWidgetType(type);
-    };
-
-    const handleWidgetConfigSubmit = async (metadata: any, typeOverride?: BlockType) => {
-        const type = typeOverride || configWidgetType;
-        if (!type || !user) return;
-
-        let title = 'New Widget';
-        if (type === 'map') title = 'Location';
-        if (type === 'tip_jar') title = 'Support Me';
-        if (type === 'qr_code') title = 'Share Profile';
-
-
+    const onHandle = async (raw: string) => {
+        const h = cleanHandle(raw);
+        set({ handle: h });
+        const n = ++latestCheck.current;
+        if (profile && h === profile.handle) { setHandleState('same'); return; }
+        if (h.length < 3) { setHandleState('short'); return; }
+        setHandleState('checking');
         try {
-            const newLink = await supabaseAdapter.createLink({
-                originalUrl: 'widget://' + type,
-                shortCode: Math.random().toString(36).substring(7),
-                title,
-                tags: ['widget'],
-                createdAt: Date.now(),
-                clicks: 0,
-                clickHistory: [],
-                type: type as LinkType,
-                layoutConfig: { w: 1, h: 1 },
-                metadata
-            });
-            setAvailableLinks([newLink, ...availableLinks]);
-            toast.success(`${title} added!`);
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to create widget");
+            const free = await supabaseAdapter.checkHandleAvailability(h);
+            if (n === latestCheck.current) setHandleState(free ? 'free' : 'taken');
+        } catch {
+            if (n === latestCheck.current) setHandleState('same');
         }
     };
 
-    const handleResizeBlock = async (id: string, size: { w: number; h: number }) => {
-        // Optimistic UI update
-        const updatedLinks = availableLinks.map(l =>
-            l.id === id ? { ...l, layoutConfig: size } : l
-        );
-        setAvailableLinks(updatedLinks);
-
+    const uploadAvatar = async (file: File | undefined) => {
+        if (!file || !user) return;
+        if (!file.type.startsWith('image/')) { toast.error('Choose an image file'); return; }
+        if (file.size > MAX_AVATAR_BYTES) { toast.error('The photo must be under 5 MB'); return; }
+        setUploading(true);
         try {
-            await supabaseAdapter.updateLink(id, { layoutConfig: size });
-        } catch (error) {
-            console.error("Failed to resize block:", error);
-            toast.error("Failed to save size");
-            fetchData();
+            const url = await supabaseAdapter.uploadAvatar(user.id, file);
+            set({ avatarUrl: url });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Could not upload the photo');
+        } finally {
+            setUploading(false);
         }
     };
 
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        if (active.id !== over?.id) {
-            const currentLinks = currentProfile.links || [];
-            const oldIndex = currentLinks.indexOf(active.id as string);
-            const newIndex = currentLinks.indexOf(over?.id as string);
-
-            if (oldIndex !== -1 && newIndex !== -1) {
-                const newLinks = arrayMove(currentLinks, oldIndex, newIndex);
-                setCurrentProfile({ ...currentProfile, links: newLinks });
-            }
-        }
-    };
-
-    const handleCreateNew = () => {
-        setCurrentProfile({
-            id: uuidv4(),
-            handle: '',
-            displayName: user?.displayName || '',
-            bio: '',
-            avatarUrl: user?.avatar_url || '',
-            theme: 'vibrant',
-            links: [],
-            views: 0
-        });
-        setIsEditing(true);
-    };
-
-    const handleEdit = (profile: BioProfile) => {
-        // Auto-fill avatar from user account if missing in profile
-        const avatarUrl = profile.avatarUrl || user?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '';
-
-        setCurrentProfile({
-            ...profile,
-            avatarUrl
-        });
-        setIsEditing(true);
-    };
-
-    const handleSave = async () => {
-        if (!currentProfile.handle || !currentProfile.displayName) {
-            toast.error('Please fill in the Handle and Display Name fields.');
-            return;
-        }
-
+    const save = async () => {
+        if (!profile || !draft || !dirty) return;
+        if (handleState === 'taken' || handleState === 'short' || handleState === 'checking') return;
+        setSaving(true);
         try {
-            // Check if we are updating an existing profile
-            const isUpdating = profiles.some(p => p.id === currentProfile.id);
-
-            if (isUpdating && currentProfile.id) {
-                await supabaseAdapter.updateBioProfile(currentProfile.id, {
-                    ...currentProfile,
-                    links: currentProfile.links || []
-                });
-            } else {
-                // Creating new profile
-                // The adapter requires specific arguments
-                if (!user?.id) throw new Error("User not authenticated");
-
-                const newProfile = await supabaseAdapter.createBioProfile(
-                    user.id,
-                    currentProfile.handle!,
-                    currentProfile.displayName
-                );
-
-                // If we have other data (bio, links, etc), update it immediately
-                if (currentProfile.bio || (currentProfile.links && currentProfile.links.length > 0)) {
-                    await supabaseAdapter.updateBioProfile(newProfile.id, {
-                        bio: currentProfile.bio,
-                        avatarUrl: currentProfile.avatarUrl,
-                        theme: currentProfile.theme,
-                        customTheme: currentProfile.customTheme,
-                        links: currentProfile.links || []
-                    });
-                }
-            }
-
-            fetchData();
-            setIsEditing(false);
-        } catch (error: any) {
-            console.error('Error saving profile:', error);
-            if (error.message?.includes('duplicate key value violates unique constraint')) {
-                toast.error('This handle is already taken. Please choose another one.');
-            } else {
-                toast.error(`Failed to save profile: ${error.message || 'Unknown error'}`);
-            }
+            const updated = await supabaseAdapter.updateBioProfile(profile.id, changes);
+            const next = updated ?? { ...profile, ...changes };
+            setProfile(next);
+            setDraft(draftOf(next));
+            setHandleState('same');
+            toast.success('Saved');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : '';
+            toast.error(/duplicate key|unique/i.test(msg) ? 'That handle is taken. Choose another.' : 'Could not save. Try again.');
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm('Delete this bio profile?')) {
-            try {
-                await supabaseAdapter.deleteBioProfile(id);
-                fetchData();
-            } catch (error) {
-                console.error('Error deleting profile:', error);
-                toast.error('Failed to delete profile.');
-            }
+    const create = async () => {
+        if (!user || !draft) return;
+        if (handleState !== 'free') return;
+        setSaving(true);
+        try {
+            const created = await supabaseAdapter.createBioProfile(user.id, draft.handle, draft.displayName.trim() || draft.handle);
+            const withRest = await supabaseAdapter.updateBioProfile(created.id, { bio: draft.bio.trim(), theme: draft.look as BioTheme, links: draft.links, isPublished: true });
+            const p = withRest ?? created;
+            setProfile(p);
+            setDraft(draftOf(p));
+            setHandleState('same');
+            setState('ready');
+            toast.success('Your page is live');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : '';
+            toast.error(/duplicate key|unique/i.test(msg) ? 'That handle is taken. Choose another.' : 'Could not create the page. Try again.');
+        } finally {
+            setSaving(false);
         }
     };
 
-    const toggleLinkSelection = (linkId: string) => {
-        const currentLinks = currentProfile.links || [];
-        if (currentLinks.includes(linkId)) {
-            setCurrentProfile({ ...currentProfile, links: currentLinks.filter(id => id !== linkId) });
-        } else {
-            setCurrentProfile({ ...currentProfile, links: [...currentLinks, linkId] });
-        }
+    const onDragEnd = ({ active, over }: DragEndEvent) => {
+        if (!draft || !over || active.id === over.id) return;
+        const from = draft.links.indexOf(String(active.id));
+        const to = draft.links.indexOf(String(over.id));
+        if (from >= 0 && to >= 0) set({ links: arrayMove(draft.links, from, to) });
     };
 
-    const activeLinksList = (currentProfile.links || [])
-        .map(id => availableLinks.find(l => l.id === id))
-        .filter((l): l is LinkData => !!l);
-
-    const inactiveLinksList = availableLinks.filter(l => !(currentProfile.links || []).includes(l.id));
-
-    const filteredProfiles = profiles.filter(profile =>
-        (profile.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (profile.handle || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-
-
-    if (isEditing) {
+    if (state === 'loading') {
+        return <div className="min-h-screen bg-[#ECEBE7] p-8"><div className="mx-auto h-64 max-w-6xl animate-pulse rounded-3xl bg-[#FBFAF8]" aria-busy="true" aria-label="Loading" /></div>;
+    }
+    if (state === 'error') {
         return (
-            <div className="min-h-screen bg-[#ECEBE7]">
-                <div className="p-4 md:p-8 max-w-[1600px] mx-auto">
-                    <div className="flex items-center justify-between mb-6 md:mb-8">
-                        {/* ... Header ... */}
-                        <h2 className="text-xl md:text-2xl font-bold text-slate-900">
-                            {currentProfile.id ? 'Edit Profile' : 'Create Bio Profile'}
-                        </h2>
-                        <div className="flex gap-2 md:gap-3">
-                            {/* Mobile Preview Toggle */}
-                            <button
-                                onClick={() => setShowMobilePreview(true)}
-                                className="lg:hidden p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-xl"
-                            >
-                                <Eye className="w-5 h-5" />
-                            </button>
-                            <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-sm md:text-base text-stone-500 hover:text-slate-900">Cancel</button>
-                            <button onClick={handleSave} className="px-4 py-2 md:px-6 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-900/20 text-sm md:text-base">Save</button>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
-                        {/* Left & Center Columns (Edit Widgets) */}
-                        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6 h-fit">
-                            {/* ... Existing Cards ... */}
-                            {/* 1. Identity Card */}
-                            <CollapsibleWidget
-                                title="Identity"
-                                icon={UserCircle2}
-                                defaultOpen={true}
-                                className="md:col-span-2"
-                            >
-                                {/* ... Identity Content ... */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Handle</label>
-                                            <div className="flex bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
-                                                <span className="px-3 py-2 text-stone-400 text-sm bg-stone-100 border-r border-stone-200">links.trak.in/p/</span>
-                                                <input
-                                                    type="text"
-                                                    value={currentProfile.handle}
-                                                    onChange={e => setCurrentProfile({ ...currentProfile, handle: e.target.value })}
-                                                    className="flex-1 bg-transparent border-none text-slate-900 focus:ring-0 p-2 font-medium"
-                                                    placeholder="alex"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Display Name</label>
-                                            <input
-                                                type="text"
-                                                value={currentProfile.displayName}
-                                                onChange={e => setCurrentProfile({ ...currentProfile, displayName: e.target.value })}
-                                                className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                placeholder="Alex Chen"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-bold text-stone-500 uppercase">Bio</label>
-                                                {!showBioPrompt ? (
-                                                    <button
-                                                        onClick={() => setShowBioPrompt(true)}
-                                                        className="text-xs text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
-                                                    >
-                                                        <Wand2 className="w-3 h-3" />
-                                                        AI Write
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => setShowBioPrompt(false)}
-                                                        className="text-xs text-stone-400 hover:text-stone-500"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {showBioPrompt && (
-                                                <div className="mb-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg animate-fadeIn">
-                                                    <textarea
-                                                        value={bioPrompt}
-                                                        onChange={(e) => setBioPrompt(e.target.value)}
-                                                        placeholder="E.g., Tech reviewer who loves coffee and minimal setups..."
-                                                        className="w-full bg-white border border-indigo-200 rounded-md p-2 text-sm mb-2 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                                        rows={2}
-                                                        autoFocus
-                                                    />
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (!bioPrompt.trim()) return;
-                                                            setIsGeneratingBio(true);
-                                                            try {
-                                                                const bio = await generateBio(bioPrompt, currentProfile.bio);
-                                                                setCurrentProfile(prev => ({ ...prev, bio }));
-                                                                setShowBioPrompt(false);
-                                                                setBioPrompt('');
-                                                            } catch (err) {
-                                                                toast.error("Failed to generate bio");
-                                                            } finally {
-                                                                setIsGeneratingBio(false);
-                                                            }
-                                                        }}
-                                                        disabled={isGeneratingBio || !bioPrompt.trim()}
-                                                        className="w-full bg-indigo-500 text-white font-bold py-1.5 rounded-md text-xs hover:bg-indigo-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                                    >
-                                                        {isGeneratingBio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                                                        Generate Bio
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            <textarea
-                                                value={currentProfile.bio}
-                                                onChange={e => setCurrentProfile({ ...currentProfile, bio: e.target.value })}
-                                                className="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-slate-900 h-[108px] resize-none focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                placeholder="Tech enthusiast & content creator."
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-stone-500 block mb-1 uppercase">Profile Photo</label>
-                                            <div className="flex items-center gap-4">
-                                                <div className="relative w-16 h-16 rounded-full bg-stone-100 border border-stone-200 overflow-hidden shrink-0 group cursor-pointer">
-                                                    {currentProfile.avatarUrl ? (
-                                                        <img src={currentProfile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-stone-400">
-                                                            <UserCircle2 className="w-8 h-8 opacity-50" />
-                                                        </div>
-                                                    )}
-
-                                                    {/* Hover Overlay */}
-                                                    <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                                        <Upload className="w-5 h-5 text-white" />
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            className="hidden"
-                                                            onChange={async (e) => {
-                                                                const file = e.target.files?.[0];
-                                                                if (!file || !user?.id) return;
-
-                                                                const toastId = toast.loading("Uploading avatar...");
-                                                                try {
-                                                                    const url = await supabaseAdapter.uploadAvatar(user.id, file);
-                                                                    setCurrentProfile(prev => ({ ...prev, avatarUrl: url }));
-                                                                    toast.success("Avatar updated!", { id: toastId });
-                                                                } catch (error) {
-                                                                    console.error(error);
-                                                                    toast.error("Failed to upload avatar", { id: toastId });
-                                                                }
-                                                            }}
-                                                        />
-                                                    </label>
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-xs text-stone-500 mb-2">
-                                                        Recommended: 400x400px. Supports JPG, PNG.
-                                                    </p>
-                                                    <div className="flex gap-2 flex-wrap">
-                                                        <label className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-stone-50 cursor-pointer shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2">
-                                                            <Upload className="w-3 h-3" />
-                                                            Upload Photo
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                className="hidden"
-                                                                onChange={async (e) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (!file || !user?.id) return;
-
-                                                                    const toastId = toast.loading("Uploading avatar...");
-                                                                    try {
-                                                                        const url = await supabaseAdapter.uploadAvatar(user.id, file);
-                                                                        setCurrentProfile(prev => ({ ...prev, avatarUrl: url }));
-                                                                        toast.success("Avatar updated!", { id: toastId });
-                                                                    } catch (error) {
-                                                                        console.error(error);
-                                                                        toast.error("Failed to upload avatar", { id: toastId });
-                                                                    }
-                                                                }}
-                                                            />
-                                                        </label>
-
-                                                        {/* Import from User Profile */}
-                                                        {(user?.user_metadata?.avatar_url || user?.user_metadata?.picture) && (
-                                                            <button
-                                                                onClick={() => setCurrentProfile(prev => ({ ...prev, avatarUrl: user.user_metadata.avatar_url || user.user_metadata.picture }))}
-                                                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-2"
-                                                            >
-                                                                <UserCircle2 className="w-3 h-3" />
-                                                                Use Profile DP
-                                                            </button>
-                                                        )}
-
-                                                        {currentProfile.avatarUrl && (
-                                                            <button
-                                                                onClick={() => setCurrentProfile(prev => ({ ...prev, avatarUrl: '' }))}
-                                                                className="px-3 py-1.5 text-red-500 hover:bg-red-50 rounded-lg text-xs font-bold transition-colors"
-                                                            >
-                                                                Remove
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CollapsibleWidget>
-
-                            {/* 2. Content Card (Link Management) - Full Width */}
-                            <CollapsibleWidget
-                                title="Content"
-                                icon={Layout}
-                                defaultOpen={true}
-                                className="md:col-span-2"
-                            >
-                                <div className="min-h-[500px] flex flex-col">
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
-                                        {/* Active Links */}
-                                        <div className="flex flex-col h-full">
-                                            <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
-                                                Active Links ({activeLinksList.length})
-                                            </h4>
-                                            <div className="flex-1 bg-stone-50 rounded-xl p-4 border border-stone-100 overflow-y-auto max-h-[400px] custom-scrollbar">
-                                                {activeLinksList.length === 0 ? (
-                                                    <div className="text-center py-12">
-                                                        <p className="text-stone-400 text-sm">No blocks added yet.</p>
-                                                        <p className="text-stone-400 text-xs mt-1">Add widgets or links below.</p>
-                                                    </div>
-                                                ) : (
-                                                    <div className="min-h-[200px]">
-                                                        <DndContext
-                                                            sensors={sensors}
-                                                            collisionDetection={closestCenter}
-                                                            onDragEnd={handleDragEnd}
-                                                        >
-                                                            <SortableContext
-                                                                items={activeLinksList.map(l => l.id)}
-                                                                strategy={rectSortingStrategy}
-                                                            >
-                                                                <div className="grid grid-cols-2 gap-3 auto-rows-min">
-                                                                    {activeLinksList.map(link => (
-                                                                        <BioBlock
-                                                                            key={link.id}
-                                                                            link={link}
-                                                                            profile={currentProfile as BioProfile}
-                                                                            onRemove={() => toggleLinkSelection(link.id)}
-                                                                            onResize={handleResizeBlock}
-                                                                        />
-                                                                    ))}
-                                                                </div>
-                                                            </SortableContext>
-                                                        </DndContext>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Available Links */}
-                                        <div className="flex flex-col h-full">
-                                            <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">
-                                                Available Links ({inactiveLinksList.length})
-                                            </h4>
-                                            <div className="flex-1 overflow-y-auto max-h-[400px] custom-scrollbar space-y-2 pr-2">
-                                                {inactiveLinksList.length === 0 && <p className="text-stone-400 text-sm italic">No more links available.</p>}
-                                                {inactiveLinksList.map(link => (
-                                                    <button
-                                                        key={link.id}
-                                                        onClick={() => toggleLinkSelection(link.id)}
-                                                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50 hover:border-indigo-400/50 transition-all group text-left bg-white"
-                                                    >
-                                                        <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                                                            <Plus className="w-4 h-4" />
-                                                        </div>
-                                                        <div className="overflow-hidden">
-                                                            <p className="text-slate-900 text-sm font-medium truncate group-hover:text-indigo-700 transition-colors">{link.title}</p>
-                                                            <p className="text-stone-500 text-xs truncate">{link.shortCode}</p>
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CollapsibleWidget>
-
-                            {/* 3. Appearance Card */}
-                            <CollapsibleWidget
-                                title="Appearance"
-                                icon={Palette}
-                                defaultOpen={true}
-                                className="md:col-span-2"
-                            >
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="text-xs font-bold text-stone-500 block mb-3 uppercase tracking-wider">Theme Collection</label>
-                                        <ThemeGallery
-                                            currentTheme={currentProfile.theme || 'vibrant'}
-                                            onSelect={(theme) => setCurrentProfile({ ...currentProfile, theme: theme as any, customTheme: null })}
-                                        />
-                                    </div>
-
-                                    <div className="border-t border-stone-100 pt-4">
-                                        {currentProfile.id && (
-                                            <BioAppearanceEditor
-                                                profile={currentProfile as BioProfile}
-                                                onChange={(updates) => setCurrentProfile(prev => ({ ...prev, ...updates }))}
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            </CollapsibleWidget>
-
-                            {/* 4. Tech Vault Card */}
-                            {/* 4. Tech Vault Card (Creator Feature) */}
-                            {/* 5. App Stack Card (Pro Feature) */}
-                            <CollapsibleWidget title="App Stack" icon={Smartphone} defaultOpen={false}>
-                                {!['pro', 'business'].includes(user?.preferences?.subscription_tier || '') ? (
-                                    <div className="p-6 text-center">
-                                        <Smartphone className="w-12 h-12 text-stone-200 mx-auto mb-3" />
-                                        <h3 className="text-slate-900 font-bold mb-1">Share Your Apps</h3>
-                                        <p className="text-stone-500 text-sm mb-4">List your favorite apps and software stack.</p>
-                                        <button
-                                            onClick={() => toast("Upgrade to Pro tier to use App Stack")}
-                                            className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-amber-500/20"
-                                        >
-                                            Upgrade to Unlock
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <AppStackManager />
-                                )}
-                            </CollapsibleWidget>
-
-                            {/* 6. SEO & Social Card */}
-                            <CollapsibleWidget
-                                title="SEO & Social"
-                                icon={Search}
-                                defaultOpen={false}
-                                className="md:col-span-2"
-                            >
-                                <div className="mt-2">
-                                    {currentProfile.id && (
-                                        <BioSeoEditor
-                                            profile={currentProfile as BioProfile}
-                                            onChange={(updates) => setCurrentProfile(prev => ({ ...prev, ...updates }))}
-                                        />
-                                    )}
-                                </div>
-                            </CollapsibleWidget>
-
-                        </div>
-
-                        {/* Right Column (Sticky Preview - Desktop Only) */}
-                        <div className="hidden lg:block lg:col-span-4 relative h-full">
-                            <div className="sticky top-6 space-y-4">
-                                <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-lg shadow-stone-100">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-slate-900 font-bold">Live Preview</h3>
-                                        <div className="flex gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-red-400" />
-                                            <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                                            <div className="w-2 h-2 rounded-full bg-green-400" />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-center bg-stone-50 rounded-xl p-6 border border-stone-100">
-                                        <div className="w-64 shadow-2xl rounded-[2.5rem] overflow-hidden border-8 border-slate-900 bg-white ring-1 ring-black/5 aspect-[9/19]">
-                                            {/* Removed Scale, using strict size container or responsive component */}
-                                            <BioPreview profile={currentProfile} links={availableLinks.filter(l => currentProfile.links?.includes(l.id))} />
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 text-center">
-                                        <p className="text-xs text-stone-400">Updates automatically as you edit</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Mobile Preview Floating Action Button */}
-                        <button
-                            onClick={() => setShowMobilePreview(prev => !prev)}
-                            className="lg:hidden fixed bottom-6 right-6 z-50 bg-slate-900 text-white p-4 rounded-full shadow-2xl shadow-indigo-500/30 hover:scale-105 transition-transform"
-                        >
-                            {showMobilePreview ? <X className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-                        </button>
-
-                        {/* Mobile Preview Modal */}
-                        {showMobilePreview && (
-                            <div className="lg:hidden fixed inset-0 z-40 bg-white/95 backdrop-blur-sm animate-fadeIn flex flex-col">
-                                <div className="flex items-center justify-between p-4 border-b border-stone-100 bg-white shadow-sm">
-                                    <h3 className="text-lg font-bold text-slate-900">Live Preview</h3>
-                                    <button onClick={() => setShowMobilePreview(false)} className="p-2 hover:bg-stone-100 rounded-full">
-                                        <X className="w-6 h-6 text-stone-500" />
-                                    </button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-4 bg-stone-50 flex items-center justify-center">
-                                    {/* Phone Container */}
-                                    <div className="w-full max-w-[320px] shadow-2xl rounded-[2.5rem] overflow-hidden border-8 border-slate-900 bg-white ring-1 ring-black/5 aspect-[9/19] h-[auto] max-h-[85vh]">
-                                        <BioPreview profile={currentProfile} links={availableLinks.filter(l => currentProfile.links?.includes(l.id))} />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                    </div>
-                </div >
-            </div >
-
+            <div className="min-h-screen bg-[#ECEBE7] p-4 sm:p-8">
+                <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 rounded-2xl bg-[#FBFAF8] px-5 py-3 text-sm text-[#B42318]">
+                    <span>Couldn't load your bio page.</span>
+                    <button onClick={() => setAttempt(n => n + 1)} className="font-semibold underline underline-offset-2">Try again</button>
+                </div>
+            </div>
         );
     }
 
-    const handleBlockSelect = (type: BlockType) => {
-        setShowBlockGallery(false);
-        if (type === 'link') {
-            setShowLinkModal(true);
-        } else {
-            handleAddWidget(type);
-        }
-    };
-
-    if (loading) {
-        return <BioDashboardSkeleton />;
+    // No page yet: pick a handle first.
+    if (state === 'none' || !draft) {
+        const d = draft ?? { displayName: '', handle: '', bio: '', avatarUrl: '', look: 'light' as StoreLook, links: [] };
+        return (
+            <div className="min-h-screen bg-[#ECEBE7] p-4 text-[#18181A] sm:p-8">
+                <div className="mx-auto max-w-xl">
+                    <h1 className="mb-5 text-[28px] font-medium tracking-tight sm:text-[32px]">Bio page</h1>
+                    <Tile>
+                        <Label>Pick your address</Label>
+                        <p className="mb-4 text-[13px] text-[#8C8981]">Your links and products show on one page at this address.</p>
+                        <div className="flex items-center rounded-2xl bg-[#F0EEEA] px-4 focus-within:ring-2 focus-within:ring-[#FF5A14]/30">
+                            <span className="select-none font-mono text-[14px] text-[#8C8981]">{window.location.host}/@</span>
+                            <label htmlFor="new-handle" className="sr-only">Handle</label>
+                            <input id="new-handle" value={d.handle} onChange={e => onHandle(e.target.value)} placeholder="yourname" autoCapitalize="off" spellCheck={false}
+                                className="min-w-0 flex-1 bg-transparent py-3 font-mono text-[14px] outline-none placeholder:text-[#A19E97]" />
+                        </div>
+                        <p className={`mt-1.5 text-[12px] ${handleState === 'taken' ? 'text-[#B42318]' : 'text-[#A19E97]'}`}>
+                            {handleState === 'taken' ? 'That handle is taken.' : handleState === 'short' ? 'At least 3 characters.' : handleState === 'free' ? 'Available.' : 'Letters, numbers, dots, dashes and underscores.'}
+                        </p>
+                        <button onClick={create} disabled={saving || handleState !== 'free'}
+                            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#FF5A14] px-5 py-2.5 text-[13px] font-medium text-white hover:opacity-90 disabled:opacity-40">
+                            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Create my page
+                        </button>
+                    </Tile>
+                </div>
+            </div>
+        );
     }
+
+    const pageUrl = `/@${profile!.handle}`;
+    const q = query.trim().toLowerCase();
+    const candidates = allLinks
+        .filter(l => !draft.links.includes(l.id) && !l.isArchived)
+        .filter(l => !q || (l.title || '').toLowerCase().includes(q) || l.shortCode.toLowerCase().includes(q))
+        .slice(0, 30);
+    const handleNote = handleState === 'taken' ? 'That handle is taken.' : handleState === 'short' ? 'At least 3 characters.'
+        : handleState === 'checking' ? 'Checking…' : handleState === 'free' ? 'Available. Your old address stops working when you save.' : null;
 
     return (
-        <div className="min-h-screen bg-[#ECEBE7]">
-            <div className="p-8 max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
+        <div className="min-h-screen bg-[#ECEBE7] p-4 pb-28 text-[#18181A] sm:p-8 sm:pb-28">
+            <div className="mx-auto max-w-6xl">
+                <div className="mb-5 flex flex-wrap items-end gap-3">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 mb-2">Link-in-Bio Profiles</h1>
-                        <p className="text-stone-500">Manage your personal landing pages.</p>
+                        <h1 className="text-[28px] font-medium tracking-tight sm:text-[32px]">Bio page</h1>
+                        <p className="mt-1 text-[13px] text-[#8C8981]">
+                            {(profile!.views ?? 0).toLocaleString('en-IN')} views · products come from the Products tab
+                        </p>
                     </div>
-                    <div className="flex gap-4">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                            <input
-                                type="text"
-                                placeholder="Search profiles..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none shadow-sm"
-                            />
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setShowAnalytics(true)}
-                                className="bg-white hover:bg-stone-50 text-slate-900 border border-stone-200 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors"
-                            >
-                                <BarChart3 className="w-4 h-4 text-stone-400" />
-                                Analytics
-                            </button>
-                            <button
-                                onClick={() => setShowBlockGallery(true)}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 hover:-translate-y-0.5"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Content
-                            </button>
-                        </div>
-                    </div>
+                    <a href={pageUrl} target="_blank" rel="noreferrer"
+                        className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#FBFAF8] px-4 py-2 font-mono text-[12px] hover:bg-white">
+                        {window.location.host}{pageUrl} <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredProfiles.length === 0 ? (
-                        <div className="col-span-3 text-center py-20 bg-white border border-stone-200 border-dashed rounded-2xl">
-                            <UserCircle2 className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-                            <p className="text-stone-500 mb-4">
-                                {searchQuery ? 'No profiles match your search.' : 'No profiles found.'}
-                            </p>
-                            <button onClick={handleCreateNew} className="text-yellow-600 font-bold hover:text-yellow-700">Create your first Link-in-Bio</button>
-                        </div>
-                    ) : (
-                        filteredProfiles.map(profile => (
-                            <div key={profile.id} className="bg-white border border-stone-200 rounded-2xl p-6 hover:border-yellow-400 transition-all group shadow-sm">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center overflow-hidden border border-stone-200">
-                                        {profile.avatarUrl || user?.avatar_url ? (
-                                            <img src={profile.avatarUrl || user?.avatar_url} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <UserCircle2 className="w-8 h-8 text-stone-400" />
-                                        )}
+                <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+                    <div className="grid content-start gap-3.5 lg:col-span-7">
+                        {/* Profile */}
+                        <Tile>
+                            <Label>Profile</Label>
+                            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                                <label className="relative h-20 w-20 shrink-0 cursor-pointer" aria-label="Change photo">
+                                    <span className="block h-20 w-20 overflow-hidden rounded-full bg-[#18181A]">
+                                        {draft.avatarUrl
+                                            ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" />
+                                            : <span className="flex h-full w-full items-center justify-center text-2xl font-medium text-white">{(draft.displayName || draft.handle).charAt(0).toUpperCase()}</span>}
+                                    </span>
+                                    <span className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#FF5A14] text-white ring-4 ring-[#FBFAF8]">
+                                        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                                    </span>
+                                    <input type="file" accept="image/*" className="sr-only" disabled={uploading} onChange={e => uploadAvatar(e.target.files?.[0])} />
+                                </label>
+                                <div className="grid flex-1 gap-4">
+                                    <div>
+                                        <label htmlFor="bio-name" className="mb-1.5 block text-[12px] text-[#8C8981]">Name</label>
+                                        <input id="bio-name" className={inputClass} value={draft.displayName} maxLength={60} onChange={e => set({ displayName: e.target.value })} placeholder="Your name or brand" />
                                     </div>
                                     <div>
-                                        <h3 className="text-slate-900 font-bold">{profile.displayName}</h3>
-                                        <p className="text-stone-500 text-sm">@{profile.handle}</p>
+                                        <label htmlFor="bio-handle" className="mb-1.5 block text-[12px] text-[#8C8981]">Handle</label>
+                                        <div className={`flex items-center rounded-2xl bg-[#F0EEEA] px-4 focus-within:ring-2 ${handleState === 'taken' ? 'ring-2 ring-[#B42318]/40' : 'focus-within:ring-[#FF5A14]/30'}`}>
+                                            <span className="select-none font-mono text-[14px] text-[#8C8981]">@</span>
+                                            <input id="bio-handle" value={draft.handle} onChange={e => onHandle(e.target.value)} autoCapitalize="off" spellCheck={false}
+                                                className="min-w-0 flex-1 bg-transparent py-3 pl-0.5 font-mono text-[14px] outline-none" />
+                                            {handleState === 'checking' && <Loader2 className="h-4 w-4 animate-spin text-[#A19E97]" />}
+                                            {handleState === 'free' && <Check className="h-4 w-4 text-[#FF5A14]" />}
+                                        </div>
+                                        {handleNote && <p className={`mt-1.5 text-[12px] ${handleState === 'taken' ? 'text-[#B42318]' : 'text-[#A19E97]'}`}>{handleNote}</p>}
                                     </div>
-                                </div>
-
-                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-stone-100">
-                                    <a
-                                        href={`/p/${profile.handle}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-yellow-600 text-sm font-bold flex items-center gap-1 hover:underline"
-                                    >
-                                        <ExternalLink className="w-3 h-3" /> Visit
-                                    </a>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleEdit(profile)} className="p-2 text-stone-400 hover:text-slate-900 hover:bg-stone-100 rounded-lg">
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => handleDelete(profile.id)} className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                    <div>
+                                        <label htmlFor="bio-text" className="mb-1.5 flex justify-between text-[12px] text-[#8C8981]">
+                                            <span>Bio</span><span className="font-mono">{draft.bio.length}/{MAX_BIO}</span>
+                                        </label>
+                                        <textarea id="bio-text" rows={3} maxLength={MAX_BIO} className={`${inputClass} resize-none`} value={draft.bio}
+                                            onChange={e => set({ bio: e.target.value })} placeholder="What people find here, in a line or two." />
                                     </div>
                                 </div>
                             </div>
-                        ))
-                    )}
+                        </Tile>
+
+                        {/* Look */}
+                        <Tile>
+                            <Label>Look</Label>
+                            <div role="group" aria-label="Page look" className="grid grid-cols-2 gap-2">
+                                {(['light', 'dark'] as const).map(l => (
+                                    <button key={l} type="button" onClick={() => set({ look: l })} aria-pressed={draft.look === l}
+                                        className={`flex items-center gap-3 rounded-2xl p-3 text-left text-[13px] capitalize ring-2 transition-colors ${draft.look === l ? 'ring-[#18181A]' : 'ring-transparent hover:bg-[#F3F2EF]'}`}>
+                                        <span className={`h-10 w-10 rounded-xl ${l === 'light' ? 'bg-[#ECEBE7] ring-1 ring-inset ring-[#DAD7D0]' : 'bg-[#111113]'}`} />
+                                        {l}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="mt-3 text-[12px] text-[#A19E97]">The same look applies to your products on the page.</p>
+                        </Tile>
+
+                        {/* Links */}
+                        <Tile>
+                            <Label right={<button type="button" onClick={() => setPicking(p => !p)} aria-expanded={picking}
+                                className="inline-flex items-center gap-1 rounded-full bg-[#18181A] px-3 py-1.5 text-[12px] text-white hover:opacity-90"><Plus className="h-3.5 w-3.5" /> Add links</button>}>
+                                Links on the page
+                            </Label>
+                            {picking && (
+                                <div className="mb-4 rounded-2xl bg-[#F3F2EF] p-3">
+                                    <div className="relative">
+                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A19E97]" />
+                                        <label htmlFor="link-search" className="sr-only">Find a link</label>
+                                        <input id="link-search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Find one of your links" autoFocus
+                                            className="w-full rounded-xl bg-[#FBFAF8] py-2.5 pl-9 pr-3 text-[13px] outline-none focus:ring-2 focus:ring-[#FF5A14]/30" />
+                                    </div>
+                                    <ul className="mt-2 max-h-64 overflow-y-auto">
+                                        {candidates.length === 0 && <li className="px-2 py-3 text-[12px] text-[#A19E97]">{allLinks.length ? 'No other links match.' : 'Create a link first, from New link.'}</li>}
+                                        {candidates.map(l => (
+                                            <li key={l.id}>
+                                                <button type="button" onClick={() => set({ links: [...draft.links, l.id] })}
+                                                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-[#FBFAF8]">
+                                                    <Plus className="h-4 w-4 shrink-0 text-[#FF5A14]" />
+                                                    <span className="min-w-0 flex-1 truncate text-[13px]">{l.title || `/${l.shortCode}`}</span>
+                                                    <span className="font-mono text-[11px] text-[#A19E97]">/{l.shortCode}</span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {pageLinks.length === 0 ? (
+                                <p className="text-[13px] text-[#8C8981]">No links yet. Add the ones you want visitors to see; drag to change the order.</p>
+                            ) : (
+                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                                    <SortableContext items={pageLinks.map(l => l.id)} strategy={verticalListSortingStrategy}>
+                                        <ul className="grid gap-1.5">
+                                            {pageLinks.map(l => (
+                                                <SortableRow key={l.id} link={l} onRemove={() => set({ links: draft.links.filter(id => id !== l.id) })} />
+                                            ))}
+                                        </ul>
+                                    </SortableContext>
+                                </DndContext>
+                            )}
+                        </Tile>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="lg:col-span-5">
+                        <div className="lg:sticky lg:top-20">
+                            <Tile>
+                                <Label>Preview</Label>
+                                <Preview draft={draft} links={pageLinks} />
+                            </Tile>
+                        </div>
+                    </div>
                 </div>
-
-                {/* Block Gallery Modal */}
-                {showBlockGallery && (
-                    <BlockGalleryModal
-                        isOpen={showBlockGallery}
-                        onClose={() => setShowBlockGallery(false)}
-                        onSelect={(type) => {
-                            handleAddWidget(type);
-                            setShowBlockGallery(false);
-                        }}
-                        subscriptionTier={user?.preferences?.subscription_tier as any}
-                    />
-                )}
-
-                {/* Analytics Modal */}
-                {showAnalytics && user && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-                        <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl">
-                            <div className="p-6 border-b border-stone-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                                <div>
-                                    <h2 className="text-xl font-bold text-slate-900">Analytics Dashboard</h2>
-                                    <p className="text-sm text-stone-500">Insights for all your bio pages</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowAnalytics(false)}
-                                    className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-stone-500" />
-                                </button>
-                            </div>
-                            <div className="p-6 bg-stone-50/50 min-h-[500px]">
-                                <BioAnalyticsDashboard userId={user.id} />
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Link Modal */}
-                {showLinkModal && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
-                        <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scaleIn">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-900">Add New Link</h3>
-                                <button onClick={() => setShowLinkModal(false)} className="text-stone-400 hover:text-slate-900">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            <form
-                                onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    const formData = new FormData(e.currentTarget);
-                                    const url = formData.get('url') as string;
-                                    const title = formData.get('title') as string;
-
-                                    if (!url || !title) return;
-
-                                    try {
-                                        let urlToMonetize = url.trim();
-                                        if (isShortAmazonUrl(urlToMonetize)) {
-                                            urlToMonetize = await resolveShortUrl(urlToMonetize);
-                                        }
-                                        const cleanUrl = monetizeUrl(urlToMonetize, {
-                                            amazonAssociateTag: user?.amazonAssociateTag,
-                                            flipkartAffiliateId: user?.flipkartAffiliateId
-                                        });
-
-                                        const newLink = await supabaseAdapter.createLink({
-                                            originalUrl: cleanUrl,
-                                            shortCode: Math.random().toString(36).substring(7),
-                                            title,
-                                            tags: [],
-                                            createdAt: Date.now(),
-                                            clicks: 0,
-                                            clickHistory: [],
-                                            type: 'link',
-                                            layoutConfig: { w: 1, h: 1 },
-                                            metadata: {}
-                                        });
-                                        setAvailableLinks([newLink, ...availableLinks]);
-                                        toast.success("Link added successfully!");
-                                        setShowLinkModal(false);
-                                    } catch (error) {
-                                        console.error(error);
-                                        toast.error("Failed to add link");
-                                    }
-                                }}
-                                className="space-y-4"
-                            >
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Title</label>
-                                    <input name="title" required placeholder="My Awesome Website" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">URL</label>
-                                    <input name="url" type="url" required placeholder="https://example.com" className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-yellow-400 outline-none font-medium" />
-                                </div>
-                                <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
-                                    Add Link
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                )}
             </div>
-            {/* Widget Config Modal */}
-            <WidgetConfigModal
-                isOpen={!!configWidgetType}
-                type={configWidgetType}
-                onClose={() => setConfigWidgetType(null)}
-                onSubmit={handleWidgetConfigSubmit}
-            />
+
+            {/* Save bar */}
+            {dirty && (
+                <div className="fixed inset-x-0 bottom-4 z-30 flex justify-center px-4">
+                    <div className="flex items-center gap-3 rounded-full bg-[#18181A] py-2 pl-5 pr-2 text-[13px] text-white shadow-2xl">
+                        <span>Unsaved changes</span>
+                        <button onClick={() => { setDraft(saved); setHandleState('same'); }} className="rounded-full px-3 py-1.5 text-[#A19E97] hover:text-white">Undo</button>
+                        <button onClick={save} disabled={saving || handleState === 'taken' || handleState === 'short' || handleState === 'checking'}
+                            className="inline-flex items-center gap-2 rounded-full bg-[#FF5A14] px-4 py-1.5 font-medium hover:opacity-90 disabled:opacity-40">
+                            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
