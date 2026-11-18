@@ -59,7 +59,9 @@ Bob: move own file into Alice's folder                        DENIED
 Bob: delete Alice's avatar (rows changed)                     OK 0
 Bob: read Alice's digital product (rows)                      OK 0
 Alice: read own digital product (rows)                        OK 1
-anon: new guest link returns a claim token                    OK true
+anon: create guest link directly                              DENIED
+Bob: create guest link directly                               DENIED
+server: new guest link returns a claim token                  OK true
 anon: public guest link hides claim token                     OK false
 anon: old guest email setter                                  DENIED
 anon: set guest email, wrong session                          OK called
@@ -118,3 +120,6 @@ server: record an error                                       OK called
 Bob: read error log                                           DENIED
 Bob: admin recent errors                                      DENIED
 Dave (admin): admin recent errors                             OK 1
+anon: admin overview                                          DENIED
+Bob: admin overview                                           DENIED
+Dave (admin): admin overview users                            OK 4

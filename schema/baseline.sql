@@ -574,6 +574,62 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.admin_overview(p_search text DEFAULT NULL::text, p_limit integer DEFAULT 100)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    q text := nullif(lower(trim(coalesce(p_search, ''))), '');
+    lim integer := least(greatest(coalesce(p_limit, 100), 1), 500);
+BEGIN
+    IF NOT public.is_platform_admin() THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+    END IF;
+
+    RETURN json_build_object(
+        'stats', json_build_object(
+            'users', (SELECT count(*) FROM auth.users),
+            'usersLast30d', (SELECT count(*) FROM auth.users WHERE created_at > now() - interval '30 days'),
+            'activeLast30d', (SELECT count(*) FROM auth.users WHERE last_sign_in_at > now() - interval '30 days'),
+            'links', (SELECT count(*) FROM public.links WHERE NOT coalesce(is_guest, false)),
+            'linksLast30d', (SELECT count(*) FROM public.links WHERE NOT coalesce(is_guest, false) AND created_at > now() - interval '30 days'),
+            'guestLinks', (SELECT count(*) FROM public.links WHERE coalesce(is_guest, false)),
+            'clicksLast7d', (SELECT coalesce(sum(clicks), 0) FROM public.click_rollups
+                             WHERE dim = 'total' AND bucket >= date_trunc('hour', now() - interval '7 days')),
+            'plans', (SELECT coalesce(json_object_agg(tier, n), '{}'::json)
+                      FROM (SELECT coalesce(subscription_tier, 'free') AS tier, count(*) AS n
+                            FROM public.profiles GROUP BY 1) t)
+        ),
+        'users', (
+            SELECT coalesce(json_agg(u ORDER BY u.joined DESC), '[]'::json)
+            FROM (
+                SELECT au.id,
+                       au.email,
+                       coalesce(p.full_name, '') AS name,
+                       coalesce(p.username, '') AS username,
+                       coalesce(p.subscription_tier, 'free') AS plan,
+                       coalesce(p.role::text, 'user') AS role,
+                       au.created_at AS joined,
+                       au.last_sign_in_at AS "lastSignIn",
+                       (SELECT count(*) FROM public.links l WHERE l.user_id = au.id) AS links,
+                       (SELECT coalesce(sum(l.clicks), 0) FROM public.links l WHERE l.user_id = au.id) AS clicks
+                FROM auth.users au
+                LEFT JOIN public.profiles p ON p.id = au.id
+                WHERE q IS NULL
+                   OR lower(au.email) LIKE '%' || q || '%'
+                   OR lower(coalesce(p.full_name, '')) LIKE '%' || q || '%'
+                   OR lower(coalesce(p.username, '')) LIKE '%' || q || '%'
+                ORDER BY au.created_at DESC
+                LIMIT lim
+            ) u
+        )
+    );
+END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.admin_recent_errors(p_days integer DEFAULT 7)
  RETURNS json
  LANGUAGE plpgsql
@@ -3093,6 +3149,7 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 REVOKE ALL ON FUNCTION public.accept_team_invite(p_token text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.admin_link_reports() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.admin_moderate_link(p_link_id uuid, p_action text, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_overview(p_search text, p_limit integer) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.admin_recent_errors(p_days integer) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.aggregate_daily_stats(target_date date) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.backfill_click_rollups(p_month date) FROM PUBLIC, anon, authenticated, service_role;
@@ -3162,6 +3219,8 @@ GRANT EXECUTE ON FUNCTION public.admin_link_reports() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_link_reports() TO service_role;
 GRANT EXECUTE ON FUNCTION public.admin_moderate_link(p_link_id uuid, p_action text, p_reason text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_moderate_link(p_link_id uuid, p_action text, p_reason text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.admin_overview(p_search text, p_limit integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_overview(p_search text, p_limit integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.admin_recent_errors(p_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_recent_errors(p_days integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.aggregate_daily_stats(target_date date) TO PUBLIC;
@@ -3181,9 +3240,6 @@ GRANT EXECUTE ON FUNCTION public.click_rollup_rows(ce public.click_events) TO se
 GRANT EXECUTE ON FUNCTION public.count_click_in_rollups() TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_analytics_share_token(p_expires_in_days integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO anon;
-GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_guest_link(p_original_url text, p_short_code text, p_guest_session_id text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_team_invite(p_team_id uuid, p_email text, p_role text, p_token text) TO service_role;
