@@ -144,6 +144,11 @@ export default async function handler(request: Request) {
             });
         }
 
+        // Shown on the API page as "used <date>". Best effort: never blocks or fails the request.
+        try {
+            await supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('key_hash', keyHash);
+        } catch { /* ignore */ }
+
         // 4. Scope Enforcement
         const scopes: string[] = keyData.scopes || [];
         if (!scopes.includes('links:write')) {
