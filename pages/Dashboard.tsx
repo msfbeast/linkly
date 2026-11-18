@@ -13,6 +13,7 @@ import QuickLinkInput from '../components/QuickLinkInput';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 import DashboardHeader from '../components/dashboard/DashboardHeader';
+import FirstRun from '../components/dashboard/FirstRun';
 import OverviewBento from '../components/dashboard/OverviewBento';
 import LinksList from '../components/dashboard/LinksList';
 import { LinkData, categorizeLink } from '../types'; // generateLinkHealthData, getTopPerformingLinks moved to analyticsService
@@ -460,6 +461,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Empty state - no links exist
   const hasNoLinks = links.length === 0;
+  // No links of any kind yet (archived ones would have loaded in the archived view).
+  const isNewAccount = hasNoLinks && !isLoading && !error && filterStatus === 'active' && !currentTeam && !searchTerm;
 
 
 
@@ -533,6 +536,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Header Section */}
           <DashboardHeader
             user={user}
+            isNew={isNewAccount}
             dateRange={dateRange}
             setDateRange={setDateRange}
             onExport={handleExport}
@@ -542,6 +546,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Paste a link to shorten it */}
           <QuickLinkInput onCreate={handleQuickCreate} onMoreOptions={handleCreateClick} />
 
+          {/* First visit: what Gather does, affiliate tags, first link */}
+          {isNewAccount && <FirstRun />}
+
           {/* Click overview (personal links; team analytics aren't available yet) */}
           {user?.id && !currentTeam && !hasNoLinks && (
             <ErrorBoundary>
@@ -549,8 +556,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             </ErrorBoundary>
           )}
 
-          {/* Links List Section */}
-          <div className="rounded-3xl bg-[#FBFAF8] p-4 sm:p-6">
+          {/* Links List Section (the setup panel stands in for it until the first link) */}
+          <div className={`rounded-3xl bg-[#FBFAF8] p-4 sm:p-6 ${isNewAccount ? 'hidden' : ''}`}>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-[13px] text-[#8C8981]">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-[#FF5A14]" />
