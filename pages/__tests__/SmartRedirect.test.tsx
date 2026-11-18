@@ -19,17 +19,17 @@ describe('/open/:url', () => {
         const before = window.location.href;
         renderAt('/open/' + encodeURIComponent('javascript:alert(document.cookie)'));
         await act(async () => { vi.advanceTimersByTime(2000); });
-        expect(screen.getByText('Invalid Link')).toBeTruthy();
+        expect(screen.getByText('Nothing to open')).toBeTruthy();
         expect(window.location.href).toBe(before);
     });
 
     it('still offers web links', () => {
         renderAt('/open/' + encodeURIComponent('https://drive.google.com/file/d/1'));
-        expect(screen.getByText('Open App').closest('a')?.getAttribute('href')).toBe('https://drive.google.com/file/d/1');
+        expect(screen.getByRole('link', { name: /Open it/ })?.getAttribute('href')).toBe('https://drive.google.com/file/d/1');
     });
 
     it('handles malformed encoding', () => {
         renderAt('/open/%E0%A4%A');
-        expect(screen.getByText('Invalid Link')).toBeTruthy();
+        expect(screen.getByText('Nothing to open')).toBeTruthy();
     });
 });

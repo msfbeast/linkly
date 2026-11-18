@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, Loader2, AlertCircle, TrendingUp, Link as LinkIcon } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
+import PublicCard from '../components/PublicCard';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { LinkData } from '../types';
@@ -20,7 +21,7 @@ const ClaimLinkPage: React.FC = () => {
     useEffect(() => {
         const loadGuestLink = async () => {
             if (!token) {
-                setError('Invalid claim link');
+                setError('This claim address is incomplete.');
                 setLoading(false);
                 return;
             }
@@ -28,7 +29,7 @@ const ClaimLinkPage: React.FC = () => {
             try {
                 const guestLink = await supabaseAdapter.getGuestLinkByToken(token);
                 if (!guestLink) {
-                    setError('Link not found or already claimed');
+                    setError('This link was already kept by an account, or it has expired.');
                 } else {
                     setLink(guestLink);
                     // Kept until sign-in, so the link is claimed even if signing
@@ -37,7 +38,7 @@ const ClaimLinkPage: React.FC = () => {
                 }
             } catch (err) {
                 console.error('Failed to load guest link:', err);
-                setError('Failed to load link');
+                setError('Something went wrong loading the link. Try again in a moment.');
             } finally {
                 setLoading(false);
             }
@@ -57,7 +58,7 @@ const ClaimLinkPage: React.FC = () => {
                     setClaimed(true);
                 } catch (err) {
                     console.error('Failed to claim link:', err);
-                    setError('Failed to claim link');
+                    setError('Could not add the link to your account. Try again in a moment.');
                 }
             }
         };
@@ -65,134 +66,65 @@ const ClaimLinkPage: React.FC = () => {
         claimLink();
     }, [user, link, claimed, token]);
 
-    if (loading) {
+    const shortLabel = link ? `${window.location.host}/${link.shortCode}` : '';
+    const primary = 'flex w-full items-center justify-center rounded-full bg-[#FF5A14] py-3.5 text-[14px] font-medium text-white hover:opacity-90';
+    const secondary = 'flex w-full items-center justify-center rounded-full bg-[#F0EEEA] py-3.5 text-[14px] hover:bg-[#E6E3DD]';
+
+    const LinkBox = () => link ? (
+        <div className="mt-5 rounded-2xl bg-[#18181A] p-4 text-[#F2F1EE]">
+            <div className="truncate font-mono text-[15px]">{shortLabel}</div>
+            <div className="mt-1 truncate font-mono text-[11px] text-[#77746D]">→ {link.originalUrl}</div>
+            {link.clicks > 0 && <div className="mt-3 font-mono text-[13px] text-[#FF9B6A]">{link.clicks.toLocaleString('en-IN')} clicks so far</div>}
+        </div>
+    ) : null;
+
+    // Loading, or signed in and the claim is still on its way.
+    if (loading || (user && link && !claimed && !error)) {
         return (
-            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 text-yellow-500 animate-spin mx-auto mb-4" />
-                    <p className="text-stone-500">Loading your link...</p>
-                </div>
-            </div>
+            <PublicCard>
+                <p className="flex items-center gap-3 text-[15px]" role="status">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#FF5A14]" /> {loading ? 'Loading your link…' : 'Adding it to your account…'}
+                </p>
+            </PublicCard>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4">
-                <div className="bg-white border-2 border-red-200 rounded-2xl p-8 max-w-md w-full text-center shadow-xl">
-                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <AlertCircle className="w-8 h-8 text-red-500" />
-                    </div>
-                    <h1 className="text-2xl font-bold text-slate-900 mb-2">Link Not Found</h1>
-                    <p className="text-stone-500 mb-6">{error}</p>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors"
-                    >
-                        Create New Link
-                    </button>
-                </div>
-            </div>
+            <PublicCard>
+                <h1 className="text-[22px] font-medium tracking-tight">Can't keep this link</h1>
+                <p className="mt-2 text-[14px] leading-relaxed text-[#5F5C56]">{error}</p>
+                <button onClick={() => navigate('/')} className={`${primary} mt-6`}>Shorten a new link</button>
+            </PublicCard>
         );
     }
 
     if (!user) {
         return (
-            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4">
-                <div className="bg-white border-2 border-yellow-400 rounded-2xl p-8 max-w-md w-full shadow-xl">
-                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <LinkIcon className="w-8 h-8 text-yellow-600" />
-                    </div>
-
-                    <h1 className="text-2xl font-bold text-slate-900 mb-2 text-center">
-                        Claim Your Link
-                    </h1>
-                    <p className="text-stone-500 mb-6 text-center">
-                        Sign up to claim this link and see its analytics
-                    </p>
-
-                    {link && (
-                        <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 mb-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm text-stone-500">Short URL</span>
-                                <span className="font-mono text-sm text-slate-900">
-                                    gather.link/{link.shortCode}
-                                </span>
-                            </div>
-                            {link.clicks > 0 && (
-                                <div className="flex items-center gap-2 pt-2 border-t border-stone-200">
-                                    <TrendingUp className="w-4 h-4 text-yellow-600" />
-                                    <span className="text-sm font-bold text-slate-900">
-                                        {link.clicks} clicks already!
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="space-y-3">
-                        <button
-                            onClick={() => navigate('/register')}
-                            className="w-full px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors shadow-lg shadow-yellow-400/20"
-                        >
-                            Sign Up to Claim
-                        </button>
-                        <button
-                            onClick={() => navigate('/login', { state: { from: `/claim/${token}` } })}
-                            className="w-full px-6 py-3 bg-stone-100 hover:bg-stone-200 text-slate-900 font-medium rounded-xl transition-colors"
-                        >
-                            Already have an account? Log in
-                        </button>
-                    </div>
+            <PublicCard>
+                <h1 className="text-[22px] font-medium tracking-tight">Keep this link</h1>
+                <p className="mt-1.5 text-[14px] text-[#8C8981]">Sign up free to keep it past 7 days and see its clicks.</p>
+                <LinkBox />
+                <div className="mt-6 grid gap-2">
+                    <button onClick={() => navigate('/register')} className={primary}>Sign up free</button>
+                    <button onClick={() => navigate('/login', { state: { from: `/claim/${token}` } })} className={secondary}>I have an account</button>
                 </div>
-            </div>
+            </PublicCard>
         );
     }
 
     if (claimed) {
         return (
-            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4">
-                <div className="bg-white border-2 border-green-400 rounded-2xl p-8 max-w-md w-full text-center shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle className="w-8 h-8 text-green-600" />
-                    </div>
-
-                    <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                        Link Claimed! 🎉
-                    </h1>
-                    <p className="text-stone-500 mb-6">
-                        Your link has been added to your account
-                    </p>
-
-                    {link && (
-                        <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6">
-                            <div className="text-sm text-green-800 mb-2">
-                                gather.link/{link.shortCode}
-                            </div>
-                            {link.clicks > 0 && (
-                                <div className="text-2xl font-bold text-green-900">
-                                    {link.clicks} clicks tracked
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="space-y-3">
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="w-full px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl transition-colors"
-                        >
-                            Go to Dashboard
-                        </button>
-                        <button
-                            onClick={() => navigate(`/analytics/${link?.id}`)}
-                            className="w-full px-6 py-3 bg-stone-100 hover:bg-stone-200 text-slate-900 font-medium rounded-xl transition-colors"
-                        >
-                            View Analytics
-                        </button>
-                    </div>
+            <PublicCard>
+                <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#FF5A14] text-white"><Check className="h-5 w-5" /></span>
+                <h1 className="text-[22px] font-medium tracking-tight">It's yours</h1>
+                <p className="mt-1.5 text-[14px] text-[#8C8981]">The link is in your account now and won't expire.</p>
+                <LinkBox />
+                <div className="mt-6 grid gap-2">
+                    <button onClick={() => navigate(`/analytics/${link?.id}`)} className={primary}>See its clicks</button>
+                    <button onClick={() => navigate('/dashboard')} className={secondary}>Go to dashboard</button>
                 </div>
-            </div>
+            </PublicCard>
         );
     }
 
