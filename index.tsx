@@ -4,7 +4,9 @@ import App from './App';
 import './index.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { installErrorReporter } from './utils/errorReporter';
+import { installStaleChunkReload } from './utils/staleChunkReload';
 
+installStaleChunkReload();
 installErrorReporter();
 
 const rootElement = document.getElementById('root');

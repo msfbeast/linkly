@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { isStaleChunkError, reloadForStaleChunk } from '../utils/staleChunkReload';
 import { reportError } from '../utils/errorReporter';
 
 interface Props {
@@ -28,9 +29,8 @@ export class ErrorBoundary extends Component<Props, State> {
         reportError(error, { componentStack: errorInfo.componentStack });
 
         // Auto-reload on chunk load errors (stale assets after deploy)
-        if (error.message.includes('Failed to fetch dynamically imported module') ||
-            error.message.includes('Importing a module script failed')) {
-            window.location.reload();
+        if (isStaleChunkError(error.message)) {
+            reloadForStaleChunk();
         }
     }
 
