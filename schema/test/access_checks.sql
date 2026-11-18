@@ -101,7 +101,9 @@ SELECT pg_temp.probe('Bob: move own file into Alice''s folder', $q$WITH u AS (UP
 SELECT pg_temp.probe('Bob: delete Alice''s avatar (rows changed)', $q$WITH d AS (DELETE FROM storage.objects WHERE name = '00000000-0000-0000-0000-00000000000a/avatar.jpg' RETURNING 1) SELECT count(*)::text FROM d$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Bob: read Alice''s digital product (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'digital-products'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Alice: read own digital product (rows)', $q$SELECT count(*)::text FROM storage.objects WHERE bucket_id = 'digital-products'$q$, 'authenticated', '00000000-0000-0000-0000-00000000000a');
-SELECT pg_temp.probe('anon: new guest link returns a claim token', $q$SELECT (public.create_guest_link('https://n.example', 'nnn', 's1')::jsonb ? 'claim_token')::text$q$, 'anon', null);
+SELECT pg_temp.probe('anon: create guest link directly', $q$SELECT (public.create_guest_link('https://n.example', 'nnn', 's1')::jsonb ? 'claim_token')::text$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: create guest link directly', $q$SELECT (public.create_guest_link('https://n.example', 'nnn', 's1')::jsonb ? 'claim_token')::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('server: new guest link returns a claim token', $q$SELECT (public.create_guest_link('https://n.example', 'nnn', 's1')::jsonb ? 'claim_token')::text$q$, 'service_role', null);
 SELECT pg_temp.probe('anon: public guest link hides claim token', $q$SELECT (public.get_public_link('ggg') ? 'claim_token')::text$q$, 'anon', null);
 SELECT pg_temp.probe('anon: old guest email setter', $q$SELECT public.update_guest_link_metadata('22222222-2222-2222-2222-22222222222f', 'evil@x.com')::text$q$, 'anon', null);
 SELECT pg_temp.probe('anon: set guest email, wrong session', $q$SELECT 'called' FROM (SELECT public.update_guest_link_metadata('22222222-2222-2222-2222-22222222222f', 'evil@x.com', 'other-sess')) x$q$, 'anon', null);
@@ -164,4 +166,7 @@ SELECT pg_temp.probe('server: record an error', $q$SELECT 'called' FROM (SELECT 
 SELECT pg_temp.probe('Bob: read error log', $q$SELECT count(*)::text FROM public.error_log$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Bob: admin recent errors', $q$SELECT left((public.admin_recent_errors(7))::text, 20)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
 SELECT pg_temp.probe('Dave (admin): admin recent errors', $q$SELECT json_array_length(public.admin_recent_errors(7)::json)::text$q$, 'authenticated', '00000000-0000-0000-0000-00000000000d');
+SELECT pg_temp.probe('anon: admin overview', $q$SELECT left((public.admin_overview(null, 10))::text, 20)$q$, 'anon', null);
+SELECT pg_temp.probe('Bob: admin overview', $q$SELECT left((public.admin_overview(null, 10))::text, 20)$q$, 'authenticated', '00000000-0000-0000-0000-00000000000b');
+SELECT pg_temp.probe('Dave (admin): admin overview users', $q$SELECT ((public.admin_overview(null, 500))->'stats'->>'users')$q$, 'authenticated', '00000000-0000-0000-0000-00000000000d');
 ROLLBACK;
