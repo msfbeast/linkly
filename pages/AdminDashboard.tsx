@@ -1,266 +1,166 @@
-import React, { useState, useEffect } from 'react';
-import {
-    Users,
-    Link as LinkIcon,
-    CreditCard,
-    Activity,
-    Search,
-    Filter,
-    MoreVertical,
-    Shield,
-    CheckCircle,
-    XCircle,
-    AlertTriangle,
-    Database
-} from 'lucide-react';
-import { supabaseAdapter } from '../services/storage/supabaseAdapter';
-import { UserProfile } from '../types';
-import { toast } from 'sonner';
+import React, { useEffect, useState } from 'react';
+import { Loader2, RefreshCw, Search } from 'lucide-react';
+import { supabase } from '../services/storage/supabaseClient';
+import { Label, MonoPill, Tile, fmt } from '../components/ui/bento';
 import LinkReports from '../components/admin/LinkReports';
 import RecentErrors from '../components/admin/RecentErrors';
 
+export interface AdminUser {
+    id: string;
+    email: string | null;
+    name: string;
+    username: string;
+    plan: string;
+    role: string;
+    joined: string;
+    lastSignIn: string | null;
+    links: number;
+    clicks: number;
+}
+
+export interface AdminOverview {
+    stats: {
+        users: number; usersLast30d: number; activeLast30d: number;
+        links: number; linksLast30d: number; guestLinks: number;
+        clicksLast7d: number; plans: Record<string, number>;
+    };
+    users: AdminUser[];
+}
+
+const date = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+/** Platform numbers, reports, errors and users (admin_overview, admin only). */
 export default function AdminDashboard() {
-    const [users, setUsers] = useState<UserProfile[]>([]);
+    const [data, setData] = useState<AdminOverview | null>(null);
+    const [failed, setFailed] = useState(false);
+    const [search, setSearch] = useState('');
+    const [query, setQuery] = useState('');
+    const [attempt, setAttempt] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({
-        totalUsers: 0,
-        activeSubscriptions: 0,
-        totalRevenue: 0,
-        totalLinks: 0,
-        userGrowth: 0,
-        linkGrowth: 0,
-        systemHealth: 0
-    });
-    const [searchQuery, setSearchQuery] = useState('');
+
+    // Search runs on the server, over every user, a moment after typing stops.
+    useEffect(() => {
+        const t = setTimeout(() => setQuery(search.trim()), 300);
+        return () => clearTimeout(t);
+    }, [search]);
 
     useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            // Parallel fetch for table and stats
-            const [profiles, platformStats] = await Promise.all([
-                supabaseAdapter.getAllProfiles(100),
-                supabaseAdapter.getPlatformStats()
-            ]);
-
-            setUsers(profiles);
-            setStats(platformStats);
-        } catch (error) {
-            console.error('Failed to fetch admin data:', error);
-            toast.error('Failed to load admin data');
-        } finally {
+        let cancelled = false;
+        setLoading(true);
+        (async () => {
+            const { data: result, error } = await supabase!.rpc('admin_overview', { p_search: query || null, p_limit: 200 });
+            if (cancelled) return;
+            if (error) { console.error('[Admin] admin_overview failed', error); setFailed(true); }
+            else { setData(result as AdminOverview); setFailed(false); }
             setLoading(false);
-        }
-    };
+        })();
+        return () => { cancelled = true; };
+    }, [query, attempt]);
 
-    const filteredUsers = users.filter(user =>
-        user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.id.includes(searchQuery)
-    );
-
-    const handleAggregation = async () => {
-        try {
-            toast.info('Starting analytics aggregation...');
-            await supabaseAdapter.runAnalyticsAggregation();
-            toast.success('Analytics aggregated successfully via RPC');
-        } catch (e) {
-            toast.error('Aggregation failed (check console)');
-        }
-    };
+    const s = data?.stats;
+    const paid = s ? Object.entries(s.plans).filter(([p]) => p !== 'free') : [];
 
     return (
-        <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-7xl mx-auto space-y-8">
-
-                {/* Header */}
-                <div className="flex justify-between items-center">
+        <div className="min-h-screen bg-[#ECEBE7] p-4 text-[#18181A] sm:p-8">
+            <div className="mx-auto max-w-7xl">
+                <div className="mb-5 flex flex-wrap items-end gap-3">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-                        <p className="text-slate-500 mt-1">Platform overview and user management</p>
+                        <h1 className="text-[28px] font-medium tracking-tight sm:text-[32px]">Admin</h1>
+                        <p className="mt-1 text-[13px] text-[#8C8981]">Platform numbers, reports, errors and users.</p>
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={handleAggregation}
-                            className="px-4 py-2 bg-slate-900 border border-transparent rounded-lg text-white hover:bg-slate-800 font-medium transition-colors flex items-center gap-2"
-                        >
-                            <Database className="w-4 h-4" />
-                            Run Aggregation
-                        </button>
-                        <button
-                            onClick={fetchData}
-                            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors"
-                        >
-                            Refresh
-                        </button>
-                    </div>
+                    <button onClick={() => setAttempt(n => n + 1)} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#FBFAF8] px-4 py-2 text-[13px] hover:bg-white">
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+                    </button>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <StatCard
-                        title="Total Users"
-                        value={stats.totalUsers}
-                        icon={Users}
-                        color="blue"
-                        growth={stats.userGrowth}
-                    />
-                    <StatCard
-                        title="Active Subscriptions"
-                        value={stats.activeSubscriptions}
-                        icon={CreditCard}
-                        color="green"
-                    />
-                    <StatCard
-                        title="Est. Monthly Revenue"
-                        value={`$${stats.totalRevenue}`}
-                        icon={Activity}
-                        color="indigo"
-                    />
-                    <StatCard
-                        title="System Health"
-                        value={`${stats.systemHealth}%`}
-                        icon={Shield}
-                        color="emerald"
-                    />
-                </div>
+                {failed && (
+                    <div className="mb-3.5 flex items-center justify-between gap-4 rounded-2xl bg-[#FBFAF8] px-5 py-3 text-sm text-[#B42318]">
+                        <span>Couldn't load the platform numbers.</span>
+                        <button onClick={() => setAttempt(n => n + 1)} className="font-semibold underline underline-offset-2">Try again</button>
+                    </div>
+                )}
 
-                <LinkReports />
+                <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+                    <Tile dark className="grid grid-cols-2 gap-6 sm:grid-cols-4 lg:col-span-12">
+                        {[
+                            ['Users', s?.users, s ? `+${fmt(s.usersLast30d)} in 30 days` : ''],
+                            ['Signed in, 30 days', s?.activeLast30d, s && s.users ? `${Math.round((s.activeLast30d / s.users) * 100)}% of users` : ''],
+                            ['Links', s?.links, s ? `+${fmt(s.linksLast30d)} in 30 days · ${fmt(s.guestLinks)} guest` : ''],
+                            ['Clicks, 7 days', s?.clicksLast7d, 'all links'],
+                        ].map(([label, value, sub]) => (
+                            <div key={label as string}>
+                                <Label dark>{label}</Label>
+                                <div className="font-mono text-[clamp(28px,3.5vw,44px)] font-medium leading-none tracking-[-0.04em]">{value === undefined ? '–' : fmt(Number(value))}</div>
+                                <p className="mt-2 text-[12px] text-[#8E8B84]">{sub}</p>
+                            </div>
+                        ))}
+                    </Tile>
 
-                <RecentErrors />
-
-                {/* Users Table */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-                        <h2 className="text-lg font-bold text-slate-900">Users</h2>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search users..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
-                            />
+                    <Tile className="lg:col-span-12">
+                        <Label right={<MonoPill>comp accounts included</MonoPill>}>Plans</Label>
+                        <div className="flex flex-wrap gap-2">
+                            {s && Object.entries(s.plans).sort((a, b) => b[1] - a[1]).map(([plan, n]) => (
+                                <span key={plan} className="rounded-full bg-[#F0EEEA] px-3 py-1.5 text-[13px] capitalize">{plan} <span className="font-mono text-[#8C8981]">{fmt(n)}</span></span>
+                            ))}
+                            {s && paid.length === 0 && <span className="text-[13px] text-[#8C8981]">No paid plans.</span>}
                         </div>
-                    </div>
+                    </Tile>
+                </div>
 
+                <div className="mt-3.5 grid gap-3.5">
+                    <LinkReports />
+                    <RecentErrors />
+                </div>
+
+                <Tile className="mt-3.5">
+                    <Label right={
+                        <span className="relative block">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A19E97]" />
+                            <label htmlFor="user-search" className="sr-only">Search users</label>
+                            <input id="user-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Email, name or username"
+                                className="w-56 rounded-full bg-[#F0EEEA] py-2 pl-9 pr-3 text-[13px] text-[#18181A] outline-none focus:ring-2 focus:ring-[#FF5A14]/30 sm:w-72" />
+                        </span>
+                    }>Users{data ? ` · ${fmt(data.users.length)}${data.users.length >= 200 ? '+' : ''} shown` : ''}</Label>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-500 font-medium">
-                                <tr>
-                                    <th className="px-6 py-4">User</th>
-                                    <th className="px-6 py-4">Role</th>
-                                    <th className="px-6 py-4">Plan</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4">Joined</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
+                        <table className="w-full min-w-[760px] text-left text-[13px]">
+                            <thead>
+                                <tr className="text-[11px] text-[#8C8981]">
+                                    <th className="pb-2 pr-4 font-normal">User</th>
+                                    <th className="pb-2 pr-4 font-normal">Plan</th>
+                                    <th className="pb-2 pr-4 text-right font-normal">Links</th>
+                                    <th className="pb-2 pr-4 text-right font-normal">Clicks</th>
+                                    <th className="pb-2 pr-4 font-normal">Joined</th>
+                                    <th className="pb-2 font-normal">Last sign-in</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                                            Loading users...
-                                        </td>
-                                    </tr>
-                                ) : filteredUsers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                                            No users found.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredUsers.map((user) => (
-                                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
-                                                        {user.avatarUrl ? (
-                                                            <img src={user.avatarUrl} alt={user.username} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <span className="text-slate-500 font-bold text-xs">
-                                                                {user.fullName?.charAt(0) || user.username?.charAt(0) || '?'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-medium text-slate-900">{user.fullName || 'Unnamed'}</div>
-                                                        <div className="text-slate-500 text-xs">@{user.username}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin' || user.role === 'super_admin'
-                                                    ? 'bg-purple-100 text-purple-800'
-                                                    : 'bg-slate-100 text-slate-800'
-                                                    }`}>
-                                                    {user.role || 'user'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="capitalize text-slate-700 font-medium">
-                                                    {user.subscription_tier || 'Free'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${user.subscription_status === 'active'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-yellow-100 text-yellow-800'
-                                                    }`}>
-                                                    {user.subscription_status === 'active' ? (
-                                                        <CheckCircle className="w-3 h-3" />
-                                                    ) : (
-                                                        <AlertTriangle className="w-3 h-3" />
-                                                    )}
-                                                    {user.subscription_status || 'Inactive'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-500">
-                                                {new Date(user.onboardingStartedAt || Date.now()).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <button className="text-slate-400 hover:text-slate-600">
-                                                    <MoreVertical className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
+                            <tbody>
+                                {!data && loading && (
+                                    <tr><td colSpan={6} className="py-6 text-center text-[#8C8981]"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
                                 )}
+                                {data && data.users.length === 0 && (
+                                    <tr><td colSpan={6} className="py-6 text-center text-[#8C8981]">No users match.</td></tr>
+                                )}
+                                {data?.users.map(u => (
+                                    <tr key={u.id} className="border-t border-[#ECEAE6]">
+                                        <td className="py-2.5 pr-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="truncate">{u.name || u.username || u.email}</span>
+                                                {u.role !== 'user' && <span className="rounded-md bg-[#18181A] px-1.5 py-0.5 font-mono text-[10px] text-white">{u.role}</span>}
+                                            </div>
+                                            <div className="truncate font-mono text-[11px] text-[#A19E97]">{u.email}{u.username ? ` · @${u.username}` : ''}</div>
+                                        </td>
+                                        <td className="py-2.5 pr-4 capitalize">{u.plan}</td>
+                                        <td className="py-2.5 pr-4 text-right font-mono">{fmt(Number(u.links))}</td>
+                                        <td className="py-2.5 pr-4 text-right font-mono">{fmt(Number(u.clicks))}</td>
+                                        <td className="whitespace-nowrap py-2.5 pr-4 text-[#5F5C56]">{date(u.joined)}</td>
+                                        <td className="whitespace-nowrap py-2.5 text-[#5F5C56]">{date(u.lastSignIn)}</td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </Tile>
             </div>
-        </div>
-    );
-}
-
-function StatCard({ title, value, icon: Icon, color, growth }: any) {
-    const colors: any = {
-        blue: 'bg-blue-50 text-blue-600',
-        green: 'bg-green-50 text-green-600',
-        indigo: 'bg-indigo-50 text-indigo-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
-    };
-
-    return (
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg ${colors[color]}`}>
-                    <Icon className="w-6 h-6" />
-                </div>
-                {growth !== undefined && (
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${growth >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                        {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
-                    </span>
-                )}
-            </div>
-            <h3 className="text-slate-500 text-sm font-medium mb-1">{title}</h3>
-            <p className="text-2xl font-bold text-slate-900">{value}</p>
         </div>
     );
 }

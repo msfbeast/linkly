@@ -45,42 +45,42 @@ const RecentErrors: React.FC = () => {
     const total = errors?.reduce((s, e) => s + e.count, 0) ?? 0;
 
     return (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-6">
-                <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+        <div className="overflow-hidden rounded-3xl bg-[#FBFAF8]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ECEAE6] p-6">
+                <h2 className="flex items-center gap-2 text-lg font-bold text-[#18181A]">
                     <Bug className="h-5 w-5 text-red-600" /> Errors
-                    {errors && errors.length > 0 && <span className="text-sm font-normal text-slate-500">{errors.length} kinds, {total.toLocaleString()} times</span>}
+                    {errors && errors.length > 0 && <span className="text-sm font-normal text-[#8C8981]">{errors.length} kinds, {total.toLocaleString()} times</span>}
                 </h2>
                 <div className="flex items-center gap-2">
                     {[1, 7, 30].map(d => (
                         <button key={d} onClick={() => setDays(d)} aria-pressed={days === d}
-                            className={`rounded-lg px-2.5 py-1 text-sm ${days === d ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+                            className={`rounded-lg px-2.5 py-1 text-sm ${days === d ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:bg-[#F0EEEA]'}`}>
                             {d === 1 ? '24h' : `${d}d`}
                         </button>
                     ))}
-                    <button onClick={load} className="ml-2 text-sm text-slate-500 hover:text-slate-900">Refresh</button>
+                    <button onClick={load} className="ml-2 text-sm text-[#8C8981] hover:text-[#18181A]">Refresh</button>
                 </div>
             </div>
             {errors === null ? (
-                <div className="p-6 text-sm text-slate-500"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading…</div>
+                <div className="p-6 text-sm text-[#8C8981]"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading…</div>
             ) : errors.length === 0 ? (
-                <p className="p-6 text-sm text-slate-500">No errors in this period.</p>
+                <p className="p-6 text-sm text-[#8C8981]">No errors in this period.</p>
             ) : (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-[#ECEAE6]">
                     {errors.map(e => (
                         <li key={e.fingerprint} className="px-6 py-3">
                             <button onClick={() => setOpen(open === e.fingerprint ? null : e.fingerprint)} className="flex w-full items-start gap-3 text-left" aria-expanded={open === e.fingerprint}>
                                 <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[11px] ${e.source === 'server' ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}`}>{e.source}</span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate font-mono text-sm text-slate-900">{e.message}</span>
-                                    <span className="block text-xs text-slate-500">{e.path || '–'} · last {ago(e.lastSeen)} · first {ago(e.firstSeen)}{e.release ? ` · ${e.release}` : ''}</span>
+                                    <span className="block truncate font-mono text-sm text-[#18181A]">{e.message}</span>
+                                    <span className="block text-xs text-[#8C8981]">{e.path || '–'} · last {ago(e.lastSeen)} · first {ago(e.firstSeen)}{e.release ? ` · ${e.release}` : ''}</span>
                                 </span>
-                                <span className="shrink-0 font-mono text-sm text-slate-700">×{e.count.toLocaleString()}</span>
+                                <span className="shrink-0 font-mono text-sm text-[#5F5C56]">×{e.count.toLocaleString()}</span>
                             </button>
                             {open === e.fingerprint && (
                                 <div className="mt-2 space-y-2 pl-14">
-                                    {e.stack && <pre className="max-h-64 overflow-auto rounded bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-700">{e.stack}</pre>}
-                                    {e.userAgent && <p className="break-all text-[11px] text-slate-400">{e.userAgent}</p>}
+                                    {e.stack && <pre className="max-h-64 overflow-auto rounded bg-[#F3F2EF] p-3 text-[11px] leading-relaxed text-[#5F5C56]">{e.stack}</pre>}
+                                    {e.userAgent && <p className="break-all text-[11px] text-[#8C8981]">{e.userAgent}</p>}
                                 </div>
                             )}
                         </li>

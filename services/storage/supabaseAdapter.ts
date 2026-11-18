@@ -406,13 +406,7 @@ export class SupabaseAdapter {
     return this.analyticsRepo.getAnalyticsSummary(linkId, startDate, endDate);
   }
 
-  async getPlatformStats() {
-    return this.analyticsRepo.getPlatformStats();
-  }
 
-  async runAnalyticsAggregation() {
-    return this.analyticsRepo.runAggregation();
-  }
 
 
   // ==========================================
