@@ -220,19 +220,17 @@ const LinksList: React.FC<LinksListProps> = ({
                                     exit={{ opacity: 0 }}
                                     className="rounded-3xl border border-dashed border-[#D9D6D0] py-12 text-center"
                                 >
-                                    <div className="w-16 h-16 bg-stone-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                        <LinkIcon className="w-8 h-8 text-stone-400" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-slate-900 mb-2">No links found</h3>
-                                    <p className="text-stone-500 mb-6">
-                                        {searchTerm ? "Try adjusting your search terms" : "Get started by creating your first link"}
+                                    <LinkIcon className="mx-auto mb-3 h-6 w-6 text-[#A19E97]" />
+                                    <h3 className="text-[15px] font-medium text-[#18181A]">{searchTerm ? 'No links match' : 'No links yet'}</h3>
+                                    <p className="mt-1 text-[13px] text-[#8C8981]">
+                                        {searchTerm ? 'Try a different search.' : 'Paste a link in the box above, or set one up with more options.'}
                                     </p>
                                     {!searchTerm && (
                                         <button
                                             onClick={onCreateFirstLink}
-                                            className="inline-flex items-center gap-2 rounded-full bg-[#FF5A14] px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#E64D0C]"
+                                            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#F0EEEA] px-5 py-2.5 text-[13px] font-medium text-[#18181A] transition-colors hover:bg-[#E6E3DD]"
                                         >
-                                            Create Link <ArrowUpRight className="w-4 h-4" />
+                                            More options <ArrowUpRight className="h-4 w-4" />
                                         </button>
                                     )}
                                 </motion.div>
