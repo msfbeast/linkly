@@ -9,6 +9,7 @@ import { getAppDeepLink } from '../utils/appDeepLinking';
 import { detectDeviceModel } from '../services/userAgentParser';
 
 import { useParams } from 'react-router-dom';
+import PublicCard from '../components/PublicCard';
 
 interface RedirectProps {
   code?: string;
@@ -20,7 +21,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
   const [error, setError] = useState<string | null>(null);
   const [destination, setDestination] = useState<string | null>(null);
-  const [redirectMsg, setRedirectMsg] = useState('Analyzing request...');
+  const [redirectMsg, setRedirectMsg] = useState('Opening link…');
   const [detectedLocale, setDetectedLocale] = useState<string>('');
 
   // Password State
@@ -97,7 +98,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
               link.originalUrl = validRedirect;
               // Proceed to processRedirect
             } else {
-              setError("This link represents a embedded widget and cannot be visited directly.");
+              setError("This link is part of a page and can't be opened on its own.");
               return;
             }
           }
@@ -108,11 +109,11 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
           }
           await processRedirect(link);
         } else {
-          setError("Link not found");
+          setError("There's no link at this address. Check it for typos.");
         }
       } catch (err) {
         console.error('Error fetching link:', err);
-        setError("An error occurred while loading the link.");
+        setError("Something went wrong loading this link. Try again in a moment.");
       }
     };
 
@@ -204,7 +205,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
         cumulativeWeight += variant.weight;
         if (random <= cumulativeWeight) {
           finalUrl = variant.url;
-          setRedirectMsg("Redirecting to test variant...");
+          setRedirectMsg("Opening link…");
           break;
         }
       }
@@ -217,10 +218,10 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
     if (link.smartRedirects) {
       if (/iPad|iPhone|iPod/.test(ua) && link.smartRedirects.ios) {
         finalUrl = link.smartRedirects.ios;
-        setRedirectMsg("Opening in iOS App...");
+        setRedirectMsg("Opening the app…");
       } else if (/android/i.test(ua) && link.smartRedirects.android) {
         finalUrl = link.smartRedirects.android;
-        setRedirectMsg("Opening in Android App...");
+        setRedirectMsg("Opening the app…");
       } else if (!/Mobile/.test(ua) && link.smartRedirects.desktop) {
         finalUrl = link.smartRedirects.desktop;
       }
@@ -231,13 +232,13 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
       const geoUrl = link.geoRedirects[userCountry.toUpperCase()];
       if (geoUrl) {
         finalUrl = geoUrl;
-        setRedirectMsg(`Redirecting for ${userCountry}...`);
+        setRedirectMsg('Opening link…');
       }
     }
 
     // Ensure finalUrl is valid
     if (!finalUrl || finalUrl.trim().toLowerCase().startsWith('widget://')) {
-      setError("Invalid destination URL. Direct access to widgets is not supported.");
+      setError("This link's destination isn't a web address that can be opened.");
       return;
     }
     // Destinations come from users (link, A/B variants, device and geo
@@ -268,7 +269,7 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
     if (deepLink) {
 
-      setRedirectMsg("Opening App...");
+      setRedirectMsg("Opening the app…");
 
       // Try to open the app
       // For Intent URIs (Android), replace() is often cleaner and matches competitor logic
@@ -332,58 +333,48 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
-        <div className="bg-white border border-stone-200 p-8 rounded-[2rem] max-w-md w-full text-center shadow-sm">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Link Unavailable</h1>
-          <p className="text-stone-500 mb-6">{error}</p>
-          <a href="/" className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium">
-            Create your own link <ArrowRight className="w-4 h-4 ml-1" />
+      <PublicCard>
+        <h1 className="text-[22px] font-medium tracking-tight">This link isn't available</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-[#5F5C56]">{error}</p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
+          <a href="/" className="inline-flex items-center gap-1.5 rounded-full bg-[#18181A] px-4 py-2 text-white hover:opacity-90">
+            Make your own short link <ArrowRight className="h-4 w-4" />
           </a>
-          {code && (
-            <p className="mt-4 text-xs text-stone-400">
-              <a href={`/report?link=${encodeURIComponent(code)}`} className="hover:underline">Report this link</a>
-            </p>
-          )}
+          {code && <a href={`/report?link=${encodeURIComponent(code)}`} className="text-[#8C8981] underline-offset-2 hover:text-[#18181A] hover:underline">Report this link</a>}
         </div>
-      </div>
+      </PublicCard>
     );
   }
 
   if (isLocked) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
-        <div className="bg-white border border-stone-200 p-8 rounded-[2rem] max-w-md w-full text-center shadow-xl shadow-stone-200/50">
-          <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-8 h-8 text-amber-500" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Protected Link</h2>
-          <p className="text-stone-500 mb-6 text-sm">Enter the password to access this content.</p>
-
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <input
-              type="password"
-              placeholder="Password"
-              className={`w-full bg-stone-50 border ${passwordError ? 'border-red-500' : 'border-stone-200'} text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500`}
-              value={passwordInput}
-              onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
-              autoFocus
-            />
-            {passwordError && (
-              <p className="text-sm text-red-500" role="alert">
-                {passwordError === 'limited'
-                  ? 'Too many wrong passwords. Try again in 15 minutes.'
-                  : 'Wrong password.'}
-              </p>
-            )}
-            <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-amber-500/20">
-              Unlock Link
-            </button>
-          </form>
-        </div>
-      </div>
+      <PublicCard>
+        <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#18181A] text-white"><Lock className="h-4 w-4" /></span>
+        <h1 className="text-[22px] font-medium tracking-tight">This link needs a password</h1>
+        <p className="mt-1.5 text-[14px] text-[#8C8981]">Ask whoever shared it.</p>
+        <form onSubmit={handlePasswordSubmit} className="mt-5 grid gap-3">
+          <label htmlFor="link-password" className="sr-only">Password</label>
+          <input
+            id="link-password"
+            type="password"
+            autoComplete="off"
+            placeholder="Password"
+            aria-invalid={!!passwordError || undefined}
+            className={`w-full rounded-2xl bg-[#F0EEEA] px-4 py-3.5 text-[15px] outline-none placeholder:text-[#A19E97] focus:ring-2 ${passwordError ? 'ring-2 ring-[#B42318]/40' : 'focus:ring-[#FF5A14]/30'}`}
+            value={passwordInput}
+            onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
+            autoFocus
+          />
+          {passwordError && (
+            <p className="text-[13px] text-[#B42318]" role="alert">
+              {passwordError === 'limited' ? 'Too many wrong passwords. Try again in 15 minutes.' : 'Wrong password.'}
+            </p>
+          )}
+          <button type="submit" disabled={!passwordInput} className="rounded-full bg-[#FF5A14] py-3.5 text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-50">
+            Open link
+          </button>
+        </form>
+      </PublicCard>
     );
   }
 
@@ -394,44 +385,21 @@ const Redirect: React.FC<RedirectProps> = ({ code: propCode }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
-      <div className="text-center w-full max-w-md">
-        <div className="w-16 h-16 bg-white border border-stone-100 rounded-full flex items-center justify-center mx-auto mb-6 relative shadow-sm">
-          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center opacity-30">
-            <Globe className="w-4 h-4 text-stone-400" />
-          </div>
-        </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">{redirectMsg}</h2>
-
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <p className="text-stone-500 text-sm">
-            Optimizing route for your device
-          </p>
-          {detectedLocale && (
-            <span className="bg-stone-100 text-stone-600 text-[10px] px-2 py-0.5 rounded border border-stone-200 font-medium">
-              {detectedLocale}
-            </span>
-          )}
-        </div>
-
-        {destination && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="bg-white border border-stone-200 rounded-lg p-3 text-sm text-stone-400 truncate animate-pulse">
-              {destination}
-            </div>
-
-            <a
-              href={destination}
-              rel="noreferrer noopener"
-              className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 font-bold text-sm bg-amber-50 px-4 py-2 rounded-lg hover:bg-amber-100 transition-colors"
-            >
-              Click here if you are not redirected <ArrowRight className="w-4 h-4" />
-            </a>
-          </div>
-        )}
+    <PublicCard>
+      <div className="flex items-center gap-3" role="status">
+        <Loader2 className="h-5 w-5 animate-spin text-[#FF5A14]" />
+        <h1 className="text-[18px] font-medium">{redirectMsg}</h1>
+        {detectedLocale && <span className="rounded-md bg-[#F0EEEA] px-2 py-0.5 font-mono text-[11px] text-[#8C8981]">{detectedLocale}</span>}
       </div>
-    </div>
+      {destination && (
+        <div className="mt-5">
+          <p className="truncate rounded-xl bg-[#F0EEEA] px-3 py-2 font-mono text-[12px] text-[#8C8981]">{destination}</p>
+          <a href={destination} rel="noreferrer noopener" className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-[#18181A] underline underline-offset-2">
+            Not moving? Open it yourself <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
+      )}
+    </PublicCard>
   );
 };
 

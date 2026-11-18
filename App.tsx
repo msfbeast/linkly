@@ -126,7 +126,6 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/p/:handle" element={<StorePage />} />
           {/* /@handle: React Router can't match "@:handle", so take the whole segment. */}
           <Route path="/:atHandle" element={<AtHandleRoute />} />
-          <Route path="/s/:domain" element={<SmartRedirect />} />
 
           {/* Store Routes */}
           <Route path="/claim/:token" element={<ClaimLinkPage />} /> {/* Changed from /claim-link to /claim/:token */}

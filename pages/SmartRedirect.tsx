@@ -1,72 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { safeWebUrl } from '../utils/safeUrl';
+import PublicCard from '../components/PublicCard';
 
+/** /open/:url — opens a web link from inside an in-app browser, with a button if that's blocked. */
 const SmartRedirect: React.FC = () => {
     const { url } = useParams<{ url: string }>();
     // Only web links: this page is public and takes the URL from its own
     // path, so without this /open/javascript:... ran script on our origin.
-    let decodedUrl = '';
+    let target = '';
     try {
-        decodedUrl = (url && safeWebUrl(decodeURIComponent(url))) || '';
+        target = (url && safeWebUrl(decodeURIComponent(url))) || '';
     } catch {
-        decodedUrl = ''; // malformed %-encoding
+        target = ''; // malformed %-encoding
     }
-    const [status, setStatus] = useState('Opening...');
+    const [tried, setTried] = useState(false);
 
     useEffect(() => {
-        if (!decodedUrl) return;
-
-        // Attempt to open automatically
-        const openApp = () => {
-            // For Google Drive specifically, we can try the intent scheme if needed,
-            // but usually the https link is intercepted by the OS if the app is installed.
-            // However, in-app browsers (IG/FB) block this.
-
-            // Strategy:
-            // 1. Try to open the URL directly (OS should intercept)
-            window.location.href = decodedUrl;
-
-            // 2. Fallback logic is handled by the user clicking the button if the above fails
-            // or if the browser stays on this page.
-        };
-
-        // Small delay to render the UI first
-        const timer = setTimeout(() => {
-            openApp();
-            setStatus('If the app didn\'t open, click below:');
-        }, 1000);
-
+        if (!target) return;
+        const timer = setTimeout(() => { window.location.href = target; setTried(true); }, 600);
         return () => clearTimeout(timer);
-    }, [decodedUrl]);
+    }, [target]);
 
-    if (!decodedUrl) return <div>Invalid Link</div>;
+    if (!target) {
+        return (
+            <PublicCard>
+                <h1 className="text-[22px] font-medium tracking-tight">Nothing to open</h1>
+                <p className="mt-2 text-[14px] text-[#5F5C56]">This address doesn't contain a web link.</p>
+                <a href="/" className="mt-5 inline-block text-[13px] underline underline-offset-2">Go to Gather</a>
+            </PublicCard>
+        );
+    }
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 font-sans">
-            <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center space-y-6">
-                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-                    <ExternalLink className="w-8 h-8" />
-                </div>
-
-                <div className="space-y-2">
-                    <h1 className="text-xl font-bold text-slate-900">Opening Link...</h1>
-                    <p className="text-slate-500">{status}</p>
-                </div>
-
-                <a
-                    href={decodedUrl}
-                    className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-blue-600/20"
-                >
-                    Open App
-                </a>
-
-                <p className="text-xs text-slate-400">
-                    Powered by Gather
-                </p>
+        <PublicCard>
+            <div className="flex items-center gap-3" role="status">
+                {!tried && <Loader2 className="h-5 w-5 animate-spin text-[#FF5A14]" />}
+                <h1 className="text-[18px] font-medium">{tried ? 'Didn\'t open?' : 'Opening link…'}</h1>
             </div>
-        </div>
+            <p className="mt-3 truncate rounded-xl bg-[#F0EEEA] px-3 py-2 font-mono text-[12px] text-[#8C8981]">{target}</p>
+            <a href={target} className="mt-4 flex items-center justify-center gap-2 rounded-full bg-[#FF5A14] py-3.5 text-[14px] font-medium text-white hover:opacity-90">
+                Open it <ArrowRight className="h-4 w-4" />
+            </a>
+        </PublicCard>
     );
 };
 
