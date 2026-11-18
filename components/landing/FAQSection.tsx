@@ -1,78 +1,45 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { ChevronDown } from 'lucide-react';
+import { FREE_LINK_LIMIT } from '../../utils/planLimits';
 
-const FAQSection: React.FC = () => {
-    const [openIndex, setOpenIndex] = useState<number | null>(null);
+export const FAQS: { q: string; a: string }[] = [
+    {
+        q: 'Do I need an account to shorten a link?',
+        a: 'No. Paste a link on this page and you get a short one straight away. Guest links work for 7 days; sign up and they move to your account, with their clicks.',
+    },
+    {
+        q: 'What do I get for free?',
+        a: `Up to ${FREE_LINK_LIMIT} links, click analytics, a store page for your products, QR codes and your affiliate tags added automatically.`,
+    },
+    {
+        q: 'How do the affiliate tags work?',
+        a: 'Save your Amazon Associates tag or Flipkart affiliate ID in Settings. Gather adds it to every Amazon or Flipkart link you shorten, including short amzn.to links, and can update the links you already have.',
+    },
+    {
+        q: 'Can I use my own domain?',
+        a: 'Yes. Add a domain like links.yourname.com in Settings, create two DNS records at your domain provider, and your short links work on it.',
+    },
+    {
+        q: 'What counts as a click?',
+        a: 'Every visit to a short link. Gather records the country, city, device, browser and where the visitor came from, never their IP address.',
+    },
+];
 
-    const faqs = [
-        {
-            question: "What makes Gather different?",
-            answer: "Gather focuses on premium design and simplicity. We believe your link in bio should look as good as your content, with zero design skills required."
-        },
-        {
-            question: "Can I sell products directly?",
-            answer: "Yes! Gather has built-in commerce tools. You can sell digital downloads, merchandise, or collect tips without sending your followers to another site."
-        },
-        {
-            question: "Is there a free plan?",
-            answer: "Absolutely. You can create a beautiful, functional Gather page for free. We also offer a Pro plan for advanced analytics and custom domains."
-        },
-        {
-            question: "Can I use my own domain?",
-            answer: "Yes, on our Pro plan you can connect your own custom domain (e.g., yourname.com) to your Gather page for a fully branded experience."
-        },
-        {
-            question: "How do I get started?",
-            answer: "It takes less than a minute. Just claim your username above, sign up, and start adding your links. It's that easy."
-        }
-    ];
-
-    return (
-        <section className="bg-white py-24 px-6">
-            <div className="max-w-3xl mx-auto">
-                <h2 className="text-4xl md:text-6xl font-extrabold text-slate-900 text-center mb-16 tracking-tight">
-                    Questions? Answered.
-                </h2>
-
-                <div className="space-y-4">
-                    {faqs.map((faq, index) => (
-                        <div
-                            key={index}
-                            className="bg-white rounded-2xl border border-stone-200 overflow-hidden transition-all hover:shadow-md hover:border-purple-200"
-                        >
-                            <button
-                                onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                                className="w-full px-8 py-6 flex items-center justify-between text-left"
-                            >
-                                <span className="text-lg font-bold text-slate-900 pr-8">
-                                    {faq.question}
-                                </span>
-                                <div className={`transition-transform duration-300 text-stone-400 ${openIndex === index ? 'rotate-180 text-purple-600' : ''}`}>
-                                    <ChevronDown className="w-6 h-6" />
-                                </div>
-                            </button>
-
-                            <AnimatePresence>
-                                {openIndex === index && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                                    >
-                                        <div className="px-8 pb-8 text-stone-600 leading-relaxed">
-                                            {faq.answer}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-};
+const FAQSection: React.FC = () => (
+    <section className="mx-auto max-w-3xl px-4 pb-20 sm:px-8">
+        <h2 className="mb-6 text-[clamp(28px,4vw,40px)] font-medium tracking-tight">Questions</h2>
+        <div className="grid gap-2">
+            {FAQS.map(f => (
+                <details key={f.q} className="group rounded-2xl bg-[#FBFAF8] px-5 py-4 open:pb-5">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium [&::-webkit-details-marker]:hidden">
+                        {f.q}
+                        <ChevronDown className="h-4 w-4 shrink-0 text-[#8C8981] transition-transform group-open:rotate-180" />
+                    </summary>
+                    <p className="mt-3 text-[14px] leading-relaxed text-[#5F5C56]">{f.a}</p>
+                </details>
+            ))}
+        </div>
+    </section>
+);
 
 export default FAQSection;

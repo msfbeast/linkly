@@ -111,8 +111,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signUp = useCallback(async (email: string, password: string, username?: string) => {
     const result = await authService.signUp(email, password, username);
-    if (result.user) setUser(result.user);
-    return toAuthResult(result);
+    // Without a session the account waits for its email to be confirmed;
+    // setting the user then would send them into the app signed out.
+    if (result.user && result.session) setUser(result.user);
+    return { ...toAuthResult(result), needsEmailConfirmation: result.error === null && !result.session };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string, rememberMe?: boolean) => {
