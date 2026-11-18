@@ -32,10 +32,10 @@ const CookieConsent: React.FC = () => {
                     <div className="max-w-4xl mx-auto bg-[#18181A] text-[#F2F1EE] rounded-3xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex-1 text-[13px] text-[#A19E97] text-center sm:text-left">
                             <p>
-                                We use cookies to enhance your experience and analyze usage. By using Gather, you agree to our{' '}
-                                <a href="/privacy" className="text-white hover:underline underline-offset-2">Privacy Policy</a>
+                                Gather keeps you signed in using your browser's storage. No advertising or tracking cookies. See the{' '}
+                                <a href="/cookies" className="text-white hover:underline underline-offset-2">Cookie Policy</a>
                                 {' '}and{' '}
-                                <a href="/terms" className="text-white hover:underline underline-offset-2">Terms of Service</a>.
+                                <a href="/privacy" className="text-white hover:underline underline-offset-2">Privacy Policy</a>.
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -43,7 +43,7 @@ const CookieConsent: React.FC = () => {
                                 onClick={handleAccept}
                                 className="bg-[#FF5A14] text-white px-5 py-2 rounded-full text-[13px] font-semibold hover:bg-[#E64D0C] transition-colors"
                             >
-                                Accept
+                                OK
                             </button>
                             <button
                                 onClick={() => setIsVisible(false)}

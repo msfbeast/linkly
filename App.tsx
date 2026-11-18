@@ -44,7 +44,6 @@ const AddProduct = React.lazy(() => import('./pages/AddProduct')); // Lazy load
 const ApiPage = React.lazy(() => import('./pages/ApiPage'));
 const LinkAnalytics = React.lazy(() => import('./pages/LinkAnalytics'));
 const SharedAnalytics = React.lazy(() => import('./pages/SharedAnalytics'));
-const LegalPage = React.lazy(() => import('./pages/LegalPage'));
 const AboutPage = React.lazy(() => import('./pages/AboutPage'));
 const SmartRedirect = React.lazy(() => import('./pages/SmartRedirect'));
 const AffiliateManager = React.lazy(() => import('./pages/AffiliateManager'));
