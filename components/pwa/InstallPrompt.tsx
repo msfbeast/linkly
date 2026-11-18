@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { storageGet, storageSet } from '../../utils/safeStorage';
 
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
@@ -13,7 +14,7 @@ const InstallPrompt: React.FC = () => {
 
     useEffect(() => {
         // Check if user has already dismissed the prompt
-        const isDismissed = localStorage.getItem('pwa-prompt-dismissed');
+        const isDismissed = storageGet('pwa-prompt-dismissed');
         if (isDismissed) return;
 
         const handler = (e: Event) => {
@@ -46,7 +47,7 @@ const InstallPrompt: React.FC = () => {
     const handleDismiss = () => {
         setShowPrompt(false);
         // Remember dismissal for this session/browser
-        localStorage.setItem('pwa-prompt-dismissed', 'true');
+        storageSet('pwa-prompt-dismissed', 'true');
     };
 
     return (

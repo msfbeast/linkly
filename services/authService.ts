@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './storage/supabaseClient';
 import { Session, User as SupabaseUser, AuthError } from '@supabase/supabase-js';
 import { supabaseAdapter } from './storage/supabaseAdapter';
+import { storageRemove, storageSet } from '../utils/safeStorage';
 
 /**
  * User interface for the application
@@ -267,9 +268,9 @@ export const authService = {
     // The rememberMe flag can be used to clear session on browser close if false
     if (data.session && !rememberMe) {
       // Store a flag to indicate session should be cleared on browser close
-      sessionStorage.setItem('gather_session_temp', 'true');
+      storageSet('gather_session_temp', 'true', 'session');
     } else {
-      sessionStorage.removeItem('gather_session_temp');
+      storageRemove('gather_session_temp', 'session');
     }
 
     // Return user immediately - profile will be fetched in background
@@ -353,7 +354,7 @@ export const authService = {
     }
 
     await supabase.auth.signOut(everywhere ? { scope: 'global' } : undefined);
-    sessionStorage.removeItem('gather_session_temp');
+    storageRemove('gather_session_temp', 'session');
   },
 
   /**

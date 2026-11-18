@@ -4,6 +4,7 @@ import { authService, User, AuthResult, toAuthResult } from '../services/authSer
 import { validatePassword } from '../services/passwordValidation';
 import { supabase } from '../services/storage/supabaseClient';
 import { emailService } from '../services/emailService';
+import { storageGet, storageSet } from '../utils/safeStorage';
 
 /**
  * Auth Context Type
@@ -48,13 +49,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function maybeSendWelcomeEmail(session: Session) {
   if (!session.user.email_confirmed_at) return;
   const key = `gather_welcome_email:${session.user.id}`;
-  try {
-    if (localStorage.getItem(key)) return;
-  } catch { /* storage unavailable: let the server dedupe */ }
+  if (storageGet(key)) return;
 
   emailService.sendWelcomeEmail().then(ok => {
     if (!ok) return;
-    try { localStorage.setItem(key, '1'); } catch { /* ignore */ }
+    storageSet(key, '1');
   });
 }
 

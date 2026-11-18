@@ -40,6 +40,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { storageGet, storageRemove } from '../utils/safeStorage';
 
 interface DashboardProps {
   externalModalOpen?: boolean;
@@ -106,7 +107,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     setError(null);
     try {
       // Check for pending link from landing page
-      const pendingLinkUrl = sessionStorage.getItem('pending_link_url');
+      const pendingLinkUrl = storageGet('pending_link_url', 'session');
       if (pendingLinkUrl) {
         try {
           const newLink: Omit<LinkData, 'id'> = {
@@ -123,7 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             () => supabaseAdapter.createLink(newLink),
             { maxRetries: 3, baseDelayMs: 1000 }
           );
-          sessionStorage.removeItem('pending_link_url');
+          storageRemove('pending_link_url', 'session');
         } catch (err) {
           console.error('Failed to create pending link:', err);
         }
