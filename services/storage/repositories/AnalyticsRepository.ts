@@ -146,72 +146,6 @@ export class AnalyticsRepository extends BaseRepository {
         return data;
     }
 
-    async getPlatformStats(): Promise<{
-        totalUsers: number;
-        activeSubscriptions: number;
-        totalRevenue: number;
-        totalLinks: number;
-        userGrowth: number; // Percentage
-        linkGrowth: number; // Percentage
-        systemHealth: number; // 0-100
-    }> {
-        if (!this.isConfigured()) return {
-            totalUsers: 0, activeSubscriptions: 0, totalRevenue: 0, totalLinks: 0, userGrowth: 0, linkGrowth: 0, systemHealth: 0
-        };
-
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
-        const startOfMonthISO = startOfMonth.toISOString();
-
-        // Parallel requests for performance
-        const [
-            { count: totalUsers, error: usersError },
-            { count: activeSubs, error: subsError },
-            { count: totalLinks, error: linksError },
-            { data: revenueProfiles },
-            { count: newUsers, error: newUsersError },
-            { count: newLinks, error: newLinksError }
-        ] = await Promise.all([
-            this.supabase!.from('profiles').select('*', { count: 'exact', head: true }),
-            this.supabase!.from('profiles').select('*', { count: 'exact', head: true }).eq('subscription_status', 'active'),
-            this.supabase!.from('links').select('*', { count: 'exact', head: true }),
-            this.supabase!.from('profiles').select('subscription_tier').eq('subscription_status', 'active'),
-            this.supabase!.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonthISO), // created_at might not exist on profiles, usually on auth.users but profiles triggers? Assuming updated_at or similar or using auth join which is hard. Use specific table field if available.
-            this.supabase!.from('links').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonthISO)
-        ]);
-
-        // Revenue Calculation (Estimate)
-        const PRICES = { 'free': 0, 'pro': 12, 'business': 49 };
-        let totalRevenue = 0;
-        revenueProfiles?.forEach((p: any) => {
-            const tier = p.subscription_tier as keyof typeof PRICES;
-            if (PRICES[tier]) totalRevenue += PRICES[tier];
-        });
-
-        // Growth Calculation (Simple Month-to-Date approximation)
-        // If we want accurate "vs last month", we need last month's data. 
-        // For MVP "Placeholder replacement", current month *pro-rated* or just count is better than static.
-        // We returns raw counts of new users/links as "growth" for now or calculate % if we had totals.
-        // Let's return raw numbers or percentages relative to total.
-        const userGrowth = totalUsers ? ((newUsers || 0) / totalUsers) * 100 : 0;
-        const linkGrowth = totalLinks ? ((newLinks || 0) / totalLinks) * 100 : 0;
-
-        // System Health
-        // If we got here, DB is reachable.
-        const systemHealth = (!usersError && !linksError) ? 100 : 50;
-
-        return {
-            totalUsers: totalUsers || 0,
-            activeSubscriptions: activeSubs || 0,
-            totalRevenue,
-            totalLinks: totalLinks || 0,
-            userGrowth,
-            linkGrowth,
-            systemHealth
-        };
-    }
-
     /**
      * Every click on the given links, with the columns the CSV export writes.
      *
@@ -269,14 +203,5 @@ export class AnalyticsRepository extends BaseRepository {
             for (let id = queue.shift(); id; id = queue.shift()) await exportLink(id);
         }));
         return all;
-    }
-
-    async runAggregation(): Promise<void> {
-        if (!this.isConfigured()) return;
-        const { error } = await this.supabase!.rpc('aggregate_daily_stats');
-        if (error) {
-            console.error('Aggregation failed:', error);
-            throw error;
-        }
     }
 }
