@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { storageGet, storageSet } from '../utils/safeStorage';
 
 const CookieConsent: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        // Check localStorage
-        const consented = localStorage.getItem('gather_cookie_consent');
+        const consented = storageGet('gather_cookie_consent');
         if (!consented) {
             // Small delay for better UX
             const timer = setTimeout(() => setIsVisible(true), 1000);
@@ -16,7 +16,7 @@ const CookieConsent: React.FC = () => {
     }, []);
 
     const handleAccept = () => {
-        localStorage.setItem('gather_cookie_consent', 'true');
+        storageSet('gather_cookie_consent', 'true');
         setIsVisible(false);
     };
 

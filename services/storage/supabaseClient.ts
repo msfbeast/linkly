@@ -1,4 +1,25 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, navigatorLock, processLock, SupabaseClient } from '@supabase/supabase-js';
+
+type LockFn = <R>(name: string, acquireTimeout: number, fn: () => Promise<R>) => Promise<R>;
+
+/**
+ * The auth client serialises session access with the Web Locks API. Some
+ * in-app browsers expose navigator.locks but deny it ("Access to the Locks
+ * API is denied in this context"), which made every request fail, including
+ * the redirect page's link lookup. Fall back to an in-page lock then.
+ */
+export const safeLock: LockFn = async (name, acquireTimeout, fn) => {
+  let started = false;
+  const run = () => { started = true; return fn(); };
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    try {
+      return await navigatorLock(name, acquireTimeout, run);
+    } catch (err) {
+      if (started || (err as { name?: string } | null)?.name !== 'SecurityError') throw err;
+    }
+  }
+  return processLock(name, acquireTimeout, run);
+};
 
 /**
  * Supabase client configuration
@@ -36,6 +57,7 @@ export const supabase: SupabaseClient | null = hasValidConfig
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        lock: safeLock,
       },
     }
   )
