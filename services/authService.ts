@@ -71,6 +71,8 @@ export interface AuthResponse {
 export interface AuthResult {
   success: boolean;
   error?: string;
+  /** Sign-up only: the account exists but has no session until the email is confirmed. */
+  needsEmailConfirmation?: boolean;
 }
 
 /**
