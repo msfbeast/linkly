@@ -28,7 +28,7 @@ describe('legal pages', () => {
     it('privacy says IP addresses are hashed, not stored, and how to delete an account', () => {
         renderAt(<Privacy />);
         expect(screen.getByText(/We don't store your IP address/)).toBeInTheDocument();
-        expect(screen.getByText(/to delete your account and everything in it/)).toBeInTheDocument();
+        expect(screen.getByText(/delete your account and everything in it from Settings/)).toBeInTheDocument();
     });
 
     it('cookies makes no advertising claim', () => {
