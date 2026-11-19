@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Camera, Loader2, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import DomainManager from '../components/DomainManager';
+import DeleteAccount from '../components/settings/DeleteAccount';
 import { Label, Tile } from '../components/ui/bento';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
@@ -255,7 +256,7 @@ const Settings: React.FC = () => {
                     <Tile className="flex flex-col lg:col-span-6">
                         <Label>Sign out</Label>
                         <p className="text-[13px] text-[#8C8981]">
-                            Signing out everywhere ends every session, on phones and other browsers too. To delete your account, email {SUPPORT_EMAIL}.
+                            Signing out everywhere ends every session, on phones and other browsers too.
                         </p>
                         <div className="mt-auto flex flex-wrap gap-2 pt-4">
                             <button onClick={() => doSignOut(false)} disabled={signingOut !== null} className={secondaryButton}>
@@ -265,6 +266,12 @@ const Settings: React.FC = () => {
                                 {signingOut === 'everywhere' && <Loader2 className="h-4 w-4 animate-spin" />} Sign out everywhere
                             </button>
                         </div>
+                    </Tile>
+
+                    {/* Delete account */}
+                    <Tile className="flex flex-col lg:col-span-12">
+                        <Label>Delete account</Label>
+                        <DeleteAccount isPaid={!plan.upgrade} supportEmail={SUPPORT_EMAIL} />
                     </Tile>
                 </div>
 

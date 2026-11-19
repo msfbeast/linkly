@@ -67,7 +67,7 @@ const SECTIONS: LegalSection[] = [
     },
     {
         heading: 'Your rights',
-        body: <p>You can see and change your details in <Link to="/settings">Settings</Link>. To get a copy of your data, or to delete your account and everything in it, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the address on your account.</p>,
+        body: <p>You can see and change your details in <Link to="/settings">Settings</Link>. You can delete your account and everything in it from Settings. Accounts on a paid plan, and requests for a copy of your data, go to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the address on your account.</p>,
     },
     {
         heading: 'Retention',
