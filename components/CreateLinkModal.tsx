@@ -776,7 +776,8 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
             {mode === 'single' ? (
               <>
                 {/* Link Type Selector */}
-                {(FEATURES.MEDIA_GALLERY || linkType === 'gallery') && (<div className="mb-6">
+                {/* Gallery links can't be made any more; existing ones can still be edited or turned into redirects. */}
+                {editingLink?.type === 'gallery' && (<div className="mb-6">
                   <label className="mb-1.5 block text-[12px] text-[#8C8981]">Link Type</label>
                   <div className="flex gap-1 rounded-full bg-[#F0EEEA] p-1">
                     <button
@@ -1351,135 +1352,7 @@ const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose, onCr
                         />
                       </div>
 
-                      {/* A/B Testing — parked behind feature flag (utils/featureFlags.ts) */}
-                      {FEATURES.AB_TESTING && (
-                      <div className="pt-2 border-t border-[#E2DFD8]">
-                        <div className="flex items-center justify-between mb-4">
-                          <label className="flex items-center gap-1 text-[12px] text-[#8C8981]">
-                            <Split className="w-3 h-3" /> A/B Testing
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-stone-400 font-medium">{abTestEnabled ? 'Enabled' : 'Disabled'}</span>
-                            <button
-                              type="button"
-                              onClick={() => setAbTestEnabled(!abTestEnabled)}
-                              className={`w-10 h-5 rounded-full transition-colors relative ${abTestEnabled ? 'bg-amber-500' : 'bg-stone-200'}`}
-                            >
-                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${abTestEnabled ? 'left-6' : 'left-1'}`} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {abTestEnabled && (
-                          <div className="space-y-3 animate-fadeIn">
-                            <p className="text-xs text-stone-500 mb-2">
-                              Add variants to split traffic. Weights determine the percentage of traffic each URL receives.
-                            </p>
-
-                            {variants.map((variant, idx) => (
-                              <div key={idx} className="flex gap-2 items-center">
-                                <span className="text-xs font-bold text-stone-400 w-4">{String.fromCharCode(65 + idx)}</span>
-                                <input
-                                  type="url"
-                                  placeholder="https://variant-url.com"
-                                  className="flex-1 bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400"
-                                  value={variant.url}
-                                  onChange={e => {
-                                    const newVariants = [...variants];
-                                    newVariants[idx].url = e.target.value;
-                                    setVariants(newVariants);
-                                  }}
-                                />
-                                <div className="relative w-24">
-                                  <input
-                                    type="number"
-                                    placeholder="%"
-                                    min="0"
-                                    max="100"
-                                    className="w-full bg-[#FBFAF8] border border-transparent text-sm text-[#18181A] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5A14]/30 placeholder:text-stone-400 pr-8"
-                                    value={variant.weight}
-                                    onChange={e => {
-                                      const newVariants = [...variants];
-                                      newVariants[idx].weight = parseInt(e.target.value) || 0;
-                                      setVariants(newVariants);
-                                    }}
-                                  />
-                                  <span className="absolute right-3 top-3 text-stone-400 text-xs font-bold">%</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newVariants = variants.filter((_, i) => i !== idx);
-                                    setVariants(newVariants);
-                                  }}
-                                  className="text-stone-400 hover:text-red-500 p-3 hover:bg-red-50 rounded-xl transition-colors"
-                                >
-                                  <Trash className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ))}
-
-                            <button
-                              type="button"
-                              onClick={() => setVariants([...variants, { id: uuidv4(), url: '', weight: 50 }])}
-                              className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-4 py-2 rounded-lg font-bold transition-colors w-full flex items-center justify-center gap-2"
-                            >
-                              <Split className="w-3 h-3" /> Add Variant
-                            </button>
-
-                            {/* Traffic Distribution Visualizer */}
-                            <div className="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200">
-                              <div className="flex justify-between items-center mb-2">
-                                <h5 className="text-xs font-bold uppercase text-stone-500">Traffic Distribution</h5>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const count = variants.length + 1; // +1 for Original
-                                    const evenSplit = Math.floor(100 / count);
-                                    const newVariants = variants.map(v => ({ ...v, weight: evenSplit }));
-                                    setVariants(newVariants);
-                                  }}
-                                  className="text-[10px] text-amber-600 font-bold hover:underline"
-                                >
-                                  Balance Evenly
-                                </button>
-                              </div>
-
-                              <div className="h-4 bg-stone-200 rounded-full overflow-hidden flex w-full">
-                                {/* Variants Segments */}
-                                {variants.map((v, i) => (
-                                  <div
-                                    key={i}
-                                    style={{ width: `${v.weight}%` }}
-                                    className={`h-full ${['bg-amber-400', 'bg-blue-400', 'bg-green-400', 'bg-purple-400'][i % 4]} hover:opacity-90 transition-all`}
-                                    title={`Variant ${String.fromCharCode(65 + i)}: ${v.weight}%`}
-                                  />
-                                ))}
-                                {/* Original URL Segment (Remaining) */}
-                                <div
-                                  style={{ width: `${Math.max(0, 100 - variants.reduce((s, v) => s + v.weight, 0))}%` }}
-                                  className="h-full bg-slate-400 hover:opacity-90 transition-all pattern-diagonal-lines"
-                                  title={`Original URL (Control): ${Math.max(0, 100 - variants.reduce((s, v) => s + v.weight, 0))}%`}
-                                />
-                              </div>
-
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                <div className="flex items-center gap-1 text-[10px] text-stone-500">
-                                  <div className="w-2 h-2 rounded-full bg-slate-400" />
-                                  <span>Original ({Math.max(0, 100 - variants.reduce((s, v) => s + v.weight, 0))}%)</span>
-                                </div>
-                                {variants.map((v, i) => (
-                                  <div key={i} className="flex items-center gap-1 text-[10px] text-stone-500">
-                                    <div className={`w-2 h-2 rounded-full ${['bg-amber-400', 'bg-blue-400', 'bg-green-400', 'bg-purple-400'][i % 4]}`} />
-                                    <span>Var {String.fromCharCode(65 + i)} ({v.weight}%)</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      )}
+                      {/* A/B tests are no longer offered; an existing link's test is kept as it is when saving. */}
                     </div>
                   )}
 
