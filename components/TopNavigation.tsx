@@ -4,8 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ViewState } from '../types';
 import { usePermission } from '../hooks/usePermission';
-import { FEATURES } from '../utils/featureFlags';
-import TeamSwitcher from './TeamSwitcher';
 
 export type TabType = 'overview' | 'links' | 'analytics' | 'settings';
 
@@ -30,7 +28,6 @@ const NAV_ITEMS: { id: ViewState; label: string; tour?: string }[] = [
 
 /** Views that belong to a pill without being one (e.g. the add-product form). */
 const PARENT_VIEW: Partial<Record<ViewState, ViewState>> = {
-  [ViewState.ADD_PRODUCT]: ViewState.PRODUCTS,
 };
 
 const TopNavigation: React.FC<TopNavigationProps> = ({
@@ -112,8 +109,6 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           </span>
           <span className="hidden text-[17px] font-semibold tracking-tight text-[#18181A] sm:block">Gather</span>
         </button>
-
-        {FEATURES.TEAMS && <div className="hidden w-48 lg:block"><TeamSwitcher /></div>}
 
         {/* Section pills (desktop) */}
         <div className="hidden flex-1 justify-center md:flex">{pills}</div>

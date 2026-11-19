@@ -6,7 +6,6 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import OrdersList from '../app/components/OrdersList';
 import { BioProfile, Product } from '../types';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,7 +14,6 @@ import { MAX_BULK_URLS, parseUrlList, sortProducts } from '../utils/productList'
 import { productCategories, storeLook } from '../utils/storePage';
 import { formatPrice } from '../utils/formatPrice';
 import { safeWebUrl } from '../utils/safeUrl';
-import { FEATURES } from '../utils/featureFlags';
 import { aggregatedAnalytics, ProductAnalytics } from '../services/aggregatedAnalyticsService';
 import ProductStats, { ProductStatRange } from '../components/dashboard/ProductStats';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -56,7 +54,7 @@ const ProductManager: React.FC = () => {
                 supabaseAdapter.getProducts(user.id),
                 supabaseAdapter.getBioProfile(user.id).catch(() => null),
             ]);
-            setProducts(sortProducts(FEATURES.DIGITAL_PRODUCTS ? list : list.filter(p => p.type !== 'digital')));
+            setProducts(sortProducts(list.filter(p => p.type !== 'digital'))); // digital products aren't offered any more
             setBioProfile(profile);
         } catch (err) {
             console.error('Error loading products:', err);
@@ -251,20 +249,7 @@ const ProductManager: React.FC = () => {
                     </ErrorBoundary>
                 )}
 
-                {FEATURES.DIGITAL_PRODUCTS && (
-                    <div role="tablist" className="flex gap-1.5">
-                        {(['products', 'orders'] as const).map(t => (
-                            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-                                className={`rounded-full px-4 py-2 text-[13px] font-medium capitalize ${tab === t ? 'bg-[#18181A] text-[#F2F1EE]' : 'bg-[#FBFAF8] text-[#6E6B65]'}`}>
-                                {t}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {tab === 'orders' && FEATURES.DIGITAL_PRODUCTS ? (
-                    <OrdersList sellerId={user?.id} products={products} />
-                ) : loading ? (
+                {loading ? (
                     <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-4" aria-busy="true">
                         {Array.from({ length: 8 }, (_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-3xl bg-[#FBFAF8]" />)}
                     </div>

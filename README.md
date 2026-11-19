@@ -88,12 +88,10 @@ cp .env.example .env.local   # then fill in the values (see below)
 
 ## Feature flags
 
-`utils/featureFlags.ts` holds features that are built but switched off. Set the variable to `"true"` to turn one on:
+`utils/featureFlags.ts` holds switches for optional features. Set the variable to `"true"` or `"false"`:
 
 | Flag | Default |
 | --- | --- |
-| `VITE_FEATURE_AGENCY` | off |
-| `VITE_FEATURE_AB_TESTING` | off |
 | `VITE_FEATURE_RAZORPAY` | on |
 
 ## Database

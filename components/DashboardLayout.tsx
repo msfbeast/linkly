@@ -11,10 +11,8 @@ import LinkAnalytics from '../pages/LinkAnalytics';
 import Settings from '../pages/Settings';
 import { TrialCountdown } from './TrialCountdown';
 import LoadingFallback from './LoadingFallback';
-import TeamSettings from './teams/TeamSettings';
 import { execute as retryExecute } from '../services/retryService';
 import { toast } from 'sonner';
-import { FEATURES } from '../utils/featureFlags';
 
 // Lazy Load Pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
@@ -24,8 +22,6 @@ const GlobalAnalytics = React.lazy(() => import('../pages/GlobalAnalytics'));
 const ProductManager = React.lazy(() => import('../pages/ProductManager'));
 const ApiPage = React.lazy(() => import('../pages/ApiPage'));
 const AffiliateManager = React.lazy(() => import('../pages/AffiliateManager'));
-const AgencyDashboard = React.lazy(() => import('../pages/AgencyDashboard'));
-const AddProduct = React.lazy(() => import('../pages/AddProduct'));
 
 const DashboardLayout: React.FC = () => {
     const { currentTeam } = useTeam();
@@ -34,16 +30,13 @@ const DashboardLayout: React.FC = () => {
     const location = useLocation(); // Added useLocation hook
     const [view, setView] = useState<ViewState>(() => {
         const path = window.location.pathname;
-        if (FEATURES.TEAMS && path.includes('/team/settings')) return ViewState.TEAM_SETTINGS;
         if (path.includes('/settings')) return ViewState.SETTINGS;
         if (path.includes('/analytics')) return ViewState.ANALYTICS;
-        if (path.includes('/products/add')) return ViewState.ADD_PRODUCT;
         if (path.includes('/products')) return ViewState.PRODUCTS;
         if (path.includes('/affiliate')) return ViewState.AFFILIATE;
         if (path.includes('/api')) return ViewState.API;
         if (path.includes('/bio')) return ViewState.BIO_PAGES;
         if (path.includes('/links')) return ViewState.LINKS;
-        if (path.includes('/agency')) return ViewState.AGENCY;
         return ViewState.DASHBOARD;
     });
     const [activeSidebarItem, setActiveSidebarItem] = useState<string>('dashboard');
@@ -82,27 +75,15 @@ const DashboardLayout: React.FC = () => {
         const path = location.pathname;
 
 
-        if (FEATURES.TEAMS && path.includes('/team/settings')) {
-            setView(ViewState.TEAM_SETTINGS);
-            setActiveSidebarItem('settings');
-        } else if (path.includes('/products/add')) {
-            setView(ViewState.ADD_PRODUCT);
-            setActiveSidebarItem('products');
-        } else if (path.includes('/products')) {
+        if (path.includes('/products')) {
             setView(ViewState.PRODUCTS);
             setActiveSidebarItem('products');
         } else if (path.includes('/analytics')) {
             setView(ViewState.ANALYTICS);
             setActiveSidebarItem('analytics');
-        } else if (path.includes('/products')) {
-            setView(ViewState.PRODUCTS);
-            setActiveSidebarItem('products');
         } else if (path.includes('/affiliate')) {
             setView(ViewState.AFFILIATE);
             setActiveSidebarItem('affiliate');
-        } else if (path.includes('/agency')) {
-            setView(ViewState.AGENCY);
-            setActiveSidebarItem('agency');
         } else if (path === '/dashboard' || path === '/') {
             setView(ViewState.DASHBOARD);
             setActiveSidebarItem('dashboard');
@@ -191,14 +172,8 @@ const DashboardLayout: React.FC = () => {
             case 'products':
                 setView(ViewState.PRODUCTS);
                 break;
-            case 'add_product':
-                setView(ViewState.ADD_PRODUCT);
-                break;
             case 'affiliate':
                 setView(ViewState.AFFILIATE);
-                break;
-            case 'agency':
-                setView(ViewState.AGENCY);
                 break;
         }
     };
@@ -270,12 +245,9 @@ const DashboardLayout: React.FC = () => {
             [ViewState.ANALYTICS]: '/analytics',
             [ViewState.SETTINGS]: '/settings',
             [ViewState.PRODUCTS]: '/dashboard/products',
-            [ViewState.ADD_PRODUCT]: '/dashboard/products/add',
             [ViewState.AFFILIATE]: '/affiliate',
             [ViewState.BIO_PAGES]: '/bio',
             [ViewState.API]: '/api-access',
-            [ViewState.TEAM_SETTINGS]: '/team/settings',
-            [ViewState.AGENCY]: '/agency'
         };
         if (pathMap[newView]) navigate(pathMap[newView]);
     };
@@ -313,11 +285,8 @@ const DashboardLayout: React.FC = () => {
                         {view === ViewState.API && <ApiPage />}
                         {view === ViewState.ANALYTICS && <GlobalAnalytics />}
                         {view === ViewState.PRODUCTS && <ProductManager />}
-                        {view === ViewState.ADD_PRODUCT && (FEATURES.DIGITAL_PRODUCTS ? <AddProduct /> : <ProductManager />)}
                         {view === ViewState.AFFILIATE && <AffiliateManager />}
-                        {view === ViewState.AGENCY && <AgencyDashboard />}
                         {view === ViewState.SETTINGS && <Settings />}
-                        {FEATURES.TEAMS && view === ViewState.TEAM_SETTINGS && <TeamSettings />}
                     </Suspense>
                 </main>
             </div>

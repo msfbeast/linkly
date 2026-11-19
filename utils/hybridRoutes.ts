@@ -18,7 +18,7 @@ export const HYBRID_APP_ROUTES = [
     '/store', '/product', '/team', '/report',
     // signed in
     '/dashboard', '/settings', '/links', '/bio', '/analytics', '/products',
-    '/affiliate', '/affiliate-manager', '/agency', '/api-access', '/admin',
+    '/affiliate', '/affiliate-manager', '/api-access', '/admin',
     // not pages, but never short codes
     '/api', '/assets',
 ];
