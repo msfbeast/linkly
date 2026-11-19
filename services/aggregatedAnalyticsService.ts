@@ -13,6 +13,17 @@ import { UserClickStats, CountryBreakdown, CityBreakdown, DeviceBreakdown, Refer
 import { rowToClickEvent } from './storage/mappers';
 import type { ClickEventRow } from './storage/mappers';
 
+/** Breakdowns over a date range (getUserBreakdowns). */
+export interface RangeBreakdowns {
+    countries: CountryBreakdown[];
+    cities: CityBreakdown[];
+    devices: DeviceBreakdown[];
+    oses: OsBreakdown[];
+    browsers: BrowserBreakdown[];
+    models: DeviceModelBreakdown[];
+    referrers: ReferrerBreakdown[];
+}
+
 export interface TopLink {
     id: string;
     title: string;
@@ -225,6 +236,33 @@ class AggregatedAnalyticsService {
             }));
         } catch {
             return [];
+        }
+    }
+
+    /**
+     * Countries, cities, devices, systems, browsers, phones and sources for
+     * the last `days` UTC days (get_user_breakdowns, from click_daily).
+     * Null when the call fails, e.g. before that migration is applied:
+     * callers fall back to the all-time breakdowns.
+     */
+    async getUserBreakdowns(days: number): Promise<RangeBreakdowns | null> {
+        if (!isSupabaseConfigured() || !supabase) return null;
+        try {
+            const { data, error } = await supabase.rpc('get_user_breakdowns', { p_days: days });
+            if (error || !data) return null;
+            const n = (v: unknown) => Number(v) || 0;
+            const d = data as Record<string, any[]>;
+            return {
+                countries: (d.countries || []).map(r => ({ country: r.country || 'Unknown', clickCount: n(r.clickCount) })),
+                cities: (d.cities || []).map(r => ({ city: r.city || 'Unknown', country: r.country || 'Unknown', clickCount: n(r.clickCount) })),
+                devices: (d.devices || []).map(r => ({ device: r.device || 'Unknown', clickCount: n(r.clickCount) })),
+                oses: (d.os || []).map(r => ({ os: r.os || 'Unknown', clickCount: n(r.clickCount) })),
+                browsers: (d.browsers || []).map(r => ({ browser: r.browser || 'Unknown', clickCount: n(r.clickCount) })),
+                models: (d.models || []).map(r => ({ deviceModel: r.model || 'Unknown', clickCount: n(r.clickCount) })),
+                referrers: (d.referrers || []).map(r => ({ referrer: r.referrer || 'Direct', clickCount: n(r.clickCount) })),
+            };
+        } catch {
+            return null;
         }
     }
 
