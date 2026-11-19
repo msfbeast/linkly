@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 const api = vi.hoisted(() => ({
     getUserClickStats: vi.fn(), getClicksOverTime: vi.fn(), getUserAnalyticsExtras: vi.fn(),
     getCountryBreakdown: vi.fn(), getCityBreakdown: vi.fn(), getDeviceBreakdown: vi.fn(), getOsBreakdown: vi.fn(),
-    getBrowserBreakdown: vi.fn(), getDeviceModelBreakdown: vi.fn(), getReferrerBreakdown: vi.fn(),
+    getBrowserBreakdown: vi.fn(), getDeviceModelBreakdown: vi.fn(), getReferrerBreakdown: vi.fn(), getUserBreakdowns: vi.fn(),
 }));
 const getLinks = vi.hoisted(() => vi.fn());
 vi.mock('../../services/aggregatedAnalyticsService', () => ({ aggregatedAnalytics: api }));
@@ -33,6 +33,7 @@ beforeEach(() => {
     api.getDeviceModelBreakdown.mockResolvedValue([{ deviceModel: 'Android (Other)', clickCount: 66 }]);
     api.getReferrerBreakdown.mockResolvedValue([{ referrer: 'YouTube', clickCount: 90 }, { referrer: 'Direct', clickCount: 10 }]);
     getLinks.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
+    api.getUserBreakdowns.mockResolvedValue(null);
 });
 
 describe('GlobalAnalytics', () => {
@@ -57,6 +58,26 @@ describe('GlobalAnalytics', () => {
         fireEvent.click(screen.getByRole('button', { name: '30 days' }));
         expect(await screen.findByText('Clicks · last 30 days')).toBeTruthy();
         expect(api.getClicksOverTime).toHaveBeenLastCalledWith('u1', 30);
+    });
+
+    it('labels breakdowns all time when range breakdowns aren\'t available', async () => {
+        render(<GlobalAnalytics />);
+        await screen.findByText('Clicks · last 7 days');
+        expect(screen.getAllByText('all time').length).toBeGreaterThanOrEqual(4);
+        expect(screen.queryByText('last 7 days')).toBeNull();
+    });
+
+    it('shows breakdowns for the selected range when available', async () => {
+        api.getUserBreakdowns.mockResolvedValue({
+            countries: [{ country: 'US', clickCount: 30 }], cities: [], devices: [{ device: 'Desktop', clickCount: 40 }],
+            oses: [], browsers: [{ browser: 'Safari', clickCount: 40 }], models: [], referrers: [{ referrer: 'Instagram', clickCount: 40 }],
+        });
+        render(<GlobalAnalytics />);
+        await screen.findByText('Clicks · last 7 days');
+        expect(api.getUserBreakdowns).toHaveBeenCalledWith(7);
+        expect(screen.getAllByText('last 7 days').length).toBe(4);
+        expect(screen.getByText('Safari')).toBeTruthy();
+        expect(screen.queryByText('Chrome')).toBeNull(); // the all-time browser isn't shown
     });
 
     it('says when it can\'t load and retries', async () => {

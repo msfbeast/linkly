@@ -33,6 +33,8 @@ interface AnalyticsData {
   models: DeviceModelBreakdown[];
   referrers: ReferrerBreakdown[];
   linkCount: number;
+  /** Days the breakdowns cover, or 'all' when only all-time figures were available. */
+  breakdownScope: number | 'all';
 }
 
 /** Week-over-week change in percent, or null when there's no last week to compare with. */
@@ -100,7 +102,7 @@ const GlobalAnalytics: React.FC = () => {
     (async () => {
       try {
         const id = user.id;
-        const [stats, daily, extras, countries, cities, devices, oses, browsers, models, referrers, links] = await Promise.all([
+        const [stats, daily, extras, countries, cities, devices, oses, browsers, models, referrers, links, ranged] = await Promise.all([
           aggregatedAnalytics.getUserClickStats(id),
           aggregatedAnalytics.getClicksOverTime(id, range),
           aggregatedAnalytics.getUserAnalyticsExtras(range, VIEWER_TIME_ZONE),
@@ -112,12 +114,14 @@ const GlobalAnalytics: React.FC = () => {
           aggregatedAnalytics.getDeviceModelBreakdown(id),
           aggregatedAnalytics.getReferrerBreakdown(id),
           supabaseAdapter.getLinks(null, { includeAnalytics: false }),
+          // Breakdowns for the selected range; all time is the fallback if this fails.
+          aggregatedAnalytics.getUserBreakdowns(range),
         ]);
         if (cancelled) return;
         // The service returns null instead of throwing when the database calls fail.
         if (!stats && !extras) { setFailed(true); return; }
         {
-          setData({ stats, daily, extras, countries, cities, devices, oses, browsers, models, referrers, linkCount: links.length });
+          setData({ stats, daily, extras, countries, cities, devices, oses, browsers, models, referrers, linkCount: links.length, breakdownScope: 'all', ...(ranged ? { ...ranged, breakdownScope: range } : {}) });
         }
       } catch (err) {
         console.error('[Analytics] load failed:', err);
@@ -196,6 +200,8 @@ const GlobalAnalytics: React.FC = () => {
     const osTotal = data.oses.reduce((s, d) => s + d.clickCount, 0);
     const sources = groupSources(data.referrers.map(r => ({ name: r.referrer, value: r.clickCount })));
     const recent = extras?.recent ?? [];
+    const scopeLabel = data.breakdownScope === 'all' ? 'all time' : `last ${data.breakdownScope} days`;
+    const scopeTotal = data.breakdownScope === 'all' ? allTime : rangeTotal;
 
     body = (
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
@@ -262,10 +268,10 @@ const GlobalAnalytics: React.FC = () => {
                 <button key={key} onClick={() => setPlaceTab(key)} aria-pressed={placeTab === key}
                   className={`rounded-full px-2.5 py-1 text-xs ${placeTab === key ? 'bg-[#18181A] text-white' : 'text-[#8C8981] hover:text-[#18181A]'}`}>{name}</button>
               ))}
-              <MonoPill>all time</MonoPill>
+              <MonoPill>{scopeLabel}</MonoPill>
             </span>
           }>Where they are</Label>
-          {placeRows.length ? <ShareBars rows={placeRows} total={allTime} showCount={placeTab === 'cities'} /> : <p className="text-sm text-[#8C8981]">No location data yet.</p>}
+          {placeRows.length ? <ShareBars rows={placeRows} total={scopeTotal} showCount={placeTab === 'cities'} /> : <p className="text-sm text-[#8C8981]">No location data yet.</p>}
         </Tile>
 
         {/* Latest clicks */}
@@ -308,13 +314,13 @@ const GlobalAnalytics: React.FC = () => {
 
         {/* Sources */}
         <Tile className="lg:col-span-4">
-          <Label right={<MonoPill>all time</MonoPill>}>Where clicks come from</Label>
+          <Label right={<MonoPill>{scopeLabel}</MonoPill>}>Where clicks come from</Label>
           <SourceShare sources={sources} />
         </Tile>
 
         {/* Devices & systems */}
         <Tile className="lg:col-span-4">
-          <Label right={<MonoPill>all time</MonoPill>}>Devices &amp; systems</Label>
+          <Label right={<MonoPill>{scopeLabel}</MonoPill>}>Devices &amp; systems</Label>
           {data.devices.filter(d => d.device !== 'Unknown').slice(0, 3).map(d => (
             <DotMeter key={d.device} label={d.device} percent={share(d.clickCount, deviceTotal)} />
           ))}
@@ -327,7 +333,7 @@ const GlobalAnalytics: React.FC = () => {
 
         {/* Browsers and phones */}
         <Tile className="lg:col-span-8">
-          <Label right={<MonoPill>all time</MonoPill>}>Browsers and phones</Label>
+          <Label right={<MonoPill>{scopeLabel}</MonoPill>}>Browsers and phones</Label>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
             {[
               { title: 'Browsers', rows: data.browsers.slice(0, 6).map(b => ({ name: b.browser, value: b.clickCount })) },

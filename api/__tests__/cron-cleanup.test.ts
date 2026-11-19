@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-const { kvDel, deleted, prunedErrors } = vi.hoisted(() => ({ kvDel: vi.fn(), deleted: { rows: [] as { short_code: string }[] }, prunedErrors: { calls: 0 } }));
+const { kvDel, deleted, pruned } = vi.hoisted(() => ({ kvDel: vi.fn(), deleted: { rows: [] as { short_code: string }[] }, pruned: { tables: [] as string[] } }));
 vi.mock('@vercel/kv', () => ({ kv: { del: kvDel } }));
 vi.mock('@supabase/supabase-js', () => ({
     createClient: () => ({
-        from: () => ({
+        from: (table: string) => ({
             delete: () => ({
                 eq: () => ({ lt: () => ({ select: async () => ({ data: deleted.rows, error: null }) }) }),
-                lt: async () => { prunedErrors.calls++; return { error: null }; }, // error_log prune
+                lt: async () => { pruned.tables.push(table); return { error: null }; }, // error_log and click_daily prunes
             }),
         }),
     }),
@@ -40,6 +40,6 @@ describe('/api/cron/cleanup', () => {
         expect(res.status).toBe(200);
         expect((await res.json()).deleted_count).toBe(2);
         expect(kvDel).toHaveBeenCalledWith('gather:link:g1', 'gather:link:g2');
-        expect(prunedErrors.calls).toBe(1);
+        expect(pruned.tables).toEqual(['error_log', 'click_daily']);
     });
 });

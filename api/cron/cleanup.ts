@@ -54,6 +54,11 @@ export default async function handler(request: Request): Promise<Response> {
             .lt('last_seen', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
         if (pruneError) console.error('Cleanup: error_log prune failed:', pruneError);
 
+        // Daily click breakdowns are kept for 100 days (Analytics shows up to 90).
+        const dailyCutoff = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const { error: dailyError } = await supabase.from('click_daily').delete().lt('day', dailyCutoff);
+        if (dailyError) console.error('Cleanup: click_daily prune failed:', dailyError);
+
         return json({
             success: true,
             deleted_count: count,
