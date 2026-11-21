@@ -44,6 +44,16 @@ const isServer = typeof window === 'undefined';
 const isSupabaseConfigured = () => !!supabase;
 
 import { emailService } from '../emailService';
+import { announceLinkLimit, isLinkLimitError, LinkLimitError } from '../../utils/linkLimit';
+
+/** Turns the database's free-plan limit error into LinkLimitError and opens the upgrade prompt. */
+function rethrowLinkLimit(err: unknown): never {
+  if (isLinkLimitError(err)) {
+    announceLinkLimit();
+    throw new LinkLimitError();
+  }
+  throw err;
+}
 
 export class SupabaseAdapter {
   private linkRepo: LinkRepository;
@@ -177,13 +187,13 @@ export class SupabaseAdapter {
   }
 
   async createLink(link: Omit<LinkData, 'id'> & { id?: string }): Promise<LinkData & { _isExisting?: boolean }> {
-    const createdLink = await this.linkRepo.createLink(link);
+    const createdLink = await this.linkRepo.createLink(link).catch(rethrowLinkLimit);
     await this.syncLinkToKv(createdLink);
     return createdLink;
   }
 
   async bulkCreateLinks(links: Omit<LinkData, 'id' | 'createdAt' | 'clicks' | 'clickHistory'>[]): Promise<LinkData[]> {
-    const createdLinks = await this.linkRepo.bulkCreateLinks(links);
+    const createdLinks = await this.linkRepo.bulkCreateLinks(links).catch(rethrowLinkLimit);
     await Promise.allSettled(createdLinks.map(l => this.syncLinkToKv(l)));
     return createdLinks;
   }

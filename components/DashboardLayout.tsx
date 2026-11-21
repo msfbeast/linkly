@@ -7,6 +7,8 @@ import { useTeam } from '../contexts/TeamContext';
 import { supabaseAdapter } from '../services/storage/supabaseAdapter';
 import { aggregatedAnalytics } from '../services/aggregatedAnalyticsService';
 import CreateLinkModal from './CreateLinkModal';
+import { UpgradeModal } from './UpgradeModal';
+import { LINK_LIMIT_EVENT } from '../utils/linkLimit';
 import LinkAnalytics from '../pages/LinkAnalytics';
 import Settings from '../pages/Settings';
 import { TrialCountdown } from './TrialCountdown';
@@ -45,6 +47,14 @@ const DashboardLayout: React.FC = () => {
     const [links, setLinks] = useState<LinkData[]>([]);
     const [clickChange, setClickChange] = useState(0);
     const [showShortcuts, setShowShortcuts] = useState(false);
+    const [showUpgrade, setShowUpgrade] = useState(false);
+
+    // Any page that hits the free link limit opens the upgrade prompt here.
+    useEffect(() => {
+        const open = () => { setIsModalOpen(false); setShowUpgrade(true); };
+        window.addEventListener(LINK_LIMIT_EVENT, open);
+        return () => window.removeEventListener(LINK_LIMIT_EVENT, open);
+    }, []);
 
     // Load real links from Supabase
     useEffect(() => {
@@ -325,6 +335,8 @@ const DashboardLayout: React.FC = () => {
                     </div>
                 </div>
             )}
+            <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
+
             {/* Global Create Link Modal */}
             <CreateLinkModal
                 isOpen={isModalOpen}

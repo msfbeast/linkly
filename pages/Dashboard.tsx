@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTeam } from '../contexts/TeamContext'; // Added in Step 2, ensuring it's here
 import CreateLinkModal from '../components/CreateLinkModal';
 import { TagManager } from '../components/TagManager';
-import { UpgradeModal } from '../components/UpgradeModal';
+import { announceLinkLimit } from '../utils/linkLimit';
 import QuickLinkInput from '../components/QuickLinkInput';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
@@ -64,8 +64,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [isExporting, setIsExporting] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeTrigger, setUpgradeTrigger] = useState<'limit_reached' | 'custom_domain' | 'analytics' | 'general'>('general');
   const [filterStatus, setFilterStatus] = useState<'active' | 'archived'>('active');
   const [totalClicks, setTotalClicks] = useState(0);
 
@@ -429,8 +427,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleQuickCreate = async (url: string) => {
     const isFreePlan = user?.preferences?.subscription_tier === 'free' || !user?.preferences?.subscription_tier;
     if (isFreePlan && links.length >= FREE_LINK_LIMIT) {
-      setUpgradeTrigger('limit_reached');
-      setIsUpgradeModalOpen(true);
+      announceLinkLimit();
       return;
     }
     try {
@@ -475,8 +472,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const linkCount = links.length;
 
     if (isFreePlan && linkCount >= FREE_LINK_LIMIT) {
-      setUpgradeTrigger('limit_reached');
-      setIsUpgradeModalOpen(true);
+      announceLinkLimit();
       return;
     }
 
@@ -523,12 +519,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         onClose={() => setIsTagManagerOpen(false)}
         userId={user?.id || ''}
         onTagsUpdate={loadLinks}
-      />
-
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        trigger={upgradeTrigger}
       />
 
       <div className="w-full">
