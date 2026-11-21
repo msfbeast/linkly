@@ -64,8 +64,8 @@ export async function execute<T>(
         lastError = error instanceof Error ? error : new Error(String(error));
       }
 
-      // If this was the last attempt, throw immediately
-      if (attempt === config.maxRetries) {
+      // If this was the last attempt, or the error won't go away on retry, throw now
+      if (attempt === config.maxRetries || (lastError as { permanent?: boolean }).permanent === true) {
         throw lastError;
       }
 
